@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.1 2008/06/17 08:08:29 casse Exp $
+ * $Id: irg.ml,v 1.2 2008/06/30 07:50:00 pascalie Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -30,7 +30,7 @@ type type_expr =
 	| FIX of int * int
 	| FLOAT of int * int
 	| RANGE of int32 * int32
-
+	| ENUM of int list 
 
 (** Use of a type *)
 type typ =
@@ -73,11 +73,12 @@ type const =
 	| CARD_CONST of Int32.t
 	| STRING_CONST of string
 	| FIXED_CONST of float
+	
 
 type expr =
 	  NONE
-	| COERCE of type_expr * expr
-	| FORMAT of string * expr list
+	| COERCE of type_expr * expr 
+	| FORMAT of string * expr list 
 	| CANON_EXPR of string * expr list
 	| REF of string
 	| FIELDOF of expr * string
@@ -126,7 +127,7 @@ type attr =
 (** Specification of an item *)
 type spec =
 	  UNDEF
-	| LET of string * const
+	| LET of string * const (* typed with construction *)
 	| TYPE of string * type_expr
 	| MEM of string * int * type_expr * mem_attr list
 	| REG of string * int * type_expr * mem_attr list
@@ -159,13 +160,15 @@ let get_symbol n =
 		UNDEF
 
 
-(** Add a symbol the namespace.
+(** Add a symbol to the namespace.
 	@param name	Name of the symbol to add.
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym = 
 	if StringHashtbl.mem syms name
+	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
+	(* add the symbol to the hashtable *)
 	else StringHashtbl.add syms name sym
 
 
@@ -185,7 +188,7 @@ let print_const cst =
 
 
 (** Print a type expression.
-	@param t	Type expressio to display. *)
+	@param t	Type expression to display. *)
 let print_type_expr t =
 	match t with
 	  NO_TYPE ->
@@ -387,7 +390,8 @@ let print_attr attr =
 	  	Printf.printf "\t%s = " id;
 		print_expr expr;
 		print_newline ()
-	| ATTR_STAT (id, stat) ->
+	| ATTR_STAT (id, stat) -> Printf.printf "%s = {" id ;
+				 (* (Printf.printf stat) ; *)
 		() 
 	| ATTR_USES ->
 		()
@@ -446,11 +450,22 @@ let print_spec spec =
 		end;
 		print_newline ();
 		List.iter print_attr attrs
-	| OR_MODE (name, modes) ->
+	| OR_MODE (name, modes) -> Printf.printf "mode %s = " name ;
+				   Printf.printf "%s" (List.hd modes);
+				   List.iter (fun a -> Printf.printf "| %s " a) (List.tl modes) ;
+				   Printf.printf "\n";
 		()
-	| AND_OP (name, pars, attrs) ->
+	| AND_OP (name, pars, attrs) -> Printf.printf "op %s (" name ;
+					
+					List.iter (fun a -> begin Printf.printf "%s :" (fst a); print_type (snd a); end) pars ;
+					Printf.printf ")\n" ;
+					List.iter print_attr attrs ;
+					
 		()
-	| OR_OP (name, modes) ->
+	| OR_OP (name, modes) -> Printf.printf "op %s = " name ;
+				 Printf.printf "%s" (List.hd modes);
+				 List.iter (fun a -> Printf.printf "| %s " a) (List.tl modes) ;
+				 Printf.printf "\n";
 		()
 	| _ ->
 		assert false

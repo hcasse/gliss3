@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.1 2008/06/17 08:08:30 casse Exp $
+ * $Id: sem.ml,v 1.2 2008/06/30 07:50:00 pascalie Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,7 +20,7 @@
  *)
 
 open Irg
-
+(*#use "irg.ml" *)
 exception SemError of string
 exception ManyDefaultsInSwitch
 
@@ -264,7 +264,7 @@ and eval_const expr =
 		(match get_symbol id with
 		  LET (_, cst) -> cst
 		| _ -> raise (SemError "this expression should be constant")) 
-	| _ ->
+	| _ -> 
 		raise (SemError "this expression should be constant")
 
 
@@ -300,3 +300,57 @@ let check_constant_type t c =
 		((Int32.compare v l) >= 0) && ((Int32.compare v u) <= 0)
 	| _ ->
 		false
+
+
+(** Give the size of a memory location
+   @author PJ
+   @param  loc		a memory location
+   @return  the number of bit available of the location
+*)
+let rec  get_location_size loc = 
+	match loc with
+	  LOC_REF id -> (match Irg.get_symbol id with
+			UNDEF -> raise (SemError (Printf.sprintf "get_location_size : undeclared memory location :\"%s\"" id))
+			|MEM(s,i,t,_)|REG(s,i,t,_)|VAR(s,i,t) ->( match t with
+								 NO_TYPE |RANGE _ -> 8  (* maybe à modifier *)
+								|INT t|CARD t -> t
+								|FIX(n,l)|FLOAT(n,l) -> n+l
+								| _ -> raise SemError "unexpected type"  )
+			| _ ->raise (SemError (Printf.sprintf "get_location_size : identifier is not a memory location reference :\"%s\"" id)))
+
+	| LOC_ITEMOF (loc,_) -> (get_location_size loc)
+	| LOC_BITFIELD (_,e1,e2) ->(match ((eval_const e2),(eval_const e1))with
+					 (CARD_CONST t,CARD_CONST v)-> (Int32.to_int t) - (Int32.to_int v)
+					|(FIXED_CONST t,FIXED_CONST v) -> (int_of_float t)-(int_of_float v)
+					|(CARD_CONST t,FIXED_CONST v) -> (Int32.to_int t)-(int_of_float v)
+					|(FIXED_CONST t,CARD_CONST v) -> (int_of_float t)- (Int32.to_int v)
+					|(STRING_CONST t,_)|(_,STRING_CONST t) -> raise (SemError (Printf.sprintf "get_location_size : uncompatible bitfield identifier :\"%s\"" t))
+					|(NULL,_)|(_,NULL)->raise (SemError " memory location untyped "))
+	| LOC_CONCAT (l1,l2) -> ((get_location_size l1)+(get_location_size l2))
+
+
+(** make the implicit conversion a to b in b op a)
+  @author PJ
+  @param loc		location 
+  @param expr_b		expression to cast
+  @ return           expr_b casted to loc
+*)
+
+nml_cast a b = 
+	match (a,b) with
+	  (INT k,CARD(n,m)) ->  n+m
+	| _ -> failwith
+
+
+(** Test if a float number respects the IEE754 specification
+    @param f          a nml float
+    @return   true if the float is an IEEE754 float, false otherwise
+    bit sign is first bit of the mantisse
+*)
+let is_IEEE754_float f = match f with
+	(FLOAT(m,e)) ->(match(m+e) with
+			 32 -> (e =8)&&(m=24) 
+			| 64 -> (e = 11)&&(m =53)
+			| 80 -> (e = 15)&&(m = 65)
+			| _  -> raise (SemError "float number doesn't follow IEEE754 specification "))
+	| _ -> raise SemError "function expect float number but parameter is not "

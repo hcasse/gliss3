@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.1 2008/06/17 08:08:30 casse Exp $
+ * $Id: parser.mly,v 1.2 2008/06/30 07:50:00 pascalie Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -87,29 +87,29 @@
 %%
 
 top:
-	specs EOF		{ }
+	specs EOF		{ print_string "Start Symbol reduced, end of recognition\n########################\n" }
 ;
 
 specs :
-		MachineSpec					{ }
-	|	specs MachineSpec	{ }
+		MachineSpec					{ print_string "specs -> MachineSpec \n"  }
+	|	specs MachineSpec	{ print_string "specs -> specs MachineSpec \n"  }
 ;
 
 MachineSpec :
-	LetDef 			{ Irg.add_symbol (fst $1) (snd $1) }
+	LetDef 			{ begin print_string "MachineSpec -> Letdef\n" ; Irg.add_symbol (fst $1) (snd $1) end }
 |   TypeSpec 		{ Irg.add_symbol (fst $1) (snd $1) }
 |   MemorySpec		{ Irg.add_symbol (fst $1) (snd $1) }
 |   RegisterSpec	{ Irg.add_symbol (fst $1) (snd $1) }
 |   VarSpec			{ Irg.add_symbol (fst $1) (snd $1) }
 |   ModeSpec		{ Irg.add_symbol (fst $1) (snd $1) }
-|   OpSpec			{ Irg.add_symbol (fst $1) (snd $1) }
+|   OpSpec			{  begin print_string "MachineSpec -> OpSpec\n" ;Irg.add_symbol (fst $1) (snd $1) end}
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 ;
 
 LetDef	:
 	LET ID EQ LetExpr
-		{ ($2, Irg.LET ($2, Sem.eval_const $4)) }
+		{ begin  print_string "Letdef -> LET ID = LetExpr\n" ; ($2(* ID *), Irg.LET ($2(* ID *), Sem.eval_const $4(* LetExpr *))) end }
 ;
 
 ResourceSpec:
@@ -171,7 +171,7 @@ TypeExpr:
 ;
 
 LetExpr:
-	Expr 	{ $1 }	
+	Expr 	{ begin print_string "LetExpr -> Expr\n" ;$1 end }	
 ;
 
 MemorySpec:
@@ -249,8 +249,8 @@ ModeSpec:
 ;
 
 OptionalModeExpr :
-	/* empty */								{ Irg.NONE }
-|	EQ Expr									{ $2 }
+	/* empty */	{ Irg.NONE }
+|	EQ Expr		{ $2 }
 ;
 
 OpSpec: 
@@ -498,7 +498,7 @@ Expr :
 |	FIXED_CONST
 		{ Irg.CONST (Irg.FIXED_CONST $1) }
 |	CARD_CONST
-		{ Irg.CONST (Irg.CARD_CONST $1) }
+		{ begin print_string "Expr -> CARD_CONST\n" ; Irg.CONST (Irg.CARD_CONST $1) end }
 |	STRING_CONST
 		{ Irg.CONST (Irg.STRING_CONST $1) }
 |	STRING_VALUE

@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.1 2008/06/17 08:08:29 casse Exp $
+ * $Id: lexer.mll,v 1.2 2008/06/30 07:50:00 pascalie Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -188,7 +188,7 @@ and eof_comment = parse
 (* comment *)
 and comment = parse
 	"*/"	{ main lexbuf }
-|	'\n'	{ incr line; main lexbuf }
+|	'\n'	{ incr line; (*main*)comment lexbuf }
 |	_		{ comment lexbuf }
 
 (* string recognition *)
