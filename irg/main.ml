@@ -13,6 +13,14 @@ let _ =
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr)
 	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error: %s " msg)
+		Lexer.display_error (Printf.sprintf "semantics error : %s" msg)
+	| Sem.SemErrorWithFun (msg, fn) ->
+		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
+		let old_out = Unix.dup Unix.stdout in
+		Unix.dup2 Unix.stderr Unix.stdout;
+		print_string "yahoo !\n";
+		fn ();
+		Unix.dup2 old_out Unix.stdout;
+		Unix.close old_out
 
 	

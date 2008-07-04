@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 2008/06/17 08:08:29 casse Exp $
+# $Id: Makefile,v 1.2 2008/07/04 09:47:12 jorquera Exp $
 include ../Makefile.head
 
 SOURCES = \
@@ -8,6 +8,7 @@ SOURCES = \
 	parser.mly \
 	main.ml
 
+OCAML_LIB += unix
 $(eval $(call ocaml_prog,irg,$(SOURCES)))
 
 include ../Makefile.tail

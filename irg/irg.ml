@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.2 2008/06/30 07:50:00 pascalie Exp $
+ * $Id: irg.ml,v 1.3 2008/07/04 09:47:12 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -30,6 +30,7 @@ type type_expr =
 	| FIX of int * int
 	| FLOAT of int * int
 	| RANGE of int32 * int32
+	| STRING
 	| ENUM of int list 
 
 (** Use of a type *)
@@ -79,18 +80,17 @@ type expr =
 	  NONE
 	| COERCE of type_expr * expr 
 	| FORMAT of string * expr list 
-	| CANON_EXPR of string * expr list
+	| CANON_EXPR of type_expr * string * expr list
 	| REF of string
-	| FIELDOF of expr * string
-	| ITEMOF of expr * expr
-	| BITFIELD of expr * expr * expr
-	| UNOP of unop * expr
-	| BINOP of binop * expr * expr
-	| IF_EXPR of expr * expr * expr
-	| SWITCH_EXPR of expr * (const * expr) list * expr
-	| CONST of const
+	| FIELDOF of type_expr * expr * string
+	| ITEMOF of type_expr * expr * expr
+	| BITFIELD of type_expr * expr * expr * expr
+	| UNOP of type_expr * unop * expr
+	| BINOP of type_expr * binop * expr * expr
+	| IF_EXPR of type_expr * expr * expr * expr
+	| SWITCH_EXPR of type_expr * expr * (const * expr) list * expr
+	| CONST of type_expr*const
 	
-
 (** Statements *)
 type location =
 	  LOC_REF of string
@@ -114,7 +114,7 @@ type stat =
 	| CANON_STAT of string * expr list
 	| ERROR of string
 	| IF_STAT of expr * stat * stat
-	| SWITCH_STAT of expr * (int * stat) list * stat
+	| SWITCH_STAT of expr * (Int32.t * stat) list * stat
 
 
 (** attribute specifications *)
@@ -138,6 +138,7 @@ type spec =
 	| OR_OP of string * string list
 	| RES of string
 	| EXN of string
+	| PARAM of string * typ
 
 
 (* Symbol table *)
@@ -172,6 +173,12 @@ let add_symbol name sym =
 	else StringHashtbl.add syms name sym
 
 
+let add_param (name,t) =
+	StringHashtbl.add syms name (PARAM (name,t))
+
+let empiler_param l =List.map add_param l;()
+
+let depiler_param l =List.map (StringHashtbl.remove syms) (List.map fst l);()
 
 (** Print a constant.
 	@param cst	Constant to display. *)
@@ -205,6 +212,12 @@ let print_type_expr t =
 		Printf.printf "float(%d, %d)" s f
 	| RANGE(l, u) ->
 		Printf.printf "[%s..%s]" (Int32.to_string l) (Int32.to_string u)
+	| STRING ->
+		print_string "string"
+	| ENUM l->
+		print_string "enum [";
+		List.map (fun i->(Printf.printf "%d," i)) l;
+		print_string "]\n"
 
 
 (** Print the unary operator.
@@ -214,7 +227,6 @@ let string_of_unop op =
 	  NOT		-> "!"
 	| BIN_NOT	-> "~"
 	| NEG		-> "-"
-
 
 (** Print a binary operator.
 	@param op	Operator to print. *)
@@ -268,34 +280,34 @@ let rec print_expr e =
 		print_string "\", ";
 		let _ = List.fold_left print_arg true args in
 		print_string ")"
-	| CANON_EXPR (n, args) ->
+	| CANON_EXPR (_, n, args) ->
 		print_string "\"";
 		print_string n;
 		print_string "\"(";
 		let _ = List.fold_left print_arg true args in
 		print_string ")"
-	| FIELDOF( e, n) ->
+	| FIELDOF(_, e, n) ->
 		print_expr e;
 		print_string ".";
 		print_string n
-	| REF (id) ->
+	| REF id ->
 		print_string id
-	| ITEMOF (e, idx) ->
+	| ITEMOF (_, e, idx) ->
 		print_expr e;
 		print_string "[";
 		print_expr idx;
 		print_string "]"
-	| BITFIELD (e, l, u) ->
+	| BITFIELD (_,e, l, u) ->
 		print_expr e;
-		print_string "[";
+		print_string "<";
 		print_expr l;
 		print_string "..";
 		print_expr u;
-		print_string "]"
-	| UNOP (op, e) ->
+		print_string ">"
+	| UNOP (_,op, e) ->
 		print_string (string_of_unop op);
 		print_expr e
-	| BINOP (op, e1, e2) ->
+	| BINOP (_,op, e1, e2) ->
 		print_string "(";
 		print_expr e1;
 		print_string ")";
@@ -303,7 +315,7 @@ let rec print_expr e =
 		print_string "(";
 		print_expr e2;
 		print_string ")"
-	| IF_EXPR (c, t, e) ->
+	| IF_EXPR (_,c, t, e) ->
 		print_string "if ";
 		print_expr c;
 		print_string " then ";
@@ -311,7 +323,7 @@ let rec print_expr e =
 		print_string " else ";
 		print_expr e;
 		print_string " endif"
-	| SWITCH_EXPR (c, cases, def) ->
+	| SWITCH_EXPR (_,c, cases, def) ->
 		print_string "switch(";
 		print_expr c;
 		print_string ")";
@@ -323,7 +335,7 @@ let rec print_expr e =
 			) cases;
 		print_string "default: ";
 		print_expr def
-	| CONST c ->
+	| CONST (_,c) ->
 		print_const c
 
 
@@ -349,6 +361,29 @@ let rec print_location loc =
 		print_location l1;
 		print_string "..";
 		print_location l2
+
+(** Print a statement
+	@param stat	Statement to print.*)
+let rec print_statement stat=
+	match stat with
+	  NOP -> print_string "\t\t <NOP>;\n"
+	| SEQ (stat1, stat2)->print_statement stat1; print_statement stat2
+	| EVAL ch-> Printf.printf "\t\t%s;\n" ch
+	| EVALIND (ch1, ch2)->Printf.printf "\t\t%s.%s;\n" ch1 ch2
+	| SET (loc, exp)->print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
+	| CANON_STAT (ch, expr_liste)-> Printf.printf "\t\t \"%s\"" ch; List.iter print_expr expr_liste ;print_string ";\n"
+	| ERROR ch->Printf.printf "\t\t error %s;\n" ch
+	| IF_STAT (exp,statT,statE)-> 	print_string "\t\t if "; print_expr exp;print_string "\n";
+					print_string "\t\t then \n\t"; print_statement statT;
+					print_string "\t\t else \n\t";print_statement statE;
+					print_string "\t\t endif;\n"
+	|SWITCH_STAT (exp,int_stat_liste,stat)->print_string "\t\t switch (";print_expr exp;print_string ") {\n";
+						List.iter (fun (v,s)->	Printf.printf "\t\t\t case %d : \n\t\t" (Int32.to_int v);
+									print_statement s) int_stat_liste;
+						print_string "\t\t\t default : \n\t\t";print_statement stat;
+						print_string "\t\t }; \n"
+						
+
 
 
 (** Print a memory attibute.
@@ -390,8 +425,10 @@ let print_attr attr =
 	  	Printf.printf "\t%s = " id;
 		print_expr expr;
 		print_newline ()
-	| ATTR_STAT (id, stat) -> Printf.printf "%s = {" id ;
-				 (* (Printf.printf stat) ; *)
+
+	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
+				  print_statement stat;
+				  Printf.printf "\t}\n";
 		() 
 	| ATTR_USES ->
 		()
@@ -449,23 +486,32 @@ let print_spec spec =
 			print_expr res
 		end;
 		print_newline ();
-		List.iter print_attr attrs
 	| OR_MODE (name, modes) -> Printf.printf "mode %s = " name ;
-				   Printf.printf "%s" (List.hd modes);
-				   List.iter (fun a -> Printf.printf "| %s " a) (List.tl modes) ;
+				   List.iter (fun a -> Printf.printf " %s | " a) (List.rev (List.tl modes)) ;
+				   Printf.printf "%s" (List.hd (modes));
 				   Printf.printf "\n";
 		()
 	| AND_OP (name, pars, attrs) -> Printf.printf "op %s (" name ;
-					
-					List.iter (fun a -> begin Printf.printf "%s :" (fst a); print_type (snd a); end) pars ;
-					Printf.printf ")\n" ;
-					List.iter print_attr attrs ;
-					
+					if (List.length pars)>0
+					then begin
+						List.iter (fun a -> begin 	Printf.printf "%s : " (fst a) ; 
+										print_type (snd a); 
+										Printf.printf ", ";
+								   end) (List.rev (List.tl pars));
+						Printf.printf "%s : " (fst (List.hd pars)); 
+						print_type (snd (List.hd pars));
+					end;
+					Printf.printf ")\n";
+					List.iter print_attr (List.rev attrs) ;
 		()
-	| OR_OP (name, modes) -> Printf.printf "op %s = " name ;
+	| OR_OP (name, modes) -> Printf.printf "op %s = " name ;		 
+				 List.iter (fun a -> Printf.printf " %s | " a) (List.rev (List.tl modes));
 				 Printf.printf "%s" (List.hd modes);
-				 List.iter (fun a -> Printf.printf "| %s " a) (List.tl modes) ;
 				 Printf.printf "\n";
+		()
+
+	| PARAM (name,t)->Printf.printf "param %s (" name;print_type t;print_string ")\n";
+
 		()
 	| _ ->
 		assert false

@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.2 2008/06/30 07:50:00 pascalie Exp $
+ * $Id: lexer.mll,v 1.3 2008/07/04 09:47:12 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -113,9 +113,9 @@ let newline	= ['\n']
 let decint	= digit +
 let binint	= '0' ['b' 'B'] ['0' '1']+
 let hexint	= '0' ['x' 'X'] hex+
-let flt1	= binint '.' binint
-let flt2	= binint ['e' 'E'] ['+' '-']? binint
-let flt3	= binint '.' binint ['e' 'E'] ['+' '-']? binint
+let flt1	= decint '.' decint
+let flt2	= decint ['e' 'E'] ['+' '-']? decint
+let flt3	= decint '.' decint ['e' 'E'] ['+' '-']? decint
 let flt		= flt1 | flt2 | flt3
 let id		= letter alpha*
 
@@ -132,7 +132,7 @@ rule main = parse
 |	decint as v { CARD_CONST (Int32.of_string v) } 
 |	hexint as v { CARD_CONST (Int32.of_string v) } 
 |	binint as v { CARD_CONST (Int32.of_string v) } 
-|	flt1 as v	{ FIXED_CONST (float_of_string v) }
+|	flt as v	{ FIXED_CONST (float_of_string v) }
 |	id as v		{ keyword v }
 |	">>>"       { gt lexbuf ROTATE_RIGHT 2 }
 |	"<<<"		{ ROTATE_LEFT }
@@ -188,6 +188,7 @@ and eof_comment = parse
 (* comment *)
 and comment = parse
 	"*/"	{ main lexbuf }
+
 |	'\n'	{ incr line; (*main*)comment lexbuf }
 |	_		{ comment lexbuf }
 
