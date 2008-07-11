@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.3 2008/07/04 09:47:13 jorquera Exp $
+ * $Id: parser.mly,v 1.4 2008/07/11 11:38:02 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -11,6 +11,7 @@
 
 %token<string>	ID
 %token<Int32.t>	CARD_CONST
+%token<Int64.t> CARD_CONST_64
 %token<float>	FIXED_CONST
 %token<string>	STRING_CONST
 %token<string> STRING_VALUE
@@ -91,22 +92,27 @@ top:
 ;
 
 specs :
-		MachineSpec					{ print_string "specs -> MachineSpec \n"  }
-	|	specs MachineSpec	{ print_string "specs -> specs MachineSpec \n"  }
+		MachineSpec					{  }
+	|	specs MachineSpec	{   }
 ;
 
 MachineSpec :
-	LetDef 			{ begin print_string "MachineSpec -> Letdef\n" ; Irg.add_symbol (fst $1) (snd $1) end }
+	LetDef 			{ Irg.add_symbol (fst $1) (snd $1)}
 |   TypeSpec 		{ Irg.add_symbol (fst $1) (snd $1) }
 |   MemorySpec		{ Irg.add_symbol (fst $1) (snd $1) }
 |   RegisterSpec	{ Irg.add_symbol (fst $1) (snd $1) }
 |   VarSpec			{ Irg.add_symbol (fst $1) (snd $1) }
-|   ModeSpec		{ Irg.add_symbol (fst $1) (snd $1);
+|   ModeSpec		{ (Irg.add_symbol (fst $1) (snd $1);
 
 			(* Remove parameters from the symbol table *)
 			match (snd $1) with
 				Irg.AND_MODE (_,l,_,_)->Irg.depiler_param l
-				|_-> ()
+				|_-> ());
+
+			(**)
+			Irg.print_spec (snd $1);
+			()
+			(**)
 
 			 }
 |   OpSpec			{ Irg.add_symbol (fst $1) (snd $1);
@@ -118,7 +124,6 @@ MachineSpec :
 
 					(**)
 					Irg.print_spec (snd $1);
-					Printf.printf "\nTaille : %d\n\n" (Irg.StringHashtbl.length Irg.syms);
 					()
 					(**)
 				}
@@ -128,7 +133,7 @@ MachineSpec :
 
 LetDef	:
 	LET ID EQ LetExpr
-		{ begin  print_string "Letdef -> LET ID = LetExpr\n" ; ($2(* ID *), Irg.LET ($2(* ID *), Sem.eval_const $4(* LetExpr *))) end }
+		{ ($2(* ID *), Irg.LET ($2(* ID *), Sem.eval_const $4(* LetExpr *))) }
 ;
 
 ResourceSpec:
@@ -158,7 +163,9 @@ IdentifierList:
 ;
 
 TypeSpec:
-	TYPE ID EQ TypeExpr			{ ($2, Irg.TYPE ($2, $4)) }
+	TYPE ID EQ TypeExpr	{ 	Irg.complete_incomplete_enum_poss $2;	(* needed for enums *)
+					($2, Irg.TYPE ($2, $4)) 
+				}
 ;
 
 TypeExpr:
@@ -167,7 +174,7 @@ TypeExpr:
 |	INT LPAREN LetExpr RPAREN
 		{ Irg.INT (Sem.to_int (Sem.eval_const $3)) }
 |	CARD LPAREN LetExpr RPAREN
-		{ Irg.INT (Sem.to_int (Sem.eval_const $3)) }
+		{ Irg.CARD (Sem.to_int (Sem.eval_const $3)) }
 |	FIX  LPAREN LetExpr COMMA LetExpr RPAREN
 		{ Irg.FIX (
 			Sem.to_int (Sem.eval_const $3),
@@ -192,15 +199,22 @@ TypeExpr:
 		 }
 |	ENUM LPAREN IdentifierList RPAREN
 		{
-			let i = List.fold_right (fun id i -> Irg.add_symbol id 
-				(Irg.LET (id, Irg.CARD_CONST (Int32.of_int i))); i + 1)
+			(*let i = List.fold_right (fun id i -> Irg.add_symbol id 
+				(Irg.ENUM_POSS (" ",(Int32.of_int i),false) ); i + 1)
 				$3 0 in
-			Irg.CARD (int_of_float (ceil ((log (float i)) /. (log 2.))))
+			Irg.CARD (int_of_float (ceil ((log (float i)) /. (log 2.))))*)
+
+			let rec temp l i= match l with
+				[]->()
+				|e::l-> Irg.add_symbol e (Irg.ENUM_POSS (" ",(Int32.of_int i),false)); temp l (i+1)
+			in
+			temp $3 0;
+			Irg.ENUM $3
 		}
 ;
 
 LetExpr:
-	Expr 	{ begin print_string "LetExpr -> Expr\n" ;$1 end }	
+	Expr 	{ $1 }	
 ;
 
 MemorySpec:
@@ -271,7 +285,7 @@ MemLocBase:
 ;
 
 ModeSpec:
-	MODE ID LPAREN EmpilerParam RPAREN OptionalModeExpr  AttrDefList
+	MODE ID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{ $2, Irg.AND_MODE ($2, $4, $6, $7) }
 |	MODE ID EQ Identifier_Or_List
 		{ $2, Irg.OR_MODE ($2, $4)  }
@@ -285,15 +299,12 @@ OptionalModeExpr :
 ;
 
 OpSpec: 
-	OP ID LPAREN EmpilerParam RPAREN AttrDefList
+	OP ID LPAREN ParamList RPAREN AttrDefList
 		{ $2, Irg.AND_OP ($2, $4, $6) }
 |	OP ID EQ Identifier_Or_List
 		{ $2, Irg.OR_OP ($2, $4) }
 		
 ;
-
-EmpilerParam :
-	ParamList {Irg.empiler_param $1;$1}
 
 Identifier_Or_List: 
 	ID								{ [$1] }
@@ -301,9 +312,9 @@ Identifier_Or_List:
 ;
 
 ParamList:
-	/* empty */						{ [] }
-|	ParamListPart					{ [$1] }
-|	ParamList COMMA ParamListPart	{ $3::$1 }
+	/* empty */			{ [] }
+|	ParamListPart			{Irg.add_param $1; [$1] }
+|	ParamList COMMA ParamListPart	{Irg.add_param $3; $3::$1 }
 ;
 
 ParamListPart: 
@@ -355,13 +366,13 @@ FormatId:
 	ID
 		{ Irg.REF $1 }
 |	ID DOT IMAGE
-		{ Irg.FIELDOF (Irg.NO_TYPE ,Irg.REF $1, "image") }		/* TYPE A CHANGER */
+		{ Irg.FIELDOF (Irg.STRING ,Irg.REF $1, "image") }		/* TYPE A CHANGER */
 |	ID DOT IMAGE BIT_LEFT CARD_CONST DOUBLE_DOT CARD_CONST BIT_RIGHT
-		{ Irg.BITFIELD (Irg.NO_TYPE,Irg.FIELDOF (Irg.NO_TYPE, Irg.REF $1, "image"), 	
+		{ Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, Irg.REF $1, "image"), 	
 			Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $5)),
 			Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $7))) }	/* TYPE A CHANGER */
 |	ID DOT SYNTAX
-		{ Irg.FIELDOF (Irg.NO_TYPE,Irg.REF $1, "syntax") }	/* TYPE A CHANGER */
+		{ Irg.FIELDOF (Irg.STRING,Irg.REF $1, "syntax") }	/* TYPE A CHANGER */
 /*|	DOLLAR PLUS ID
 		{ }*/
 ;
@@ -396,7 +407,11 @@ Statement:
 |	ID DOT ID
 		{ Irg.EVALIND ($1, $3) }
 |	Location EQ Expr
-		{ Irg.SET ($1, $3) }
+		{ 
+			if (Sem.is_setspe $1)
+				then Irg.SETSPE ($1,$3)
+				else Irg.SET ($1, $3) 
+		}
 |	ConditionalStatement
 		{ $1 }
 |	STRING_CONST LPAREN ArgList RPAREN
@@ -479,7 +494,7 @@ CaseList:
 	| CaseList CaseStat	{ $2::$1 };
 
 CaseStat:
-	CASE Expr COLON Sequence { ((Sem.to_int32 (Sem.eval_const $2)),$4) }
+	CASE Expr COLON Sequence { ($2,$4) }
 ;
 
 Default:	
@@ -497,7 +512,7 @@ Default:
 
 Expr :
 	COERCE LPAREN Type COMMA Expr RPAREN
-		{ Irg.NONE }
+		{ Irg.COERCE ($3,$5) }
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
 		{ Irg.NONE }
 |	STRING_CONST LPAREN ArgList RPAREN
@@ -511,9 +526,14 @@ Expr :
 |	Expr DOUBLE_COLON Expr
 		{ Irg.NONE }
 |	ID 
-		{ Irg.REF $1 }
+		{ 	if Irg.is_defined $1 
+				then Irg.REF $1
+				else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+	 	}
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT			/* A changer ? */
 		{ 	
+		try(
 			let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3))
 			and v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5))
 			in
@@ -521,8 +541,11 @@ Expr :
 			then
 				Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5)
 			else
-				(*raise (Sem.SemError "The second operand must be greater or equal to the first")*)
+				(*raise (Sem.SemError "The second operand must be greater or equal to the first")*) (* C'est faux on peut le faire *)
 				Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5)
+		)with Sem.SemError _ ->Irg.BITFIELD (Irg.CARD (-1),Irg.REF $1,$3, $5)	(* A changer *)
+
+
 		}
 |	ID LBRACK Expr RBRACK
 		{ Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3) }
@@ -668,6 +691,11 @@ Expr :
 			Irg.CONST (Irg.CARD c,Irg.CARD_CONST $1) 
 		}
 
+|	CARD_CONST_64
+		{
+			Irg.CONST (Irg.CARD 64,Irg.CARD_CONST_64 $1)
+		}
+
 |	STRING_CONST
 		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
 |	STRING_VALUE
@@ -699,9 +727,9 @@ Expr :
 		}
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
 		{
-			if (Sem.check_switch_expr $3 (fst $6) (snd $6))
-			then  Irg.SWITCH_EXPR (Irg.NO_TYPE,$3, fst $6, snd $6) 
-			else raise (Sem.SemError "Incorrect types for this functional switch")
+			
+			Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6) 
+
 		}	
 ;	
 
@@ -767,7 +795,7 @@ CaseExprList:
 ;
 
 CaseExprStat: 
-	CASE Expr COLON Expr { ((Sem.eval_const $2),$4) }
+	CASE Expr COLON Expr { ($2,$4) }
 ;
 
 ExprDefault:

@@ -5,7 +5,12 @@ let _ =
 	let lexbuf = Lexing.from_channel stdin in
 	try	
 		Parser.top Lexer.main lexbuf;
-		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms 
+		
+		(**)
+		(*print_string "Affichage resultat\n";
+		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms *)
+		(**)
+
 	with
 	  Parsing.Parse_error ->
 		Lexer.display_error "syntax error";
@@ -18,9 +23,10 @@ let _ =
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		let old_out = Unix.dup Unix.stdout in
 		Unix.dup2 Unix.stderr Unix.stdout;
-		print_string "yahoo !\n";
+		print_string "*****	Debut aff Erreur	*****\n";
 		fn ();
 		Unix.dup2 old_out Unix.stdout;
 		Unix.close old_out
-
-	
+	(**)
+	|Failure e->Lexer.display_error e;
+	(**)

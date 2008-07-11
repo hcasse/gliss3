@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.3 2008/07/04 09:47:12 jorquera Exp $
+ * $Id: irg.ml,v 1.4 2008/07/11 11:38:01 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -31,7 +31,7 @@ type type_expr =
 	| FLOAT of int * int
 	| RANGE of int32 * int32
 	| STRING
-	| ENUM of int list 
+	| ENUM of string list 
 
 (** Use of a type *)
 type typ =
@@ -72,9 +72,9 @@ type binop =
 type const =
 	  NULL
 	| CARD_CONST of Int32.t
+	| CARD_CONST_64 of Int64.t
 	| STRING_CONST of string
 	| FIXED_CONST of float
-	
 
 type expr =
 	  NONE
@@ -88,7 +88,7 @@ type expr =
 	| UNOP of type_expr * unop * expr
 	| BINOP of type_expr * binop * expr * expr
 	| IF_EXPR of type_expr * expr * expr * expr
-	| SWITCH_EXPR of type_expr * expr * (const * expr) list * expr
+	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr
 	| CONST of type_expr*const
 	
 (** Statements *)
@@ -114,8 +114,11 @@ type stat =
 	| CANON_STAT of string * expr list
 	| ERROR of string
 	| IF_STAT of expr * stat * stat
-	| SWITCH_STAT of expr * (Int32.t * stat) list * stat
-
+	| SWITCH_STAT of expr * (expr * stat) list * stat
+(* stats rajoutés *)
+	|SETSPE of location * expr	(* Used for allowing assigment of parameters (for exemple in predecode). 
+					   This is NOT in the nML standard and is only present for allowing 
+					   compatibility *) 
 
 (** attribute specifications *)
 type attr =
@@ -138,8 +141,9 @@ type spec =
 	| OR_OP of string * string list
 	| RES of string
 	| EXN of string
+(* spec ajoutées *)
 	| PARAM of string * typ
-
+	| ENUM_POSS of string*Int32.t*bool
 
 (* Symbol table *)
 module HashString =
@@ -173,12 +177,24 @@ let add_symbol name sym =
 	else StringHashtbl.add syms name sym
 
 
+let is_defined name =
+	try(
+		StringHashtbl.find syms name;
+		true
+	)with not_found->false
+
 let add_param (name,t) =
 	StringHashtbl.add syms name (PARAM (name,t))
 
 let empiler_param l =List.map add_param l;()
 
 let depiler_param l =List.map (StringHashtbl.remove syms) (List.map fst l);()
+
+let complete_incomplete_enum_poss id =
+	StringHashtbl.fold (fun e v d-> match v with 
+				ENUM_POSS (_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (id,t,true))
+				|_->d 
+			) syms ()
 
 (** Print a constant.
 	@param cst	Constant to display. *)
@@ -188,6 +204,8 @@ let print_const cst =
 	    print_string "<null>"
 	| CARD_CONST v ->
 		print_string (Int32.to_string v)
+	| CARD_CONST_64 v->
+		print_string (Int64.to_string v)
 	| STRING_CONST v ->
 		Printf.printf "\"%s\"" v   
 	| FIXED_CONST v ->
@@ -216,7 +234,7 @@ let print_type_expr t =
 		print_string "string"
 	| ENUM l->
 		print_string "enum [";
-		List.map (fun i->(Printf.printf "%d," i)) l;
+		List.map (fun i->(Printf.printf "%s," i)) l;
 		print_string "]\n"
 
 
@@ -327,14 +345,17 @@ let rec print_expr e =
 		print_string "switch(";
 		print_expr c;
 		print_string ")";
+		print_string "{ ";
 		List.iter (fun (c, e) ->
 				print_string "case ";
-				print_const c;
+				print_expr c;
 				print_string ": ";
-				print_expr e
-			) cases;
+				print_expr e;
+				print_string " "
+			) (List.rev cases);
 		print_string "default: ";
-		print_expr def
+		print_expr def;
+		print_string " }"
 	| CONST (_,c) ->
 		print_const c
 
@@ -374,15 +395,15 @@ let rec print_statement stat=
 	| CANON_STAT (ch, expr_liste)-> Printf.printf "\t\t \"%s\"" ch; List.iter print_expr expr_liste ;print_string ";\n"
 	| ERROR ch->Printf.printf "\t\t error %s;\n" ch
 	| IF_STAT (exp,statT,statE)-> 	print_string "\t\t if "; print_expr exp;print_string "\n";
-					print_string "\t\t then \n\t"; print_statement statT;
-					print_string "\t\t else \n\t";print_statement statE;
+					print_string "\t\t then \n"; print_statement statT;
+					print_string "\t\t else \n";print_statement statE;
 					print_string "\t\t endif;\n"
-	|SWITCH_STAT (exp,int_stat_liste,stat)->print_string "\t\t switch (";print_expr exp;print_string ") {\n";
-						List.iter (fun (v,s)->	Printf.printf "\t\t\t case %d : \n\t\t" (Int32.to_int v);
-									print_statement s) int_stat_liste;
+	|SWITCH_STAT (exp,stat_liste,stat)->print_string "\t\t switch (";print_expr exp;print_string ") {\n";
+						List.iter (fun (v,s)->	print_string "\t\t\t case";print_expr v;print_string " : \n\t\t";
+									print_statement s) (List.rev stat_liste);
 						print_string "\t\t\t default : \n\t\t";print_statement stat;
 						print_string "\t\t }; \n"
-						
+	|SETSPE (loc, exp)->print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
 
 
 

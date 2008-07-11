@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.3 2008/07/04 09:47:12 jorquera Exp $
+ * $Id: lexer.mll,v 1.4 2008/07/11 11:38:02 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -119,6 +119,9 @@ let flt3	= decint '.' decint ['e' 'E'] ['+' '-']? decint
 let flt		= flt1 | flt2 | flt3
 let id		= letter alpha*
 
+(**)
+let num=decint|hexint|binint
+(**)
  
 rule main = parse
 
@@ -129,9 +132,19 @@ rule main = parse
 
 |	"\""		{ str "" lexbuf }
 |	"'"			{ chr "" lexbuf }
-|	decint as v { CARD_CONST (Int32.of_string v) } 
+
+(**)
+(*|	decint as v { CARD_CONST (Int32.of_string v) } 
 |	hexint as v { CARD_CONST (Int32.of_string v) } 
-|	binint as v { CARD_CONST (Int32.of_string v) } 
+|	binint as v { CARD_CONST (Int32.of_string v) } *)
+
+|num as v {	try(
+			CARD_CONST (Int32.of_string v)
+		)with Failure _-> CARD_CONST_64 (Int64.of_string v)
+	}
+
+(**)
+
 |	flt as v	{ FIXED_CONST (float_of_string v) }
 |	id as v		{ keyword v }
 |	">>>"       { gt lexbuf ROTATE_RIGHT 2 }

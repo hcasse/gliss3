@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.3 2008/07/04 09:47:13 jorquera Exp $
+ * $Id: sem.ml,v 1.4 2008/07/11 11:38:02 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -74,6 +74,7 @@ let is_true c =
 	match c with
 	  NULL -> false
 	| CARD_CONST v -> v <> Int32.zero
+	| CARD_CONST_64 v-> v <> Int64.zero
 	| STRING_CONST v -> v <> ""
 	| FIXED_CONST v -> v <> 0.0
 
@@ -281,10 +282,13 @@ and eval_const expr =
 	| IF_EXPR(_,c, t, e) ->
 		if is_true (eval_const c) then eval_const t else eval_const e
 	| SWITCH_EXPR (_,c, cases, def) ->
-		select (eval_const c) cases def
+		select c cases def
 	| REF id ->
 		(match get_symbol id with
 		  LET (_, cst) -> cst
+		(**)
+		|ENUM_POSS (_,v,_)->CARD_CONST v
+		(**)
 		| _ -> raise (SemError "this expression should be constant")) 
 	| _ -> 
 		raise (SemError "this expression should be constant")
@@ -294,7 +298,7 @@ and eval_const expr =
 	@param id		Identifier of the looked type.
 	@return			Type matching the identifier.
 	@raise SemError	If the identifier does not exists or if the named item is
-	not a type. *)
+not a type. *)
 let type_from_id id =
 	try
 		match StringHashtbl.find syms id with
@@ -366,8 +370,8 @@ let check_constant_type t c =
 (** Test if a float number respects the IEE754 specification
     @param f          a nml float
     @return   true if the float is an IEEE754 float, false otherwise
-    bit sign is first bit of the mantisse
-*)
+    bit sign is first bit of the mantisse *)
+
 let is_IEEE754_float f = match f with
 	(FLOAT(m,e)) ->(match(m+e) with
 			 32 -> (e =8)&&(m=24) 
@@ -386,6 +390,12 @@ let is_IEEE754_float f = match f with
 let rec get_type_ident id=
 	let symb= get_symbol id 
 	in
+	
+	if symb=UNDEF
+	then
+		raise (SemError (Printf.sprintf "The keyword \"%s\" not defined" id))
+	else
+
 	(**)
 	print_string "Spec : ";
 	print_spec symb;
@@ -394,9 +404,13 @@ let rec get_type_ident id=
 	 LET (_,c)-> (match c with
 			 NULL-> NO_TYPE
 			|CARD_CONST _->CARD 32
+			|CARD_CONST_64 _->CARD 64
 			|STRING_CONST _->STRING
 			|FIXED_CONST _->FLOAT (24,8))
-	|TYPE (_,t)->t
+	|TYPE (_,t)->(match t with
+			ENUM l->(let i = List.length l in
+				CARD (int_of_float (ceil ((log (float i)) /. (log 2.)))))
+			|_->t)
 	|MEM (_,_,t,_)->t
 	|REG (_,_,t,_)->t
 	|VAR (_,_,t)->t
@@ -413,6 +427,10 @@ let rec get_type_ident id=
 				
 	|OR_MODE (_,_)->NO_TYPE		(*A CHANGER *) 
 	(*|UNDEF->failwith "error get_type_ident"*)
+	|PARAM (_,t)->(match t with
+			 TYPE_ID idb->get_type_ident idb
+			|TYPE_EXPR tb->tb)	(* ??? *)
+	|ENUM_POSS (i,_,_)->get_type_ident i
 	|_->NO_TYPE
 
 (** Get the type of an expression
@@ -518,12 +536,19 @@ let check_binop_type t1 t2 bop =
 			 |(INT _,FLOAT _))->true
 			|_->false)
 	|EXP-> (t1!=BOOL)&&(t2!=BOOL)&&(t1!=STRING)&&(t2!=STRING)
-	|(LSHIFT|RSHIFT|LROTATE|RROTATE)-> (match (t1,t2) with
+	|(LSHIFT|RSHIFT|LROTATE|RROTATE)-> (*(match (t1,t2) with
 						((CARD _,CARD _)
 						 |(INT _,CARD _)
 						 |(FLOAT _, CARD _)
 						 |(FIX _, CARD _))->true
-						|_->false)
+						|_->false)*)
+					(* nécesssaire pour compatibilité avec arm.nmp *)
+					(match t1 with
+					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
+									(CARD _|INT _)->true
+									|_->false)
+					|_->false)
+				
 
 	|(LT|GT|LE|GE|EQ|NE)->	(match t1 with
 					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
@@ -655,7 +680,196 @@ let rec get_binop e1 e2 bop=
 
 
 
-(* A verifier *)
+
+(** Check if the possible expressions of the conditionnal branchs of an if-then-else expression give a valid if-then-else expression.
+	It check if the types of the differents possibility are compatible (for this, it use the same compatibility rule than the addition).
+	
+	@param e1	the then-expression
+	@param e2	the else-expression
+	@return True if the parameters give a valid conditionnal statement, false otherwise *)
+
+let check_if_expr e1 e2=
+	let t1=(get_type_expr e1)
+	and t2=(get_type_expr e2)	
+	in
+	(check_binop_type t1 t2 Irg.ADD) 	(*The allowed types are the sames than those of the operation ADD *)
+	(*|| t2=NO_TYPE		NOT ALLOWED*)			
+
+
+
+
+
+
+
+let get_type_const c=
+	match c with
+		 NULL->NO_TYPE
+		|CARD_CONST _->CARD 32
+		|CARD_CONST_64 _ ->CARD 64
+		|STRING_CONST _->STRING
+		|FIXED_CONST v ->FLOAT (int_of_float (fst (frexp v)),(snd (frexp v)))
+
+let get_string_form_const c=	(* A changer *)
+	match c with
+	 NULL->""
+	|CARD_CONST v->Int32.to_string v
+	|CARD_CONST_64 v ->Int64.to_string v
+	|STRING_CONST v->v
+	|FIXED_CONST v ->string_of_float v
+
+let is_param_of_type_enum e=
+
+ 	match e with
+		REF i ->( match (get_symbol i) with
+				PARAM (_,t)->(match t with
+					 	TYPE_ID ti-> (match (get_symbol ti) with
+									TYPE (_,t)->(match t with
+							 				ENUM _-> true
+											|_->false
+										     )
+									|_->false
+								)
+						|TYPE_EXPR te->(match te with
+									ENUM _->true
+									|_->false
+								)
+						)
+				
+				|_->false
+			)
+		|_->false
+
+
+let get_list_poss_from_enum_expr e= (* A CHANGER *)
+	let rec temp id=(match get_symbol id with
+				TYPE (_,t)-> (match t with
+						ENUM l->l
+						|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+					)
+				|PARAM (_,t)->(match t with
+							TYPE_ID s->temp s
+							|TYPE_EXPR tb->(match tb with
+										ENUM l->l
+										|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+									)
+						)
+				|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+
+			)
+
+	in
+	match e with
+		REF id -> temp id
+		|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+
+let is_enum_poss e =
+	match e with
+	 REF s->(match (get_symbol s) with
+			ENUM_POSS _->true
+			|_->false
+		) 
+	|_->false
+
+let get_enum_poss_info e=
+	match e with
+	REF s->(match (get_symbol s) with
+			ENUM_POSS (r,t,_)->(r,t)
+			|_->failwith ("get_enum : expression is not an enum poss")	(* A CHANGER *)
+		)
+	|_->failwith "get_enum : expression is not an enum poss"	(* A CHANGER *)
+
+let get_enum_poss_type e=
+	match e with
+	REF s->(match (get_symbol s) with
+			ENUM_POSS (r,_,_)->get_type_ident r
+			|_->failwith ("get_enum_type : expression is not an enum poss")	(* A CHANGER *)
+		)
+	|_->failwith "get_enum_type : expression is not an enum poss"	(* A CHANGER *)
+
+let get_enum_poss_id e=
+	match e with
+	REF s->(match (get_symbol s) with
+			ENUM_POSS (_,_,_)->s
+			|_->failwith ("get_enum_poss_id : expression is not an enum poss")	(* A CHANGER *)
+		)
+	|_->failwith "get_enum_poss_id : expression is not an enum poss"	(* A CHANGER *)
+
+(** Check if the given parameters of a switch expression give a valid switch expression.
+	It check that all the cases are of the same type than the condition ,
+	that all the cases and the default return an expression of the same type,
+	that all pssibilites are covered by the cases.
+	
+	TODO : Allow enums types in conditional part of the cases
+	TODO : Allow compatibles types (instead of strictly the same type) to be presents in the conditional part of the cases
+
+	@param test	the condition of the switch.
+	@param list_case	the couple list of the cases.
+	@param default	the default of the switch.(NONE if no default)
+	@return the type of the switch *)
+
+let check_switch_expr test list_case default=
+
+(* This part check if all the cases of a switch are of the type of the expression to be tested*)
+
+let check_switch_cases =
+
+	let rec sub_fun list_c t=
+			match list_c with
+			 []->true
+			|(c,_)::l-> if(is_enum_poss c) 
+					then (get_enum_poss_type c=t) && (sub_fun l  t)
+					else (get_type_expr c=t ) && (sub_fun l  t)			
+	in
+	let t= get_type_expr test
+	in
+	match t with
+	CARD _->sub_fun list_case (get_type_expr test)
+	|_->false 
+	
+
+
+(* This part check if all the possible result of a switch expression are of the same type *)
+
+and check_switch_return_type =
+	let type_default = get_type_expr default
+	in
+	let rec sub_fun list_c t=
+			match list_c with
+			 []->true
+			|(_,e)::l-> (get_type_expr e)=t  && sub_fun l  t
+	in
+	if type_default = NO_TYPE
+			then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
+			else sub_fun list_case type_default
+
+(* This part check if all the possibles values of the expression to test are covered *)
+
+and check_switch_all_possibilities =
+	
+		if (not (default=NONE)) then true
+		else (* a default is needed to be sure that all possibilities are covered, except for ENUM*)
+		if is_param_of_type_enum test 
+		then	
+			let l=get_list_poss_from_enum_expr test	(* l is the id list of the enum type used *)
+			in
+			let cond_list=List.map get_enum_poss_id (List.map fst list_case)	(*cond_list is the list of id of the enum type who are presents in the swith *)
+			in
+			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l	(* check that all element of l are contained in cond_list *)
+		else false
+in
+
+	if not check_switch_cases 
+		then raise (SemError "the cases of a functional switch must be consitent with the expression to test")
+	else if not check_switch_return_type
+		then raise (SemError "the return values of a functionnal switch must be of the sames type")
+	else if not check_switch_all_possibilities
+		then raise (SemError "the cases of a functional switch must cover all possibilities or contain a default")
+	else if (get_type_expr default != NO_TYPE)
+		then get_type_expr default
+		else get_type_expr (snd (List.hd list_case))
+
+
+(* is_location est a verifier *)
 
 (** Check is the given id refer to a valid memory location
 	@ param id	the id to check
@@ -673,61 +887,27 @@ let rec is_location id=
 	(*print_spec sym;*)
 	match sym with
 	 (MEM (_,_,_,_)|REG (_,_,_,_)|AND_MODE(_,_,_,_)|OR_MODE(_,_)|VAR(_,_,_))->true
-	|PARAM (_,t)->(match t with
+	|PARAM (_,t)->(*(match t with
 			 TYPE_ID idb-> is_location_param idb
 			| TYPE_EXPR _->false
-	)
+			)*)	(* /!\ ne passe pas avec l'arm /!\ le probleme vient de predecode *)
+			true
 	|_->false
 
 
-(** Check if the possible expressions of the conditionnal branchs of an if-then-else expression give a valid if-then-else expression.
-	It check if the types of the differents possibility are compatible (for this, it use the same compatibility rule than the addition).
-	
-	@param e1	the then-expression
-	@param e2	the else-expression
-	@return True if the parameters give a valid conditionnal statement, false otherwise
-*)
 
-let check_if_expr e1 e2=
-	let t1=(get_type_expr e1)
-	and t2=(get_type_expr e2)	
-	in
-	(check_binop_type t1 t2 Irg.ADD) 	(*The allowed types are the sames than those of the operation ADD *)
-	(*|| t2=NO_TYPE		NOT ALLOWED*)			
+(** Check if the given location is a parameter.
+	This possibility is not allowed in the nML standard. But it was with some versions of GLISS v1 (in the predecode attribute).
+	We keep it here for compatibility with previous versions. *)
+
+let is_setspe loc=	
+	match loc with
+	LOC_REF id->(let symb= get_symbol id 
+			in
+			match  symb with
+				|PARAM _->true
+				|_->false
+		   )
+	|_->false	
 
 
-
-(** Check is the given parameters of a switch expression give a valid switch expression.
-	It check if all the cases are of the same type than the condition 
-	and if all the cases and the default return an expression of the same type.
-	
-	TODO : Allow enums types in conditional part of the cases
-	TODO : Allow compatibles types (instead of strictly the same type) to be presents in the conditional part of the cases
-	TODO : If there is no default, check that all cases are covered
-
-	@param test	the condition of the switch.
-	@param list_case	the couple list of the cases.
-	@param default	the default of the switch.(NONE if no default)
-	@return True if the parameters are valid, false otherwise
-*)
-
-let check_switch_expr test list_case default=
-	let const_test = eval_const test
-	in
-	match const_test with
-	 CARD_CONST _->
-		let type_def=get_type_expr default
-		in
-		let rec sub_fun list_c t=
-			match list_c with
-			 []->true
-			|(c,e)::l-> match c with
-					 CARD_CONST _-> (get_type_expr e)=t  && sub_fun l  t
-					|_->false 
-
-		in
-		if type_def = NO_TYPE
-		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
-		else sub_fun list_case type_def
-			
-	|_->false			
