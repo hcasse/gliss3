@@ -7,8 +7,10 @@ let _ =
 		Parser.top Lexer.main lexbuf;
 		
 		(**)
-		(*print_string "Affichage resultat\n";
-		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms *)
+		(*
+		print_string "Affichage resultat\n";
+		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms 
+		*)
 		(**)
 
 	with
@@ -23,6 +25,7 @@ let _ =
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		let old_out = Unix.dup Unix.stdout in
 		Unix.dup2 Unix.stderr Unix.stdout;
+		(**)
 		print_string "*****	Debut aff Erreur	*****\n";
 		fn ();
 		Unix.dup2 old_out Unix.stdout;

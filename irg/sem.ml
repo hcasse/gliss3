@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.4 2008/07/11 11:38:02 jorquera Exp $
+ * $Id: sem.ml,v 1.5 2008/07/22 09:49:10 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -287,7 +287,7 @@ and eval_const expr =
 		(match get_symbol id with
 		  LET (_, cst) -> cst
 		(**)
-		|ENUM_POSS (_,v,_)->CARD_CONST v
+		|ENUM_POSS (_,_,v,_)->CARD_CONST v
 		(**)
 		| _ -> raise (SemError "this expression should be constant")) 
 	| _ -> 
@@ -383,6 +383,11 @@ let is_IEEE754_float f = match f with
 
 
 
+
+
+
+
+
 (** Get the type associated with an identifiant.
 	@param id	The identifiant to type.
 	@return A type.	*)
@@ -397,8 +402,8 @@ let rec get_type_ident id=
 	else
 
 	(**)
-	print_string "Spec : ";
-	print_spec symb;
+	(*print_string "Spec : ";
+	print_spec symb;*)
 	(**)
 	match symb with
 	 LET (_,c)-> (match c with
@@ -414,9 +419,6 @@ let rec get_type_ident id=
 	|MEM (_,_,t,_)->t
 	|REG (_,_,t,_)->t
 	|VAR (_,_,t)->t
-	|PARAM (_,t)-> (match t with
-			 TYPE_ID idb->get_type_ident idb
-			|TYPE_EXPR tb->tb)
 	|AND_MODE (_,l,e,_)->	(
 				 empiler_param l;
 				 let t= get_type_expr e
@@ -425,12 +427,22 @@ let rec get_type_ident id=
 				 t
 				)
 				
-	|OR_MODE (_,_)->NO_TYPE		(*A CHANGER *) 
+	(*|OR_MODE (n,l)->let type_mode = get_type_ident (List.hd l)
+			in 
+			if List.for_all (fun a-> if (get_type_ident a)=type_mode then true else false) (List.tl l)
+				then type_mode
+				else 
+					let dsp=(fun _-> (	(List.map (fun a->print_string "\n--- ";print_string a;print_string " : ";print_type_expr (get_type_ident a);print_string "\n") l)	);()	)
+					in
+					raise (SemErrorWithFun ((Printf.sprintf "The or_mode %s is not of consistant type\n" n),dsp))*)
+	|OR_MODE _->UNKNOW_TYPE
+
+
 	(*|UNDEF->failwith "error get_type_ident"*)
 	|PARAM (_,t)->(match t with
 			 TYPE_ID idb->get_type_ident idb
 			|TYPE_EXPR tb->tb)	(* ??? *)
-	|ENUM_POSS (i,_,_)->get_type_ident i
+	|ENUM_POSS (_,i,_,_)->get_type_ident i
 	|_->NO_TYPE
 
 (** Get the type of an expression
@@ -439,9 +451,9 @@ let rec get_type_ident id=
 
 and get_type_expr exp=
 	(**)
-	print_string "Expr : ";
+	(*print_string "Expr : ";
 	print_expr exp;
-	print_string "\n";
+	print_string "\n";*)
 	(**)
 	match exp with
 		NONE->NO_TYPE
@@ -466,7 +478,8 @@ and get_type_expr exp=
 
 let check_unop_type t uop =
 	match t with
-	 (CARD _|INT _	|FIX (_,_) | FLOAT (_,_))->((uop=NOT)||(uop=NEG)||(uop=BIN_NOT))
+	 UNKNOW_TYPE->true
+	|(CARD _|INT _	|FIX (_,_) | FLOAT (_,_))->((uop=NOT)||(uop=NEG)||(uop=BIN_NOT))
 	|STRING->false
 	|_->(uop=NOT||uop=BIN_NOT)
 	
@@ -497,6 +510,7 @@ let get_unop e uop=
 
 
 		else 	(match (uop,t) with
+			(_,UNKNOW_TYPE)->UNOP (UNKNOW_TYPE, uop,e)
 			|(NEG,CARD n)->UNOP(INT n,uop,e)	(*for the negation of a card, the type is int *)
 			|_->UNOP (t,uop,e))
 	
@@ -510,8 +524,13 @@ let check_binop_type t1 t2 bop =
 	if(t1=NO_TYPE ||t2=NO_TYPE)
 	then false
 	else
+
+	if (t1=UNKNOW_TYPE||t2=UNKNOW_TYPE) 
+	then true
+	else
+
 	match bop with
-	(ADD|SUB)->(match (t1,t2) with
+	|(ADD|SUB)->(match (t1,t2) with
 			((CARD _,CARD _)
 			 |(INT _,INT _)
 			 |(INT _, CARD _)
@@ -542,6 +561,7 @@ let check_binop_type t1 t2 bop =
 						 |(FLOAT _, CARD _)
 						 |(FIX _, CARD _))->true
 						|_->false)*)
+
 					(* nécesssaire pour compatibilité avec arm.nmp *)
 					(match t1 with
 					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
@@ -581,7 +601,8 @@ let get_add_sub e1 e2 bop=
 	and t2=get_type_expr e2
 	in
 	match (t1,t2) with
-	 (FLOAT (m,n),FLOAT (m2,n2)) when m2=m && n2=n-> BINOP (FLOAT (m,n), bop,e1,e2)
+	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
+	|(FLOAT (m,n),FLOAT (m2,n2)) when m2=m && n2=n-> BINOP (FLOAT (m,n), bop,e1,e2)
 	|(FIX (m,n),FIX (m2,n2)) when m2=m && n2=n->BINOP (FIX (m,n), bop,e1,e2)
 	|(INT n, INT n2) when n2=n-> BINOP (INT n,bop, e1,e2)
 	|(CARD n,CARD n2) when n2=n->BINOP(CARD n,bop,e1,e2)
@@ -589,7 +610,7 @@ let get_add_sub e1 e2 bop=
 	|(CARD m,INT n)-> BINOP (INT ((max m n)+2),bop, e1, e2)
 	|(INT m, INT n)->BINOP (INT ((max m n)+2), bop, e1,e2)
 	|(CARD m, CARD n)->BINOP (INT ((max m n)+2), bop, e1,e2)
-	|_->failwith "error get_add_sub"		(*A CHANGER *)
+	|_->failwith "internal error : get_add_sub"		(*A CHANGER *)
 
 (** Create a mult/div/mod with a correct type in function of its operands.
 	This function is used in get_binop.
@@ -603,7 +624,8 @@ let get_mult_div_mod e1 e2 bop=
 	and t2=get_type_expr e2
 	in
 	match (t1,t2) with
-	 (FLOAT (m,n),FLOAT (m2,n2)) when m=m2 && n=n2-> BINOP (FLOAT (m,n), bop,e1,e2)
+	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
+	|(FLOAT (m,n),FLOAT (m2,n2)) when m=m2 && n=n2-> BINOP (FLOAT (m,n), bop,e1,e2)
 	|(FIX (m,n),FIX (m2,n2))when m=m2 && n=n2->BINOP (FIX (m,n), bop,e1,e2)
 	|(INT n, INT n2) when n=n2-> BINOP (INT n,bop, e1,e2)
 	|(CARD n,CARD n2) when n=n2->BINOP (CARD n,bop,e1,e2)
@@ -613,7 +635,7 @@ let get_mult_div_mod e1 e2 bop=
 	|(CARD m, CARD n)->BINOP (INT ((max m n)*2), bop, e1,e2)
 	|((FLOAT (m,n),INT _)|(INT _,FLOAT (m,n))|(FLOAT(m,n),CARD _)|(CARD _,FLOAT(m,n)))->BINOP (FLOAT(m,n), bop,e1,e2)
 	|((FIX (m,n),INT _)|(INT _,FIX (m,n))|(FIX(m,n),CARD _)|(CARD _,FIX(m,n)))->BINOP (FIX(m,n), bop,e1,e2)
-	|_->failwith "error get_mult_div_mod"		(*A CHANGER *)
+	|_->failwith "internal error : get_mult_div_mod"		(*A CHANGER *)
 	
 (** Create a concat with a correct type in function of its operands.
 	This function is used in get_binop.
@@ -628,10 +650,11 @@ let rec get_concat e1 e2=
 	in
 	
 	match (t1,t2) with
-	(CARD m, CARD n) -> BINOP (CARD (n+m), CONCAT,e1,e2)
+	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, CONCAT,e1,e2)
+	|(CARD m, CARD n) -> BINOP (CARD (n+m), CONCAT,e1,e2)
 (*	|(INT m,_)->	get_concat (cast (CARD m) e1) e2
 	|(_,INT n)->	get_concat e1 (cast (CARD n) e2) *)
-	|_->failwith "error get_concat"		(*A CHANGER *)
+	|_->failwith "internal error : get_concat"		(*A CHANGER *)
 
 (** Create a binary operation with a correct type in function of its operands.
 	@param e1	First operand.
@@ -670,7 +693,7 @@ let rec get_binop e1 e2 bop=
 		match bop with
 	 	(ADD|SUB)->get_add_sub e1 e2 bop
 		|(MUL|DIV|MOD)->get_mult_div_mod  e1 e2 bop
-		|EXP->BINOP (t1,bop,e1,e2)
+		|EXP->BINOP (t1,bop,e1,e2)	(* A changer (le type)  *)
 		|(LSHIFT|RSHIFT|LROTATE|RROTATE)->BINOP(t1,bop,e1,e2)
 		|(LT|GT|LE|GE|EQ|NE)->BINOP(BOOL,bop,e1,e2)
 		|(AND|OR)-> BINOP(BOOL,bop,e1,e2)
@@ -700,7 +723,9 @@ let check_if_expr e1 e2=
 
 
 
+(* plein de sous-fonctions utilisees pour la verification du switch : a commenter *)	(* A CHANGER *)
 
+(*
 let get_type_const c=
 	match c with
 		 NULL->NO_TYPE
@@ -716,6 +741,7 @@ let get_string_form_const c=	(* A changer *)
 	|CARD_CONST_64 v ->Int64.to_string v
 	|STRING_CONST v->v
 	|FIXED_CONST v ->string_of_float v
+*)
 
 let is_param_of_type_enum e=
 
@@ -730,7 +756,7 @@ let is_param_of_type_enum e=
 									|_->false
 								)
 						|TYPE_EXPR te->(match te with
-									ENUM _->true
+									ENUM _->true	(*Possible ?*)
 									|_->false
 								)
 						)
@@ -770,36 +796,43 @@ let is_enum_poss e =
 		) 
 	|_->false
 
+
 let get_enum_poss_info e=
 	match e with
 	REF s->(match (get_symbol s) with
-			ENUM_POSS (r,t,_)->(r,t)
+			ENUM_POSS (_,r,t,_)->(r,t)
 			|_->failwith ("get_enum : expression is not an enum poss")	(* A CHANGER *)
 		)
 	|_->failwith "get_enum : expression is not an enum poss"	(* A CHANGER *)
 
-let get_enum_poss_type e=
+
+
+let get_enum_poss_type e= get_type_ident (fst (get_enum_poss_info e))
+
+
+(*let get_enum_poss_type e=
 	match e with
 	REF s->(match (get_symbol s) with
 			ENUM_POSS (r,_,_)->get_type_ident r
 			|_->failwith ("get_enum_type : expression is not an enum poss")	(* A CHANGER *)
 		)
 	|_->failwith "get_enum_type : expression is not an enum poss"	(* A CHANGER *)
+*)
 
 let get_enum_poss_id e=
 	match e with
 	REF s->(match (get_symbol s) with
-			ENUM_POSS (_,_,_)->s
+			ENUM_POSS (_,_,_,_)->s
 			|_->failwith ("get_enum_poss_id : expression is not an enum poss")	(* A CHANGER *)
 		)
 	|_->failwith "get_enum_poss_id : expression is not an enum poss"	(* A CHANGER *)
+
 
 (** Check if the given parameters of a switch expression give a valid switch expression.
 	It check that all the cases are of the same type than the condition ,
 	that all the cases and the default return an expression of the same type,
 	that all pssibilites are covered by the cases.
 	
-	TODO : Allow enums types in conditional part of the cases
 	TODO : Allow compatibles types (instead of strictly the same type) to be presents in the conditional part of the cases
 
 	@param test	the condition of the switch.
@@ -881,24 +914,54 @@ let rec is_location id=
 		let sym=Irg.get_symbol id
 		in
 		match sym with
-			 (MEM (_,_,_,_)|REG (_,_,_,_)|AND_MODE(_,_,_,_)|OR_MODE(_,_)|VAR(_,_,_)|TYPE _)->true
+			 (MEM (_,_,_,_)|REG (_,_,_,_)|VAR(_,_,_))->true
 			|_->false
-	in
+	in	
 	(*print_spec sym;*)
 	match sym with
-	 (MEM (_,_,_,_)|REG (_,_,_,_)|AND_MODE(_,_,_,_)|OR_MODE(_,_)|VAR(_,_,_))->true
-	|PARAM (_,t)->(*(match t with
+	 (MEM (_,_,_,_)|REG (_,_,_,_)|VAR(_,_,_))->true
+	|PARAM (_,t)->(match t with
 			 TYPE_ID idb-> is_location_param idb
 			| TYPE_EXPR _->false
-			)*)	(* /!\ ne passe pas avec l'arm /!\ le probleme vient de predecode *)
-			true
+			)
 	|_->false
 
+let rec is_loc_mode id =	(* Necessaire pour reconnaitre certaines instructions du ppc *)
+	let sym=Irg.get_symbol id
+	and is_location_param id=
+		let sym=Irg.get_symbol id
+		in
+		match sym with	
+			(AND_MODE(_,_,_,_)|OR_MODE(_,_))->true			
+			|_->false
+	in	
+	match sym with
+	PARAM (_,t)->(match t with
+			 TYPE_ID idb-> is_location_param idb
+			| TYPE_EXPR _->false
+			)
+	|_->false
+
+let rec is_loc_spe id=	(* Necessaire pour reconnaitre certaines instructions du predecode *)
+	let sym=Irg.get_symbol id
+	and is_location_param id=
+		let sym=Irg.get_symbol id
+		in
+		match sym with
+			 TYPE _->true
+			|_->false
+	in
+	match sym with
+	 PARAM (_,t)->(match t with
+			 TYPE_ID idb-> is_location_param idb
+			| TYPE_EXPR _->true	
+			)
+	|_->false	
 
 
 (** Check if the given location is a parameter.
 	This possibility is not allowed in the nML standard. But it was with some versions of GLISS v1 (in the predecode attribute).
-	We keep it here for compatibility with previous versions. *)
+	We keep it here for compatibility with previous versions only. *)
 
 let is_setspe loc=	
 	match loc with
@@ -911,3 +974,151 @@ let is_setspe loc=
 	|_->false	
 
 
+(** Create a FORMAT operation and check if it is well written
+	@param str	The string to print
+	@param exp_list	The list of parameters to be used as variables in str
+	@return A FORMAT expression *)
+
+let build_format str exp_list=
+
+(* subfunctions*)
+
+let reg_exp=Str.regexp "%[0-9]*[dbxs]"	(* The expression %0b was used with some versions of Gliss v1 to avoid a bug, so we allow it here for compatibility *)
+in
+
+let get_all_ref str=	(* this subfunction is used to find all references to a parameter in str (the string passed to format) *)
+	let str_list=Str.full_split reg_exp str
+	in
+	let rec temp str_l res_l=
+		match str_l with
+		 []->res_l
+		|e::l->( match e with
+				Str.Text _->temp l res_l
+				|Str.Delim s->temp l (s::res_l)
+			)
+	in
+	temp str_list []
+in
+
+let get_length_from_expr e=	(*this subfunction give the bit lenght of an expression (-1 for a string expression) *)
+	let t=get_type_expr e
+	in
+	match t with
+	 BOOL-> 1
+	|INT n->n
+	|CARD n->n
+	|FIX (n,m)->n+m
+	|FLOAT(n,m)->n+m
+	|STRING->(-1)
+	|_->failwith "internal error : get_length_from_type_expr"
+in
+
+(* end subfunctions*)
+
+	let ref_list=get_all_ref str
+	in
+	if (not (List.length ref_list = List.length exp_list)) || List.length exp_list = 0	(* it is not allowed using format to print a string without at least one variable *)
+		then
+			raise (SemError (Printf.sprintf "incorrect number of parameters in format"))
+		else
+			let test_list = List.map2 (fun e_s e_i->	(* here we check if all variables are given a parameter of the good type *)
+					if (get_type_expr e_i=UNKNOW_TYPE)
+					then true
+					else
+					let num= try(int_of_string (String.sub e_s 1 ((String.length e_s)-2)))with Failure "int_of_string" -> 0
+					in
+					match Str.last_chars e_s 1 with
+						 "d"-> (match (get_type_expr e_i) with 
+								(CARD _|INT _)->true
+								|_->false)
+
+						|"b"->(try(
+								get_length_from_expr e_i = num || get_length_from_expr e_i =(-1)
+							)with Failure "internal error : get_length_from_type_expr"->false)
+
+						|"x"->(match (get_type_expr e_i) with 
+								(CARD _|INT _)->true
+								|_->false)
+
+						|"s"-> (match (get_type_expr e_i) with 
+								STRING->true
+								|_->false)
+
+						|_->failwith "internal error : build_format"
+					) ref_list exp_list
+			in
+			if not (List.for_all (fun e->e) test_list) then raise (SemError (Printf.sprintf "incorrect type in this format "))
+			else
+			FORMAT (str, exp_list)
+
+
+(*
+
+let rec get_length id =
+	let sym=get_symbol id
+	in
+	match sym with
+	UNDEF->failwith "get_length : undefined symbol" (* a changer *)
+	|LET (_,const)->(match const with
+				 NULL->failwith "get_length : id refer to a NULL const" (* a changer *)
+				|CARD_CONST _->32	(* a changer *)
+				|CARD_CONST_64 _->64
+				|STRING_CONST _->let dsp= fun _->(Printf.printf "the id %s refer to a STRING const\n" id;())
+						 in
+						 raise (SemErrorWithFun ("",dsp))
+				|FIXED_CONST _ ->32	(* a changer *)
+			)
+	|MEM (_,i,_,_)->i
+	|REG (_,i,_,_)->i
+	|VAR (_,i,_)->i
+	|PARAM (s,_)->get_length s
+	|_->let dsp =fun _->(Printf.printf "the id %s do no refer to a location\n" id;())
+	    in
+	    raise (SemErrorWithFun ("",dsp))
+*)
+
+(*
+let have_attribute id attr=
+
+	let rec loop_verification id mem_list   =
+		let sym_temp=get_symbol id
+		in
+		match sym_temp with
+		 OR_MODE (_,l)->if (List.exists (fun e->e==id) mem_list)
+					then false 
+					else (List.for_all (fun e->loop_verification e (id::mem_list)) l)
+		|_->true
+	in
+
+	let rec temp id attr aff=
+		let sym=get_symbol id
+		in
+		let rec contains l= match l with
+			 []->false
+			|e::lt->( match e with 
+					 (ATTR_EXPR (v,_)|ATTR_STAT (v,_)) when v=attr->true
+					|_->contains lt)
+			(*
+			match attr with
+			 ("syntax"|"image")->List.exist (fun a-> match a with ATTR_EXPR (attr,_)->true | _->false) l
+			|_->List.exist (fun a->match a with ATTR_STAT (attr,_)->true | _->false) l
+			*)
+		in
+		match sym with
+			 (AND_MODE (_,_,_,l)|AND_OP (_,_,l))->contains l
+			|(OR_MODE (_,l)|OR_OP(_,l))->if List.exists (fun e->temp e attr false) l 
+							then
+								((if List.for_all (fun e->temp e attr false) l && aff
+									then
+										Lexer.display_warning (Printf.sprintf "not all modes included in the mode %s have the attribute %s" id attr)
+								); true)
+							else
+								false
+			|PARAM (_,t)->(match t with TYPE_ID idt->temp idt attr aff
+						|_->false)
+			|_->false
+	in
+	if not (loop_verification id []) then raise (SemError (Printf.sprintf "looping declaration of mode %s" id))
+	else
+	temp id attr true
+*)

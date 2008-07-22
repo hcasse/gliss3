@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.4 2008/07/11 11:38:01 jorquera Exp $
+ * $Id: irg.ml,v 1.5 2008/07/22 09:49:09 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Foobar; if not, write to the Free Software
+ * along with OGliss; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
@@ -31,7 +31,8 @@ type type_expr =
 	| FLOAT of int * int
 	| RANGE of int32 * int32
 	| STRING
-	| ENUM of string list 
+	| ENUM of string list
+	| UNKNOW_TYPE		(* Used for OR_MODE only. The evaluation is done in a dynamic way *)
 
 (** Use of a type *)
 type typ =
@@ -143,7 +144,21 @@ type spec =
 	| EXN of string
 (* spec ajoutées *)
 	| PARAM of string * typ
-	| ENUM_POSS of string*Int32.t*bool
+	| ENUM_POSS of string*string*Int32.t*bool
+
+
+
+(* cannonical functions *)
+
+(*
+let cannon_fun={name : string; param : type_expr list ; type_res:type_expr}
+
+let cannon_tabl = [ {name="sin";param=[INT 32];type_res=FLOAT (24,8)} ]
+
+let call_cannonical name param=
+*)
+
+
 
 (* Symbol table *)
 module HashString =
@@ -176,25 +191,28 @@ let add_symbol name sym =
 	(* add the symbol to the hashtable *)
 	else StringHashtbl.add syms name sym
 
-
+(*
 let is_defined name =
 	try(
 		StringHashtbl.find syms name;
 		true
-	)with not_found->false
+	)with Not_found->false*)
+
+let is_defined name = StringHashtbl.mem syms name
 
 let add_param (name,t) =
 	StringHashtbl.add syms name (PARAM (name,t))
 
-let empiler_param l =List.map add_param l;()
+let empiler_param l =List.iter add_param l
 
-let depiler_param l =List.map (StringHashtbl.remove syms) (List.map fst l);()
+let depiler_param l =List.iter (StringHashtbl.remove syms) (List.map fst l)
 
 let complete_incomplete_enum_poss id =
 	StringHashtbl.fold (fun e v d-> match v with 
-				ENUM_POSS (_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (id,t,true))
+				ENUM_POSS (n,_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (n,id,t,true))
 				|_->d 
 			) syms ()
+
 
 (** Print a constant.
 	@param cst	Constant to display. *)
@@ -233,9 +251,11 @@ let print_type_expr t =
 	| STRING ->
 		print_string "string"
 	| ENUM l->
-		print_string "enum [";
-		List.map (fun i->(Printf.printf "%s," i)) l;
-		print_string "]\n"
+		print_string "enum (";
+		Printf.printf "%s" (List.hd (List.rev l));
+		List.iter (fun i->(Printf.printf ",%s" i)) (List.tl (List.rev l));
+		print_string ")"
+	|UNKNOW_TYPE->print_string "unknow_type"
 
 
 (** Print the unary operator.
@@ -506,6 +526,8 @@ let print_spec spec =
 			print_string " = ";
 			print_expr res
 		end;
+		print_string "\n";
+		List.iter print_attr (List.rev attrs) ;
 		print_newline ();
 	| OR_MODE (name, modes) -> Printf.printf "mode %s = " name ;
 				   List.iter (fun a -> Printf.printf " %s | " a) (List.rev (List.tl modes)) ;
@@ -534,6 +556,9 @@ let print_spec spec =
 	| PARAM (name,t)->Printf.printf "param %s (" name;print_type t;print_string ")\n";
 
 		()
+	| ENUM_POSS (name,s,_,_)->Printf.printf "possibility %s of enum %s\n" name s;
+		()
+
 	| _ ->
 		assert false
 

@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.4 2008/07/11 11:38:02 jorquera Exp $
+ * $Id: parser.mly,v 1.5 2008/07/22 09:49:09 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -65,6 +65,9 @@
 %token    PLUS MINUS STAR SLASH PERCENT TILD COLON
 %token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
 
+(* ADDED*)
+%token MACRO
+
 %right	EQ
 %left	DOUBLE_COLON
 %left	OR
@@ -129,7 +132,22 @@ MachineSpec :
 				}
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
+
+(* ADDED*)
+|   MacroSpec {}
 ;
+
+(*** MACRO DEF ***)
+
+MacroSpec :
+	MACRO ID ParamList EQUAL Statment	{}
+|	MACRO ID ParamList EQUAL Expression	{}
+
+(*** END MACRO DEF ***)
+
+
+
+
 
 LetDef	:
 	LET ID EQ LetExpr
@@ -200,13 +218,13 @@ TypeExpr:
 |	ENUM LPAREN IdentifierList RPAREN
 		{
 			(*let i = List.fold_right (fun id i -> Irg.add_symbol id 
-				(Irg.ENUM_POSS (" ",(Int32.of_int i),false) ); i + 1)
+				(Irg.ENUM_POSS (id," ",(Int32.of_int i),false) ); i + 1)
 				$3 0 in
 			Irg.CARD (int_of_float (ceil ((log (float i)) /. (log 2.))))*)
 
 			let rec temp l i= match l with
 				[]->()
-				|e::l-> Irg.add_symbol e (Irg.ENUM_POSS (" ",(Int32.of_int i),false)); temp l (i+1)
+				|e::l-> Irg.add_symbol e (Irg.ENUM_POSS (e," ",(Int32.of_int i),false)); temp l (i+1)
 			in
 			temp $3 0;
 			Irg.ENUM $3
@@ -323,12 +341,12 @@ ParamListPart:
 
 ParaType:
 	TypeExpr	{ Irg.TYPE_EXPR $1 }
-|	ID			{ Irg.TYPE_ID $1 }
+|	ID		{ Irg.TYPE_ID $1 }
 ;
 
 AttrDefList:	
-	/* empty */				{ [] }
-|	AttrDefList AttrDef		{ $2::$1 }
+	/* empty */		{ [] }
+|	AttrDefList AttrDef	{ $2::$1 }
 ; 
 
 AttrDef :
@@ -354,7 +372,10 @@ AttrExpr :
 |	STRING_CONST
 		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
 |	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
-		{ Irg.FORMAT ($3, $5) }
+		{ 
+			Sem.build_format $3 $5
+			(* Irg.FORMAT ($3, $5) *)
+		}
 ;
 
 FormatIdlist: 
@@ -362,17 +383,43 @@ FormatIdlist:
 |	FormatIdlist  COMMA FormatId	{ $3::$1 }
 ;
 
-FormatId: 
+FormatId: 	/* Verifier que ID est def et que les attrs existent -> Impossible car ca sert pour les op qui ne sont pas forcement definites */
 	ID
-		{ Irg.REF $1 }
+		{
+		if Irg.is_defined $1 
+		then
+			 Irg.REF $1
+		else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	ID DOT IMAGE
-		{ Irg.FIELDOF (Irg.STRING ,Irg.REF $1, "image") }		/* TYPE A CHANGER */
+		{ 
+		if Irg.is_defined $1 
+		then
+			 Irg.FIELDOF (Irg.STRING ,Irg.REF $1, "image") 		(* TYPE A CHANGER *)
+		else
+			raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
+			
 |	ID DOT IMAGE BIT_LEFT CARD_CONST DOUBLE_DOT CARD_CONST BIT_RIGHT
-		{ Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, Irg.REF $1, "image"), 	
-			Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $5)),
-			Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $7))) }	/* TYPE A CHANGER */
+		{ 
+		if Irg.is_defined $1 
+			then
+				Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, Irg.REF $1, "image"), 	
+					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $5)),
+					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $7))) 	(* TYPE A CHANGER *)
+			else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	ID DOT SYNTAX
-		{ Irg.FIELDOF (Irg.STRING,Irg.REF $1, "syntax") }	/* TYPE A CHANGER */
+		{ 
+		if Irg.is_defined $1 
+		then
+			Irg.FIELDOF (Irg.STRING,Irg.REF $1, "syntax") 	(* TYPE A CHANGER *)
+		else
+			raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
+			
 /*|	DOLLAR PLUS ID
 		{ }*/
 ;
@@ -395,17 +442,25 @@ StatementList:
 |	StatementList SEMI Statement { Irg.SEQ ($1, $3) }
 ;
 
-Statement: 
+Statement: 			/* A changer (pour les ATTR_STAT) */
 	/* empty */
 		{ Irg.NOP }
 |	ACTION
-		{ Irg.EVAL "action" }
+		{ Irg.EVAL "action" }	/* Necessite une verification mais l'op n'est pas encore reduite...*/
 |	ID
-		{ Irg.EVAL $1 }
+		{
+		(*if Irg.is_defined $1 
+			then
+				Irg.EVAL $1
+			else
+				 raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))*)
+		
+		Irg.EVAL $1
+		}
 |	ID DOT ACTION
-		{ Irg.EVALIND ($1, "action")  }
+		{ Irg.EVALIND ($1, "action")  }	/* Necessite une verification mais l'op n'est pas encore reduite...*/
 |	ID DOT ID
-		{ Irg.EVALIND ($1, $3) }
+		{ Irg.EVALIND ($1, $3) }	/* Necessite une verification mais l'op n'est pas encore reduite...*/
 |	Location EQ Expr
 		{ 
 			if (Sem.is_setspe $1)
@@ -422,8 +477,8 @@ Statement:
 
 ArgList :
 	/* empty */	{ [] }
-|	Expr			 { [$1] }
-|	ArgList COMMA Expr { $3::$1 }
+|	Expr	{ [$1] }
+|	ArgList COMMA Expr 	{ $3::$1 }
 ;
 
 Opt_Bit_Optr :
@@ -433,9 +488,9 @@ Opt_Bit_Optr :
 		{ None }
 ; 
 
-Location :			/* A CHANGER */
+Location :
 	ID
-		{ if (Sem.is_location $1)
+		{ if (Sem.is_location $1) || (Sem.is_loc_spe $1) || (Sem.is_loc_mode $1)
 			then	Irg.LOC_REF $1 
 			else	
 				let dsp=fun _->(
@@ -443,17 +498,48 @@ Location :			/* A CHANGER */
 					Irg.print_spec (Irg.get_symbol $1)
 					)
 				in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid memory location" $1),dsp))
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
 		}
-		/*{
-			Irg.LOC_REF $1 
-		}*/
+
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{ Irg.LOC_BITFIELD (Irg.LOC_REF $1, $3, $5) }
+		{ 
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1)	 || (Sem.is_loc_mode $1) 
+			then
+				Irg.LOC_BITFIELD (Irg.LOC_REF $1, $3, $5)
+			else 
+				let dsp = fun _->(
+						print_string "Type : ";
+						Irg.print_spec (Irg.get_symbol $1)
+						)
+				in
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
+		}
 |	ID LBRACK Expr RBRACK
-		{ Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3) }
+		{ 
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
+			then
+				Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3) 
+			else 
+				let dsp = fun _->(
+						print_string "Type : ";
+						Irg.print_spec (Irg.get_symbol $1)
+						)
+				in
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
+		}
 |	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{ Irg.LOC_BITFIELD (Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3), $6, $8) }
+		{ 
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
+			then
+				Irg.LOC_BITFIELD (Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3), $6, $8) 
+			else 
+				let dsp = fun _->(
+						print_string "Type : ";
+						Irg.print_spec (Irg.get_symbol $1)
+						)
+				in
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))	
+		}
 |	Location DOUBLE_COLON Location
 		{ Irg.LOC_CONCAT ($1, $3) }
 ;
@@ -514,167 +600,221 @@ Expr :
 	COERCE LPAREN Type COMMA Expr RPAREN
 		{ Irg.COERCE ($3,$5) }
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
-		{ Irg.NONE }
-|	STRING_CONST LPAREN ArgList RPAREN
-		{ Irg.NONE }
+		{ 
+		if Irg.is_defined $3 
+			then
+				Irg.FORMAT($3,$5)
+			else 
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $3))
+		}
+|	STRING_CONST LPAREN ArgList RPAREN	/* A CHANGER (c'est les canonical functions) */
+		{
+			Irg.NONE 
+		}
 |	ID DOT SYNTAX
-		{ Irg.NONE }
+		{ 
+		if Irg.is_defined $1
+			then
+				(*if Sem.have_attribute $1 "syntax"
+					then*)
+						Irg.FIELDOF (Irg.STRING,Irg.REF $1,"syntax")
+					(*else
+						raise (Sem.SemError (Printf.sprintf " %s doesn't have a syntax attribute\n" $1))*)
+			else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	ID DOT IMAGE
-		{ Irg.NONE }
+		{ 
+		if Irg.is_defined $1
+			then
+				(*if Sem.have_attribute $1 "image"
+					then*)
+						Irg.FIELDOF (Irg.STRING,Irg.REF $1,"image")
+					(*else
+						raise (Sem.SemError (Printf.sprintf " %s doesn't have an image attribute\n" $1))*)
+			else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	ID DOT ID
-		{ Irg.NONE }
+		{ 	
+		if Irg.is_defined $1
+			then
+				
+				(*if Sem.have_attribute $1 $3
+					then*)
+						Irg.FIELDOF (Irg.STRING,Irg.REF $1,$3)
+					(*else
+						raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))*)
+				
+			else
+				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	Expr DOUBLE_COLON Expr
-		{ Irg.NONE }
+		{ Irg.NONE }	/* A CHANGER */
 |	ID 
 		{ 	if Irg.is_defined $1 
-				then Irg.REF $1
+				then 
+					Irg.REF $1
 				else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+					raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 	 	}
-|	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT			/* A changer ? */
-		{ 	
-		try(
-			let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3))
-			and v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5))
-			in
-			if v1<=v2
+|	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT			
+		{ 
+
+		if Irg.is_defined $1 then
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1) || (Sem.is_loc_mode $1)
 			then
-				Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5)
+
+				try(	(* A changer ? *)
+
+					let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3))
+				and v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5))
+					in
+					if v1<=v2
+					then
+						Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5)
+					else
+						Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5)
+
+				)with Sem.SemError _ ->Irg.BITFIELD (Irg.CARD (-1),Irg.REF $1,$3, $5)	(* A changer *)
+		
 			else
-				(*raise (Sem.SemError "The second operand must be greater or equal to the first")*) (* C'est faux on peut le faire *)
-				Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5)
-		)with Sem.SemError _ ->Irg.BITFIELD (Irg.CARD (-1),Irg.REF $1,$3, $5)	(* A changer *)
-
-
+				let dsp = fun _->(
+							print_string "Type : ";
+							Irg.print_spec (Irg.get_symbol $1)
+						)
+				in
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "Can't apply bitfield on %s" $1),dsp))	
+		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
 |	ID LBRACK Expr RBRACK
-		{ Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3) }
-|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT		/* A changer */
 		{ 
-			Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3), $6, $8) 	
+		if Irg.is_defined $1 then
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1)  || (Sem.is_loc_mode $1)
+				then
+					Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3) 
+				else 
+					let dsp = fun _->(
+							print_string "Type : ";
+							Irg.print_spec (Irg.get_symbol $1)
+							)
+					in
+					raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))	
+		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))	
+		}
+|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT		
+		{ 
+		if Irg.is_defined $1 then
+			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
+			then
+				Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3), $6, $8) (* A changer *)
+			else 
+				let dsp = fun _->(
+						print_string "Type : ";
+						Irg.print_spec (Irg.get_symbol $1)
+						)
+				in
+				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))	
+		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))		
 		}
 |	Expr PLUS Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.ADD
-			(*Irg.BINOP (Irg.ADD, $1, $3) *)
 		}
 |	Expr MINUS Expr
 		{
  			Sem.get_binop $1 $3 Irg.SUB
-			(*Irg.BINOP (Irg.SUB, $1, $3) *)
 		}
 |	Expr STAR Expr
 		{
 			Sem.get_binop $1 $3 Irg.MUL
-			(*Irg.BINOP (Irg.MUL, $1, $3)*)
 		 }
 |	Expr SLASH Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.DIV
-			(*Irg.BINOP (Irg.DIV, $1, $3)*)
 		 }
 |	Expr PERCENT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.MOD
-			(*Irg.BINOP (Irg.MOD, $1, $3)*)
 		 }
 |	Expr DOUBLE_STAR Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.EXP
-			(*Irg.BINOP (Irg.EXP, $1, $3)*)
 		 }
 |	Expr LEFT_SHIFT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.LSHIFT
-			(*Irg.BINOP (Irg.LSHIFT, $1, $3)*)
 		 }
 |	Expr RIGHT_SHIFT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.RSHIFT
-			(*Irg.BINOP (Irg.RSHIFT, $1, $3)*) 
 		}
 |	Expr ROTATE_LEFT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.LROTATE
-			(*Irg.BINOP (Irg.LROTATE, $1, $3)*)
 		 }
 |	Expr ROTATE_RIGHT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.RROTATE
-			(*Irg.BINOP (Irg.RROTATE, $1, $3)*)
 		 }
 |	Expr LT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.LT
-			(*Irg.BINOP (Irg.BOOL,Irg.LT, $1, $3) *)
 		}
 |	Expr GT Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.GT
-			(*Irg.BINOP (Irg.BOOL,Irg.GT, $1, $3)*)
 		 } 
 |	Expr LEQ Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.LE
-			(*Irg.BINOP (Irg.BOOL,Irg.LE, $1, $3)*) 
 		}
 |	Expr GEQ Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.GE
-			(*Irg.BINOP (Irg.BOOL,Irg.GE, $1, $3)*)
 		 }
 |	Expr EQU Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.EQ
-			(*Irg.BINOP (Irg.BOOL,Irg.EQ, $1, $3) *)
 		}
 |	Expr NEQ Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.NE
-			(*Irg.BINOP (Irg.NE, $1, $3) *)
 		}
 
 |	Expr AMPERS Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.BIN_AND
-			(*Irg.BINOP (Irg.BIN_AND, $1, $3) *)
 		}
 |	Expr CIRC Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.BIN_XOR
-			(*Irg.BINOP (Irg.BIN_XOR, $1, $3) *)
 		}
 |	Expr PIPE Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.BIN_OR
-			(*Irg.BINOP (Irg.BOOL,Irg.BIN_OR, $1, $3) *)
 		}
 |	EXCLAM Expr
 		{
 			Sem.get_unop $2  Irg.NOT
-			(*Irg.UNOP (Irg.BOOL,Irg.NOT, $2)*)
 		}	
 |	TILD Expr
 		{
 			Sem.get_unop $2  Irg.BIN_NOT
-			(*Irg.UNOP (Irg.BOOL,Irg.BIN_NOT, $2)*)
 		}
 
 |	PLUS Expr %prec TILD
 		{ $2 }
 |	MINUS Expr %prec TILD		{
 			Sem.get_unop $2  Irg.NEG
-			(*Irg.UNOP (Irg.BOOL,Irg.NEG, $2)*)
 		}
 |	Expr AND Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.AND
-			(*Irg.BINOP (Irg.AND, $1, $3) *)
 		}
 |	Expr OR Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.OR
-			(*Irg.BINOP (Irg.OR, $1, $3) *)
 		}
 |	LPAREN Expr RPAREN
 		{ $2 }
@@ -735,7 +875,13 @@ Expr :
 
 Bit_Expr :
 	ID
-		{ Irg.REF $1 }
+		{ 
+		if Irg.is_defined $1
+			then
+				Irg.REF $1
+			else
+				 raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+		}
 |	Bit_Expr PLUS Bit_Expr
 		{ 
 			Sem.get_binop $1 $3 Irg.ADD

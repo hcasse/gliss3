@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.4 2008/07/11 11:38:02 jorquera Exp $
+ * $Id: lexer.mll,v 1.5 2008/07/22 09:49:09 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -71,6 +71,10 @@ let _ =
 (* Error management *)
 let display_error msg =
 	Printf.fprintf stderr "%s:%d:%s\n" !file !line msg
+
+(*warning management *)
+let display_warning msg=
+	Printf.printf "Warning:%s:%d:%s\n" !file !line msg	(* a changer *)
 
 (* Lexing add-ons *)
 let rec dotdot lexbuf i found =
