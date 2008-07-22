@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.5 2008/07/22 09:49:09 jorquera Exp $
+ * $Id: parser.mly,v 1.6 2008/07/22 09:53:49 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -65,7 +65,7 @@
 %token    PLUS MINUS STAR SLASH PERCENT TILD COLON
 %token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
 
-(* ADDED*)
+/* ADDED*/
 %token MACRO
 
 %right	EQ
@@ -133,17 +133,17 @@ MachineSpec :
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 
-(* ADDED*)
+/* ADDED*/
 |   MacroSpec {}
 ;
 
-(*** MACRO DEF ***)
+/*** MACRO DEF ***/
 
 MacroSpec :
-	MACRO ID ParamList EQUAL Statment	{}
-|	MACRO ID ParamList EQUAL Expression	{}
+	MACRO ID ParamList EQ Statement	{}
+|	MACRO ID ParamList EQ Expr	{}
 
-(*** END MACRO DEF ***)
+/*** END MACRO DEF ***/
 
 
 
