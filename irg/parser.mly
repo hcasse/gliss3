@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.6 2008/07/22 09:53:49 jorquera Exp $
+ * $Id: parser.mly,v 1.7 2008/07/24 08:42:23 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -65,9 +65,6 @@
 %token    PLUS MINUS STAR SLASH PERCENT TILD COLON
 %token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
 
-/* ADDED*/
-%token MACRO
-
 %right	EQ
 %left	DOUBLE_COLON
 %left	OR
@@ -84,6 +81,8 @@
 %right	DOUBLE_STAR
 %right	TILD
 %left   BIT_LEFT BIT_RIGHT DOUBLE_DOT
+
+
 
 %type <unit> top
 %start top
@@ -132,20 +131,6 @@ MachineSpec :
 				}
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
-
-/* ADDED*/
-|   MacroSpec {}
-;
-
-/*** MACRO DEF ***/
-
-MacroSpec :
-	MACRO ID ParamList EQ Statement	{}
-|	MACRO ID ParamList EQ Expr	{}
-
-/*** END MACRO DEF ***/
-
-
 
 
 
@@ -206,7 +191,7 @@ TypeExpr:
 		let v1=Sem.to_int32 (Sem.eval_const $2)
 		and v2=Sem.to_int32 (Sem.eval_const $4)
 		in
-		if ((Int32.compare v1 v2)<0)		(* A CHANGER en <= ??*)
+		if ((Int32.compare v1 v2)<0)		(* ?? A CHANGER en <= ?? *)
 			then Irg.RANGE (v1,v2)
 			else 
 				let dsp=fun _->(

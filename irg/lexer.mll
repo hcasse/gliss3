@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.5 2008/07/22 09:49:09 jorquera Exp $
+ * $Id: lexer.mll,v 1.6 2008/07/24 08:42:23 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -74,7 +74,7 @@ let display_error msg =
 
 (*warning management *)
 let display_warning msg=
-	Printf.printf "Warning:%s:%d:%s\n" !file !line msg	(* a changer *)
+	Printf.printf "Warning:%s:%d:%s\n" !file !line msg	(* a changer : stderr ? *)
 
 (* Lexing add-ons *)
 let rec dotdot lexbuf i found =
@@ -135,23 +135,23 @@ rule main = parse
 |	"/*"		{ comment lexbuf }
 
 |	"\""		{ str "" lexbuf }
-|	"'"			{ chr "" lexbuf }
+|	"'"		{ chr "" lexbuf }
 
 (**)
-(*|	decint as v { CARD_CONST (Int32.of_string v) } 
-|	hexint as v { CARD_CONST (Int32.of_string v) } 
-|	binint as v { CARD_CONST (Int32.of_string v) } *)
+(*|	decint as v 	{ CARD_CONST (Int32.of_string v) } 
+|	hexint as v 	{ CARD_CONST (Int32.of_string v) } 
+|	binint as v 	{ CARD_CONST (Int32.of_string v) } *)
 
-|num as v {	try(
-			CARD_CONST (Int32.of_string v)
-		)with Failure _-> CARD_CONST_64 (Int64.of_string v)
-	}
+|num as v 		{	try(
+					CARD_CONST (Int32.of_string v)
+				)with Failure _-> CARD_CONST_64 (Int64.of_string v)
+			}
 
 (**)
 
 |	flt as v	{ FIXED_CONST (float_of_string v) }
-|	id as v		{ keyword v }
-|	">>>"       { gt lexbuf ROTATE_RIGHT 2 }
+|	id as v		{  keyword v }
+|	">>>"		{ gt lexbuf ROTATE_RIGHT 2 }
 |	"<<<"		{ ROTATE_LEFT }
 |	">>"		{ gt lexbuf RIGHT_SHIFT 1 }
 |	"<<"		{ LEFT_SHIFT }
@@ -164,37 +164,39 @@ rule main = parse
 |	"&&"		{ AND }
 |	"||"		{ OR }
 |	"<="		{ LEQ }
-|	"<"			{
-					if dotdot lexbuf lexbuf.lex_last_pos false
-					then begin bitfld := true; BIT_LEFT end
-					else LT
-				}
-|	">"        	{ bitfld := false; GT }
-|	"$"         { DOLLAR }
-|	"#"			{ SHARP }
-|	"="			{ EQ }
-|	"."			{ DOT }
-|	"&"			{ AMPERS }
-|	"|"			{ PIPE }
-|	":"			{ COLON }
-|	"!"			{ EXCLAM }
-|	";"			{ SEMI }
-|	","			{ COMMA }
-|	"("			{ LPAREN }
-|	")"			{ RPAREN }
-|	"["			{ LBRACK }
-|	"]"			{ RBRACK }
-|	"{"			{ LBRACE }
-|	"}"			{ RBRACE }
-|	"+"			{ PLUS }
-|	"-"			{ MINUS }
-|	"*"			{ STAR }
-|	"/"			{ SLASH }
-|	"%"			{ PERCENT }
-|	"~"			{ TILD }
-|	"^"			{ CIRC }
+|	"<"		{
+			 if dotdot lexbuf lexbuf.lex_last_pos false
+				then 
+					begin bitfld := true; BIT_LEFT end
+				else 
+					LT
+			}
+|	">"     	{ bitfld := false; GT }
+|	"$"     	{ DOLLAR }
+|	"#"		{ SHARP }
+|	"="		{ EQ }
+|	"."		{ DOT }
+|	"&"		{ AMPERS }
+|	"|"		{ PIPE }
+|	":"		{ COLON }
+|	"!"		{ EXCLAM }
+|	";"		{ SEMI }
+|	","		{ COMMA }
+|	"("		{ LPAREN }
+|	")"		{ RPAREN }
+|	"["		{ LBRACK }
+|	"]"		{ RBRACK }
+|	"{"		{ LBRACE }
+|	"}"		{ RBRACE }
+|	"+"		{ PLUS }
+|	"-"		{ MINUS }
+|	"*"		{ STAR }
+|	"/"		{ SLASH }
+|	"%"		{ PERCENT }
+|	"~"		{ TILD }
+|	"^"		{ CIRC }
 
-|	eof			{ EOF }
+|	eof		{ EOF }
 |	_ as v		{ raise (BadChar v) }
 
 (* eof_comment *)
@@ -220,4 +222,3 @@ and chr res = parse
 	"\'"			{ STRING_CONST res }
 |	"\\" (_	as v)	{ chr (res ^ (String.make 1 v)) lexbuf }
 |	_ as v			{ chr (res ^ (String.make 1 v)) lexbuf }
-

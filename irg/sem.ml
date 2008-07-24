@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.5 2008/07/22 09:49:10 jorquera Exp $
+ * $Id: sem.ml,v 1.6 2008/07/24 08:42:24 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1025,7 +1025,7 @@ in
 					if (get_type_expr e_i=UNKNOW_TYPE)
 					then true
 					else
-					let num= try(int_of_string (String.sub e_s 1 ((String.length e_s)-2)))with Failure "int_of_string" -> 0
+					let num= try(int_of_string (String.sub e_s 1 ((String.length e_s)-2)))with Failure "int_of_string" -> (-1)
 					in
 					match Str.last_chars e_s 1 with
 						 "d"-> (match (get_type_expr e_i) with 
@@ -1033,7 +1033,7 @@ in
 								|_->false)
 
 						|"b"->(try(
-								get_length_from_expr e_i = num || get_length_from_expr e_i =(-1)
+								get_length_from_expr e_i = num || get_length_from_expr e_i =(-1) (*string*) || num=(-1) (*no size defined*) || num=0 (*needed for compatibility*)
 							)with Failure "internal error : get_length_from_type_expr"->false)
 
 						|"x"->(match (get_type_expr e_i) with 
