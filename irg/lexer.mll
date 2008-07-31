@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.6 2008/07/24 08:42:23 jorquera Exp $
+ * $Id: lexer.mll,v 1.7 2008/07/31 14:54:31 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -19,7 +19,19 @@ let bitfld = ref false
 let lexicon = Irg.StringHashtbl.create 211
 let keyword id =
 	try
-		Irg.StringHashtbl.find lexicon id
+		let e=Irg.StringHashtbl.find lexicon id
+		in
+		match e with
+		 EXCEPTION _->EXCEPTION !line
+		|LET _->LET !line
+		|MEM _->MEM !line
+		|MODE _->MODE !line
+		|OP _-> OP !line
+		|REG _->REG !line
+		|VAR _->VAR !line
+		|RESOURCE _->RESOURCE !line
+		|TYPE _->TYPE !line	
+		|_->e
 	with Not_found -> (ID id)
 
 let keywords = [ 
@@ -35,7 +47,7 @@ let keywords = [
 	("endif",       ENDIF);
 	("enum",        ENUM);
 	("error",       ERROR);
-	("exception",   EXCEPTION);
+	("exception",   EXCEPTION 0);
 	("fix",        	FIX);
 	("float",       FLOAT);
 	("format",      FORMAT);
@@ -43,21 +55,21 @@ let keywords = [
 	("image",       IMAGE);
 	("initial",     INITIALA);
 	("int",        	INT);
-	("let",        	LET);
+	("let",        	LET 0);
 	("list",        LIST);
 	("macro",       MACRO);
-	("mem",        	MEM);
-	("mode",        MODE);
+	("mem",        	MEM 0);
+	("mode",        MODE 0);
 	("nop",        	NOP);
 	("not",        	NOT);
-	("op",        	OP);
-	("reg",        	REG);
-	("var",        	VAR);
-	("resource",    RESOURCE);
+	("op",        	OP 0);
+	("reg",        	REG 0);
+	("var",        	VAR 0);
+	("resource",    RESOURCE 0);
 	("syntax",      SYNTAX);
 	("switch",      SWITCH);
 	("then",        THEN);
-	("type",        TYPE);
+	("type",        TYPE 0);
 	("uses",        USES);
 	("volatile",    VOLATILE)
 ]
@@ -74,7 +86,7 @@ let display_error msg =
 
 (*warning management *)
 let display_warning msg=
-	Printf.printf "Warning:%s:%d:%s\n" !file !line msg	(* a changer : stderr ? *)
+	Printf.fprintf stderr "Warning%s:%d:%s\n" !file !line msg
 
 (* Lexing add-ons *)
 let rec dotdot lexbuf i found =

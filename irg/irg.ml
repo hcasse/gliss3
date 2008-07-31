@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.5 2008/07/22 09:49:09 jorquera Exp $
+ * $Id: irg.ml,v 1.6 2008/07/31 14:54:31 jorquera Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -113,13 +113,12 @@ type stat =
 	| EVALIND of string * string
 	| SET of location * expr
 	| CANON_STAT of string * expr list
-	| ERROR of string
+	| ERROR of string	(* a changer : stderr ? *)
 	| IF_STAT of expr * stat * stat
 	| SWITCH_STAT of expr * (expr * stat) list * stat
-(* stats rajoutés *)
-	|SETSPE of location * expr	(* Used for allowing assigment of parameters (for exemple in predecode). 
-					   This is NOT in the nML standard and is only present for allowing 
-					   compatibility *) 
+	| SETSPE of location * expr	(* Used for allowing assigment of parameters (for exemple in predecode attribute). 
+					   This is NOT in the nML standard and is only present for compatibility *) 
+	| LINE of string * int * stat	(* Used to memorise the position of a statement *)
 
 (** attribute specifications *)
 type attr =
@@ -142,21 +141,12 @@ type spec =
 	| OR_OP of string * string list
 	| RES of string
 	| EXN of string
-(* spec ajoutées *)
 	| PARAM of string * typ
-	| ENUM_POSS of string*string*Int32.t*bool
-
-
-
-(* cannonical functions *)
-
-(*
-let cannon_fun={name : string; param : type_expr list ; type_res:type_expr}
-
-let cannon_tabl = [ {name="sin";param=[INT 32];type_res=FLOAT (24,8)} ]
-
-let call_cannonical name param=
-*)
+	| ENUM_POSS of string*string*Int32.t*bool	(*	Fields of ENUM_POSS :
+								the first parameter is the symbol of the enum_poss, 
+								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
+								the third is the value of this ENUM_POSS,
+								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
 
 
 
@@ -171,8 +161,7 @@ module StringHashtbl = Hashtbl.Make(HashString)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 
 
-(** Get the symbol matching the given name or UNDEF if not found.
- *)
+(** Get the symbol matching the given name or UNDEF if not found.*)
 let get_symbol n =
 	try
 		StringHashtbl.find syms n
@@ -191,27 +180,118 @@ let add_symbol name sym =
 	(* add the symbol to the hashtable *)
 	else StringHashtbl.add syms name sym
 
-(*
-let is_defined name =
-	try(
-		StringHashtbl.find syms name;
-		true
-	)with Not_found->false*)
-
+(**	Check if a given name is defined in the namespace
+		@param name	The name to check *)
 let is_defined name = StringHashtbl.mem syms name
 
-let add_param (name,t) =
-	StringHashtbl.add syms name (PARAM (name,t))
+(**	Add a parameter in the namespace.
+		This function don't raise RedefinedSymbol if the name already exits.
+		It is used to temporary overwrite existing symbols with the same name than a parameter
 
-let empiler_param l =List.iter add_param l
+		@param name	Name of the parameter to add.
+		@param t	Type of the parameter to add.	*)
+let add_param (name,t) =StringHashtbl.add syms name (PARAM (name,t))
 
-let depiler_param l =List.iter (StringHashtbl.remove syms) (List.map fst l)
+(**	Remove a symbol from the namespace.
+		@param name	The name of the symbol to remove. *)
+let rm_symbol name=StringHashtbl.remove syms name
 
+(**	Add a list of parameters to the namespace.
+		@param l	The list of parameters to add.	*)
+let param_stack l= List.iter add_param l
+
+(**	Remove a list of parameters from the namespace.
+		@param l	The list of parameters to remove.	*)
+let param_unstack l= List.iter (StringHashtbl.remove syms) (List.map fst l)
+
+(**	This function is used to make the link between an ENUM_POSS and the corresponding ENUM.
+		It must be used because when the parser encounter an ENUM_POSS, it doesn't have reduce	(* a changer : stderr ? *)d the ENUM already.
+		The ENUM can be reduced only when all the ENUM_POSS have been.
+		So when reduced, the ENUM_POSS have an boolean attribute "completed" set at false and their enum attribute is empty.
+		When the ENUM is reduced, we fill the enum attribute to make the link, and set the "completed" to true
+		
+		@param id	The id of the enum
+*)
 let complete_incomplete_enum_poss id =
 	StringHashtbl.fold (fun e v d-> match v with 
 				ENUM_POSS (n,_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (n,id,t,true))
 				|_->d 
 			) syms ()
+
+
+
+(* --- canonical functions --- *)
+
+type canon_name_type=
+	 UNKNOW		(* this is used for functions not defined in the cannon_list *)
+	|NAMED of string
+
+(* canonical function table *)
+module HashCanon =
+struct
+	type t = canon_name_type
+	let equal (s1 : t) (s2 : t) = match (s1,s2) with
+					(UNKNOW,UNKNOW)->true
+					|(NAMED a,NAMED b) when a=b->true
+					|_->false
+	let hash (s : t) = Hashtbl.hash s
+end
+module CanonHashtbl = Hashtbl.Make(HashCanon)
+
+type canon_fun={name : canon_name_type; type_param : type_expr list ; type_res:type_expr}
+
+(* the canonical functions space *)
+let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
+
+(* list of all defined canonical functions *)
+let canon_list = [
+			{name= UNKNOW;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
+			{name=NAMED "sin";type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};
+			{name=NAMED "print";type_param=[STRING];type_res=NO_TYPE} 
+		 ]
+
+(* we add all the defined canonical functions to the canonical functions space *)
+let _ =	List.iter (fun e->CanonHashtbl.add canon_table e.name e) canon_list
+
+(** Check if a canonical function is defined
+	@param name	The name of the function to check *)
+let is_defined_canon name = CanonHashtbl.mem canon_table (NAMED name)
+
+(** Get a canonincal function
+	@param name	The name of the canonical function to get
+	@return A canon_fun element, it can be the function with the attribute name UNKNOW if the name given is not defined *)
+let rec get_canon name=
+	try
+		CanonHashtbl.find canon_table (NAMED name)
+	with Not_found -> CanonHashtbl.find canon_table UNKNOW
+
+(* --- end canonical functions --- *)
+
+
+(* Position *)
+
+type pos_type = {ident:string; file : string; line : int}
+
+(* This table is used to record the positions of the declaration of all symbols *)
+let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
+
+(** Add a symbol to the localisation table.
+	@param v_name	Name of the symbol to add.
+	@param v_file	Name of the file where the symbol is declared
+	@param v_line	Approximate line number of the declaration.
+*)
+let add_pos v_name v_file v_line = 
+	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
+
+(* --- display functions --- *)
+
+(** Used to print a position
+	Debug only
+	@param e	Element of which we want to display the position
+*)
+let print_pos e=
+	(Printf.fprintf stdout "%s->%s:%d\n" e.ident e.file e.line)
+
 
 
 (** Print a constant.
@@ -321,7 +401,7 @@ let rec print_expr e =
 	| CANON_EXPR (_, n, args) ->
 		print_string "\"";
 		print_string n;
-		print_string "\"(";
+		print_string "\" (";
 		let _ = List.fold_left print_arg true args in
 		print_string ")"
 	| FIELDOF(_, e, n) ->
@@ -412,7 +492,7 @@ let rec print_statement stat=
 	| EVAL ch-> Printf.printf "\t\t%s;\n" ch
 	| EVALIND (ch1, ch2)->Printf.printf "\t\t%s.%s;\n" ch1 ch2
 	| SET (loc, exp)->print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
-	| CANON_STAT (ch, expr_liste)-> Printf.printf "\t\t \"%s\"" ch; List.iter print_expr expr_liste ;print_string ";\n"
+	| CANON_STAT (ch, expr_liste)-> Printf.printf "\t\t\"%s\" (" ch; List.iter print_expr expr_liste ;print_string ");\n"
 	| ERROR ch->Printf.printf "\t\t error %s;\n" ch
 	| IF_STAT (exp,statT,statE)-> 	print_string "\t\t if "; print_expr exp;print_string "\n";
 					print_string "\t\t then \n"; print_statement statT;
@@ -424,6 +504,7 @@ let rec print_statement stat=
 						print_string "\t\t\t default : \n\t\t";print_statement stat;
 						print_string "\t\t }; \n"
 	|SETSPE (loc, exp)->print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
+	|LINE (_,_,s)->print_statement s
 
 
 

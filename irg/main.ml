@@ -7,10 +7,17 @@ let _ =
 		Parser.top Lexer.main lexbuf;
 		
 		(**)
+
 		(*
 		print_string "Affichage resultat\n";
 		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms 
 		*)
+
+		(*
+		print_string "Affichage positions\n";
+		Irg.StringHashtbl.iter (fun _ e -> Irg.print_pos e) Irg.pos_table
+		*)
+
 		(**)
 
 	with
@@ -30,6 +37,7 @@ let _ =
 		fn ();
 		Unix.dup2 old_out Unix.stdout;
 		Unix.close old_out
+		
 	(**)
 	|Failure e->Lexer.display_error e;
 	(**)
