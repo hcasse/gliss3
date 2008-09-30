@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.7 2008/07/31 14:54:31 jorquera Exp $
+ * $Id: lexer.mll,v 1.8 2008/09/30 11:03:42 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -9,6 +9,7 @@
 open Parser
 open Lexing
 exception BadChar of char
+exception BadLine
 
 (* Line count *)
 let file = ref ""
@@ -146,13 +147,9 @@ rule main = parse
 |	"//"		{ eof_comment lexbuf }
 |	"/*"		{ comment lexbuf }
 
-|	"\""		{ str "" lexbuf }
-|	"'"		{ chr "" lexbuf }
-
-(**)
-(*|	decint as v 	{ CARD_CONST (Int32.of_string v) } 
-|	hexint as v 	{ CARD_CONST (Int32.of_string v) } 
-|	binint as v 	{ CARD_CONST (Int32.of_string v) } *)
+|	"\""		{ STRING_CONST  (str "" lexbuf) }
+|	"'"			{ chr "" lexbuf }
+|	"#line"		{ scan_line lexbuf; scan_file lexbuf; main lexbuf }
 
 |num as v 		{	try(
 					CARD_CONST (Int32.of_string v)
@@ -225,7 +222,7 @@ and comment = parse
 
 (* string recognition *)
 and str res = parse
-	"\""			{ STRING_CONST res }
+	"\""			{ res }
 |	"\\" (_	as v)	{ str (res ^ (String.make 1 v)) lexbuf }
 |	_ as v			{ str (res ^ (String.make 1 v)) lexbuf }
 
@@ -234,3 +231,14 @@ and chr res = parse
 	"\'"			{ STRING_CONST res }
 |	"\\" (_	as v)	{ chr (res ^ (String.make 1 v)) lexbuf }
 |	_ as v			{ chr (res ^ (String.make 1 v)) lexbuf }
+
+and scan_line = parse
+	digit+ as l	{ line := (int_of_string l) - 1 }
+|	delim		{ scan_line lexbuf }
+|	_			{ raise BadLine }
+
+and scan_file = parse
+	delim		{ scan_file lexbuf }
+|	"\""		{ file := (str "" lexbuf) }
+|	_			{ raise BadLine }
+

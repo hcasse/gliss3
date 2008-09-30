@@ -5,6 +5,7 @@ let _ =
 	let lexbuf = Lexing.from_channel stdin in
 	try	
 		Parser.top Lexer.main lexbuf;
+		print_string "success !\n"
 		
 		(**)
 
