@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 #/****************************************************************************
 #                                  nmp2nml.pl                                 
 #                              ------------------
@@ -44,6 +45,9 @@ my $nb_macro_subtitions;
 my $nom_fichier_out;
 my @list_macro_fp;
 
+# !!HKC!!
+my %macro_line;
+my @line_stack = [];
 
 if (!$nom_fichier){
     print STDERR "\nUsage : $0 <nml_file> [<output_file>]\n" . 
@@ -112,6 +116,10 @@ sub parse_file{
         # si c'est une definition de macro
         if ($ligne =~ /^\s*macro\s*(\w+)\s*\(?\s*/g) { 
             $nom_macro=$1;
+			
+			# !!HKC!!
+			$macro_line{$nom_macro} = $num_ligne;
+			
             if (&is_in($nom_macro,keys %macro)){
                 $_=$ligne;
                 chomp($_);
@@ -166,8 +174,18 @@ sub parse_file{
                 chomp($ligne);
                 nMP_erreur("Cannot include himself {$ligne}\n");
             }
+			
+			# !!HKC!!
+			push(@line_stack, $num_ligne)
+			
             &include_file($1,$file,$num_ligne);
             $nom_fichier_courrant=$file;
+			
+			# !!HKC!!
+			$num_ligne = pop(@line_stack) + 1;
+			print "#line $num_ligne \"$nom_fichier_courrant\"\n"
+			
+			
         }
 
         # si c'est un include (a la fin)
@@ -181,11 +199,19 @@ sub parse_file{
 
         # sinon (ligne normale)
         else {
+		
+			# !!HKC!! 
+			my $one = 0;
             if (!$continued_ligne) {
                 ($pos,$macro_found,$debut,$nb_paren)=&search_macro($ligne,0);
             }
             while ($pos!=0 || $continued_ligne){
                 my $str;
+				
+				# !!HKC!!
+				$one = 1;
+				push(@line_stack, $num_ligne);
+				
                 # macro found (now or before) -> get parameters
                 pos($ligne)=$pos;
                 $fin = substr($ligne,$pos);
@@ -228,12 +254,28 @@ sub parse_file{
                 $nb_macro_subtitions++;
                 #print STDERR "{$ligne"."[$debut$str\n";
                 $ligne=$debut.$str.$fin;
+				
+				
                 ($pos,$macro_found,$debut,$nb_paren)=&search_macro($ligne,$pos-length($macro_found));
                 undef @params;
                 undef $str_param;
             }
+
+			# !!HKC!!
+			if($one) {
+				$ligne =~ s/\n/\n#line $num_ligne_courrante \"$nom_fichier_courrant\"\n/g;
+			}
+
             $nb_lines_written+=count_cr($ligne);
             print match_fpi_macro($ligne);
+			
+			# !!HKC!!
+			if($one) {
+				$num_ligne = pop(@line_stack);
+				my $next_line = $num_ligne + 1;
+				print "#line $next_line \"$nom_fichier_courrant\"\n";
+				$nb_lines_written += 1;
+			}
         }
     }
 
@@ -243,6 +285,8 @@ sub parse_file{
         $file=pop(@include_at_end);
         $file_included=pop(@include_at_end);
         &include_file($file_included,$file,$num_ligne);
+
+
     }
     return;
 }
@@ -382,6 +426,11 @@ sub include_file {
     my $file_up=shift(@_);
     my $ligne=shift(@_);
     open (FILE,$file) or nMP_erreur("Cannot open \'$file\` included file from '$file_up`, line $ligne\n");
+	
+	# !!HKC!!
+	print "#line 1 \"$file\"\n";
+	$nb_lines_written += 1;
+	
     return &parse_file(\*FILE,$file);
 }
 
