@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.7 2008/07/31 14:54:31 jorquera Exp $
+ * $Id: sem.ml,v 1.8 2008/10/28 14:30:45 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1018,7 +1018,7 @@ let is_setspe loc=
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp=Str.regexp "%[0-9]*[dbxs]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 , 
+let reg_exp=Str.regexp "%[0-9]*[dbxsf]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 , 
 						so we allow this kind of expression here for compatibility *)
 
 (** this function is used to find all references to a parameter in a string passed to a format
@@ -1078,6 +1078,9 @@ let build_format str exp_list=
 							(* (match (get_type_expr e_i) with 
 								STRING->true
 								|_->false) *)
+						|"f"-> (match (get_type_expr e_i) with 
+								(FLOAT _ | INT _ | CARD _)->true
+								|_->false)
 
 						|_->failwith "internal error : build_format"
 					) ref_list exp_list
