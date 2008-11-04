@@ -58,9 +58,22 @@ let get_attr instr name =
 	| _ ->
 		assert false
 
-(* let get_id instr =
+(* return the ID of the given instruction spec, 0 is for unknown instr
+	@param instr	the spec of the instruction whose ID is needed *)
+let get_id instr =
+	let rec search_in_list l i num =
+		match l with
+		[] -> (* return 0 if instr not found (unknown) *)
+			0
+		| a::b ->
+			if a = i then
+				num
+			else
+				search_in_list b i (num+1)
+	in
+	search_in_list instr_set instr 1
 
-let get_name instr = *)
+(* let get_name instr = *)
 
 (** return the params (with their types) of an instruction specification
 	@param instr	spec of the instrution *)
