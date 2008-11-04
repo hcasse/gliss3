@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.3 2008/07/22 09:49:09 jorquera Exp $
+# $Id: Makefile,v 1.4 2008/11/04 12:06:55 barre Exp $
 include ../Makefile.head
 
 SOURCES = \
 	irg.ml \
+	infos.ml \
 	lexer.mll \
 	sem.ml \
 	parser.mly \
