@@ -71,7 +71,11 @@ let get_params instr =
 	| _ ->
 		assert false
 
-(* let reduce instr e = *)
+(* instantiate all known vars in a given expr
+	@param instr	the spec whose params will give the vars to instantiate
+	@param e	the expr to reduce *)
+let reduce instr e =
+	Irg.instantiate_in_expr e (get_params instr)
 
 (** return the type of a symbol appearing in the spec of an instruction
 	@param instr	spec of the instruction 
