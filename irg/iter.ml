@@ -71,9 +71,36 @@ let get_id instr =
 			else
 				search_in_list b i (num+1)
 	in
-	search_in_list instr_set instr 1
+	search_in_list !instr_set instr 1
 
-(* let get_name instr = *)
+let get_name instr =
+	let get_expr_from_value v =
+		match v with
+		EXPR(e) ->
+			e
+		| _ ->
+			raise Not_found
+	in
+	let get_syntax_text syntax_attr =
+		match syntax_attr with
+		Irg.FORMAT(s, e_l) ->
+			s
+		| Irg.CONST(t, c) ->
+			(match t with
+			Irg.STRING ->
+				(match c with
+				Irg.STRING_CONST(str) ->
+					str
+				| _ ->
+					raise Not_found
+				)
+			| _ ->
+				raise Not_found
+			)
+		| _ ->
+			raise Not_found
+	in
+	get_syntax_text (get_expr_from_value (get_attr instr "syntax"))
 
 (** return the params (with their types) of an instruction specification
 	@param instr	spec of the instrution *)
