@@ -5,19 +5,17 @@ let _ =
 	let lexbuf = Lexing.from_channel (*stdin*) (open_in "../test/ppc.nml") in
 	try	
 		Parser.top Lexer.main lexbuf;
+		print_string "success !\n";
 		
 		
 
-		(*
+		
 		print_string "Affichage resultat\n";
-		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms; 
-		*)
+		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;
 
-		(*
+		
 		print_string "Affichage positions\n";
-		Irg.StringHashtbl.iter (fun _ e -> Irg.print_pos e) Irg.pos_table;
-		*)
-	
+		Irg.StringHashtbl.iter (fun _ e -> Irg.print_pos e) Irg.pos_table
 
 	with
 	  Parsing.Parse_error ->
