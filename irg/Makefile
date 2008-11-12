@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 2008/11/04 14:04:47 barre Exp $
+# $Id: Makefile,v 1.6 2008/11/12 20:48:35 casse Exp $
 include ../Makefile.head
 
 SOURCES = \
@@ -14,3 +14,7 @@ OCAML_LIB+=str
 $(eval $(call ocaml_prog,irg,$(SOURCES)))
 
 include ../Makefile.tail
+
+doc:
+	mkdir autodoc
+	ocamldoc -html -i . irg.ml sem.ml iter.ml -d autodoc

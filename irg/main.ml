@@ -11,11 +11,16 @@ let _ =
 
 		
 		print_string "Affichage resultat\n";
-		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;
+(*		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;*)
 
 		
 		print_string "Affichage positions\n";
-		Irg.StringHashtbl.iter (fun _ e -> Irg.print_pos e) Irg.pos_table
+		Iter.Iter.iter
+			(fun _ i ->
+				Format.printf "%s: %d\n"
+					(Iter.Iter.get_name i)
+					(Iter.Iter.get_id i))
+			()
 
 	with
 	  Parsing.Parse_error ->
@@ -25,6 +30,8 @@ let _ =
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr)
 	| Sem.SemError msg ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg)
+	| Irg.IrgError msg ->
+		Lexer.display_error (Printf.sprintf "ERROR: %s" msg)
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		let old_out = Unix.dup Unix.stdout in

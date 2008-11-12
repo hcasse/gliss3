@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.7 2008/11/02 17:15:16 barre Exp $
+ * $Id: irg.ml,v 1.8 2008/11/12 20:48:35 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,6 +20,7 @@
  *)
 
 exception RedefinedSymbol of string
+exception IrgError of string
 
 (** Type expression *)
 type type_expr =
@@ -148,6 +149,23 @@ type spec =
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
 
+let name_of spec =
+	match spec with
+	  UNDEF -> "<undef>"
+	| LET (name, _) -> name
+	| TYPE (name, _) -> name
+	| MEM (name, _, _, _) -> name
+	| REG (name, _, _, _) -> name
+	| VAR (name, _, _) -> name
+	| AND_MODE (name, _, _, _) -> name
+	| OR_MODE (name, _) -> name
+	| AND_OP (name, _, _) -> name
+	| OR_OP (name, _) -> name
+	| RES (name) -> name
+	| EXN (name) -> name
+	| PARAM (name, _) -> name
+	| ENUM_POSS (name, _, _, _) -> name
+	
 
 
 (* Symbol table *)
@@ -831,12 +849,14 @@ let get_stat_from_attr_from_spec sp name_attr =
 		| _::t -> get_attr n t
 	in
 		match sp with
-		AND_OP(_, _, attrs) ->
+		  AND_OP(_, _, attrs) ->
 			get_attr name_attr attrs
 		| AND_MODE(_, _, _, attrs) ->
 			get_attr name_attr attrs
 		| _ ->
-			failwith "cannot get an statement attribute from not an AND OP or AND MODE"
+			let sp_name = name_of sp in
+			raise (IrgError ("access to " ^ sp_name ^ "." ^ name_attr
+				^ " while " ^ sp_name ^ " is neither an OP or a MODE"))
 	
 
 (* symbol substitution is needed *)
