@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.8 2008/11/12 20:48:35 casse Exp $
+ * $Id: irg.ml,v 1.9 2008/11/13 14:59:23 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -565,7 +565,8 @@ let print_mem_attrs attrs =
 	@param typ	Type to print. *)
 let print_type typ =
 	match typ with
-	  TYPE_ID id -> print_string id
+	  TYPE_ID id -> (*print_string id*)
+	  	Printf.printf "T_I(%s)" id
 	| TYPE_EXPR te -> print_type_expr te
 
 
@@ -722,7 +723,7 @@ let rec tree_op op =
 	let l = sub_ops op in
 	Tree(name_of_op op, List.map (fun x -> tree_op (get_symbol x)) l)
 	
-let rec print_tree level tree =
+(*let rec print_tree level tree =
 	match tree with
 		Tree(n, l) ->
 		begin
@@ -731,13 +732,13 @@ let rec print_tree level tree =
 			Printf.printf "\n";
 		end
 		| _ -> ()
-
+*)
 
 let rec op_tree_op op =
 	let l = sub_ops op in
 	OpTree(op, List.map (fun x -> op_tree_op (get_symbol x)) l)
 
-
+(*
 let rec print_op_tree level tree =
 	match tree with
 		OpTree(n, l) ->
@@ -765,7 +766,7 @@ let rec debug_print_op_tree tr =
 			Printf.printf ")"
 			end
 		)
-
+*)
 
 (* let's put the MODEs in a list, useful for decode *)
 
@@ -854,9 +855,11 @@ let get_stat_from_attr_from_spec sp name_attr =
 		| AND_MODE(_, _, _, attrs) ->
 			get_attr name_attr attrs
 		| _ ->
-			let sp_name = name_of sp in
+			NOP
+			
+			(*let sp_name = name_of sp in
 			raise (IrgError ("access to " ^ sp_name ^ "." ^ name_attr
-				^ " while " ^ sp_name ^ " is neither an OP or a MODE"))
+				^ " while " ^ sp_name ^ " is neither an OP or a MODE"))*)
 	
 
 (* symbol substitution is needed *)
@@ -881,7 +884,8 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 		| AND_MODE(_, _, _, a_l) ->
 			get_attr name_attr a_l
 		| _ ->
-			failwith "cannot get an expr attribute from not an AND OP or an AND MODE"
+			NONE
+			(*failwith "cannot get an expr attribute from not an AND OP or an AND MODE"*)
 
 let rec substitute_in_expr name op ex =
 	let is_and_mode sp =
@@ -984,6 +988,7 @@ let replace_format_by_attr str_format expr_field spec_type =
 		| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
+			| _ -> ""
 			)
 		| REF(s) -> s
 		| _ -> ""
@@ -999,6 +1004,7 @@ let replace_format_by_attr str_format expr_field spec_type =
 		| CONST(STRING, cst) ->
 			(match cst with
 			STRING_CONST(str) -> str
+			| _ -> ""
 			)
 		(* leave unchanged for simple expr of simple types, like "tmp", "x" *)
 		| _ -> t)
@@ -1037,29 +1043,114 @@ let replace_param_list p_l =
 		
 	
 let rec search_spec_of_name name param_list =
-
 	let spec_from_type t =
 		match t with
 		TYPE_ID(n) -> get_symbol n
 		| _ -> UNDEF
 	in
-	match param_list with
-	(n, t)::q ->
-		if n = name then
-			spec_from_type t
-		else
-			search_spec_of_name name q
-	| [] -> failwith (String.concat "" ["internal error: search_spec_of_name : "; name])
+	let get_type p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			n
+		| _ ->
+			""		
+	in
+	let get_name p =
+		match p with
+		(str, _) ->
+			str
+	in
+	let print_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			Printf.printf " (%s:%s) " (get_name p) (get_type p)
+		| (str, TYPE_EXPR(t)) ->
+			begin
+			Printf.printf " (%s:" (get_name p);
+			print_type (TYPE_EXPR(t));
+			print_string ") "
+			end
+	in
+	let rec print_param_list l =
+	begin
+		match l with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			begin
+			print_param h;
+			print_param_list q
+			end
+	end
+	in
+	let rec rec_aux nam p_l =
+		match p_l with
+		(n, t)::q ->
+			if n = nam then
+				spec_from_type t
+			else
+				search_spec_of_name name q
+		| [] -> failwith (String.concat "" ["internal error: search_spec_of_name : "; name])
+	in
+	begin
+	(*Printf.printf "Search_spec_of name=%s, params= " name;
+	print_param_list param_list;*)
+	rec_aux name param_list
+	end
 
 
 
 (* e is an expr appearing in the params given (supposed to be the params of another spec)
 if e is like "x.image", it returns the spec of "x" *)
-let rec get_spec_from_expr e spec_params =
-	match e with
-	FIELDOF(_, expre, _) -> get_spec_from_expr expre spec_params
-	| REF(name) -> search_spec_of_name name spec_params
-	| _ -> UNDEF
+let get_spec_from_expr e spec_params =
+	let get_type p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			n
+		| _ ->
+			""		
+	in
+	let get_name p =
+		match p with
+		(str, _) ->
+			str
+	in
+	let print_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			Printf.printf " (%s:%s) " (get_name p) (get_type p)
+		| (str, TYPE_EXPR(t)) ->
+			begin
+			Printf.printf " (%s:" (get_name p);
+			print_type (TYPE_EXPR(t));
+			print_string ") "
+			end
+	in
+	let rec print_param_list l =
+	begin
+		match l with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			begin
+			print_param h;
+			print_param_list q
+			end
+	end
+	in
+	let rec rec_aux ex p_l =
+		match ex with
+		FIELDOF(_, expre, _) -> rec_aux expre spec_params
+		| REF(name) -> search_spec_of_name name spec_params
+		| _ -> UNDEF
+	in
+	begin
+	(*print_string "get_spec_from_expr expr = ";
+	print_expr e;
+	print_string ", params = ";
+	print_param_list spec_params;*)
+	rec_aux e spec_params
+	end
 
 
 let rec regexp_list_to_str_list l =
@@ -1098,31 +1189,140 @@ expr_list is the params of the same format (eg : x, z, y.image, TMP_VAR)
 the format is supposed to be an attribute of a spec
 whose params are given in spec_params 
 returns a string list where each format has been replaced by the correct image or syntax (or else) *)
-let rec transform_str_list reg_list expr_list spec_params =
-	match reg_list with
-	[] -> []
-	| a::t ->
-		(match expr_list with
-		[] -> regexp_list_to_str_list reg_list
-		| b::u ->
-			(match a with
-			Str.Text(txt) -> txt::(transform_str_list t expr_list spec_params)
-			(* we suppose everything is well formed, each format has one param, params are given in format's order *)
-			| Str.Delim(txt) -> (replace_format_by_attr a b (get_spec_from_expr b spec_params))::(transform_str_list t u spec_params)
+let transform_str_list reg_list expr_list spec_params =
+	let get_type p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			n
+		| _ ->
+			""		
+	in
+	let get_name p =
+		match p with
+		(str, _) ->
+			str
+	in
+	let print_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			Printf.printf " (%s:%s) " (get_name p) (get_type p)
+		| (str, TYPE_EXPR(t)) ->
+			begin
+			Printf.printf " (%s:" (get_name p);
+			print_type (TYPE_EXPR(t));
+			print_string ") "
+			end
+	in
+	let rec print_param_list l =
+	begin
+		match l with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			begin
+			print_param h;
+			print_param_list q
+			end
+	end
+	in
+	let rec print_reg_list rl =
+		match rl with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			(match h with
+			Str.Text(t) ->
+				begin
+				Printf.printf "(T)%s#" t;
+				print_reg_list q
+				end
+			| Str.Delim(t) ->
+				begin
+				Printf.printf "(D)%s#" t;
+				print_reg_list q
+				end
 			)
-		)
+	in
+	(*let print_expr_list el =
+		List.iter (fun x -> begin print_expr x; print_string ", " end) el
+	in*)
+	let rec rec_aux r_l e_l p_l =
+		match r_l with
+		[] -> []
+		| a::t ->
+			(match e_l with
+			[] -> regexp_list_to_str_list r_l
+			| b::u ->
+				(match a with
+				Str.Text(txt) ->
+				begin
+				(*Printf.printf "a (txt) = %s\n" txt;*)
+				txt::(rec_aux t e_l p_l)
+				end
+				(* we suppose everything is well formed, each format has one param, params are given in format's order *)
+				| Str.Delim(txt) -> 
+				begin
+				(*Printf.printf "a (Delim) = %s\n" txt;
+				Printf.printf "b = "; print_expr b; print_string "\n" ;*)
+				(replace_format_by_attr a b (get_spec_from_expr b p_l))::(rec_aux t u p_l)
+				end
+				)
+			)
+	in 
+	begin
+	(*print_string "Trsfrm_str_list\nreg_l = "; print_reg_list reg_list;
+	print_string "exp_l = "; print_expr_list expr_list;
+	print_string "\nprm_l = "; print_param_list spec_params;*)
+	rec_aux reg_list expr_list spec_params
+	end
 
 
 (* instantiate all var in expr_frmt (of type format(ch, p1, p2, ..., pn) )
 the vars to instantiate are given in a list of couples (name of var, spec of the var)
 the vars must have been instantiated to real op (not OR op which have no attribute at all) *)
 let change_format_attr expr_frmt param_list =
+	let get_type p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			n
+		| _ ->
+			""		
+	in
+	let get_name p =
+		match p with
+		(str, _) ->
+			str
+	in
+	let print_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			Printf.printf " (%s:%s) " (get_name p) (get_type p)
+		| (str, TYPE_EXPR(t)) ->
+			begin
+			Printf.printf " (%s:" (get_name p);
+			print_type (TYPE_EXPR(t));
+			print_string ") "
+			end
+	in
+	let rec print_param_list l =
+	begin
+		match l with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			begin
+			print_param h;
+			print_param_list q
+			end
+	end
+	in
 	let get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
 		| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
+			| _ -> ""
 			)
 		| REF(s) -> s
 		| _ -> ""
@@ -1145,7 +1345,13 @@ let change_format_attr expr_frmt param_list =
 				f
 		| _ -> f
 	in
+	begin
+	(*print_string "Chg_frmt_attr\nfrmt_expr = ";
+	print_expr expr_frmt;
+	print_string "\nparams = ";
+	print_param_list param_list;*)
 	reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
+	end
 
 (* replace the type by the spec if the param refers to an op or mode,
 the param is dropped if it is of a simple type *)
@@ -1346,11 +1552,87 @@ let rec add_new_attrs sp param_list =
 
 
 let instantiate_spec sp param_list =
+	let get_type p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			n
+		| _ ->
+			""		
+	in
+	let get_name p =
+		match p with
+		(str, _) ->
+			str
+	in
+	let print_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			Printf.printf " (%s:%s) " (get_name p) (get_type p)
+		| (str, TYPE_EXPR(t)) ->
+			begin
+			Printf.printf " (%s:" (get_name p);
+			print_type (TYPE_EXPR(t));
+			print_string ") "
+			end
+	in
+	let rec print_param_list l =
+		match l with
+		[] ->
+			print_string "\n"
+		| h::q ->
+			begin
+			print_param h;
+			print_param_list q
+			end
+	in
+	let is_type_def_spec sp =
+		match sp with
+		TYPE(_, _) ->
+			true
+		| _ ->
+			false
+	in
+	(* replace all types by basic types (replace type definitions) *)
+	let simplify_param p =
+		match p with
+		(str, TYPE_ID(n)) ->
+			(* we suppose n can refer only to an OP or MODE, or to a TYPE *)
+			let sp = get_symbol n in
+			if is_type_def_spec sp then
+				(match sp with
+				TYPE(_, t_e) ->
+					(str, TYPE_EXPR(t_e))
+				| _ ->
+					p
+				)
+			else
+				p
+		| (_, _) ->
+			p
+	in
+	let simplify_param_list p_l =
+		List.map simplify_param p_l
+	in
+	let new_param_list = simplify_param_list param_list
+	in
+	begin
+	print_string "\n##################################\nInstantiate_spec\n####spec =\n";
+	print_spec sp;
+	print_string "####prms = ";
+	print_param_list new_param_list;
+	print_string "####res =\n";
 	match sp with
 	AND_OP(name, params, attrs) ->
-		add_new_attrs (AND_OP(name, replace_param_list param_list, List.map (fun x -> instantiate_attr x param_list) attrs)) param_list
+		let res = add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
+		in
+		begin
+		print_spec res;
+		print_string "\n";
+		res
+		end
 	| _ ->
 		UNDEF
+	end
 
 		
 let instantiate_spec_all_combinations sp =
@@ -1404,8 +1686,6 @@ let instantiate_instructions name =
 
 
 let test_instant_spec name =
-	let sp = get_symbol name
-	in
 	let rec print_spec_list l =
 		match l with
 		[] ->
@@ -1431,7 +1711,6 @@ let test_instant_param p =
 		match p with
 		(str, _) ->
 			str
-		| _ -> ""
 	in
 	let print_param p =
 		match p with
@@ -1495,6 +1774,7 @@ let test_format name =
 		| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
+			| _ -> ""
 			)
 		| REF(s) -> s
 		| _ -> ""
@@ -1505,7 +1785,9 @@ let test_format name =
 		| _ -> []
 	in
 	let print_string_list l =
-		List.map (fun x -> begin Printf.printf ":%s;\n" x end) l
+	begin
+		List.iter (fun x -> begin Printf.printf ":%s;\n" x end) l
+	end
 	in
 	let print_res l =
 	begin
@@ -1530,14 +1812,4 @@ let test_replace_param name =
 		print_expr_list (replace_field_expr_by_param_list expre sp)
 	end
 	
-
-let iterate func state =
-	let rec tree_iterate t f st =
-		match t with
-		OpTree(sp, []) ->
-			f st sp
-		| OpTree(sp, t_l) ->
-			List.fold_right (fun s a -> tree_iterate s f a) (List.rev t_l) st
-	in
-	tree_iterate tree_of_all_ops func state
 
