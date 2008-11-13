@@ -15,11 +15,11 @@ let _ =
 
 		
 		print_string "Affichage positions\n";
-		Iter.Iter.iter
+		Iter.iter
 			(fun _ i ->
 				Format.printf "%s: %d\n"
-					(Iter.Iter.get_name i)
-					(Iter.Iter.get_id i))
+					(Iter.get_name i)
+					(Iter.get_id i))
 			()
 
 	with
@@ -46,5 +46,4 @@ let _ =
 	|Failure e->Lexer.display_error e
 	(**)
 	
-
 let _ = Irg.test_instant_spec "instruction"
