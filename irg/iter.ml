@@ -1,6 +1,3 @@
-module Iter = struct
-
-type t = Irg.spec
 type value = STAT of Irg.stat | EXPR of Irg.expr
 
 
@@ -100,6 +97,7 @@ let get_name instr =
 		| _ ->
 			raise Not_found
 	in
+	(* get_name inachevé, retourne la syntaxe en attendant... *)
 	get_syntax_text (get_expr_from_value (get_attr instr "syntax"))
 
 (** return the params (with their types) of an instruction specification
@@ -137,4 +135,3 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
-end
