@@ -76,7 +76,7 @@ let get_name instr =
 		EXPR(e) ->
 			e
 		| _ ->
-			raise Not_found
+			Irg.NONE
 	in
 	let get_syntax_text syntax_attr =
 		match syntax_attr with
@@ -89,13 +89,13 @@ let get_name instr =
 				Irg.STRING_CONST(str) ->
 					str
 				| _ ->
-					raise Not_found
+					"no_syntax"
 				)
 			| _ ->
-				raise Not_found
+				"no_syntax"
 			)
 		| _ ->
-			raise Not_found
+			"no_syntax"
 	in
 	(* get_name inachevé, retourne la syntaxe en attendant... *)
 	get_syntax_text (get_expr_from_value (get_attr instr "syntax"))
