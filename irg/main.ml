@@ -46,4 +46,4 @@ let _ =
 	|Failure e->Lexer.display_error e
 	(**)
 	
-let _ = Irg.test_instant_spec "instruction"
+(*let _ = Irg.test_instant_spec "instruction"*)
