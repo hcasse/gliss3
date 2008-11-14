@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.9 2008/11/13 14:59:23 barre Exp $
+ * $Id: irg.ml,v 1.10 2008/11/14 15:21:17 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -671,13 +671,16 @@ let print_spec spec =
 	| ENUM_POSS (name,s,_,_)->Printf.printf "possibility %s of enum %s\n" name s;
 		()
 
-	| _ ->
-		()(*assert false*)
+	| UNDEF ->
+		print_string "<UNDEF>";
+		()
+	(*| _ ->
+		()assert false*)
 
 
 (* now let's try to put the OPs in a tree *)
 
-
+(*
 let is_op str =
 	match get_symbol str with
 	OR_OP(_, _) -> true
@@ -698,13 +701,13 @@ let rec keep_type_id str_typ_list =
 		[] -> []
 		| (_, TYPE_ID(str))::b -> str::(keep_type_id b)
 		| _::b -> keep_type_id b
-
+*)
 
 
 (* tree type containing the OPs labels, for testing *)
-type string_tree = Tree of string * (string_tree list)
+(*type string_tree = Tree of string * (string_tree list)*)
 (* tree type containing the OPs with full specifications *)
-type op_tree =
+(*type op_tree =
 	OpTree of spec * (op_tree list)
 	
 let sub_ops op =
@@ -723,7 +726,7 @@ let rec tree_op op =
 	let l = sub_ops op in
 	Tree(name_of_op op, List.map (fun x -> tree_op (get_symbol x)) l)
 	
-(*let rec print_tree level tree =
+let rec print_tree level tree =
 	match tree with
 		Tree(n, l) ->
 		begin
@@ -732,13 +735,13 @@ let rec tree_op op =
 			Printf.printf "\n";
 		end
 		| _ -> ()
-*)
+
 
 let rec op_tree_op op =
 	let l = sub_ops op in
 	OpTree(op, List.map (fun x -> op_tree_op (get_symbol x)) l)
 
-(*
+
 let rec print_op_tree level tree =
 	match tree with
 		OpTree(n, l) ->
@@ -771,7 +774,7 @@ let rec debug_print_op_tree tr =
 (* let's put the MODEs in a list, useful for decode *)
 
 (* first let's put them in a list *)
-
+(*
 let keep_mode _ s accu =
 	match s with
 	AND_MODE(str, l, e, al) -> AND_MODE(str, l, e, al)::accu
@@ -829,7 +832,7 @@ match mode with
 	(*OR_MODE(name, modes) -> List.flatten (List.map (fun x -> all_sub_modes (get_symbol name)) modes)*)
 	| AND_MODE(name, params, expr, attrs) -> AND_MODE(name, params, expr, attrs)::[] (* assume there is no circular reference *)
 	| _ -> []
-
+*)
 
 
 
@@ -1615,24 +1618,24 @@ let instantiate_spec sp param_list =
 	in
 	let new_param_list = simplify_param_list param_list
 	in
-	begin
+	(*begin
 	print_string "\n##################################\nInstantiate_spec\n####spec =\n";
 	print_spec sp;
 	print_string "####prms = ";
 	print_param_list new_param_list;
-	print_string "####res =\n";
+	print_string "####res =\n";*)
 	match sp with
 	AND_OP(name, params, attrs) ->
 		let res = add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
 		in
 		begin
-		print_spec res;
-		print_string "\n";
+		(*print_spec res;
+		print_string "\n";*)
 		res
 		end
 	| _ ->
 		UNDEF
-	end
+
 
 		
 let instantiate_spec_all_combinations sp =
@@ -1669,18 +1672,51 @@ let rec instantiate_spec_list s_l =
 			a::(instantiate_spec_list b)
 
 
-let tree_of_all_ops = op_tree_op (get_symbol "instruction")
+(*let tree_of_all_ops = op_tree_op (get_symbol "instruction")*)
 
 
 (* this function instantiate all possible instructions given by the spec name in the hashtable *)			
 let instantiate_instructions name =
+	(* some AND_OP specs with empty attrs and no params are output, remove them
+	TODO : see where they come from, this patch is awful. 
+	here, we assume we have an empty spec as soon as the syntax or the image is void *)
+	let is_void_attr a =
+		match a with
+		ATTR_EXPR(n, e) ->
+			if n="syntax" && e=NONE then
+				true
+			else
+				if n="image" && e=NONE then
+					true
+				else
+					false
+		| _ ->
+			false
+	in
+	let is_void_spec sp =
+		match sp with
+		AND_OP(_, _, attrs) ->
+			List.exists is_void_attr attrs
+		| _ ->
+			false
+	in
+	let rec clean_instructions s_l =
+		match s_l with
+		[] ->
+			[]
+		| h::t ->
+			if is_void_spec h then
+				clean_instructions t
+			else
+				h::(clean_instructions t)
+	in
 	let rec aux s_l =
 		if List.exists is_instantiable s_l then
 			aux (instantiate_spec_list s_l)
 		else
 			s_l
 	in
-	aux [get_symbol name]
+	clean_instructions (aux [get_symbol name])
 
 
 
@@ -1692,8 +1728,8 @@ let test_instant_spec name =
 			()
 		| a::b ->
 			begin
-			print_string "\nspec:\n";
 			print_spec a;
+			print_string "\n";
 			print_spec_list b
 			end
 	in
