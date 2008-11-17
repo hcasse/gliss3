@@ -114,6 +114,12 @@ _install_$(1)_CMXA:
 	
 endef
 
+
+# $(eval $(call ocaml_lib,LIB_NAME_WITHOUT_SUFFIX, SOURCES, OPTIONS))
+# Options includes:
+#   byte_code	Only compile byte code version (.cma).
+#   native	Only compile native version (.cmxa)
+#   no_install	No install the library
 define ocaml_lib
 $(if $(findstring byte_code,$(3)),\
 	$(call ocaml_byte_code_lib,$(1),$(2)),\
@@ -153,9 +159,7 @@ _DIST += $(2)
 _BINARY_DIST += $(1)
 
 $(1): $$($(1)_CMO)
-	@echo $$($(1)_MLO)
-	@echo $$($(1)_CMO)
-	$$(OCAMLC) $$($(1)_LDFLAGS) $$(OCAMLC_LDFLAGS) -o $$@ $$($(1)_CMO) $$(OCAMLC_LIBS)
+	$$(OCAMLC) $$($(1)_LDFLAGS) $$(OCAMLC_LDFLAGS) $$($(1)_LIBS:%=%.cma) -o $$@ $$($(1)_CMO) $$(OCAMLC_LIBS)
 
 $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
 
@@ -188,6 +192,19 @@ $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
 
 endef
 
+
+# $(eval $(call ocaml_prog,PROG_NAME,SOURCES,options))
+# Options includes:
+#   byte_code	compile in byte-code
+#   native	compile in native
+#   no_install	do not install the produced program
+# Configuration variable:
+#   {PROG_NAME}_LIBS		libraries to link with
+#   {PROG_NAME}_LDLFLAGS	linking flags
+#   OCAMLC_LDFLAGS		generic linking flags (byte code)
+#   OCAMLC_LIBS			generic libraries to link with (byte code)
+#   OCAMLOPT_LDFLAGS		generic linking flags (natives)
+#   OCAMLOPT_LIBS		generic libraries to link with (natives)
 define ocaml_prog
 $(if $(findstring native,$(3)),\
 	$(call ocaml_native_prog,$(1),$(2),$(3)),\
