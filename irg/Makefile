@@ -1,17 +1,23 @@
-# $Id: Makefile,v 1.6 2008/11/12 20:48:35 casse Exp $
+# $Id: Makefile,v 1.7 2008/11/17 21:53:35 casse Exp $
 include ../Makefile.head
 
-SOURCES = \
+# irg library
+LIB_SOURCES = \
+	IdMaker.ml \
 	irg.ml \
 	iter.ml \
 	lexer.mll \
 	sem.ml \
 	parser.mly \
 	main.ml
+$(eval $(call ocaml_lib,irg,$(LIB_SOURCES)))
 
-OCAML_LIB += unix
-OCAML_LIB+=str
-$(eval $(call ocaml_prog,irg,$(SOURCES)))
+
+# gep command
+GEP_SOURCES = gep.ml
+gep_LIBS = str unix irg
+$(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
+
 
 include ../Makefile.tail
 

@@ -70,35 +70,31 @@ let get_id instr =
 	in
 	search_in_list !instr_set instr 1
 
+
+(* name cache *)
+module HashInst =
+struct
+	type t = Irg.spec
+	let equal (s1 : t) (s2 : t) = s1 == s2
+	let hash (s : t) = Hashtbl.hash s
+end
+module NameTable = IdMaker.Make(HashInst)
+
+
+(**
+ * Get C identifier for the current instruction.
+ * This name may be used to build other valid C names.
+ * @param instr		Instruction to get name for.
+ * @return			C name for the instruction.
+ *)
 let get_name instr =
-	let get_expr_from_value v =
-		match v with
-		EXPR(e) ->
-			e
-		| _ ->
-			Irg.NONE
-	in
-	let get_syntax_text syntax_attr =
-		match syntax_attr with
-		Irg.FORMAT(s, e_l) ->
-			s
-		| Irg.CONST(t, c) ->
-			(match t with
-			Irg.STRING ->
-				(match c with
-				Irg.STRING_CONST(str) ->
-					str
-				| _ ->
-					"no_syntax"
-				)
-			| _ ->
-				"no_syntax"
-			)
-		| _ ->
-			"no_syntax"
-	in
-	(* get_name inachevé, retourne la syntaxe en attendant... *)
-	get_syntax_text (get_expr_from_value (get_attr instr "syntax"))
+	let syntax =
+		match get_attr instr "syntax" with
+		  EXPR(Irg.FORMAT(s, e_l)) -> s
+		| EXPR(Irg.CONST(Irg.STRING, Irg.STRING_CONST str)) -> str
+		| _ -> failwith "syntax does not reduce to a string" in
+	NameTable.make instr syntax
+
 
 (** return the params (with their types) of an instruction specification
 	@param instr	spec of the instrution *)
