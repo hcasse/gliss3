@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.8 2008/10/28 14:30:45 barre Exp $
+ * $Id: sem.ml,v 1.9 2008/11/18 08:59:34 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1078,8 +1078,9 @@ let build_format str exp_list=
 							(* (match (get_type_expr e_i) with 
 								STRING->true
 								|_->false) *)
-						|"f"-> (match (get_type_expr e_i) with 
-								(FLOAT _ | INT _ | CARD _)->true
+						|"f"-> (match (get_type_expr e_i) with
+							(* an int or a card expr should be cast in nmp before printed as %f *)
+								(FLOAT _ (*| INT _ | CARD _*))->true
 								|_->false)
 
 						|_->failwith "internal error : build_format"
