@@ -1,3 +1,11 @@
+# Configurations
+#	SUBDIRS	list of subdirectories to build
+#	OCAML_FLAGS	compilation flags independent of native/byte code mode
+#	OCAMLC_FLAGS	compilation flags for byte code
+#	OCAMLOPT_FLAGS	compilation flags for native
+#	OCAMLLEX_FLAGS	flags for ocamllex
+#	OCAMLYACC_FLAGS flags for ocamlyacc
+
 all: _all
 
 # Predefinition
