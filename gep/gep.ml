@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.2 2008/11/18 15:39:33 casse Exp $
+ * $Id: gep.ml,v 1.3 2008/11/19 12:15:36 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -85,15 +85,18 @@ let format_date date =
 	@param proc		Name of the processor. *)
 let make_id_h out proc =
 	let uproc = String.uppercase proc in
-	Printf.fprintf out "\n/* instruction codes */\n";
+	Printf.fprintf out "\n/* %s_ident_t */\n" proc;
+	Printf.fprintf out "typedef enum %s_ident_t {\n" proc;
+	Printf.fprintf out "\t%s_UNKNOWN = 0" uproc;
 	Iter.iter
 		(fun _ i -> Printf.fprintf
 			out
-			"#define %s_%s %d\n"
+			",\n\t%s_%s = %d"
 			uproc
 			(Iter.get_name i)
 			(Iter.get_id i))
-		()
+		();
+	Printf.fprintf out "\n} %s_ident_t;\n" proc
 
 
 (** Build the XXX/include/api.h file. *)
@@ -157,7 +160,8 @@ let make_api_h out proc =
 	
 	(* output includes *)
 	Printf.fprintf out "\n#include <stdint.h>\n";
-	Printf.fprintf out "\n#include <gliss/memory.h>\n";
+	Printf.fprintf out "#include <gliss/memory.h>\n";
+	Printf.fprintf out "#include \"id.h\"";
 
 	(* xxx_state_t typedef generation *)
 	Printf.fprintf out "\n/* %s_state_t type */\n" proc;
@@ -184,11 +188,22 @@ let make_api_h out proc =
 			uproc (String.uppercase (make_field t)))
 		set;
 	Irg.StringHashtbl.iter make_reg_param Irg.syms;
-	Printf.fprintf out "\n} %s_param_t;\n" proc
+	Printf.fprintf out "\n} %s_param_t;\n" proc;
 	
 	(* output xxx_ii_t *)
+	Printf.fprintf out "\n/* %s_ii_t type */\n" proc;
+	Printf.fprintf out "typedef struct %s_ii_t {\n" proc;
+	Printf.fprintf out "\t%s_param_t type;\n" proc;
+	Printf.fprintf out "\t%s_value_t val;\n" proc;
+	Printf.fprintf out "} %s_ii_t;\n" proc;
 	
 	(* output xxx_inst_t *)
+	Printf.fprintf out "\n/* %s_inst_t type */\n" proc;
+	Printf.fprintf out "typedef struct %s_inst_t {\n" proc;
+	Printf.fprintf out "\t%s_ident_t ident;\n" proc;
+	Printf.fprintf out "\t%s_ii_t *instrinput;\n" proc;
+	Printf.fprintf out "\t%s_ii_t *instroutput;\n" proc;
+	Printf.fprintf out "} %s_inst_t;\n" proc
 
 
 (** Build an include file.
