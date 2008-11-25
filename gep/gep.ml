@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.3 2008/11/19 12:15:36 casse Exp $
+ * $Id: gep.ml,v 1.4 2008/11/25 15:02:32 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -22,11 +22,17 @@ open Lexing
 
 exception UnsupportedMemory of Irg.spec
 
-module OrderedString = struct
+(*module OrderedString = struct
 	type t = string
 	let compare s1 s2 = String.compare s1 s2
 end
-module StringSet = Set.Make(OrderedString)
+module StringSet = Set.Make(OrderedString)*)
+
+module OrderedType = struct
+	type t = Toc.c_type
+	let compare s1 s2 = if s1 = s2 then 0 else if s1 < s2 then (-1) else 1
+end
+module TypeSet = Set.Make(OrderedType)
 
 
 (* options *)
@@ -122,31 +128,15 @@ let make_api_h out proc =
 			raise (UnsupportedMemory s)
 		| Irg.REG (name, size, t, attrs)
 		when not (contains_alias attrs) ->
-			Printf.fprintf out "\t%s %s%s;\n" (Toc.convert_type t) name (make_array size)
+			Printf.fprintf out "\t%s %s%s;\n" (Toc.type_to_string (Toc.convert_type t)) name (make_array size)
 		| _ -> () in
-
-	let make_field t =
-		match t with
-		  "int8_t" -> "int8"
-		| "int16_t" -> "int16"
-		| "int32_t" -> "int32"
-		| "int64_t" -> "int64"
-		| "uint8_t" -> "uint8"
-		| "uint16_t" -> "uint16"
-		| "uint32_t" -> "uint32"
-		| "uint64_t" -> "uint64"
-		| "float" -> "_float"
-		| "double" -> "_double"
-		| "long double" -> "_long_double"
-		| "char *" -> "string"
-		| _ -> failwith "unsupported" in
 
 	let collect_field set (name, t) =
 		match t with
-		  Irg.TYPE_EXPR t -> StringSet.add (Toc.convert_type t) set
+		  Irg.TYPE_EXPR t -> TypeSet.add (Toc.convert_type t) set
 		| Irg.TYPE_ID n ->
 			(match (Irg.get_symbol n) with
-			  Irg.TYPE (_, t) -> StringSet.add (Toc.convert_type t) set
+			  Irg.TYPE (_, t) -> TypeSet.add (Toc.convert_type t) set
 			| _ -> set) in
 	
 	let collect_fields set params =
@@ -173,9 +163,9 @@ let make_api_h out proc =
 	Printf.fprintf out "\n/* %s_value_t type */\n" proc;
 	Printf.fprintf out "typedef union %s_value_t {\n" proc;
 	let set = 
-		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) StringSet.empty in
-	StringSet.iter
-		(fun t -> Printf.fprintf out "\t%s %s;\n" t (make_field t))
+		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
+	TypeSet.iter
+		(fun t -> Printf.fprintf out "\t%s %s;\n" (Toc.type_to_string t) (Toc.type_to_field t))
 		set;
 	Printf.fprintf out "} %s_value_t;\n" proc;
 	
@@ -183,9 +173,9 @@ let make_api_h out proc =
 	Printf.fprintf out "\n/* %s_param_t type */\n" proc;
 	Printf.fprintf out "typedef enum %s_param_t {\n" proc;
 	Printf.fprintf out "\tVOID_T = 0";
-	StringSet.iter
+	TypeSet.iter
 		(fun t -> Printf.fprintf out ",\n\t%s_PARAM_%s_T"
-			uproc (String.uppercase (make_field t)))
+			uproc (String.uppercase (Toc.type_to_field t)))
 		set;
 	Irg.StringHashtbl.iter make_reg_param Irg.syms;
 	Printf.fprintf out "\n} %s_param_t;\n" proc;
