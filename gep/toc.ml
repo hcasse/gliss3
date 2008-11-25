@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.2 2008/11/25 15:02:32 casse Exp $
+ * $Id: toc.ml,v 1.3 2008/11/25 17:11:36 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -35,6 +35,33 @@ type c_type =
 	| DOUBLE
 	| LONG_DOUBLE
 	| CHAR_PTR
+
+(** Gather information useful for the generation. *)
+type info_t = {
+	mutable out: out_channel;	(** Out channel *)
+	mutable proc: string;		(** Processor name *)
+	mutable state: string;		(** state variable name *)
+	mutable inst: string;		(** inst variable name *)
+	mutable ipath: string;		(** include path *)
+	mutable spath: string;		(** source path *)
+}
+
+
+
+(** Empty information record. *)
+let info _ =
+	let p = 
+		match Irg.get_symbol "proc" with
+		  Irg.LET(_, Irg.STRING_CONST name) -> name
+		| _ -> "unknown" in
+	{
+		out = stdout;
+		proc = p;
+		state = "state";
+		inst = "inst";
+		ipath = "include/" ^ p;
+		spath = "src"
+	}
 
 
 (** Convert an NML type to C type.
@@ -99,3 +126,107 @@ let rec type_to_field t =
 	| DOUBLE -> "_double"
 	| LONG_DOUBLE -> "_long_double"
 	| CHAR_PTR -> "string"
+
+
+(** Convert a C type to a memory access name.
+	@param t	C type to convert.
+	@return		Matching memory access name. *)
+let rec type_to_mem t =
+	match t with
+	  INT8 -> "8"
+	| UINT8 -> "8"
+	| INT16 -> "16"
+	| UINT16 -> "16"
+	| INT32 -> "32"
+	| UINT32 -> "32"
+	| INT64 -> "64"
+	| UINT64 -> "64"
+	| FLOAT -> "f"
+	| DOUBLE -> "d"
+	| LONG_DOUBLE -> "ld"
+	| CHAR_PTR -> assert false
+
+
+(** Get the name of a state macro.
+	@param proc	Processor name.
+	@param name	Register or memory name. *)
+let state_macro info name =
+	Printf.sprintf "%s_%s" (String.uppercase info.proc) (String.uppercase name)
+
+
+(** Get the name of a parameter macro.
+	@param proc	Processor name (in uppercase).
+	@param i	Current instruction.
+	@param name	Parameter name. *)
+let param_macro info i name =
+	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) (Iter.get_name i) name
+
+
+(** Generate code for reading an unindexed data parameter,
+	register or memory.
+	@param info		Information about generation.
+	@param i		Current instruction.
+	@param name		Name of the accessed data. *)
+let get_unindexed info i name =
+	if List.mem_assoc name (Iter.get_params i) then
+		Printf.fprintf info.out "%s(%s)" (param_macro info i name) info.inst
+	else
+		Printf.fprintf info.out "%s(%s)" (state_macro info name) info.state
+
+
+(** Generate code for writing an unindexed register or variable.
+	@param info		Information about generation.
+	@param i		Current instruction.
+	@param name		Name of the accessed data.
+	@param expr		Function to generate the assigned value. *)
+let set_unindexed info i name value =
+	Printf.fprintf info.out "%s(%s) = " (state_macro info name) info.state;
+	value info i;
+	Printf.fprintf info.out ";"
+
+
+(** Generate start of code for accessing an indexed register or memory.
+	@param info		Generation information
+	@param i		Current instruction.
+	@param name		Name of the data.
+	@param index	Function to generate the index value. *)
+let get_indexed info i name index =
+	match Irg.get_symbol name with
+	
+	  Irg.REG _ | Irg.VAR _ ->
+		Printf.fprintf info.out "%s(%s)[" (state_macro info name) info.state;
+		index info i;
+		Printf.fprintf info.out "]"
+		
+	| Irg.MEM (_, _, t, _) ->
+		Printf.fprintf info.out "gliss_mem_read%s(%s, " (type_to_mem (convert_type t)) (state_macro info name);
+		index info i;
+		Printf.fprintf info.out ")"
+
+	| _ -> assert false
+
+
+(** Generate start of code for setting an indexed register or memory.
+	@param info		Generation information
+	@param i		Current instruction.
+	@param name		Name of the data.
+	@param index	Function to generate the index value.
+	@param expr		Function to generate the set value. *)
+let get_indexed info i name index expr =
+	match Irg.get_symbol name with
+	
+	  Irg.REG _ | Irg.VAR _ ->
+		Printf.fprintf info.out "%s(%s)[" (state_macro info name) info.state;
+		index info i;
+		Printf.fprintf info.out "] = ";
+		expr info i;
+		Printf.fprintf info.out ";"
+		
+	| Irg.MEM (_, _, t, _) ->
+		Printf.fprintf info.out "gliss_mem_write%s(%s, " (type_to_mem (convert_type t)) (state_macro info name);
+		index info i;
+		Printf.fprintf info.out ", ";
+		expr info i;
+		Printf.fprintf info.out ")";
+
+	| _ -> assert false
