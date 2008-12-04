@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.10 2008/11/14 15:21:17 barre Exp $
+ * $Id: irg.ml,v 1.11 2008/12/04 12:42:51 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -400,7 +400,6 @@ let rec print_expr e =
 		if not fst then print_string ", ";
 		print_expr arg;
 		false in
-
 	match e with
 	  NONE ->
 	  	print_string "<none>"
@@ -427,7 +426,7 @@ let rec print_expr e =
 		print_string ".";
 		print_string n
 	| REF id ->
-		print_string id;
+		print_string id
 	| ITEMOF (_, e, idx) ->
 		print_expr e;
 		print_string "[";
@@ -478,7 +477,6 @@ let rec print_expr e =
 		print_const c
 
 
-
 (** Print a location.
 	@param loc	Location to print. *)
 let rec print_location loc =
@@ -502,6 +500,7 @@ let rec print_location loc =
 		print_string "..";
 		print_location l2
 
+
 (** Print a statement
 	@param stat	Statement to print.*)
 let rec print_statement stat=
@@ -517,7 +516,7 @@ let rec print_statement stat=
 	| SET (loc, exp) ->
 		print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
 	| CANON_STAT (ch, expr_liste) ->
-		Printf.printf "\t\tCANON_S:\"%s\" (" ch; List.iter print_expr expr_liste ;print_string ");\n"
+		Printf.printf "\t\t\"%s\" (" ch; List.iter print_expr expr_liste ;print_string ");\n"
 	| ERROR ch ->
 		Printf.printf "\t\t error %s;\n" ch
 	| IF_STAT (exp,statT,statE) -> 
@@ -565,8 +564,7 @@ let print_mem_attrs attrs =
 	@param typ	Type to print. *)
 let print_type typ =
 	match typ with
-	  TYPE_ID id -> (*print_string id*)
-	  	Printf.printf "T_I(%s)" id
+	  TYPE_ID id -> print_string id
 	| TYPE_EXPR te -> print_type_expr te
 
 
@@ -575,11 +573,11 @@ let print_type typ =
 let print_attr attr =
 	match attr with
 	  ATTR_EXPR (id, expr) ->
-	  	Printf.printf "\tAE:%s = " id;
+	  	Printf.printf "\t%s = " id;
 		print_expr expr;
 		print_newline ()
 
-	| ATTR_STAT (id, stat) -> Printf.printf "\tAS:%s = {\n" id ;
+	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
 				  print_statement stat;
 				  Printf.printf "\t}\n";
 		() 
@@ -674,166 +672,6 @@ let print_spec spec =
 	| UNDEF ->
 		print_string "<UNDEF>";
 		()
-	(*| _ ->
-		()assert false*)
-
-
-(* now let's try to put the OPs in a tree *)
-
-(*
-let is_op str =
-	match get_symbol str with
-	OR_OP(_, _) -> true
-	| AND_OP(_, _, _) -> true
-	| _ -> false
-
-let rec keep_op str_list =
-	match str_list with
-	[] -> []
-	| a::b ->
-		if is_op a then
-			a::(keep_op b)
-		else
-			keep_op b
-
-let rec keep_type_id str_typ_list =
-	match str_typ_list with
-		[] -> []
-		| (_, TYPE_ID(str))::b -> str::(keep_type_id b)
-		| _::b -> keep_type_id b
-*)
-
-
-(* tree type containing the OPs labels, for testing *)
-(*type string_tree = Tree of string * (string_tree list)*)
-(* tree type containing the OPs with full specifications *)
-(*type op_tree =
-	OpTree of spec * (op_tree list)
-	
-let sub_ops op =
-	match op with
-	OR_OP(name, ops) -> ops (* assume a OR OP refers only to other OPs *)
-	| AND_OP(name, params, attrs) -> keep_op (keep_type_id params) (* assume there is no circular reference *)
-	| _ -> []
-
-let name_of_op op =
-	match op with
-	AND_OP(name, params, attrs) -> name
-	| OR_OP(name, ops) -> name
-	| _ -> ""
-
-let rec tree_op op =
-	let l = sub_ops op in
-	Tree(name_of_op op, List.map (fun x -> tree_op (get_symbol x)) l)
-	
-let rec print_tree level tree =
-	match tree with
-		Tree(n, l) ->
-		begin
-			Printf.printf "%d:%s " level n;
-			List.map (print_tree (level+1)) l;
-			Printf.printf "\n";
-		end
-		| _ -> ()
-
-
-let rec op_tree_op op =
-	let l = sub_ops op in
-	OpTree(op, List.map (fun x -> op_tree_op (get_symbol x)) l)
-
-
-let rec print_op_tree level tree =
-	match tree with
-		OpTree(n, l) ->
-		begin
-			Printf.printf "%d:%s " level (name_of_op n);
-			List.map (print_op_tree (level+1)) l;
-			Printf.printf ";\n";
-		end
-		| _ -> ()	
-
-let rec debug_print_op_tree tr =
-	match tr with
-	OpTree(op, l) ->
-		(match op with
-		AND_OP(n, _, _) ->
-			begin
-			Printf.printf "OpTree(A:%s, " n;
-			List.map debug_print_op_tree l;
-			Printf.printf ")"
-			end
-		| OR_OP(n, _) ->
-			begin
-			Printf.printf "OpTree(O:%s, " n;
-			List.map debug_print_op_tree l;
-			Printf.printf ")"
-			end
-		)
-*)
-
-(* let's put the MODEs in a list, useful for decode *)
-
-(* first let's put them in a list *)
-(*
-let keep_mode _ s accu =
-	match s with
-	AND_MODE(str, l, e, al) -> AND_MODE(str, l, e, al)::accu
-	| OR_MODE(str, l) -> OR_MODE(str,l)::accu
-	| _ -> accu
-
-let mode_list spec_table = StringHashtbl.fold keep_mode spec_table []
-
-let rec print_mode_list l =
-	match l with
-	AND_MODE(str, _, _, _)::q ->
-		begin
-			Printf.printf "A:%s " str;
-			print_mode_list q
-		end
-	| OR_MODE(str, _)::q ->
-		begin
-			Printf.printf "O:%s " str;
-			print_mode_list q
-		end
-	| _ -> ()
-
-(* then put the list in a tree, not very useful in fact
-
-type mode_tree = Mode of spec*(mode_tree list) *)
-
-let is_mode str =
-	match get_symbol str with
-	OR_MODE(_, _) -> true
-	| AND_MODE(_, _, _, _) -> true
-	| _ -> false
-	
-let rec keep_mode_from_list str_list =
-	match str_list with
-	[] -> []
-	| a::b ->
-		if is_mode a then
-			a::(keep_mode_from_list b)
-		else
-			keep_mode_from_list b
-
-let sub_modes mode =
-	match mode with
-	OR_MODE(_ , modes) -> modes (* assume a OR MODE refers only to other MODEs *)
-	| AND_MODE(_ , params, _, _) -> keep_mode_from_list (keep_type_id params) (* assume there is no circular reference *)
-	| _ -> []
-
-
-
-
-(* return the list of the AND MODEs resulting from a given mode *)
-let rec all_sub_modes mode =
-match mode with
-	OR_MODE(name, modes) -> List.flatten (List.fold_left (fun accu name -> (all_sub_modes (get_symbol name))::accu) [] modes)  (* assume a OR MODE refers only to other MODEs *)
-	(*OR_MODE(name, modes) -> List.flatten (List.map (fun x -> all_sub_modes (get_symbol name)) modes)*)
-	| AND_MODE(name, params, expr, attrs) -> AND_MODE(name, params, expr, attrs)::[] (* assume there is no circular reference *)
-	| _ -> []
-*)
-
 
 
 (* now let's try to obtain all the real OPs from a given OP by "unrolling" all MODES *)
@@ -972,11 +810,130 @@ let rec substitute_in_stat name op statement =
 		LINE(s, i, substitute_in_stat name op st)
 		
 
+let rec change_name_of_var_in_expr ex var_name new_name =
+	match ex with
+	NONE ->
+		NONE
+	| COERCE(t_e, e) ->
+		COERCE(t_e, change_name_of_var_in_expr e var_name new_name)
+	| FORMAT(s, e_l) ->
+		FORMAT(s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
+	| CANON_EXPR(t_e, s, e_l) ->
+		CANON_EXPR(t_e, s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
+	| REF(s) ->
+		if s = var_name then
+			REF(new_name)
+		else
+			REF(s)
+	| FIELDOF(t_e, e, s) ->
+		FIELDOF(t_e, change_name_of_var_in_expr e var_name new_name, s)
+	| ITEMOF(t_e, e1, e2) ->
+		ITEMOF(t_e, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name)
+	| BITFIELD(t_e, e1, e2, e3) ->
+		BITFIELD(t_e, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name, change_name_of_var_in_expr e3 var_name new_name)
+	| UNOP(t_e, u, e) ->
+		UNOP(t_e, u, change_name_of_var_in_expr e var_name new_name)
+	| BINOP(t_e, b, e1, e2) ->
+		BINOP(t_e, b, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name)
+	| IF_EXPR(t_e, e1, e2, e3) ->
+		IF_EXPR(t_e, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name, change_name_of_var_in_expr e3 var_name new_name)
+	| SWITCH_EXPR(te, e1, ee_l, e2) ->
+		SWITCH_EXPR(te, change_name_of_var_in_expr e1 var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_expr y var_name new_name)) ee_l, change_name_of_var_in_expr e2 var_name new_name)
+	| CONST(t_e, c) ->
+		CONST(t_e, c)
 
 
-	
+let rec change_name_of_var_in_location loc var_name new_name =
+	match loc with
+	LOC_REF(s) ->
+		if s = var_name then
+			LOC_REF(new_name)
+		else
+			LOC_REF(s)
+	| LOC_ITEMOF(l, e) ->
+		LOC_ITEMOF(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
+	| LOC_BITFIELD(l, e1, e2) ->
+		LOC_BITFIELD(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name)
+	| LOC_CONCAT(l1, l2) ->
+		LOC_CONCAT(change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
+
+let rec change_name_of_var_in_stat sta var_name new_name =
+	match sta with
+	NOP ->
+		NOP
+	| SEQ(s1, s2) ->
+		SEQ(change_name_of_var_in_stat s1 var_name new_name, change_name_of_var_in_stat s2 var_name new_name)
+	| EVAL(str) ->
+		EVAL(str)
+	| EVALIND(v, attr_name) ->
+		if v = var_name then
+			EVALIND(new_name, attr_name)
+		else
+			EVALIND(v, attr_name)
+	| SET(l, e) ->
+		SET(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
+	| CANON_STAT(str, e_l) ->
+		CANON_STAT(str, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
+	| ERROR(str) ->
+		ERROR(str) (* ??? *)
+	| IF_STAT(e, s1, s2) ->
+		IF_STAT(change_name_of_var_in_expr e var_name new_name, change_name_of_var_in_stat s1 var_name new_name, change_name_of_var_in_stat s2 var_name new_name)
+	| SWITCH_STAT(e, es_l, s) ->
+		SWITCH_STAT(change_name_of_var_in_expr e var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_stat y var_name new_name)) es_l, change_name_of_var_in_stat s var_name new_name)
+	| SETSPE(l, e) ->
+		SETSPE(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
+	| LINE(str, n, s) ->
+		LINE(str, n, change_name_of_var_in_stat s var_name new_name) (* ??? *)
 
 
+let change_name_of_var_in_attr a var_name new_name =
+	match a with
+	ATTR_EXPR(str, e) ->
+		ATTR_EXPR(str, change_name_of_var_in_expr e var_name new_name)
+	| ATTR_STAT(str, s) ->
+		ATTR_STAT(str, change_name_of_var_in_stat s var_name new_name)
+	| ATTR_USES ->
+		ATTR_USES
+
+let prefix_attr_var a param pfx =
+	match param with
+	(str, _) ->
+		change_name_of_var_in_attr a str (pfx^"_"^str)
+
+let rec prefix_all_vars_in_attr a p_l pfx =
+	match p_l with
+	h::q ->
+		prefix_all_vars_in_attr (prefix_attr_var a h pfx) q pfx
+	| [] ->
+		a
+
+let prefix_var_in_mode_value mode_value param pfx =
+	match param with
+	(str, _) ->
+		change_name_of_var_in_expr mode_value str (pfx^"_"^str)
+
+let rec prefix_all_vars_in_mode_value mode_value p_l pfx =
+	match p_l with
+	h::q ->
+		prefix_all_vars_in_mode_value (prefix_var_in_mode_value mode_value h pfx) q pfx
+	| [] ->
+		mode_value
+
+(* prefix the name of every param of the given spec by a given prefix,
+every occurrence in every attr must be prefixed *)
+let rec prefix_name_of_params_in_spec sp pfx =
+	let prefix_param param =
+		match param with
+		(name, t) ->
+			(pfx^"_"^name, t)
+	in
+	match sp with
+	AND_OP(name, params, attrs) ->
+		AND_OP(name, List.map prefix_param params, List.map (fun x -> prefix_all_vars_in_attr x params pfx) attrs)
+	| AND_MODE(name, params, mode_val, attrs) ->
+		AND_MODE(name, List.map prefix_param params, prefix_all_vars_in_mode_value mode_val params pfx, List.map (fun x -> prefix_all_vars_in_attr x params pfx) attrs)
+	| _ ->
+		sp
 
 	
 	
@@ -1035,10 +992,15 @@ let get_param_of_spec s =
 
 (*  *)
 let replace_param_list p_l =
+	let prefix_name prfx param =
+		match param with
+		(name, t) ->
+			(prfx^"_"^name, t)
+	in
 	let replace_param param =
 		match param with
-		(_ , TYPE_ID(s)) ->
-			get_param_of_spec (get_symbol s)
+		(nm , TYPE_ID(s)) ->
+			List.map (prefix_name nm) (get_param_of_spec (get_symbol s))
 		| (_, _) ->
 			[param]
 	in
@@ -1104,7 +1066,8 @@ let rec search_spec_of_name name param_list =
 
 
 (* e is an expr appearing in the params given (supposed to be the params of another spec)
-if e is like "x.image", it returns the spec of "x" *)
+if e is like "x.image", it returns the spec of "x" where all var names are prefixed by the name of the former param,
+avoid same name for different vars if instantiating several params of same type *)
 let get_spec_from_expr e spec_params =
 	let get_type p =
 		match p with
@@ -1144,7 +1107,7 @@ let get_spec_from_expr e spec_params =
 	let rec rec_aux ex p_l =
 		match ex with
 		FIELDOF(_, expre, _) -> rec_aux expre spec_params
-		| REF(name) -> search_spec_of_name name spec_params
+		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| _ -> UNDEF
 	in
 	begin
@@ -1376,7 +1339,7 @@ let rec instantiate_in_stat sta param_list =
 	[] ->
 		sta
 	| (name, TYPE_ID(t))::q ->
-		instantiate_in_stat (substitute_in_stat name (get_symbol t) sta) q
+		instantiate_in_stat (substitute_in_stat name (prefix_name_of_params_in_spec (get_symbol t) name) sta) q
 	| (name, TYPE_EXPR(e))::q ->
 		instantiate_in_stat sta q
 		
@@ -1386,7 +1349,7 @@ let instantiate_in_expr ex param_list =
 		[] ->
 			e
 		| (name, TYPE_ID(t))::q ->
-			aux (substitute_in_expr name (get_symbol t) e) q
+			aux (substitute_in_expr name (prefix_name_of_params_in_spec (get_symbol t) name) e) q
 		| (name, TYPE_EXPR(ty))::q ->
 			aux e q
 	in
