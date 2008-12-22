@@ -1,6 +1,6 @@
 /*
- *	$Id: gliss.c,v 1.1 2008/12/22 12:21:53 casse Exp $
- *	gliss declarations
+ *	$Id: gliss.c,v 1.2 2008/12/22 14:54:59 casse Exp $
+ *	gliss definitions
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2008, IRIT UPS.
@@ -20,7 +20,7 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <gliss.h>
+#include "gliss.h"
 
 int32_t gliss_exp32(int32_t v1, int32_t v2) {
 	if(v1 >= 0)

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../include/gliss.h"
+#include "../lib/gliss.h"
 
 struct {
 	unsigned long v, r, n, t;
@@ -56,7 +56,7 @@ int main(void) {
 			right_tests[i].r,
 			right_tests[i].n
 		);
-		printf("%08x <<< %d [%d] = %08x (%08x)",
+		printf("%08x >>> %d [%d] = %08x (%08x)",
 			right_tests[i].v,
 			right_tests[i].r,
 			right_tests[i].n,
