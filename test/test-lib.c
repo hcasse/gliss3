@@ -30,11 +30,12 @@ int main(void) {
 	
 	// left rotations
 	for(i = 0; left_tests[i].n; i++) {
-		unsigned long v = gliss_rotate_left32(
-			left_tests[i].v,
-			left_tests[i].r,
-			left_tests[i].n
-		);
+		uint32_t v =
+			gliss_rotate_left32(
+				left_tests[i].v,
+				left_tests[i].r,
+				left_tests[i].n
+			);
 		printf("%08x <<< %d [%d] = %08x (%08x)",
 			left_tests[i].v,
 			left_tests[i].r,
@@ -50,7 +51,7 @@ int main(void) {
 
 	// right rotations
 	for(i = 0; right_tests[i].n; i++) {
-		unsigned long v = gliss_rotate_right32(
+		uint32_t v = gliss_rotate_right32(
 			right_tests[i].v,
 			right_tests[i].r,
 			right_tests[i].n
