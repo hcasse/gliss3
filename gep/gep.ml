@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.5 2008/11/25 17:11:36 casse Exp $
+ * $Id: gep.ml,v 1.6 2008/12/22 15:24:51 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -37,11 +37,17 @@ module TypeSet = Set.Make(OrderedType)
 
 (* options *)
 let nmp: string ref = ref ""
+let paths = [
+	Config.install_dir ^ "/lib/gliss/lib";
+	Config.source_dir ^ "/lib";
+	Sys.getcwd ()]
 let quiet = ref false
 let verbose = ref false
+let memory = ref "fast_mem"
 let options = [
 	("v", Arg.Set verbose, "verbose mode");
-	("q", Arg.Set verbose, "quiet mode")
+	("q", Arg.Set quiet, "quiet mode");
+	("m", Arg.Set_string memory, "select memory module [fast_mem]")
 ]
 
 let free_arg arg =
@@ -282,23 +288,52 @@ let make_macros_h info =
 	(* macros for accessing parameters *)
 	Printf.fprintf out "\n/* parameter access macros */\n";
 	Iter.iter make_param_macro ()
-	
 
+
+(** Link a module for building.
+	@param mod	Module to link. *)
+let link m name =
+
+	(* find the module *)
+	let rec find paths =
+		if paths = [] then raise (Sys_error ("cannot find module " ^ m)) else
+		let path = (List.hd paths) ^ "/" ^ m in
+		if Sys.file_exists (path ^ ".c") then path
+		else find (List.tl paths) in
+	let path = find paths in
+	
+	(* link it *)
+	let do_link src dst =
+		if Sys.file_exists dst then Sys.remove dst;
+		Unix.symlink src dst in
+	do_link (path ^ ".c") ("src/" ^ name ^ ".c");
+	do_link (path ^ ".h") ("src/" ^ name ^ ".h")
 
 (* main program *)
 let _ =
 	try	
 		begin
+		
+			(* parsing NMP *)
 			let lexbuf = Lexing.from_channel (open_in !nmp) in
 			Parser.top Lexer.main lexbuf;
 			let info = Toc.info () in
+			
+			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			makedir "include";
 			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.ipath;
 			makedir info.Toc.ipath;
 			make_include make_id_h info "id";
 			make_include make_api_h info "api";
-			make_include make_macros_h info "macros"
+			make_include make_macros_h info "macros";
+			
+			(* source generation *)
+			if not !quiet then Printf.printf "creating \"include/\"\n";
+			makedir "src";
+			
+			(* module linkig *)
+			link !memory "memory"
 		end
 
 	with
