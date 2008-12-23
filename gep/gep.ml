@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.6 2008/12/22 15:24:51 casse Exp $
+ * $Id: gep.ml,v 1.7 2008/12/23 09:36:35 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -333,6 +333,7 @@ let _ =
 			makedir "src";
 			
 			(* module linkig *)
+			link "gliss" "gliss";
 			link !memory "memory"
 		end
 

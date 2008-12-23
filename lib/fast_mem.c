@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.1 2008/12/22 14:54:58 casse Exp $
+ *	$Id: fast_mem.c,v 1.2 2008/12/23 09:36:35 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -424,7 +424,7 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
     uint8_t *p = pte->storage + offset;
 	
 	/* aligned ? */
-	if(address & 0x00000001 == 0)
+	if((address & 0x00000001) == 0)
 #		if TARGET_HOST == TARGET_LITTLE
 			return *(uint16_t *)p;
 #		else
@@ -467,7 +467,7 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
     uint8_t *p = pte->storage + offset;
 	
 	/* aligned ? */
-	if(address & 0x00000003 == 0)
+	if((address & 0x00000003) == 0)
 #		if TARGET_HOST == TARGET_LITTLE
 			return *(uint32_t *)p;
 #		else
@@ -513,7 +513,7 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
     uint8_t *p = pte->storage + offset;
 	
 	/* aligned ? */
-	if(address & 0x00000007 == 0)
+	if((address & 0x00000007) == 0)
 #		if TARGET_HOST == TARGET_LITTLE
 			return *(uint64_t *)p;
 #		else
@@ -636,7 +636,7 @@ void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t
 #	endif
 	
 	/* aligned ? */
-	if(address & 0x00000001 == 0)
+	if((address & 0x00000001) == 0)
 		*q = p->half;
 	else
 		memcpy(q, p->bytes, 2);
@@ -677,7 +677,7 @@ void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t
 #	endif
 	
 	/* aligned ? */
-	if(address & 0x00000003 == 0)
+	if((address & 0x00000003) == 0)
 		*q = p->word;
 	else
 		memcpy(q, p->bytes, 4);
@@ -724,7 +724,7 @@ void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t
 #	endif
 	
 	/* aligned ? */
-	if(address & 0x00000007 == 0)
+	if((address & 0x00000007) == 0)
 		*q = p->dword;
 	else
 		memcpy(q, p->bytes, 8);
