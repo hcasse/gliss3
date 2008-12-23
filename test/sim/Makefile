@@ -1,6 +1,6 @@
 MEMORY=fast_mem
 LOADER=old_elf
-CFLAGS=-DTARGET_ENDIANNESS=little -DHOST_ENDIANNESS=big -Wall
+CFLAGS=-DTARGET_ENDIANNESS=little -DHOST_ENDIANNESS=big -Wall -g3
 CLEAN=gliss.h gliss.c memory.c memory.h loader.c loader.h
 
 all: main
@@ -28,6 +28,7 @@ loader.c:
 memory.o: memory.h
 gliss.o: gliss.h
 loader.o: loader.h
+main.o: memory.h gliss.h loader.h
 
 clean:
 	rm *.o $(CLEAN)

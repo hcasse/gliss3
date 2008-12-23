@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.1 2008/12/23 09:36:36 casse Exp $
+ *	$Id: old_elf.c,v 1.2 2008/12/23 16:14:48 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -36,8 +36,10 @@
 		if(!(c)) { \
 			fprintf(stderr, "assertiion failure %s:%d: %s", __FILE__, __LINE__, m); \
 			abort(); }
+#	define TRACE /*fprintf(stderr, "%s:%d\n", __FILE__, __LINE__)*/
 #else
 #	define assertp(c, m)
+#	define TRACE
 #endif
 
 /*********************** ELF loader ********************************/
@@ -295,6 +297,7 @@ static void ConvertElfHeader(Elf32_Ehdr *Ehdr) {
 
 static int ElfReadHeader(int fd, Elf32_Ehdr *Ehdr){
 	int foffset;
+	TRACE;
 	foffset = lseek(fd, 0, SEEK_CUR);
 	lseek(fd, 0, SEEK_SET);
 	if(read(fd, Ehdr, sizeof(Elf32_Ehdr)) != sizeof(Elf32_Ehdr))
@@ -322,6 +325,7 @@ static int ElfReadHeader(int fd, Elf32_Ehdr *Ehdr){
 }
 
 static int ElfCheckExec(const Elf32_Ehdr *Ehdr) {
+	TRACE;
 	if(Ehdr->e_type == ET_EXEC)
 		return 0;
 	else {
@@ -343,6 +347,7 @@ static void ConvertPgmHeader(Elf32_Phdr *Ephdr) {
 
 static int ElfReadPgmHdrTbl(int fd,const Elf32_Ehdr *Ehdr) {
 	int32_t i;
+	TRACE;
 	if(Ehdr->e_phoff == 0) {
 		errno = EBADF;
 		return -1;
@@ -380,6 +385,7 @@ static void ConvertSecHeader(Elf32_Shdr *Eshdr) {
 
 static int ElfReadSecHdrTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	int32_t i, foffset;
+	TRACE;
 	if(Ehdr->e_shoff == 0) {
 		errno = EBADF;
 		return -1;
@@ -407,6 +413,7 @@ static int ElfReadSecHdrTbl(int fd, const Elf32_Ehdr *Ehdr) {
 static int ElfReadSecNameTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	int foffset;
 	Elf32_Shdr Eshdr;
+	TRACE;
 	if(Ehdr->e_shoff == 0 || Tables.secnmtbl_ndx == 0) {
 		errno = EBADF;
 		return -1;
@@ -445,6 +452,7 @@ static void ConvertSymTblEnt(Elf32_Sym *Esym) {
 
 static int ElfReadSymTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	int32_t i, j, foffset;
+	TRACE;
 	if(Ehdr->e_shoff == 0) {
 		errno = EBADF;
 		return -1;
@@ -499,6 +507,7 @@ static int ElfReadSymTbl(int fd, const Elf32_Ehdr *Ehdr) {
 static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	int32_t i,foffset;
 	struct text_secs *txt_sec, **ptr, *ptr1;
+	TRACE;
     if(Ehdr->e_shoff == 0) {
 		errno = EBADF;
 		return -1;
@@ -742,16 +751,17 @@ struct gliss_loader_t {
  */
 gliss_loader_t *gliss_loader_open(const char *path) {
 	gliss_loader_t *loader;
-	char *prog;
 	int elf,res;
 	assert(path);
 		
 	/* open the file */
-    elf = open(prog, O_RDONLY);
+	TRACE;
+    elf = open(path, O_RDONLY);
     if(elf == -1)
 		return NULL;
 
 	/* allocate handler */
+	TRACE;
 	loader = (gliss_loader_t *)malloc(sizeof(gliss_loader_t));
 	if(loader == NULL) {
 		errno = ENOMEM;
@@ -760,7 +770,9 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	}
 	
 	/* load the ELF */
+	TRACE;
 	res = ElfRead(elf);
+	assert(Text.secs != NULL);
 	close(elf);
 	if(res != 0) {
 		ElfCleanup();
@@ -768,7 +780,8 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 		return NULL;
 	}
 	
-	/* record data */	
+	/* record data */
+	TRACE;
 	loader->Tables = Tables;
 	loader->Text = Text;
 	loader->Data = Data;
@@ -803,17 +816,22 @@ void gliss_loader_close(gliss_loader_t *loader) {
 void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory) {
 	struct data_secs *ptr;
 	struct text_secs *ptr_tex;
+	assert(loader->Text.secs != NULL);
 	
 	/* load text part */
-	ptr_tex = Text.secs;
+	TRACE;
+	ptr_tex = loader->Text.secs;
 	while(ptr_tex != NULL) {
+		TRACE;
 		gliss_mem_write(memory, ptr_tex->address, ptr_tex->bytes, ptr_tex->size);
 		ptr_tex = ptr_tex->next;
 	}
 	
 	/* load data part */
-	ptr = Data.secs;
+	TRACE;
+	ptr = loader->Data.secs;
 	while(ptr != NULL){
+		TRACE;
 		gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
 		ptr = ptr->next;
 	}
