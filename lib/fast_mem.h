@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.h,v 1.1 2008/12/22 14:54:59 casse Exp $
+ *	$Id: fast_mem.h,v 1.2 2008/12/24 10:40:20 casse Exp $
  *	fast_mem module interface
  *
  *	This file is part of OTAWA
@@ -29,7 +29,10 @@
     extern  "C" {
 #endif
 
-#define GLISS_MEMORY_FAST_MEM
+#define GLISS_MEMORY_STATE
+#define GLISS_MEMORY_INIT(s)
+#define GLISS_MEMORY_DESTROY(s)
+
 
 typedef uint32_t gliss_address_t;
 typedef void gliss_memory_t;

@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.h,v 1.1 2008/12/23 09:36:36 casse Exp $
+ *	$Id: old_elf.h,v 1.2 2008/12/24 10:40:20 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -29,8 +29,12 @@
     extern  "C" {
 #endif
 
+#define GLISS_LOADER_STATE
+#define GLISS_LOADER_INIT(s)
+#define GLISS_LOADER_DESTROY(s)
+
 typedef struct gliss_loader_t gliss_loader_t;
- 
+
 gliss_loader_t *gliss_loader_open(const char *path);
 void gliss_loader_close(gliss_loader_t *loader);
 void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory);

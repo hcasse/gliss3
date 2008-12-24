@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.2 2008/12/23 09:36:35 casse Exp $
+ *	$Id: fast_mem.c,v 1.3 2008/12/24 10:40:20 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -18,6 +18,54 @@
  *	You should have received a copy of the GNU General Public License
  *	along with OTAWA; if not, write to the Free Software 
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+/**
+ * @defgroup memory Memory Module
+ * A memory module is used to simulate the memory behaviour.
+ * This module is mandatory and is only currently implemented by
+ * the @ref fast_mem .
+ *
+ * @author M. Finnet, P. Sainrat, H. Casse
+ *
+ * @page fast_mem	fast_mem module
+ *
+ * This is the default memory module of GLISS2 and the adaptation of the old
+ * memory module of GLISS 1. It implements a fast two-level indrect table
+ * to access memory pages.
+ */
+
+/**
+ * @def GLISS_MEMORY_STATE
+ * This macro is included in the @reg gliss_state_t structure and allows
+ * to include memory module information in the simulator state.
+ * @ingroup memory
+ */
+
+/**
+ * @def GLISS_MEMORY_INIT(s)
+ * This function is called to initialize the memory information
+ * contained in the simulator state.
+ * @ingroup memory
+ */
+
+/**
+ * @def GLISS_MEMORY_DESTROY(s)
+ * This function is called to destroy the memory information
+ * contained in the simulator state.
+ * @ingroup memory
+ */
+
+/**
+ * @def gliss_address_t
+ * This type represents a 32-bit address in memory space.
+ * @ingroup memory
+ */
+
+/**
+ * @typedef gliss_memory_t
+ * This type is used to represent a memory space.
+ * @ingroup memory
  */
 
 #include <assert.h>
@@ -135,6 +183,7 @@ static uint32_t mem_hash2(gliss_address_t addr)  {
 /**
  * Build a new memory handler.
  * @return	Memory handler or NULL if there is not enough memory.
+ * @ingroup memory
  */
 gliss_memory_t *gliss_mem_new(void) {
     memory_64_t *mem;
@@ -150,6 +199,7 @@ gliss_memory_t *gliss_mem_new(void) {
 /**
  * Free and delete the given memory.
  * @param memory	Memory to delete.
+ * @ingroup memory
  */
 void gliss_mem_delete(gliss_memory_t *memory) {
 	int i,j;
@@ -183,6 +233,7 @@ void gliss_mem_delete(gliss_memory_t *memory) {
  * Copy the current memory.
  * @param memory	Memory to copy.
  * @return			Copied meory or null if there is not enough memory.
+ * @ingroup memory
  */
 gliss_memory_t *gliss_mem_copy(gliss_memory_t *memory) {
 	int i,j;
@@ -215,7 +266,7 @@ gliss_memory_t *gliss_mem_copy(gliss_memory_t *memory) {
  * Look for a page in memory.
  * @param mem	Memory to work on.
  * @param addr	Address of the looked page.
- *
+ * @ingroup memory
  */
 static memory_page_table_entry_t *mem_search_page(memory_64_t *mem, gliss_address_t addr) {
 	uint32_t h1;
@@ -320,6 +371,7 @@ static memory_page_table_entry_t *mem_get_page(memory_64_t *mem, gliss_address_t
  * @param address	Address in memory to write to.
  * @param buffer	Buffer address in host memory.
  * @param size		Size of the buffer to write.
+ * @ingroup memory
  */
 void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, uint8_t *buffer, size_t size) {
 	if(size>0) {
@@ -358,6 +410,7 @@ void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, uint8_t *b
  * @param address	Address of the data to read.
  * @param buffer	Buffer to write data in.
  * @param size		Size of the data to read.
+ * @ingroup memory
  */
 void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, uint8_t *buffer, size_t size) {
 	if(size > 0) {
@@ -395,6 +448,7 @@ void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, uint8_t *bu
  * @param memory	Memory to work with.
  * @param address	Address of integer to read.
  * @return			Read integer.
+ * @ingroup memory
  */
 uint8_t gliss_mem_read8(gliss_memory_t *memory, gliss_address_t address) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -409,6 +463,7 @@ uint8_t gliss_mem_read8(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of integer to read.
  * @return			Read integer.
+ * @ingroup memory
  */
 uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -452,6 +507,7 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of integer to read.
  * @return			Read integer.
+ * @ingroup memory
  */
 uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -498,6 +554,7 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of integer to read.
  * @return			Read integer.
+ * @ingroup memory
  */
 uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -550,6 +607,7 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of float to read.
  * @return			Read float.
+ * @ingroup memory
  */
 float gliss_mem_readf(gliss_memory_t *memory, gliss_address_t address) {
 	union {
@@ -567,6 +625,7 @@ float gliss_mem_readf(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of float to read.
  * @return			Read float.
+ * @ingroup memory
  */
 double gliss_mem_readd(gliss_memory_t *memory, gliss_address_t address) {
 	union {
@@ -583,6 +642,7 @@ double gliss_mem_readd(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to work with.
  * @param address	Address of float to read.
  * @return			Read float.
+ * @ingroup memory
  */
 long double gliss_mem_readld(gliss_memory_t *memory, gliss_address_t address) {
 	assertp(0, "not implemented !");
@@ -594,6 +654,7 @@ long double gliss_mem_readld(gliss_memory_t *memory, gliss_address_t address) {
  * @param memory	Memory to write in.
  * @param address	Address to write integer to.
  * @param val		Integer to write.
+ * @ingroup memory
  */
 void gliss_mem_write8(gliss_memory_t *memory, gliss_address_t address, uint8_t val) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -610,6 +671,7 @@ void gliss_mem_write8(gliss_memory_t *memory, gliss_address_t address, uint8_t v
  * @param memory	Memory to write in.
  * @param address	Address to write integer to.
  * @param val		Integer to write.
+ * @ingroup memory
  */
 void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t val) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -648,6 +710,7 @@ void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t
  * @param memory	Memory to write in.
  * @param address	Address to write integer to.
  * @param val		Integer to write.
+ * @ingroup memory
  */
 void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t val) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -689,6 +752,7 @@ void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t
  * @param memory	Memory to write in.
  * @param address	Address to write integer to.
  * @param val		Integer to write.
+ * @ingroup memory
  */
 void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t val) {
 	memory_64_t *mem = (memory_64_t *)memory;
@@ -736,6 +800,7 @@ void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t
  * @param memory	Memory to write in.
  * @param address	Address to write float to.
  * @param val		Float to write.
+ * @ingroup memory
  */
 void gliss_mem_writef(gliss_memory_t *memory, gliss_address_t address, float val) {
 	union {
@@ -752,6 +817,7 @@ void gliss_mem_writef(gliss_memory_t *memory, gliss_address_t address, float val
  * @param memory	Memory to write in.
  * @param address	Address to write float to.
  * @param val		Float to write.
+ * @ingroup memory
  */
 void gliss_mem_writed(gliss_memory_t *memory, gliss_address_t address, double val) {
 	union {
@@ -768,6 +834,7 @@ void gliss_mem_writed(gliss_memory_t *memory, gliss_address_t address, double va
  * @param memory	Memory to write in.
  * @param address	Address to write float to.
  * @param val		Float to write.
+ * @ingroup memory
  */
 void gliss_mem_writeld(gliss_memory_t *memory, gliss_address_t address, long double val) {
 	assertp(0, "not implemented");
