@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.3 2008/12/24 10:40:20 casse Exp $
+ *	$Id: fast_mem.c,v 1.4 2009/01/05 14:59:01 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -72,7 +72,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include "memory.h"
+#include "target/memory.h"
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\

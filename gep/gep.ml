@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.7 2008/12/23 09:36:35 casse Exp $
+ * $Id: gep.ml,v 1.8 2009/01/05 14:59:00 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -290,9 +290,18 @@ let make_macros_h info =
 	Iter.iter make_param_macro ()
 
 
+(** Perform a symbolic link.
+	@param src	Source file to link.
+	@param dst	Destination to link to. *)
+let link src dst =
+	if Sys.file_exists dst then Sys.remove dst;
+	Unix.symlink src dst
+
 (** Link a module for building.
-	@param mod	Module to link. *)
-let link m name =
+	@param info	Generation information.
+	@param m	Original module name.
+	@param name	Final name of the module. *)
+let link_module info m name =
 
 	(* find the module *)
 	let rec find paths =
@@ -303,11 +312,8 @@ let link m name =
 	let path = find paths in
 	
 	(* link it *)
-	let do_link src dst =
-		if Sys.file_exists dst then Sys.remove dst;
-		Unix.symlink src dst in
-	do_link (path ^ ".c") ("src/" ^ name ^ ".c");
-	do_link (path ^ ".h") ("src/" ^ name ^ ".h")
+	link (path ^ ".c") (info.Toc.spath ^ "/" ^ name ^ ".c");
+	link (path ^ ".h") (info.Toc.ipath ^ "/" ^ name ^ ".h")
 
 (* main program *)
 let _ =
@@ -331,10 +337,13 @@ let _ =
 			(* source generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			makedir "src";
+			link
+				((Unix.getcwd ()) ^ "/" ^ info.Toc.ipath)
+				(info.Toc.spath ^ "/target");
 			
 			(* module linkig *)
-			link "gliss" "gliss";
-			link !memory "memory"
+			link_module info "gliss" "gliss";
+			link_module info !memory "memory"
 		end
 
 	with
