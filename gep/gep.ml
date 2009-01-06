@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.8 2009/01/05 14:59:00 casse Exp $
+ * $Id: gep.ml,v 1.9 2009/01/06 12:32:23 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -34,6 +34,24 @@ module OrderedType = struct
 end
 module TypeSet = Set.Make(OrderedType)
 
+(* module management *)
+let modules = ref [("memory", "fast_mem")]
+let add_module text =
+	let (new_id, new_imp) =
+		try
+			let idx = String.index text ':' in
+			(String.sub text 0 idx,
+			String.sub text (idx + 1) ((String.length text) - idx - 1))
+		with Not_found ->
+			(text, text) in
+	let rec set lst =
+		match lst with
+		  (id, imp)::tl ->
+			if id = new_id then (id, new_imp)::tl
+			else (id, imp)::(set tl)
+		| _ -> [(new_id, new_imp)] in
+	modules := set !modules
+
 
 (* options *)
 let nmp: string ref = ref ""
@@ -47,7 +65,7 @@ let memory = ref "fast_mem"
 let options = [
 	("v", Arg.Set verbose, "verbose mode");
 	("q", Arg.Set quiet, "quiet mode");
-	("m", Arg.Set_string memory, "select memory module [fast_mem]")
+	("m", Arg.String add_module, "add a module (module_name:actual_module)]")
 ]
 
 let free_arg arg =
@@ -297,11 +315,39 @@ let link src dst =
 	if Sys.file_exists dst then Sys.remove dst;
 	Unix.symlink src dst
 
+
+(* regular expressions *)
+let lower_re = Str.regexp "gliss_"
+let upper_re = Str.regexp "GLISS_"
+
+(** Replace the "gliss" and "GLISS" words in the input file
+	to create the output file.
+	@param info		Generation information.
+	@param in_file	Input file.
+	@param out_file	Output file. *)
+let replace_gliss info in_file out_file =
+	let in_stream = open_in in_file in
+	let out_stream = open_out out_file in
+	let lower = info.Toc.proc ^ "_" in 
+	let upper = String.uppercase lower in
+	let rec trans _ =
+		let line = input_line in_stream in
+		output_string out_stream
+			(Str.global_replace upper_re upper (Str.global_replace lower_re lower line));
+		output_char out_stream '\n';
+		trans () in
+	try
+		trans ()
+	with End_of_file ->
+		close_in in_stream;
+		close_out out_stream
+
+
 (** Link a module for building.
 	@param info	Generation information.
 	@param m	Original module name.
 	@param name	Final name of the module. *)
-let link_module info m name =
+let process_module info m name =
 
 	(* find the module *)
 	let rec find paths =
@@ -312,8 +358,9 @@ let link_module info m name =
 	let path = find paths in
 	
 	(* link it *)
-	link (path ^ ".c") (info.Toc.spath ^ "/" ^ name ^ ".c");
-	link (path ^ ".h") (info.Toc.ipath ^ "/" ^ name ^ ".h")
+	replace_gliss info (path ^ ".c") (info.Toc.spath ^ "/" ^ name ^ ".c");
+	replace_gliss info (path ^ ".h") (info.Toc.spath ^ "/" ^ name ^ ".h")
+
 
 (* main program *)
 let _ =
@@ -342,8 +389,8 @@ let _ =
 				(info.Toc.spath ^ "/target");
 			
 			(* module linkig *)
-			link_module info "gliss" "gliss";
-			link_module info !memory "memory"
+			process_module info "gliss" "gliss";
+			List.iter (fun (id, impl) -> process_module info impl id) !modules
 		end
 
 	with

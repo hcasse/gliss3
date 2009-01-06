@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.3 2008/11/25 17:11:36 casse Exp $
+ * $Id: toc.ml,v 1.4 2009/01/06 12:32:23 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,6 +20,7 @@
  *)
 
 exception UnsupportedType of Irg.type_expr
+exception Error of string
 
 (** C type in the generated code. *)
 type c_type =
@@ -36,6 +37,9 @@ type c_type =
 	| LONG_DOUBLE
 	| CHAR_PTR
 
+type bit_order = UPPERMOST | LOWERMOST
+
+
 (** Gather information useful for the generation. *)
 type info_t = {
 	mutable out: out_channel;	(** Out channel *)
@@ -44,6 +48,7 @@ type info_t = {
 	mutable inst: string;		(** inst variable name *)
 	mutable ipath: string;		(** include path *)
 	mutable spath: string;		(** source path *)
+	mutable bito: bit_order;	(** define bit order for bit fields *)
 }
 
 
@@ -53,14 +58,23 @@ let info _ =
 	let p = 
 		match Irg.get_symbol "proc" with
 		  Irg.LET(_, Irg.STRING_CONST name) -> name
-		| _ -> "unknown" in
+		| _ -> raise (Error "'proc' must be defined as a string let") in
+	let b =
+		match Irg.get_symbol "bit_order" with
+		  Irg.UNDEF -> UPPERMOST
+		| Irg.LET(_, Irg.STRING_CONST id) ->
+			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
+			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
+			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
+		| _ -> raise (Error "'bit_order' must be defined as a string let") in 
 	{
 		out = stdout;
 		proc = p;
 		state = "state";
 		inst = "inst";
 		ipath = "include/" ^ p;
-		spath = "src"
+		spath = "src";
+		bito = b;
 	}
 
 
