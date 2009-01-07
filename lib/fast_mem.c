@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.4 2009/01/05 14:59:01 casse Exp $
+ *	$Id: fast_mem.c,v 1.5 2009/01/07 18:44:33 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -72,7 +72,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include "target/memory.h"
+#include "mem.h"
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\
@@ -152,12 +152,13 @@ typedef struct  {
 	memory_page_table_entry_t *pte[SECONDARYMEMORY_HASH_TABLE_SIZE];
 } secondary_memory_hash_table_t;
 
-typedef struct  {
+struct gliss_memory_t {
 	void* image_link; /* link to a generic image data resource of the memory 
 	                     it permits to fetch informations about image structure 
 	                     via an optionnal external system */
     secondary_memory_hash_table_t *primary_hash_table[PRIMARYMEMORY_HASH_TABLE_SIZE];
-} memory_64_t;
+};
+typedef struct gliss_memory_t memory_64_t;
 
 
 /**
@@ -237,7 +238,7 @@ void gliss_mem_delete(gliss_memory_t *memory) {
  */
 gliss_memory_t *gliss_mem_copy(gliss_memory_t *memory) {
 	int i,j;
-	memory_64_t *mem = (memory_64_t *)memory, *target;
+	memory_64_t *mem = memory, *target;
 	
 	/* allocate memory */
 	target = gliss_mem_new();
@@ -373,7 +374,7 @@ static memory_page_table_entry_t *mem_get_page(memory_64_t *mem, gliss_address_t
  * @param size		Size of the buffer to write.
  * @ingroup memory
  */
-void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, uint8_t *buffer, size_t size) {
+void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, void *buffer, size_t size) {
 	if(size>0) {
 		memory_64_t *mem = (memory_64_t *)memory;
 		uint32_t offset = address % MEMORY_PAGE_SIZE;
@@ -412,7 +413,7 @@ void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, uint8_t *b
  * @param size		Size of the data to read.
  * @ingroup memory
  */
-void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, uint8_t *buffer, size_t size) {
+void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffer, size_t size) {
 	if(size > 0) {
 		memory_64_t *mem = (memory_64_t *) memory;
 		uint32_t offset = address % MEMORY_PAGE_SIZE;

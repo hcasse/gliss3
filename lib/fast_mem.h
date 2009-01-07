@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.h,v 1.2 2008/12/24 10:40:20 casse Exp $
+ *	$Id: fast_mem.h,v 1.3 2009/01/07 18:44:33 casse Exp $
  *	fast_mem module interface
  *
  *	This file is part of OTAWA
@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "config.h"
 
 #if defined(__cplusplus)
     extern  "C" {
@@ -35,7 +36,7 @@
 
 
 typedef uint32_t gliss_address_t;
-typedef void gliss_memory_t;
+typedef struct gliss_memory_t gliss_memory_t;
  
 /* creation function */
 gliss_memory_t *gliss_mem_new(void);
@@ -50,7 +51,7 @@ uint64_t gliss_mem_read64(gliss_memory_t *, gliss_address_t);
 float gliss_mem_readf(gliss_memory_t *, gliss_address_t);
 double gliss_mem_readd(gliss_memory_t *, gliss_address_t);
 long double gliss_mem_readld(gliss_memory_t *, gliss_address_t);
-void gliss_mem_read(gliss_memory_t *memory, gliss_address_t, uint8_t *buf, size_t size);
+void gliss_mem_read(gliss_memory_t *memory, gliss_address_t, void *buf, size_t size);
  
  
 /* write functions */
@@ -61,7 +62,7 @@ void gliss_mem_write64(gliss_memory_t *, gliss_address_t, uint64_t);
 void gliss_mem_writef(gliss_memory_t *, gliss_address_t, float);
 void gliss_mem_writed(gliss_memory_t *, gliss_address_t, double);
 void gliss_mem_writeld(gliss_memory_t *, gliss_address_t, long double);
-void gliss_mem_write(gliss_memory_t *memory, gliss_address_t, uint8_t *buf, size_t size);
+void gliss_mem_write(gliss_memory_t *memory, gliss_address_t, void *buf, size_t size);
 
 #if defined(__cplusplus)
 }
