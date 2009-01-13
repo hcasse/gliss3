@@ -1,13 +1,35 @@
 {
 
+(** Templater allows to generate files from templates.
+	This templates may contains special token that are replaced
+	by values retrieved from a dictionnary.
+	
+	Basically, an expression "$(identifier)" is replaced by a text
+	found in the dictionnary.
+	
+	Templates language support support conditional statement
+	in form "$(if identifier) ... $(end)" or
+	"$(if identifier) ... $(else) ... $(end)". The identifier is looked
+	in the dictionnary and must be resolved as a boolean.
+	
+	Loops are allowed using "$(foreach identifier) ... $(end)". In this
+	case, the icentifier must be resolved to a collection and the loop body
+	is generated as many times there is elements in the collection.
+	Identifiers contained in the body are resolved against special
+	dictionnaries associated with each collection element.
+	
+	Finally, notes that "$$" expression is reduceded to "$$".
+	*)
+
 (** Type of dictionnaries. *)
 type dict_t = (string * value_t) list
 
-(** Value of a dictionnary *)
+(** Values of a dictionnary *)
 and  value_t =
-	  TEXT of (out_channel -> unit)										(** a simple text display *)
-	| COLL of ((dict_t -> unit) -> dict_t -> unit)		(** collection *)
-	| BOOL of (unit -> bool)											(** boolean value *)
+	  TEXT of (out_channel -> unit)						(** function called when identifier is found *)
+	| COLL of ((dict_t -> unit) -> dict_t -> unit)		(** collection : argument function must be called for each element
+															with a dictionnary fixed for the current element. *)
+	| BOOL of (unit -> bool)							(** boolean value *)
 
 
 (** Perform text evaluation.
@@ -120,12 +142,10 @@ and scan_end buf cnt = parse
 
 
 {
-let format_date date =
-	let tm = Unix.localtime date in
-	Printf.sprintf "%0d/%02d/%02d %02d:%02d:%02d"
-		tm.Unix.tm_year tm.Unix.tm_mon tm.Unix.tm_mday
-		tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
-
+(** Perform a template generation.
+	@param dict		Dictionnary to use.
+	@param template	Template name (take from SOURCE_DIRECTORY/templates)
+	@param out_path	Path of the output file. *)
 let generate dict template out_path =
 	let output = open_out out_path in
 	let input = open_in (Config.source_dir ^ "/templates/" ^ template) in
