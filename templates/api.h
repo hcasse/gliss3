@@ -51,12 +51,14 @@ $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
 void $(proc)_delete_state($(proc)_state_t *state);
 
 /* simple decoding */
+typedef struct $(proc)_decoder_t $(proc)_decoder_t;
 $(proc)_decoder_t *$(proc)_new_decoder($(proc)_state_t *state);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);
 void $(proc)_delete_decoder($(proc)_decoder_t *decoder);
 
 /* simulation functions */
+typedef struct $(proc)_sim_t $(proc)_sim_t;
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state);
 $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);

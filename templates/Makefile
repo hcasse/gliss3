@@ -9,8 +9,8 @@ CLEAN = $$(OBJECTS) lib$(proc).a
 all: lib$(proc).a
 
 lib$(proc).a: $$(OBJECTS)
-	ar rcsu $$< $$^
-	ranlib $$<
+	ar rcsu $$@ $$^
+	ranlib $$@
 
 clean:
 	rm -rf $$(CLEAN)

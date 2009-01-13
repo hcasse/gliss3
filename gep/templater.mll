@@ -126,14 +126,6 @@ let format_date date =
 		tm.Unix.tm_year tm.Unix.tm_mon tm.Unix.tm_mday
 		tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
 
-let default info =
-	[
-		("date", TEXT (fun out -> output_string out (format_date (Unix.time ()))));
-		("proc", TEXT (fun out -> output_string out info.Toc.proc));
-		("PROC", TEXT (fun out -> output_string out (String.uppercase info.Toc.proc)));
-		("version", TEXT (fun out -> output_string out "GLISS V2.0 Copyright (c) 2009 IRIT - UPS"))
-	]
-
 let generate dict template out_path =
 	let output = open_out out_path in
 	let input = open_in (Config.source_dir ^ "/templates/" ^ template) in
