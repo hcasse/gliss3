@@ -1,5 +1,12 @@
 type value = STAT of Irg.stat | EXPR of Irg.expr
 
+let print_value v =
+	match v with
+	STAT(s) ->
+		Irg.print_statement s
+	| EXPR(e) ->
+		Irg.print_expr e
+
 
 (* structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
@@ -92,6 +99,7 @@ let get_name instr =
 		match get_attr instr "syntax" with
 		  EXPR(Irg.FORMAT(s, e_l)) -> s
 		| EXPR(Irg.CONST(Irg.STRING, Irg.STRING_CONST str)) -> str
+		| EXPR(e) -> begin Irg.print_expr e;"" end
 		| _ -> failwith "syntax does not reduce to a string" in
 	NameTable.make instr syntax
 
@@ -131,3 +139,16 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
+let get_proc_name () =
+	let proc_spec = Irg.get_symbol "proc"
+	in
+	match proc_spec with
+	Irg.LET(_, c) ->
+		(match c with
+		Irg.STRING_CONST(name) ->
+			name
+		| _ ->
+			""
+		)
+	| _ ->
+		""
