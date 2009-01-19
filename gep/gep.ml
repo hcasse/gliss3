@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.12 2009/01/13 14:37:19 casse Exp $
+ * $Id: gep.ml,v 1.13 2009/01/19 09:51:19 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -217,6 +217,8 @@ let make_env info =
 	("proc", out (fun _ -> info.Toc.proc)) ::
 	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
+	(* declarations of decode tables *)
+	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) :: (*out (fun _ -> "PROUT!")) ::*)
 	[]
 
 
@@ -311,6 +313,9 @@ let _ =
 				(info.Toc.spath ^ "/target");
 			make_template "Makefile" "src/Makefile" dict;
 			make_template "state.h" "src/state.h" dict;
+			(* fetch (determining the ID of a given instruction) *)
+			make_template "fetch.c" "src/fetch.c" dict;
+			make_template "fetch.h" "src/fetch.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
