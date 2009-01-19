@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.1 2009/01/16 12:37:37 barre Exp $
+ * $Id: fetch.ml,v 1.2 2009/01/19 09:49:08 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -585,6 +585,8 @@ let output_table_C_decl out dt dl =
 		DecTree(_, _, lm, _, _) ->
 			lm
 	in
+	let info = Toc.info ()
+	in
 	let sons = find_sons_of_node dt dl
 	in
 	(* is i the last element of i_l? i is an int32, i_l is an int32 list *)
@@ -633,13 +635,13 @@ let output_table_C_decl out dt dl =
 				let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				begin
-				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, %s}" i i ((String.uppercase ("p"(*Iter.get_proc_name ()*))) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
+				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, %s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
 				Printf.fprintf out "\t/* %s, mask=%s, val=%s */" (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
 				end
 			else
 				Printf.fprintf out "/* 0X%X,%d */\t{TABLEDECODE, &_table%s}" i i (name_of (get_i_th_son i sons))
 		else
-			Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase ("p"(*Iter.get_proc_name ()*)))
+			Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc)
 	in
 	let rec produce_decode_ent i =
 		if i >= num_dec_ent then
