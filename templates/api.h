@@ -5,9 +5,15 @@
 #include <stdint.h>
 #include "id.h"
 
+/* opaque types */
+typedef struct $(proc)_platform_t $(proc)_platform_t;
+typedef struct $(proc)_fetch_t $(proc)_fetch_t;
+typedef struct $(proc)_decoder_t $(proc)_decoder_t;
+typedef struct $(proc)_sim_t $(proc)_sim_t;
 
 /* $(proc)_state_t type */
 typedef struct $(proc)_state_t {
+	$(proc)_platform_t *platform;
 $(foreach registers)$(if !aliased)$(if array)
 	$(type) $(name)[$(size)];
 $(else)
@@ -45,20 +51,33 @@ typedef struct $(proc)_inst_t {
 	$(proc)_ii_t *instroutput;
 } $(proc)_inst_t;
 
-/* state management function */
-$(proc)_state_t *$(proc)_new_state(void);
-$(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
-void $(proc)_delete_state($(proc)_state_t *state);
+/* platform management */
+#define $(PROC)_MAIN_MEMORY		0
+$(proc)_platform_t *$(proc)_new_platform(void);
+void $(proc)_delete_platform($(proc)_platform_t *platform);
+$(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index);
+void $(proc)_lock_platform($(proc)_platform_t *platform);
+void $(proc)_unlock_platform($(proc)_platform_t *platform);
 
-/* simple decoding */
-typedef struct $(proc)_decoder_t $(proc)_decoder_t;
+/* fetching */
+$(proc)_fetch_t *$(proc)_new_fetch($(proc)_state_t *state);
+void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
+int $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address);
+
+/* decoding */
 $(proc)_decoder_t *$(proc)_new_decoder($(proc)_state_t *state);
+void $(proc)_delete_decoder($(proc)_decoder_t *fetch);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);
-void $(proc)_delete_decoder($(proc)_decoder_t *decoder);
+
+/* state management function */
+$(proc)_state_t *$(proc)_new_state(void);
+void $(proc)_delete_state($(proc)_state_t *state);
+$(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
+$(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state);
+$(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
 
 /* simulation functions */
-typedef struct $(proc)_sim_t $(proc)_sim_t;
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state);
 $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
