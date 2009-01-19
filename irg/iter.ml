@@ -139,19 +139,3 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
-(** return the name of the processor as specified in the NML description in a "let proc=" directive
-	@return	the specified name, "as is" (can be uppercase, lowercase or mixed)
-*)
-let get_proc_name () =
-	let proc_spec = Irg.get_symbol "proc"
-	in
-	match proc_spec with
-	Irg.LET(_, c) ->
-		(match c with
-		Irg.STRING_CONST(name) ->
-			name
-		| _ ->
-			""
-		)
-	| _ ->
-		""
