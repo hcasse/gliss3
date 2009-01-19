@@ -60,12 +60,12 @@ void $(proc)_lock_platform($(proc)_platform_t *platform);
 void $(proc)_unlock_platform($(proc)_platform_t *platform);
 
 /* fetching */
-$(proc)_fetch_t *$(proc)_new_fetch($(proc)_state_t *state);
+$(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);
 void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
 int $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address);
 
 /* decoding */
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_state_t *state);
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *state);
 void $(proc)_delete_decoder($(proc)_decoder_t *fetch);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);

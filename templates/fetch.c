@@ -6,6 +6,10 @@
 
 #include "$(proc)_fetch.h" /* will this file be in the same directory */
 
+/* fetch structure */
+struct $(proc)_fetch_t {
+	$(proc)_memory_t *mem;
+};
 
 /* Extern Modules */
 /* Constants */

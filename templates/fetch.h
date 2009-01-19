@@ -9,15 +9,16 @@ extern  "C"
 {
 #endif
 
-#include <$(proc)/api.h>
+#include "../include/$(proc)/api.h"
 
-void $(proc)_init_fetch(void); // IDEE: rajouter un param state_t, permet d'accéder à la mémoire pour lire et trouver l'ID d'une instruction
+/*void $(proc)_init_fetch(void); // IDEE: rajouter un param state_t, permet d'accéder à la mémoire pour lire et trouver l'ID d'une instruction
 void $(proc)_halt_fetch(void);
 
-$(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr/*, $(proc)_code_t *code*/)
+$(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr/*,
+$(proc)_code_t *code*/)*/
 
-//ça sert encore à qqchose maintenant ?
-void $(proc)_free_inst($(proc)_inst_t *instr);
+/*ça sert encore à qqchose maintenant ?
+void $(proc)_free_inst($(proc)_inst_t *instr);*/
 
 
 #if defined(__cplusplus) 
