@@ -21,8 +21,8 @@
 #		define $(PROC)_MALLOC_BUF_MAX_SIZE (1024*1024)
 #	endif
 #else /* $(PROC)_NO_CACHE_FETCH */
-#	ifndef $(PROC)_MAX_INSTR_FETCHD
-#		define $(PROC)_MAX_INSTR_FETCHD 100
+#	ifndef $(PROC)_MAX_INSTR_FETCHED
+#		define $(PROC)_MAX_INSTR_FETCHED 100
 #	endif
 #endif /* $(PROC)_NO_CACHE_FETCH */
 
@@ -52,7 +52,7 @@ malloc_buf_t *last_malloc_buf = NULL;
 #	ifdef $(PROC)_HASH_DEBUG
 
 unsigned long int count_hits = 0, count_miss = 0, count_instr = 0,
-count_hits_total = 0, count_m$(PROC)_total = 0,
+count_hits_total = 0, count_miss_total = 0,
 count_move = 0, count_move_total = 0;
 unsigned long int move_total = 0, move_intern = 0;
 
@@ -95,8 +95,8 @@ void cache_halt(void)
 
 #else /* $(PROC)_NO_CACHE_FETCH */
 
-int instr_is_free[$(PROC)_MAX_INSTR_FETCHD];
-$(proc)_inst_t instr_tbl[$(PROC)_MAX_INSTR_FETCHD];
+int instr_is_free[$(PROC)_MAX_INSTR_FETCHED];
+$(proc)_inst_t instr_tbl[$(PROC)_MAX_INSTR_FETCHED];
 
 void $(proc)_free_instr($(proc)_inst_t *instr)
 {
@@ -175,7 +175,7 @@ int first_bit_on(int x)
 	on suppose que le masque n'a pas plus de 32 bits à 1,
 	sinon débordement
 
-	instr : adresse du debut de l'instruction
+	instr : adresse du debut de l'instruction //TODO: donner l'address_t plutot (elimine le besoin de code_t)
 	mask  : adresse du debut du mask
 	nb_bloc : nombre de bloc de 32 bits sur lesquels on fait l'opération
 */
@@ -188,7 +188,7 @@ uint32_t valeur_sur_mask_bloc(uint32_t *instr, uint32_t *mask, int nb_bloc)
 
 	/* on fait un parcours du bit de fort poids de instr[0]
 	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-	tmp_mask = *instr; 
+	tmp_mask = *instr; /* $(proc)_mem_read32(ppc_memory_t *, ppc_address_t) */
 	/*printf(" decodage de instruction : ");
 	affiche_valeur_binaire(tmp_mask);*/
 	for (nb = 0; nb < nb_bloc; nb++)
@@ -219,7 +219,7 @@ uint32_t valeur_sur_mask_bloc(uint32_t *instr, uint32_t *mask, int nb_bloc)
 
 /* Fonctions Principales */
 
-$(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $(proc)_code_t *code)
+$(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $(proc)_code_t *code /* param à virer, l'accès à l'instr se fera via la mémoire du state_t */)
 {
 	int valeur;
 	Table_Decodage *ptr;
@@ -244,7 +244,7 @@ $(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $
 		"\ttotal hits = %lu\ttotal miss = %lu\ttotal move=%lu\n"
 		"\tmax move = %lu\n",
 		count_instr,count_hits,count_miss,count_move,
-		count_hits_total,count_m$(PROC)_total,count_move_total,
+		count_hits_total,count_miss_total,count_move_total,
 		move_total);
 		count_hits = 0;
 		count_miss = 0;
@@ -258,7 +258,7 @@ $(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $
 #	ifdef $(PROC)_HASH_DEBUG
 	count_miss++;
 	count_instr++;
-	count_m$(PROC)_total++;
+	count_miss_total++;
 #	endif /* $(PROC)_HASH_DEBUG */
 
 	if (hash_table[index] != NULL)
@@ -271,7 +271,7 @@ $(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $
 			count_hits++;
 			count_hits_total++;
 			count_miss--;
-			count_m$(PROC)_total--;
+			count_miss_total--;
 #	endif /* $(PROC)_HASH_DEBUG */
 			return hash_table[index]->instr_id;
 		}
@@ -295,7 +295,7 @@ $(proc)_ident_t *$(proc)_fetch($(proc)_state_t *state, $(proc)_address_t addr, $
 				count_move++;
 				count_move_total++;
 				count_miss--;
-				count_m$(PROC)_total--;
+				count_miss_total--;
 				if (move_intern > move_total)
 					move_total = move_intern;
 #	endif /* $(PROC)_HASH_DEBUG */
@@ -361,10 +361,10 @@ void $(proc)_init_fetch(void)
 {
 	int i;
 #ifndef $(PROC)_NO_CACHE_FETCH
-	for(i = 0; i < $(PROC)_HASH_NUM_INSTR + 1; i++)
+	for (i = 0; i < $(PROC)_HASH_NUM_INSTR + 1; i++)
 		hash_table[i] = NULL;
 #else /* $(PROC)_NO_CACHE_FETCH */
-	for(i = 0; i < $(PROC)_MAX_INSTR_FETCHD; i++)
+	for (i = 0; i < $(PROC)_MAX_INSTR_FETCHED; i++)
 		instr_is_free[i] = 1;
 #endif /* $(PROC)_NO_CACHE_FETCH */
 }
