@@ -14,6 +14,8 @@ $(end)
 /* $(proc)_platform_t structure */
 struct $(proc)_platform_t {
 	int usage;
+	$(proc)_address_t entry, sp, argv, envp, aux;
+	int argc;
 	union {
 		$(proc)_memory_t *array[0];
 		struct {

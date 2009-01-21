@@ -58,6 +58,7 @@ $(proc)_platform_t *$(proc)_new_platform(void);
 $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index);
 void $(proc)_lock_platform($(proc)_platform_t *platform);
 void $(proc)_unlock_platform($(proc)_platform_t *platform);
+int $(proc)_load_platform($(proc)_platform_t *platform, const char *path);
 
 /* fetching */
 $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);

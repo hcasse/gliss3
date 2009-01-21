@@ -4,6 +4,7 @@
 #include <errno.h>
 #include "../include/$(proc)/api.h"
 #include "platform.h"
+#include "loader.h"
 
 
 /**
@@ -94,4 +95,33 @@ $(end)
 	/* free the platform */
 	free(platform);
 }
+
+
+/**
+ * Load the given program in the platform.
+ * @param platform	Platform to load in.
+ * @param path		Path of the file to load.
+ * @return			0 for success, -1 for error (in errno).
+ */
+int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
+	$(proc)_loader_t *loader;
+
+	/* open the file */
+	loader = $(proc)_loader_open(path);
+	if(loader == NULL)
+		return -1;
+	
+	/* load in memory */
+	$(proc)_loader_load(loader, $(proc)_get_memory(platform, $(PROC)_MAIN_MEMORY));
+	
+	/* initialize system information */
+	platform->entry = $(proc)_loader_start(loader);
+	
+	/* close the file */
+	$(proc)_loader_close(loader);
+
+	/* return success */
+	return 0;
+}
+
 
