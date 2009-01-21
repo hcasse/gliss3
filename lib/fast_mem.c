@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.5 2009/01/07 18:44:33 casse Exp $
+ *	$Id: fast_mem.c,v 1.6 2009/01/21 07:30:54 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -35,26 +35,7 @@
  * to access memory pages.
  */
 
-/**
- * @def GLISS_MEMORY_STATE
- * This macro is included in the @reg gliss_state_t structure and allows
- * to include memory module information in the simulator state.
- * @ingroup memory
- */
-
-/**
- * @def GLISS_MEMORY_INIT(s)
- * This function is called to initialize the memory information
- * contained in the simulator state.
- * @ingroup memory
- */
-
-/**
- * @def GLISS_MEMORY_DESTROY(s)
- * This function is called to destroy the memory information
- * contained in the simulator state.
- * @ingroup memory
- */
+#include "config.h"
 
 /**
  * @def gliss_address_t
@@ -72,7 +53,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include "mem.h"
+#include "../include/gliss/mem.h"
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\

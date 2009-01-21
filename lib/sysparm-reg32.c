@@ -1,9 +1,9 @@
 /*
- *	$Id: old_elf.h,v 1.4 2009/01/21 07:30:54 casse Exp $
- *	old_elf module interface
+ *	$Id: sysparm-reg32.c,v 1.1 2009/01/21 07:30:55 casse Exp $
+ *	sysparm-reg32 module implementation
  *
  *	This file is part of OTAWA
- *	Copyright (c) 2008, IRIT UPS.
+ *	Copyright (c) 2009, IRIT UPS.
  * 
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -19,29 +19,6 @@
  *	along with OTAWA; if not, write to the Free Software 
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef GLISS_OLD_ELF_H
-#define GLISS_OLD_ELF_H
 
-#include "gliss.h"
-#include "../include/gliss/mem.h"
+#include "sysparm.h"
 
-#if defined(__cplusplus)
-    extern  "C" {
-#endif
-
-#define GLISS_LOADER_STATE
-#define GLISS_LOADER_INIT(s)
-#define GLISS_LOADER_DESTROY(s)
-
-typedef struct gliss_loader_t gliss_loader_t;
-
-gliss_loader_t *gliss_loader_open(const char *path);
-void gliss_loader_close(gliss_loader_t *loader);
-void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory);
-gliss_address_t gliss_loader_start(gliss_loader_t *loader);
-
-#if defined(__cplusplus)
-}
-#endif
-
-#endif	/* GLISS_OLD_ELF_H */

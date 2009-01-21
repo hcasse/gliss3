@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include "id.h"
+#include "mem.h"
 
 /* opaque types */
 typedef struct $(proc)_platform_t $(proc)_platform_t;
@@ -54,7 +55,6 @@ typedef struct $(proc)_inst_t {
 /* platform management */
 #define $(PROC)_MAIN_MEMORY		0
 $(proc)_platform_t *$(proc)_new_platform(void);
-void $(proc)_delete_platform($(proc)_platform_t *platform);
 $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index);
 void $(proc)_lock_platform($(proc)_platform_t *platform);
 void $(proc)_unlock_platform($(proc)_platform_t *platform);

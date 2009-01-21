@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.13 2009/01/19 09:51:19 barre Exp $
+ * $Id: gep.ml,v 1.14 2009/01/21 07:30:53 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -179,6 +179,7 @@ let get_memory f dict key sym =
 	  Irg.MEM (name, size, Irg.CARD(8), attrs) ->
 	  	f (
 			("NAME", out (fun _ -> String.uppercase name)) ::
+			("name", out (fun _ -> name)) ::
 			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
 			dict
 		)
@@ -189,6 +190,7 @@ let get_module f dict (name, _) =
 	f (
 		("name", out (fun _ -> name)) ::
 		("NAME", out (fun _ -> String.uppercase name)) ::
+		("is_mem", Templater.BOOL (fun _ -> name = "mem")) ::
 		dict
 	)
 
@@ -233,6 +235,7 @@ let link src dst =
 (* regular expressions *)
 let lower_re = Str.regexp "gliss_"
 let upper_re = Str.regexp "GLISS_"
+let path_re = Str.regexp "gliss/"
 
 (** Replace the "gliss" and "GLISS" words in the input file
 	to create the output file.
@@ -247,7 +250,9 @@ let replace_gliss info in_file out_file =
 	let rec trans _ =
 		let line = input_line in_stream in
 		output_string out_stream
-			(Str.global_replace upper_re upper (Str.global_replace lower_re lower line));
+			(Str.global_replace path_re (info.Toc.proc ^ "/")
+			(Str.global_replace upper_re upper
+			(Str.global_replace lower_re lower line)));
 		output_char out_stream '\n';
 		trans () in
 	try
@@ -312,14 +317,16 @@ let _ =
 				((Unix.getcwd ()) ^ "/" ^ info.Toc.ipath)
 				(info.Toc.spath ^ "/target");
 			make_template "Makefile" "src/Makefile" dict;
-			make_template "state.h" "src/state.h" dict;
 			(* fetch (determining the ID of a given instruction) *)
 			make_template "fetch.c" "src/fetch.c" dict;
 			make_template "fetch.h" "src/fetch.h" dict;
+			make_template "api.c" "src/api.c" dict;
+			make_template "platform.h" "src/platform.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
-			List.iter (fun (id, impl) -> process_module info impl id) !modules
+			List.iter (fun (id, impl) -> process_module info impl id) !modules;
+			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h")
 		end
 
 	with
@@ -339,5 +346,7 @@ let _ =
 		exit 4
 	| Sys_error msg ->
 		Printf.eprintf "ERROR: %s\n" msg; exit 1
+	| Unix.Unix_error (err, _, path) ->
+		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path
 	| Failure e ->
 		Lexer.display_error e; exit 3

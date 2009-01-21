@@ -1,5 +1,5 @@
 /*
- *	$Id: syscall-linux.c,v 1.1 2009/01/07 18:44:34 casse Exp $
+ *	$Id: syscall-linux.c,v 1.2 2009/01/21 07:30:54 casse Exp $
  *	syscall-linux module implementation
  *
  *	This file is part of OTAWA
@@ -35,7 +35,7 @@
 #include <sys/types.h>
 #include <sys/times.h>
 
-#include "mem.h"
+#include "../include/gliss/mem.h"
 #include "sysparm.h"
 #include "syscall.h"
 
@@ -57,7 +57,7 @@ static BOOL running = FALSE;
 #define PARM(i)			gliss_sysparm_pop32(parm, state)
 #define PARM_END	gliss_sysparm_destroy(parm, state); }
 #define STRLEN(addr) my_strlen(state, addr)
-
+#define MEM_WRITE_DWORD(a, v) gliss_mem_write64(GLISS_SYSCALL_MEM(state), (a), (v))
 
 /*#define READ_GPR(i) handler->read_gpr(handler->instance, i)
 #define WRITE_GPR(i,x) handler->write_gpr(handler->instance, i, x)
