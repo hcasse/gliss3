@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.2 2009/01/19 09:49:08 barre Exp $
+ * $Id: fetch.ml,v 1.3 2009/01/23 15:30:44 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -98,6 +98,64 @@ let get_string_mask_from_op sp =
 	in
 	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
+(* return the length of a given instruction, based on the image description *)
+let get_instruction_length sp =
+	let get_str e =
+		match e with
+		Irg.FORMAT(str, _) ->
+			str
+		| Irg.CONST(t_e, c) ->
+			if t_e=Irg.STRING then
+				match c with
+				Irg.STRING_CONST(str) ->
+					str
+				| _ -> ""
+			else
+				""
+		| _ ->
+			""
+	in
+	let get_length_from_format f =
+		let l = String.length f in
+		let new_f =
+			if l<=2 then
+			(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
+				"0"
+			else
+				String.sub f 1 (l-2)
+		in
+		Scanf.sscanf new_f "%d" (fun x->x)
+	in
+	let remove_space s =
+		let rec concat_str_list s_l =
+			match s_l with
+			[] ->
+				""
+			| h::q ->
+				h ^ (concat_str_list q)
+		in
+		concat_str_list (Str.split (Str.regexp "[ \t]+") s)
+	in
+	let rec get_length_from_regexp_list l =
+		match l with
+		[] -> 0
+		| h::t ->
+			(match h with
+			Str.Text(txt) ->
+				(* here we assume that an image contains only %.. , 01, X or x *)
+				(String.length txt) + (get_length_from_regexp_list t)
+			| Str.Delim(d) ->
+				(get_length_from_format d) + (get_length_from_regexp_list t)
+			)
+	in
+	let get_expr_from_iter_value v  =
+		match v with
+		Iter.EXPR(e) ->
+			e
+		| _ -> Irg.NONE
+	in
+	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
+
 
 (* returns the value of an instruction code considering only the bit set in the mask,
 the result is a '0' or '1' string with the bits not set in the mask being marked with an 'X' *)
@@ -188,9 +246,12 @@ let get_value_on_mask sp =
 	in
 	clear_X (str_to_char_list v)
 
+
 (* convert the 1st 32 chars of a string to an int32
 the string is supposed to represent a binary number (only 0 and 1) *)
 let str01_to_int32 s =
+	let size = String.length s
+	in
 	let char01_to_int32 c =
 		match c with
 		'0' ->
@@ -202,12 +263,35 @@ let str01_to_int32 s =
 			Int32.zero
 	in
 	let rec aux s n accu =
-		if n = 32 then
+		if n = size then
 			accu
 		else
 			aux s (n+1) (Int32.add (Int32.shift_left accu 1) (char01_to_int32 s.[n]))
 	in
 	aux s 0 Int32.zero
+
+(* convert the 1st 64 chars of a string to an int64
+the string is supposed to represent a binary number (only 0 and 1) *)
+let str01_to_int64 s =
+	let size = String.length s
+	in
+	let char01_to_int64 c =
+		match c with
+		'0' ->
+			Int64.zero
+		| '1' ->
+			Int64.one
+		| _ ->
+			(* shouldn't happen *)
+			Int64.zero
+	in
+	let rec aux s n accu =
+		if n = size then
+			accu
+		else
+			aux s (n+1) (Int64.add (Int64.shift_left accu 1) (char01_to_int64 s.[n]))
+	in
+	aux s 0 Int64.zero
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -635,11 +719,11 @@ let output_table_C_decl out dt dl =
 				let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				begin
-				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, %s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
-				Printf.fprintf out "\t/* %s, mask=%s, val=%s */" (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
+				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (Iter.get_name x) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
 				end
 			else
-				Printf.fprintf out "/* 0X%X,%d */\t{TABLEDECODE, &_table%s}" i i (name_of (get_i_th_son i sons))
+				Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons))
 		else
 			Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc)
 	in
@@ -700,7 +784,7 @@ let sort_dectree_list d_l =
 	in
 	List.sort comp_fun d_l
 			
-let output_all_table_C_decl out =
+let output_all_table_C_decl out num_bits =
 	let dl = sort_dectree_list (build_dec_nodes 0)
 	in
 	let aux dt =
@@ -737,15 +821,6 @@ let test_sort n =
 		List.iter aux dl
 	| _ ->
 		()
-
-let rec toto n =
-	if n>=0 then
-		begin
-		Printf.printf "void *Instr%d;\n" n;
-		toto (n-1)
-		end
-	else
-	()
 
 
 
