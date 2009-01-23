@@ -358,6 +358,7 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 		if (k == 0)
 			k = first_bit_on(j1);
 		code2 = gliss_mem_read32(fetch->mem, address);
+		/* just becoz of a bug in endianness dealing */
 		code = ((code2&0x0FF)<<24)|((code2&0x0FF00)<<8)|((code2&0x0FF0000)>>8)|((code2&0xFF000000)>>24);
 		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;

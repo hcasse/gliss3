@@ -10,7 +10,7 @@ extern  "C"
 #endif
 
 #include "../include/gliss/api.h"
-#include "../include/gliss/mem.h" /* if mem function definitions not in api (even as an include), else: remove this line */
+
 #include "fetch_table.h" /* or ../include/gliss/ ? */
 
 
