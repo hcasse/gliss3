@@ -9,26 +9,14 @@ extern  "C"
 {
 #endif
 
-#include "../include/ppc/api.h"
-#include "mem.h" /* if mem function definitions not in api (even as an include), else: remove this line */
+#include "../include/gliss/api.h"
+#include "../include/gliss/mem.h" /* if mem function definitions not in api (even as an include), else: remove this line */
 #include "fetch_table.h" /* or ../include/gliss/ ? */
 
-/*void GLISS_init_fetch(void); // IDEE: rajouter un param state_t, permet d'accéder à la mémoire pour lire et trouver l'ID d'une instruction
-void GLISS_halt_fetch(void);
 
-GLISS_ident_t *GLISS_fetch(GLISS_state_t *state, GLISS_address_t addr,
-GLISS_code_t *code)*/
-
-/*ça sert encore à qqchose maintenant ?
-void GLISS_free_inst(GLISS_inst_t *instr);*/
-
-/* fetching */
-/*
-prototypes from api.h
-gliss_fetch_t *gliss_new_fetch(gliss_platform_t *state);
-void gliss_delete_fetch(gliss_fetch_t *fetch);
-int gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address); */
-
+#define GLISS_FETCH_STATE
+#define GLISS_FETCH_INIT(s)
+#define GLISS_FETCH_DESTROY(s)
 
 #if defined(__cplusplus)
 }

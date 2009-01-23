@@ -6,6 +6,9 @@
 
 #include "fetch.h"
 
+#define gliss_error(e) fprintf(stderr, (e))
+#define GLISS_NO_CACHE_FETCH
+
 /* fetch structure */
 struct gliss_fetch_t
 {
@@ -148,6 +151,7 @@ void gliss_delete_fetch(gliss_fetch_t *fetch)
 		gliss_error("cannot delete an NULL gliss_fetch_t object");
 	free(fetch);
 	number_of_fetch_objects--;
+	/*assert(number_of_fetch_objects >= 0);*/
 	if (number_of_fetch_objects == 0)
 		halt_fetch();
 }
@@ -172,7 +176,7 @@ void gliss_delete_fetch(gliss_fetch_t *fetch)
 	printf("\n");
 }*/
 
-int first_bit_on(int x)
+int first_bit_on(uint32_t x)
 {
 	int i = 0, j = 0;
 	if (x != 0)
@@ -199,46 +203,49 @@ int first_bit_on(int x)
 	on suppose que le masque n'a pas plus de 32 bits à 1,
 	sinon débordement
 
-	instr : buffer contenant l'instruction
-	mask  : adresse du debut du mask
-	nb_bloc : nombre de bloc de 32 bits sur lesquels on fait l'opération
+	instr : instruction (de 32 bits)
+	mask  : masque (32 bits aussi)
 */
-uint32_t valeur_sur_mask_bloc(uint32_t *instr, uint32_t *mask, int nb_bloc)
+uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 {
 	int i;
-	int nb;
-	uint32_t tmp_mask, j = 0;
+	uint32_t tmp_mask;/*, j = 0;*/
 	uint32_t res = 0;
+
+/*printf(" val_s_m instr=%08X, mask=%08X\n", instr, mask);*/
 
 	/* on fait un parcours du bit de fort poids de instr[0]
 	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-	tmp_mask = *instr; /* GLISS_mem_read32(ppc_memory_t *, ppc_address_t) */
-	/*printf(" decodage de instruction : ");
-	affiche_valeur_binaire(tmp_mask);*/
-	for (nb = 0; nb < nb_bloc; nb++)
+	/*tmp_mask = instr;*/
+	/*printf(" decodage de instruction : %08X\n", tmp_mask);*/
+
+	tmp_mask = mask;
+	/*j += tmp_mask;        */
+	for (i = 31; i >= 0; i--)
 	{
-		tmp_mask = mask[nb];
-		j += tmp_mask;        
-		for (i = (sizeof(instr)*8)-1; i >= 0; i--)
+		/* le bit i du mask est 1 ? */
+		if (tmp_mask & 0x80000000)
 		{
-			/* le bit i du mask est 1 ? */
-			if (tmp_mask < 0)
-			{
-				/* si oui, recopie du bit i de l'instruction
-				à droite du resultat avec decalage prealable */
-				res <<= 1;
-				res |= ((instr[nb] >> i) & 0x01);
-			}
-			tmp_mask <<= 1;
+			/* si oui, recopie du bit i de l'instruction
+			à droite du resultat avec decalage prealable */
+			res <<= 1;
+			res |= ((instr >> i) & 0x01);
 		}
-		/*printf(" valeur de tmp_mask %d : ", nb);
-		affiche_valeur_binaire(tmp_mask);*/
+		tmp_mask <<= 1;
 	}
-	/*printf(" valeur du resultat  : %d\n",res);
-	affiche_valeur_binaire(res);*/
+	/*printf(" valeur de tmp_mask : %08X\n", tmp_mask);*/
+	/*printf(" valeur du resultat  : %08X\n",res);*/
 	return res;
 }
 
+
+void print_table(Table_Decodage *t, int val)
+{
+	if (t)
+		printf("Table, @=%08X, mask=%08X, table[%d]=(%d, %08X)\n", t, t->mask0, val, t->table[val].type, t->table[val].ptr);
+	else
+		printf("Table, <NULL>\n");
+}
 
 
 /* Fonctions Principales */
@@ -248,7 +255,7 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 	int valeur;
 	Table_Decodage *ptr;
 	Table_Decodage *ptr2;
-	uint32_t tab_mask[1];
+	uint32_t tab_mask;
 
 #ifndef GLISS_NO_CACHE_FETCH
 	unsigned int index;
@@ -256,7 +263,6 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 #else
 	gliss_ident_t instr_id;
 #endif /* GLISS_NO_CACHE_FETCH */
-
 
 #ifndef GLISS_NO_CACHE_FETCH
 
@@ -342,17 +348,18 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 
 #endif /* GLISS_NO_CACHE_FETCH */
 	ptr2 = table;
-
 	do
 	{
-		int j1 = 0, k = 0;
-		uint32_t code[1];
-		tab_mask[0] = ptr2->mask0;
-		j1 = tab_mask[0];
+		uint32_t j1 = 0, k = 0;
+		uint32_t code;
+		uint32_t code2;
+		tab_mask = ptr2->mask0;
+		j1 = tab_mask;
 		if (k == 0)
 			k = first_bit_on(j1);
-		code[0] = gliss_mem_read32(fetch->mem, address);
-		valeur = valeur_sur_mask_bloc(code, tab_mask, 1);
+		code2 = gliss_mem_read32(fetch->mem, address);
+		code = ((code2&0x0FF)<<24)|((code2&0x0FF00)<<8)|((code2&0x0FF0000)>>8)|((code2&0xFF000000)>>24);
+		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
 	}
