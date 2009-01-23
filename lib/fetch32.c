@@ -224,7 +224,7 @@ uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 	for (i = 31; i >= 0; i--)
 	{
 		/* le bit i du mask est 1 ? */
-		if (tmp_mask & 0x80000000)
+		if (tmp_mask & 0x80000000UL)
 		{
 			/* si oui, recopie du bit i de l'instruction
 			à droite du resultat avec decalage prealable */
@@ -359,6 +359,7 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 			k = first_bit_on(j1);
 		code2 = gliss_mem_read32(fetch->mem, address);
 		/* just becoz of a bug in endianness dealing */
+		/* TODO:remove it as soon as possible */
 		code = ((code2&0x0FF)<<24)|((code2&0x0FF00)<<8)|((code2&0x0FF0000)>>8)|((code2&0xFF000000)>>24);
 		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;
