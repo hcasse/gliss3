@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.14 2009/01/21 07:30:53 casse Exp $
+ * $Id: gep.ml,v 1.15 2009/01/23 15:32:13 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -220,7 +220,7 @@ let make_env info =
 	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
 	(* declarations of decode tables *)
-	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) :: (*out (fun _ -> "PROUT!")) ::*)
+	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) :: (*out (fun _ -> "PROUT!")) ::*)
 	[]
 
 
@@ -301,6 +301,8 @@ let _ =
 			let info = Toc.info () in
 			let dict = make_env info in
 			
+			add_module "fetch:fetch32";
+			
 			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			makedir "include";
@@ -318,15 +320,20 @@ let _ =
 				(info.Toc.spath ^ "/target");
 			make_template "Makefile" "src/Makefile" dict;
 			(* fetch (determining the ID of a given instruction) *)
-			make_template "fetch.c" "src/fetch.c" dict;
-			make_template "fetch.h" "src/fetch.h" dict;
+			(*make_template "fetch.c" "src/fetch.c" dict;
+			make_template "fetch.h" "src/fetch.h" dict;*)
 			make_template "api.c" "src/api.c" dict;
 			make_template "platform.h" "src/platform.h" dict;
+			make_template "fetch_table32.h" "src/fetch_table.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
 			List.iter (fun (id, impl) -> process_module info impl id) !modules;
-			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h")
+			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h");
+			
+			(* decode test *)
+			Iter.iter (fun accu sp -> begin print_string ("mask_params "^(Iter.get_name sp)^"\n");
+					List.iter (fun x -> Printf.printf "%s\n" (Decode.get_string_mask_for_param_from_op sp x)) [0; 1; 2; 3; 4; 5; 6] end) ()
 		end
 
 	with
