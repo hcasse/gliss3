@@ -23,6 +23,20 @@ int main(int argc, char **argv) {
 		return 3;
 	}
 	
+	ppc_fetch_t *f = ppc_new_fetch(pf);
+	/* the exe i have tested have their code beginnin at this address */
+	ppc_address_t a = 0x10000080;
+	int i;
+	for (i=0; i<100; i++)
+	{
+		int n = ppc_fetch(f, a);
+		uint32_t code = ppc_mem_read32(ppc_get_memory(pf, 0), a);
+		printf("@ %08X => %08X => %d\t\t%s.\n", a, code, n, ppc_string_ident[n]);
+		a += 4;
+	}
+
+	ppc_delete_fetch(f);
+
 	/* delete the platform */
 	ppc_unlock_platform(pf);
 	fprintf(stderr, "SUCCESS !\n");
