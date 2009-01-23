@@ -6,6 +6,10 @@
 #include "id.h"
 #include "mem.h"
 
+/* j'ai mis ça là en attendant mieux, je m'ne sers pour le débuggage */
+char *$(proc)_string_ident[200];
+
+
 /* opaque types */
 typedef struct $(proc)_platform_t $(proc)_platform_t;
 typedef struct $(proc)_fetch_t $(proc)_fetch_t;

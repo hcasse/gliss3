@@ -7,6 +7,12 @@
 #include "loader.h"
 
 
+/* j'ai mis ça là en attendant mieux, je m'en sers pour le débuggage */
+char *$(proc)_string_ident[] = {
+	"$(PROC)_UNKNOWN"$(foreach instructions),
+	"$(PROC)_$(IDENT)"$(end)};
+
+
 /**
  * @typedef $(proc)_platform
  * This opaque type allows to represent an hardware and software platform.
