@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.15 2009/01/23 15:32:13 barre Exp $
+ * $Id: gep.ml,v 1.16 2009/01/27 14:16:49 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -138,6 +138,7 @@ let get_params inst f dict =
 					("PARAM", out (fun _ -> n)) ::
 					("INDEX", out (fun _ -> string_of_int i)) ::
 					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
+					("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0x%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst i)))) ::
 					dict));
 			i + 1)
 		0
@@ -147,6 +148,8 @@ let get_instruction f dict _ i = f
 	(("IDENT", out (fun _ -> Iter.get_name i)) ::
 	("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
 	("params", Templater.COLL (get_params i)) ::
+	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
+	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params i)) > 0)) ::
 	dict)
 
 let get_register f dict _ sym =
@@ -220,7 +223,7 @@ let make_env info =
 	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
 	(* declarations of decode tables *)
-	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) :: (*out (fun _ -> "PROUT!")) ::*)
+	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	[]
 
 
@@ -325,6 +328,7 @@ let _ =
 			make_template "api.c" "src/api.c" dict;
 			make_template "platform.h" "src/platform.h" dict;
 			make_template "fetch_table32.h" "src/fetch_table.h" dict;
+			make_template "decode_table32.h" "src/decode_table.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
@@ -332,8 +336,8 @@ let _ =
 			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h");
 			
 			(* decode test *)
-			Iter.iter (fun accu sp -> begin print_string ("mask_params "^(Iter.get_name sp)^"\n");
-					List.iter (fun x -> Printf.printf "%s\n" (Decode.get_string_mask_for_param_from_op sp x)) [0; 1; 2; 3; 4; 5; 6] end) ()
+			(*Iter.iter (fun accu sp -> begin print_string ("mask_params "^(Iter.get_name sp)^"\n");
+					List.iter (fun x -> Printf.printf "%s\n" (Decode.get_string_mask_for_param_from_op sp x)) [0; 1; 2; 3; 4; 5; 6] end) ()*)
 		end
 
 	with
