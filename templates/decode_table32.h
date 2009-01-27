@@ -15,6 +15,9 @@ extern  "C"
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))
 
+/* 0 (uppermost) or 1 (lowermost) */
+static int target_endianess = $(target_bitorder);
+
 
 
 /*
