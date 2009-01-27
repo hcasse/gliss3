@@ -7,6 +7,7 @@
 #include "fetch.h"
 
 #define gliss_error(e) fprintf(stderr, (e))
+/* we should pass the next option on command line */
 #define GLISS_NO_CACHE_FETCH
 
 /* fetch structure */
@@ -67,7 +68,7 @@ unsigned long int move_total = 0, move_intern = 0;
 
 #	endif /* GLISS_HASH_DEBUG */
 
-void *mymalloc(size_t size)
+static void *mymalloc(size_t size)
 {
 	void *buf;
 	/* align size on 64 bits boundary, that is 8 bytes */
@@ -84,7 +85,7 @@ void *mymalloc(size_t size)
 	return buf;
 }
 
-void cache_halt(void)
+static void cache_halt(void)
 {
 	malloc_buf_t *ptr;
 	ptr = last_malloc_buf;
@@ -99,13 +100,13 @@ void cache_halt(void)
 
 #else /* GLISS_NO_CACHE_FETCH */
 
-int instr_is_free[GLISS_MAX_INSTR_FETCHED];
-gliss_inst_t instr_tbl[GLISS_MAX_INSTR_FETCHED];
+static int instr_is_free[GLISS_MAX_INSTR_FETCHED];
+static gliss_inst_t instr_tbl[GLISS_MAX_INSTR_FETCHED];
 
 #endif /* GLISS_NO_CACHE_FETCH */
 
 
-void halt_fetch(void)
+static void halt_fetch(void)
 {
 #ifndef GLISS_NO_CACHE_FETCH
 	cache_halt();
@@ -114,7 +115,7 @@ void halt_fetch(void)
 #endif /* GLISS_NO_CACHE_FETCH */
 }
 
-void init_fetch(void)
+static void init_fetch(void)
 {
 	int i;
 #ifndef GLISS_NO_CACHE_FETCH
@@ -157,26 +158,8 @@ void gliss_delete_fetch(gliss_fetch_t *fetch)
 }
 
 
-/*void affiche_valeur_binaire(int valeur)
-{
-	int bib, bit_fac, i;
-	char binaire[255];
-	if (valeur == 0)
-		return;
 
-	bib = log(valeur) / log(2); // remplacer par une implémentation de log2 (a priori facile)
-	for (i = 0; i < bib +1; ++i)
-	{
-		bit_fac = pow(2, bib - i); // remplacer par un décalage
-		binaire[i] = ( valeur / bit_fac > 0? '1' : '0');
-		valeur = (valeur / bit_fac > 0 ? valeur - bit_fac : valeur );
-	}
-	for (i = 0; i < bib + 1; ++i) 
-		printf("%c", binaire[i]);
-	printf("\n");
-}*/
-
-int first_bit_on(uint32_t x)
+static int first_bit_on(uint32_t x)
 {
 	int i = 0, j = 0;
 	if (x != 0)
@@ -206,21 +189,16 @@ int first_bit_on(uint32_t x)
 	instr : instruction (de 32 bits)
 	mask  : masque (32 bits aussi)
 */
-uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
+static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 {
 	int i;
-	uint32_t tmp_mask;/*, j = 0;*/
+	uint32_t tmp_mask;
 	uint32_t res = 0;
-
-/*printf(" val_s_m instr=%08X, mask=%08X\n", instr, mask);*/
 
 	/* on fait un parcours du bit de fort poids de instr[0]
 	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-	/*tmp_mask = instr;*/
-	/*printf(" decodage de instruction : %08X\n", tmp_mask);*/
 
 	tmp_mask = mask;
-	/*j += tmp_mask;        */
 	for (i = 31; i >= 0; i--)
 	{
 		/* le bit i du mask est 1 ? */
@@ -233,24 +211,20 @@ uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 		}
 		tmp_mask <<= 1;
 	}
-	/*printf(" valeur de tmp_mask : %08X\n", tmp_mask);*/
-	/*printf(" valeur du resultat  : %08X\n",res);*/
 	return res;
 }
 
-
-void print_table(Table_Decodage *t, int val)
+/* copied from loader.c */
+static int is_host_little(void)
 {
-	if (t)
-		printf("Table, @=%08X, mask=%08X, table[%d]=(%d, %08X)\n", t, t->mask0, val, t->table[val].type, t->table[val].ptr);
-	else
-		printf("Table, <NULL>\n");
+    uint32_t x;
+    x = 0xDEADBEEF;
+    return ( ((unsigned char) x) == 0xEF );
 }
-
 
 /* Fonctions Principales */
 
-int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
+int /* gliss_ident_t should be better */ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 {
 	int valeur;
 	Table_Decodage *ptr;
@@ -342,7 +316,6 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 	node = (hash_node_t *)mymalloc(sizeof(hash_node_t));
 	node->next = hash_table[index];
 	node->id = address;
-	/* node->instr_id = smtg; is done further below */
 
 #else /* GLISS_NO_CACHE_FETCH */
 
@@ -352,15 +325,19 @@ int /*gliss_ident_t*/ gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address)
 	{
 		uint32_t j1 = 0, k = 0;
 		uint32_t code;
-		uint32_t code2;
 		tab_mask = ptr2->mask0;
 		j1 = tab_mask;
 		if (k == 0)
 			k = first_bit_on(j1);
-		code2 = gliss_mem_read32(fetch->mem, address);
-		/* just becoz of a bug in endianness dealing */
-		/* TODO:remove it as soon as possible */
-		code = ((code2&0x0FF)<<24)|((code2&0x0FF00)<<8)|((code2&0x0FF0000)>>8)|((code2&0xFF000000)>>24);
+		code = gliss_mem_read32(fetch->mem, address);
+
+		/* revert bytes if endianness of host and target are not equals */
+		int h = is_host_little();
+		if (h)
+			h = 1;
+		if (h != target_endianess)
+			code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
+
 		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
