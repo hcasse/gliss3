@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.3 2009/01/23 15:30:44 barre Exp $
+ * $Id: fetch.ml,v 1.4 2009/01/27 14:16:12 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -787,13 +787,18 @@ let sort_dectree_list d_l =
 let output_all_table_C_decl out num_bits =
 	let dl = sort_dectree_list (build_dec_nodes 0)
 	in
+	(* this function will check if we can generate a fetch ok for n bits,
+	it checks if each instruction is shorter or equals than n bits *)
+	let test n =
+		Iter.iter
+		(fun a x -> if (get_instruction_length x) > n then failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions are too long.") else true)
+		true
+	in
 	let aux dt =
-		begin
-		(*print_dec_tree dt;
-		print_string "to C:\n";*)
-		output_table_C_decl out dt dl;
-		(*print_string "\n"*)
-		end
+		if test num_bits then
+			output_table_C_decl out dt dl
+		else
+			()
 	in
 	List.iter aux dl
 		
