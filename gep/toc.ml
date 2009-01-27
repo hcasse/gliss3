@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.4 2009/01/06 12:32:23 casse Exp $
+ * $Id: toc.ml,v 1.5 2009/01/27 21:12:53 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,6 +20,7 @@
  *)
 
 exception UnsupportedType of Irg.type_expr
+exception UnsupportedExpression of Irg.expr
 exception Error of string
 
 (** C type in the generated code. *)
@@ -160,6 +161,17 @@ let rec type_to_mem t =
 	| LONG_DOUBLE -> "ld"
 	| CHAR_PTR -> assert false
 
+(** Convert an NML type to his size.
+	@param t	Type to convert.
+	@return		Matching size.
+	@raise UnsupportedType	If the type is not supported. *)
+let rec type_to_int t =
+	match t with
+	  Irg.NO_TYPE -> assert false
+	| Irg.BOOL -> 8
+	| Irg.INT n -> n
+	| Irg.CARD n -> n
+	| _ -> raise (UnsupportedType t)
 
 (** Get the name of a state macro.
 	@param proc	Processor name.
@@ -244,3 +256,104 @@ let get_indexed info i name index expr =
 		Printf.fprintf info.out ")";
 
 	| _ -> assert false
+(** Convert an expression to C string.
+	@param expr	Expression to convert.
+	@param out 	Output Channel.
+	@return		C type as string.
+	@raise UnsupportedExpression	If the expression is not supported. *)
+
+let convert_unop out op =
+	match op with
+	  Irg.NOT	-> Printf.fprintf out "!"
+	| Irg.BIN_NOT	-> Printf.fprintf out "~"
+	| Irg.NEG	-> Printf.fprintf out "-"
+
+let convert_binop out op =
+	match op with
+	  Irg.ADD	-> Printf.fprintf out "+"
+	| Irg.SUB	-> Printf.fprintf out "-"
+	| Irg.MUL	-> Printf.fprintf out "*"
+	| Irg.DIV	-> Printf.fprintf out "/"
+	| Irg.MOD	-> Printf.fprintf out "%%"
+	| Irg.LSHIFT	-> Printf.fprintf out "<<"
+	| Irg.RSHIFT	-> Printf.fprintf out ">>"
+	| Irg.LT	-> Printf.fprintf out "<"
+	| Irg.GT	-> Printf.fprintf out ">"
+	| Irg.LE	-> Printf.fprintf out "<="
+	| Irg.GE	-> Printf.fprintf out ">="
+	| Irg.EQ	-> Printf.fprintf out "=="
+	| Irg.NE	-> Printf.fprintf out "!="
+	| Irg.AND	-> Printf.fprintf out "&&"
+	| Irg.OR	-> Printf.fprintf out "||"
+	| Irg.BIN_AND	-> Printf.fprintf out "&"
+	| Irg.BIN_OR	-> Printf.fprintf out "|"
+	| Irg.BIN_XOR	-> Printf.fprintf out "^"
+	| Irg.CONCAT	-> Printf.fprintf out ""
+	| Irg.RROTATE	-> Printf.fprintf out ""
+	| Irg.LROTATE	-> Printf.fprintf out ""
+	| Irg.EXP	-> Printf.fprintf out ""
+
+
+let rec convert_expression out expr =
+	match expr with
+	| Irg.NONE ->
+		Printf.fprintf out ""
+	
+	| Irg.UNOP (_, op, e) -> 
+		convert_unop out op;
+		convert_expression out e
+
+	| Irg.BINOP (t, Irg.LROTATE, e1, e2) ->
+		Printf.fprintf out "gliss_rotate_left%s (" (type_to_mem(convert_type t));
+		convert_expression out e1;
+		Printf.fprintf out ",";
+		convert_expression out e2;
+		Printf.fprintf out ",";
+		Printf.fprintf out "%d" (type_to_int t);
+		Printf.fprintf out ")"
+		
+
+	| Irg.BINOP (t, Irg.RROTATE, e1, e2) ->
+		Printf.fprintf out "gliss_rotate_right%s (" (type_to_mem(convert_type t));
+		convert_expression out e1;
+		Printf.fprintf out ",";
+		convert_expression out e2;
+		Printf.fprintf out ",";
+		Printf.fprintf out "%d" (type_to_int t);
+		Printf.fprintf out ")"
+
+	| Irg.BINOP (t, Irg.EXP, e1, e2) ->
+		Printf.fprintf out "gliss_exp%s (" (type_to_mem(convert_type t));
+		convert_expression out e1;
+		Printf.fprintf out ", ";
+		convert_expression out e2;
+		Printf.fprintf out ")"
+
+	(*| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
+		Printf.fprintf out "gliss_concat%s (" (type_to_mem(convert_type t));
+		convert_expression out e1;
+		Printf.fprintf out ", ";
+		convert_expression out e2;
+		Printf.fprintf out ",";*)
+
+	| Irg.BINOP (_, op, e1, e2)-> 
+		Printf.fprintf out "(";
+		convert_expression out e1;
+		Printf.fprintf out ")";
+		convert_binop out op;
+		Printf.fprintf out "(";
+		convert_expression out e2;
+		Printf.fprintf out ")"
+ 	
+	| Irg.IF_EXPR (_, c, t, e) ->
+		Printf.fprintf out "if (";
+		convert_expression out c;
+		Printf.fprintf out ") ";
+		convert_expression out t;
+		Printf.fprintf out " else ";
+		convert_expression out e
+
+	(*| Irg.SWITCH_EXPR (_,c, cases, def) ->*)
+		
+
+	| _ -> raise (UnsupportedExpression expr) 
