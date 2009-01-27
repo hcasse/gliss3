@@ -1,7 +1,13 @@
-# $Id: Makefile,v 1.6 2009/01/23 15:32:36 barre Exp $
+# $Id: Makefile,v 1.7 2009/01/27 21:56:53 casse Exp $
 include ../Makefile.head
 
-GEP_SOURCES = config.ml toc.ml templater.mll fetch.ml  decode.ml gep.ml
+GEP_SOURCES = \
+	config.ml \
+	toc.ml \
+	templater.mll \
+	fetch.ml \
+	decode.ml \
+	app.ml gep.ml
 OCAML_FLAGS=-I ../irg
 gep_LIBS = str unix ../irg/irg
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))

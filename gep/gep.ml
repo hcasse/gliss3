@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.17 2009/01/27 15:29:51 barre Exp $
+ * $Id: gep.ml,v 1.18 2009/01/27 21:56:54 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -27,12 +27,6 @@ exception UnsupportedMemory of Irg.spec
 	let compare s1 s2 = String.compare s1 s2
 end
 module StringSet = Set.Make(OrderedString)*)
-
-module OrderedType = struct
-	type t = Toc.c_type
-	let compare s1 s2 = if s1 = s2 then 0 else if s1 < s2 then (-1) else 1
-end
-module TypeSet = Set.Make(OrderedType)
 
 (* module management *)
 let modules = ref [("mem", "fast_mem")]
@@ -97,135 +91,22 @@ let makedir path =
 		then raise (Sys_error (Printf.sprintf "cannot create directory \"%s\": file in the middle" path))
 
 
-(* Test if memory or register attributes contains ALIAS.
-	@param attrs	Attributes to test.
-	@return			True if it contains "alias", false else. *)
-let rec contains_alias attrs =
-	match attrs with
-	  [] -> false
-	| (Irg.ALIAS _)::_ -> true
-	| _::tl -> contains_alias tl
-
-
-(** Format date (in seconds) and return a stirng.
-	@param date	Date to format.
-	@return		Date formatted as a string. *)
-let format_date date =
-	let tm = Unix.localtime date in
-	Printf.sprintf "%0d/%02d/%02d %02d:%02d:%02d"
-		tm.Unix.tm_year tm.Unix.tm_mon tm.Unix.tm_mday
-		tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
-
-
 (* Universal environment building *)
-let out f = Templater.TEXT (fun out -> output_string out (f ()))
-
-let get_params inst f dict =
-
-	let get_type t =
-		match t with
-		  Irg.TYPE_EXPR t -> t
-		| Irg.TYPE_ID n ->
-			(match (Irg.get_symbol n) with
-			  Irg.TYPE (_, t) -> t
-			| _ -> Irg.NO_TYPE) in
-
-	ignore (List.fold_left
-		(fun (i: int) (n, t) ->
-			let t = get_type t in
-			(if t <> Irg.NO_TYPE then
-				f (
-					("PARAM", out (fun _ -> n)) ::
-					("INDEX", out (fun _ -> string_of_int i)) ::
-					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-					("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0x%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst i)))) ::
-					dict));
-			i + 1)
-		0
-		(Iter.get_params inst))
-
-let get_instruction f dict _ i = f
-	(("IDENT", out (fun _ -> Iter.get_name i)) ::
-	("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
-	("params", Templater.COLL (get_params i)) ::
-	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
-	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params i)) > 0)) ::
-	dict)
-
-let get_register f dict _ sym =
-	match sym with
-	  Irg.REG (name, size, t, attrs) -> f (
-	  	("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-		("name", out (fun _ -> name)) ::
-		("NAME", out (fun _ -> String.uppercase name)) ::
-		("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
-		("array", Templater.BOOL (fun _ -> size > 1)) ::
-		("size", out (fun _ -> string_of_int size)) ::
-		dict)	(* make_array size*)
-	| _ -> ()
-
-let get_value f dict t =
-	f (
-		("name", out (fun _ -> Toc.type_to_field t)) ::
-		("type", out (fun _ -> Toc.type_to_string t)) ::
-		dict
-	)
-
-let get_param f dict t =
-	f (
-		("NAME", out (fun _ -> String.uppercase (Toc.type_to_field t))) ::
-		dict
-	)
-
-let get_memory f dict key sym = 
-	match sym with
-	  Irg.MEM (name, size, Irg.CARD(8), attrs) ->
-	  	f (
-			("NAME", out (fun _ -> String.uppercase name)) ::
-			("name", out (fun _ -> name)) ::
-			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
-			dict
-		)
-	| _ -> ()
-	
-
 let get_module f dict (name, _) =
 	f (
-		("name", out (fun _ -> name)) ::
-		("NAME", out (fun _ -> String.uppercase name)) ::
+		("name", App.out (fun _ -> name)) ::
+		("NAME", App.out (fun _ -> String.uppercase name)) ::
 		("is_mem", Templater.BOOL (fun _ -> name = "mem")) ::
 		dict
 	)
 
 let make_env info =
 
-	let param_types =
-		let collect_field set (name, t) =
-			match t with
-			  Irg.TYPE_EXPR t -> TypeSet.add (Toc.convert_type t) set
-			| Irg.TYPE_ID n ->
-				(match (Irg.get_symbol n) with
-				  Irg.TYPE (_, t) -> TypeSet.add (Toc.convert_type t) set
-				| _ -> set) in
-	
-		let collect_fields set params =
-			List.fold_left collect_field set params in
-		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
-
-	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction f dict) ())) ::
-	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
-	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
-	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
-	("memories", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_memory f dict) Irg.syms)) ::
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
-	("date", out (fun _ -> format_date (Unix.time ()))) ::
-	("proc", out (fun _ -> info.Toc.proc)) ::
-	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
-	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("target_bitorder", Templater.TEXT(fun out -> Fetch.output_bit_order out)) ::
-	[]
+	(App.make_env info)
 
 
 (** Perform a symbolic link.
@@ -296,13 +177,8 @@ let make_template template file dict =
 
 (* main program *)
 let _ =
-	try	
-		begin
-		
-			(* parsing NMP *)
-			let lexbuf = Lexing.from_channel (open_in !nmp) in
-			Parser.top Lexer.main lexbuf;
-			let info = Toc.info () in
+	App.process !nmp
+		(fun info ->
 			let dict = make_env info in
 			
 			add_module "fetch:fetch32";
@@ -339,26 +215,4 @@ let _ =
 			(* decode test *)
 			(*Iter.iter (fun accu sp -> begin print_string ("mask_params "^(Iter.get_name sp)^"\n");
 					List.iter (fun x -> Printf.printf "%s\n" (Decode.get_string_mask_for_param_from_op sp x)) [0; 1; 2; 3; 4; 5; 6] end) ()*)
-		end
-
-	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;
-	| Toc.Error msg -> 
-		Printf.fprintf stderr "ERROR: %s\n" msg;
-		exit 4
-	| Sys_error msg ->
-		Printf.eprintf "ERROR: %s\n" msg; exit 1
-	| Unix.Unix_error (err, _, path) ->
-		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path
-	| Failure e ->
-		Lexer.display_error e; exit 3
+		)
