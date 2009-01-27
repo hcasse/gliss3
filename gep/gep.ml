@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.16 2009/01/27 14:16:49 barre Exp $
+ * $Id: gep.ml,v 1.17 2009/01/27 15:29:51 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -222,8 +222,9 @@ let make_env info =
 	("proc", out (fun _ -> info.Toc.proc)) ::
 	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
-	(* declarations of decode tables *)
+	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
+	("target_bitorder", Templater.TEXT(fun out -> Fetch.output_bit_order out)) ::
 	[]
 
 

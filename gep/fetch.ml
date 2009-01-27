@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.4 2009/01/27 14:16:12 barre Exp $
+ * $Id: fetch.ml,v 1.5 2009/01/27 15:29:04 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,7 +20,19 @@
  *)
 
 
-	
+
+(* return "0" (uppermost) or "1" (lowermost) on the given out_stream *)
+let output_bit_order out =
+	let i = Toc.info ()
+	in
+	let str_from_bito b =
+		match b with
+		Toc.UPPERMOST ->
+			"0"
+		| Toc.LOWERMOST ->
+			"1"
+	in
+	output_string out (str_from_bito i.Toc.bito)
 	
 (* return the mask of an op from its spec, the result will be a string
 with only '0' or '1' chars representing the bits of the mask *)
