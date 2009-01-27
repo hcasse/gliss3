@@ -9,7 +9,8 @@ extern  "C"
 {
 #endif
 
-#include "../include/$(proc)/api.h"
+#include "../include/$(proc)/id.h"
+#include "../include/$(proc)/macros.h"
 
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))
@@ -30,7 +31,7 @@ extern  "C"
 	instr : instruction (de 32 bits)
 	mask  : masque (32 bits aussi)
 */
-uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
+static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 {
 	int i;
 	uint32_t tmp_mask;
@@ -54,7 +55,7 @@ uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 	return res;
 }
 
-$(proc)_inst_t *$(proc)_instr_unknown_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr_unknown_decode(uint32_t code_inst)
 {
 	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_UNKNOWN;
@@ -63,14 +64,15 @@ $(proc)_inst_t *$(proc)_instr_unknown_decode(uint32_t code_inst)
 }
 
 $(foreach instructions)
-$(proc)_inst_t *$(proc)_instr$(ICODE)_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr$(ICODE)_decode(uint32_t code_inst)
 {
 	$(if has_param)uint32_t mask;
 	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_$(IDENT);
 	res->instrinput = malloc(sizeof($(proc)_ii_t) * $(num_params));
 	
-	$(foreach params)mask = $(mask_32)UL;
+	$(foreach params)/* param number $(INDEX) */
+	mask = $(mask_32)UL;
 	$(PROC)_$(IDENT)_$(PARAM)(res) = valeur_sur_mask_bloc(code_inst, mask);
 	$(end)
 	return res;
@@ -86,9 +88,9 @@ $(end)
 $(end)
 
 
-typedef $(proc)_inst_t *$(proc)_decode_function(uint32_t code_inst);
+typedef $(proc)_inst_t *$(proc)_decode_function_t(uint32_t code_inst);
 
-$(proc)_decode_function $(proc)_decode_table[] =
+static $(proc)_decode_function_t $(proc)_decode_table[] =
 {
 	$(proc)_instr_unknown_decode$(foreach instructions),
 	$(proc)_instr$(ICODE)_decode$(end)
