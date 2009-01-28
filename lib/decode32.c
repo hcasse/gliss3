@@ -5,6 +5,7 @@
 /* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
 
 #include "decode.h" /* api.h will be in it, for fetch functions, decode_table.h also */
+#include "config.h"
 
 #define gliss_error(e) fprintf(stderr, (e))
 
@@ -82,10 +83,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 	gliss_ident_t id = gliss_fetch(decoder->fetch, address);
 	uint32_t code = gliss_mem_read32(decoder->fetch->mem, address);
 	/* revert bytes if endianness of host and target are not equals */
-	int h = is_host_little();
-	if (h)
-		h = 1;
-	if (h != target_endianess)
+	if (HOST_ENDIANNESS != TARGET_ENDIANNESS)
 		code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
 	
 	/* then decode it */

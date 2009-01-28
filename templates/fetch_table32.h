@@ -11,8 +11,6 @@ extern  "C"
 
 #include "../include/$(proc)/id.h"
 
-/* 0 (uppermost) or 1 (lowermost) */
-static int target_endianess = $(target_bitorder);
 
 /* data structures */
 

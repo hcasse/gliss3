@@ -6,9 +6,9 @@
 #include "id.h"
 #include "mem.h"
 
-/* j'ai mis ça là en attendant mieux, je m'ne sers pour le débuggage */
-char *$(proc)_string_ident[200];
 
+/* return an instruction identifier as a string instead of the $(proc)_ident_t which is not very user friendly */
+char *$(proc)_get_string_ident($(proc)_ident_t id);
 
 /* opaque types */
 typedef struct $(proc)_platform_t $(proc)_platform_t;

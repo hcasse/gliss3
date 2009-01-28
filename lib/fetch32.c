@@ -214,13 +214,6 @@ static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 	return res;
 }
 
-/* copied from loader.c */
-static int is_host_little(void)
-{
-    uint32_t x;
-    x = 0xDEADBEEF;
-    return ( ((unsigned char) x) == 0xEF );
-}
 
 /* Fonctions Principales */
 
@@ -332,10 +325,7 @@ int /* gliss_ident_t should be better */ gliss_fetch(gliss_fetch_t *fetch, gliss
 		code = gliss_mem_read32(fetch->mem, address);
 
 		/* revert bytes if endianness of host and target are not equals */
-		int h = is_host_little();
-		if (h)
-			h = 1;
-		if (h != target_endianess)
+		if (HOST_ENDIANNESS != TARGET_ENDIANNESS)
 			code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
 
 		valeur = valeur_sur_mask_bloc(code, tab_mask);

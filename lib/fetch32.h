@@ -10,6 +10,7 @@ extern  "C"
 #endif
 
 #include "../include/gliss/api.h"
+#include "config.h"
 
 #include "fetch_table.h" /* or ../include/gliss/ ? */
 

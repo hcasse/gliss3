@@ -7,10 +7,16 @@
 #include "loader.h"
 
 
-/* j'ai mis ça là en attendant mieux, je m'en sers pour le débuggage */
-char *$(proc)_string_ident[] = {
+
+static char *$(proc)_string_ident[] = {
 	"$(PROC)_UNKNOWN"$(foreach instructions),
 	"$(PROC)_$(IDENT)"$(end)};
+
+
+char *$(proc)_get_string_ident($(proc)_ident_t id)
+{
+	return $(proc)_string_ident[id];
+}
 
 
 /**

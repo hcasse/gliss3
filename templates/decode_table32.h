@@ -15,9 +15,6 @@ extern  "C"
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))
 
-/* 0 (uppermost) or 1 (lowermost) */
-static int target_endianess = $(target_bitorder);
-
 
 
 /*
@@ -58,7 +55,7 @@ static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 	return res;
 }
 
-static $(proc)_inst_t *$(proc)_instr_unknown_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode(uint32_t code_inst)
 {
 	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_UNKNOWN;
@@ -67,7 +64,7 @@ static $(proc)_inst_t *$(proc)_instr_unknown_decode(uint32_t code_inst)
 }
 
 $(foreach instructions)
-static $(proc)_inst_t *$(proc)_instr$(ICODE)_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode(uint32_t code_inst)
 {
 	$(if has_param)uint32_t mask;
 	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
@@ -96,8 +93,8 @@ typedef $(proc)_inst_t *$(proc)_decode_function_t(uint32_t code_inst);
 
 static $(proc)_decode_function_t $(proc)_decode_table[] =
 {
-	$(proc)_instr_unknown_decode$(foreach instructions),
-	$(proc)_instr$(ICODE)_decode$(end)
+	$(proc)_instr_UNKNOWN_decode$(foreach instructions),
+	$(proc)_instr_$(IDENT)_decode$(end)
 };
 
 
