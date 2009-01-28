@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.1 2009/01/28 09:43:43 casse Exp $
+ * $Id: app.ml,v 1.2 2009/01/28 09:55:45 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -65,6 +65,7 @@ let get_params inst f dict =
 					("PARAM", out (fun _ -> n)) ::
 					("INDEX", out (fun _ -> string_of_int i)) ::
 					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
+					("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst i)))) ::
 					dict));
 			i + 1)
 		0
@@ -74,6 +75,8 @@ let get_instruction f dict _ i = f
 	(("IDENT", out (fun _ -> Iter.get_name i)) ::
 	("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
 	("params", Templater.COLL (get_params i)) ::
+	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params i)) > 0)) ::
+	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 	dict)
 
 let get_register f dict _ sym =

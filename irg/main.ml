@@ -10,17 +10,22 @@ let _ =
 		
 
 		
-		print_string "Affichage resultat\n";
-(*		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;*)
+(*		print_string "Affichage resultat\n";
+		Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;*)
 
 		
 		print_string "Affichage positions\n";
 		Iter.iter
 			(fun _ i ->
-				Format.printf "%s: %d\n"
+				begin
+				Format.printf "%s: %d, img = "
 					(Iter.get_name i)
-					(Iter.get_id i))
-			()
+					(Iter.get_id i);
+				Iter.print_value (Iter.get_attr i "image")
+				end)
+			();
+		(*print_string "\nAffichage specs\n";
+		Iter.iter (fun _ s -> begin print_string "\n"; Irg.print_spec s end) ()*)
 
 	with
 	  Parsing.Parse_error ->

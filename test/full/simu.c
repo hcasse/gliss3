@@ -37,8 +37,16 @@ int main(int argc, char **argv) {
 
 	ppc_delete_fetch(f);
 
+	printf("testing decode");
+	
 	/* delete the platform */
 	ppc_unlock_platform(pf);
 	fprintf(stderr, "SUCCESS !\n");
 	return 0;
 }
+
+/* decoding */
+ppc_decoder_t *ppc_new_decoder(ppc_platform_t *state);
+void ppc_delete_decoder(ppc_decoder_t *fetch);
+ppc_inst_t *ppc_decode(ppc_decoder_t *decoder, ppc_address_t address);
+void ppc_free_inst(ppc_inst_t *inst);

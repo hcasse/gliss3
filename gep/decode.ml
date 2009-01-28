@@ -59,3 +59,6 @@ let get_string_mask_for_param_from_op sp n =
 		| _ -> Irg.NONE
 	in
 	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))) n
+
+
+

@@ -412,7 +412,7 @@ op call_uncond      = branch_link
 
 op branch_rel ( BRANCH_ADDR : IMM24 )
    syntax = format ( "b %s", BRANCH_ADDR.syntax )
-   image  = format ( "010010%24b00", BRANCH_ADDR.image )
+   image  = format ( "01001 0%24b00", BRANCH_ADDR.image )
    action = {
                TMP_SWORD = BRANCH_ADDR; // sign extension
                NIA = CIA + ( TMP_SWORD << 2 );
