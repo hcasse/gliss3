@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.18 2009/01/27 21:56:54 casse Exp $
+ * $Id: gep.ml,v 1.19 2009/01/28 13:43:49 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -19,14 +19,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 open Lexing
-
-exception UnsupportedMemory of Irg.spec
-
-(*module OrderedString = struct
-	type t = string
-	let compare s1 s2 = String.compare s1 s2
-end
-module StringSet = Set.Make(OrderedString)*)
 
 (* module management *)
 let modules = ref [("mem", "fast_mem")]
@@ -56,10 +48,12 @@ let paths = [
 let quiet = ref false
 let verbose = ref false
 let memory = ref "fast_mem"
+let size = ref 0
 let options = [
 	("-v", Arg.Set verbose, "verbose mode");
 	("-q", Arg.Set quiet, "quiet mode");
-	("-m", Arg.String add_module, "add a module (module_name:actual_module)]")
+	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
+	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)")
 ]
 
 let free_arg arg =
@@ -102,11 +96,18 @@ let get_module f dict (name, _) =
 
 let make_env info =
 
+	let add_mask_32_to_param inst idx _ _ dict =
+		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
+		dict in
+
+	let maker = App.maker() in
+	maker.App.get_params <- add_mask_32_to_param;
+
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("target_bitorder", Templater.TEXT(fun out -> Fetch.output_bit_order out)) ::
-	(App.make_env info)
+	(App.make_env info maker)
 
 
 (** Perform a symbolic link.
@@ -171,17 +172,14 @@ let process_module info m name =
 
 
 let make_template template file dict =
-	if not !quiet then Printf.printf "creating \"%s\"\n" file;
+	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
 	Templater.generate dict template file
-	
 
 (* main program *)
 let _ =
 	App.process !nmp
 		(fun info ->
 			let dict = make_env info in
-			
-			add_module "fetch:fetch32";
 			
 			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";

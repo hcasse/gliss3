@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.1 2009/01/27 21:56:54 casse Exp $
+ * $Id: disasm.ml,v 1.2 2009/01/28 13:43:49 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -130,7 +130,7 @@ let make_include f info file =
 
 
 (** Build the file XXX/include/disasm.c file *)
-let make_disasm_c info =
+(*let make_disasm_c info =
 	
 	let proc = info.Toc.proc in
 	let out = info.Toc.out in
@@ -157,7 +157,7 @@ let make_disasm_c info =
 	Printf.fprintf out "\n};";
 	Printf.fprintf out "\n\n void %s_disasm(char *buf, %s_inst_t *inst) {\n" proc proc;
   	Printf.fprintf out "\tassert(inst->ident < %s_MAX_IDENT);\n" uproc;
-	Printf.fprintf out "\tdisasm_table[inst->ident](buf, inst);\n};\n\n" 
+	Printf.fprintf out "\tdisasm_table[inst->ident](buf, inst);\n};\n\n" *)
 
 (*(* main program *)
 let _ =
@@ -190,3 +190,38 @@ let _ =
 	| Failure e ->
 		Lexer.display_error e; exit 3
 *)
+
+
+(* argument list *)
+let nmp: string ref = ref ""
+let quiet = ref false
+let verbose = ref false
+let out = ref "disasm.c"
+let options = [
+	("-v", Arg.Set verbose, "verbose mode");
+	("-q", Arg.Set quiet, "quiet mode");
+	("-o", Arg.Set_string out, "output file")
+]
+
+(* argument decoding *)
+let free_arg arg =
+	if !nmp = ""
+	then nmp := arg
+	else raise (Arg.Bad "only one NML file required") 
+let usage_msg = "SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
+let _ =
+	Arg.parse options free_arg usage_msg;
+	if !nmp = "" then begin
+		prerr_string "ERROR: one NML file must be given !\n";
+		Arg.usage options usage_msg;
+		exit 1
+	end
+
+let _ =
+	App.process !nmp
+		(fun info ->
+			let dict = App.make_env info (App.maker ()) in			
+			if not !quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
+			Templater.generate dict "disasm.c" !out
+		)
+

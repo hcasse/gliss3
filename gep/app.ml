@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.3 2009/01/28 10:26:25 barre Exp $
+ * $Id: app.ml,v 1.4 2009/01/28 13:43:49 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -25,6 +25,12 @@ module OrderedType = struct
 end
 module TypeSet = Set.Make(OrderedType)
 
+(** Gather information useful for the generation. *)
+type maker_t = {
+	mutable get_params: Irg.spec -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
+}
+
+
 (* Test if memory or register attributes contains ALIAS.
 	@param attrs	Attributes to test.
 	@return			True if it contains "alias", false else. *)
@@ -47,7 +53,7 @@ let format_date date =
 
 let out f = Templater.TEXT (fun out -> output_string out (f ()))
 
-let get_params inst f dict =
+let get_params maker inst f dict =
 
 	let get_type t =
 		match t with
@@ -61,22 +67,21 @@ let get_params inst f dict =
 		(fun (i: int) (n, t) ->
 			let t = get_type t in
 			(if t <> Irg.NO_TYPE then
-				f (
+				f (maker.get_params inst i n t (
 					("PARAM", out (fun _ -> n)) ::
 					("INDEX", out (fun _ -> string_of_int i)) ::
 					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-					("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst i)))) ::
 					("PARAM_TYPE", out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type t)))) ::
-					dict));
+					dict)));
 			i + 1)
 		0
 		(Iter.get_params inst))
 
-let get_instruction f dict _ i = f
+let get_instruction maker f dict _ i = f
 	(("IDENT", out (fun _ -> Iter.get_name i)) ::
 	("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
-	("params", Templater.COLL (get_params i)) ::
-	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params i)) > 0)) ::
+	("params", Templater.COLL (get_params maker i)) ::
+	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
 	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 	dict)
 
@@ -117,7 +122,11 @@ let get_memory f dict key sym =
 	| _ -> ()
 	
 
-let make_env info =
+let maker _ = {
+	get_params = fun _ _ _ _ dict -> dict;
+}
+
+let make_env info maker =
 
 	let param_types =
 		let collect_field set (name, t) =
@@ -132,7 +141,7 @@ let make_env info =
 			List.fold_left collect_field set params in
 		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
 
-	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction f dict) ())) ::
+	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
 	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
