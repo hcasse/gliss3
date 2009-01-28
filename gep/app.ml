@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.2 2009/01/28 09:55:45 barre Exp $
+ * $Id: app.ml,v 1.3 2009/01/28 10:26:25 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -66,6 +66,7 @@ let get_params inst f dict =
 					("INDEX", out (fun _ -> string_of_int i)) ::
 					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
 					("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst i)))) ::
+					("PARAM_TYPE", out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type t)))) ::
 					dict));
 			i + 1)
 		0

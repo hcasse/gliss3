@@ -77,6 +77,7 @@ static $(proc)_inst_t *$(proc)_instr$(ICODE)_decode(uint32_t code_inst)
 	$(foreach params)/* param number $(INDEX) */
 	mask = $(mask_32)UL;
 	$(PROC)_$(IDENT)_$(PARAM)(res) = valeur_sur_mask_bloc(code_inst, mask);
+	res->instrinput[$(INDEX)].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;
 	$(end)
 	return res;
 }
