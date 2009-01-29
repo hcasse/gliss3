@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.13 2009/01/29 09:46:03 casse Exp $
+ * $Id: irg.ml,v 1.14 2009/01/29 10:25:26 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -782,7 +782,7 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 			get_attr name_attr a_l
 		| _ ->
 			NONE
-			(*failwith "cannot get an expr attribute from not an AND OP or an AND MODE"*)
+			(* failwith "cannot get an expr attribute from not an AND OP or an AND MODE" *)
 
 let rec substitute_in_expr name op ex =
 	let is_and_mode sp =
@@ -830,7 +830,7 @@ let rec substitute_in_expr name op ex =
 		SWITCH_EXPR(te, substitute_in_expr name op e1, List.map (fun (x,y) -> (substitute_in_expr name op x, substitute_in_expr name op y)) ee_l, substitute_in_expr name op e2)
 	| CONST(te, c)
 		-> CONST(te, c)
-	| ELINE (_, _, e) -> substitute_in_expr name op e
+	| ELINE (file, line, e) -> ELINE (file, line, substitute_in_expr name op e)
 
 (** search the symbol name in the given statement,
 the symbol is supposed to stand for a variable of type given by op,
@@ -897,7 +897,7 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		SWITCH_EXPR(te, change_name_of_var_in_expr e1 var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_expr y var_name new_name)) ee_l, change_name_of_var_in_expr e2 var_name new_name)
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
-	| ELINE(_, _, e) -> change_name_of_var_in_expr e var_name new_name
+	| ELINE(file, line, e) -> ELINE(file, line, change_name_of_var_in_expr e var_name new_name)
 
 
 let rec change_name_of_var_in_location loc var_name new_name =
