@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.19 2009/01/28 13:43:49 casse Exp $
+ * $Id: gep.ml,v 1.20 2009/01/29 18:11:37 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -49,11 +49,13 @@ let quiet = ref false
 let verbose = ref false
 let memory = ref "fast_mem"
 let size = ref 0
+let sources : string list ref = ref []
 let options = [
 	("-v", Arg.Set verbose, "verbose mode");
 	("-q", Arg.Set quiet, "quiet mode");
 	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
-	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)")
+	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
+	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation")
 ]
 
 let free_arg arg =
@@ -94,6 +96,9 @@ let get_module f dict (name, _) =
 		dict
 	)
 
+let get_source f dict source =
+	f (("path", App.out (fun _ -> source)) :: dict)
+
 let make_env info =
 
 	let add_mask_32_to_param inst idx _ _ dict =
@@ -104,6 +109,7 @@ let make_env info =
 	maker.App.get_params <- add_mask_32_to_param;
 
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
+	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("target_bitorder", Templater.TEXT(fun out -> Fetch.output_bit_order out)) ::

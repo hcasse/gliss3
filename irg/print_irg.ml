@@ -1,6 +1,7 @@
 (* argument list *)
 let nmp: string ref = ref ""
-let options = [ ]
+let insts = ref false
+let options = [ ("-i", Arg.Set insts, "display list of generated instructions") ]
 
 (* argument decoding *)
 let free_arg arg =
@@ -22,7 +23,12 @@ let _ =
 		begin
 			let lexbuf = Lexing.from_channel (open_in !nmp) in
 			Parser.top Lexer.main lexbuf;
-			Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms
+			if !insts then
+				Iter.iter
+					(fun _ spec -> Printf.printf "%d:%s -> \n" (Iter.get_id spec) (Iter.get_name spec); Irg.print_spec spec)
+					()
+			else
+				Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms
 		end
 	with
 	  Parsing.Parse_error ->

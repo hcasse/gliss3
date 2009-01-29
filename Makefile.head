@@ -167,7 +167,7 @@ _DIST += $(2)
 _BINARY_DIST += $(1)
 
 $(1): $$($(1)_CMO)
-	$$(OCAMLC) $$($(1)_LDFLAGS) $$(OCAMLC_LDFLAGS) $$($(1)_LIBS:%=%.cma) -o $$@ $$($(1)_CMO) $$(OCAMLC_LIBS)
+	$$(OCAMLC) $$($(1)_LDFLAGS) $$(OCAMLC_LDFLAGS) $$($(1)_LIBS:%=%.cma) $$(OCAML_LDFLAGS) -o $$@ $$($(1)_CMO) $$(OCAMLC_LIBS)
 
 $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
 
@@ -194,7 +194,7 @@ _DIST += $(2)
 _BINARY_DIST += $(1).cmxa $(1).a $(patsubst %.cmx,%.cmi,$$($(1)_CMX))
 
 $(1): $$($(1)_CMX)
-	$$(OCAMLOPT) $$($(1)_LDFLAGS) $$(OCAMLOPT_LDFLAGS) -o $$@ $$($(1)_CMX) $$(OCAMLOPT_LIBS)
+	$$(OCAMLOPT) $$($(1)_LDFLAGS) $$(OCAMLOPT_LDFLAGS) $$(OCAML_LDFLAGS) -o $$@ $$($(1)_CMX) $$(OCAMLOPT_LIBS)
 
 $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
 

@@ -97,11 +97,17 @@ module NameTable = IdMaker.Make(HashInst)
  * @return			C name for the instruction.
  *)
 let get_name instr =
-	let syntax =
-		match get_attr instr "syntax" with
-		  EXPR(Irg.FORMAT(s, e_l)) -> s
-		| EXPR(Irg.CONST(Irg.STRING, Irg.STRING_CONST str)) -> str
-		| EXPR(e) -> begin Irg.print_expr e;"" end
+	let rec to_string e =
+		match e with
+		  Irg.FORMAT(s, e_l) -> s
+		| Irg.CONST(Irg.STRING, Irg.STRING_CONST str) -> str
+		| Irg.ELINE(_, _, e) -> to_string e
+		| e -> begin Irg.print_expr e; "" end
+		| _ -> failwith "syntax does not reduce to a string" in
+
+	
+	let syntax = match get_attr instr "syntax" with
+		  EXPR(e) -> to_string e
 		| _ -> failwith "syntax does not reduce to a string" in
 	NameTable.make instr syntax
 

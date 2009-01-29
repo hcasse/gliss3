@@ -1,7 +1,11 @@
-# $Id: Makefile,v 1.8 2009/01/28 13:43:48 casse Exp $
+# $Id: Makefile,v 1.9 2009/01/29 18:11:37 casse Exp $
 include ../Makefile.head
 
 OCAML_FLAGS=-I ../irg
+ifndef NDEBUG
+OCAML_FLAGS+=-g
+OCAML_LDFLAGS+=-g
+endif
 
 GEP_SOURCES = \
 	config.ml \

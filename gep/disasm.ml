@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.2 2009/01/28 13:43:49 casse Exp $
+ * $Id: disasm.ml,v 1.3 2009/01/29 18:11:37 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -18,6 +18,7 @@
  * along with OGliss; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
+
 (*open Lexing
 
 exception UnsupportedMemory of Irg.spec
@@ -217,11 +218,78 @@ let _ =
 		exit 1
 	end
 
+
+(** Generate code to perform disassembly.
+	@param out	Output channel.
+	@param inst	Current instruction.
+	@param expr	Syntax expression.
+	@raise Error	If there is an unsupported syntax expression. *)
+let rec gen_disasm out inst expr =
+	match expr with
+	  Irg.FORMAT (fmt, args) ->
+		Printf.fprintf out "\tbuffer += sprintf(buffer, \"%s\"" fmt;
+		List.iter
+			(fun arg -> output_string out ", "; Toc.convert_expression out arg)
+			args;
+		output_string out ");\n"
+	| Irg.NONE
+	| Irg.CANON_EXPR _
+	| Irg.REF _
+	| Irg.FIELDOF _
+	| Irg.ITEMOF _
+	| Irg.BITFIELD _
+	| Irg.UNOP _
+	| Irg.BINOP _
+	| Irg.IF_EXPR _
+	| Irg.SWITCH_EXPR _
+	| Irg.CONST _
+	| Irg.COERCE _  -> Toc.error_on_expr "bad syntax expression" expr
+	| Irg.ELINE (file, line, e) ->
+		Printf.fprintf stderr "==> %s:%d\n" file line;
+		Toc.locate_error file line (gen_disasm out inst) e
+
+
+(** Perform the disassembling of the given instruction.
+	@param inst		Instruction to get syntax from.
+	@param out		Output to use. *)
+let disassemble inst out =
+	
+	(* get syntax *)
+	let syntax =
+		try
+			match Iter.get_attr inst "syntax" with
+			  Iter.STAT _ -> raise (Toc.Error "syntax must be an expression")
+			| Iter.EXPR e -> e
+		with Not_found -> raise (Toc.Error "no attribute") in
+
+	(* disassemble *)
+	let params = Iter.get_params inst in
+	Irg.param_stack params;
+	gen_disasm out inst syntax;
+	Irg.param_unstack params
+
+
 let _ =
-	App.process !nmp
-		(fun info ->
-			let dict = App.make_env info (App.maker ()) in			
-			if not !quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
-			Templater.generate dict "disasm.c" !out
-		)
+	try
+		App.process !nmp
+			(fun info ->
+				let maker = App.maker () in
+				maker.App.get_instruction <- (fun inst dict ->
+					Printf.fprintf stderr "disassemble %s\n" (Irg.name_of inst);
+					("disassemble", Templater.TEXT (fun out -> disassemble inst out)) :: dict);
+				let dict = App.make_env info maker in			
+				if not !quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
+				Templater.generate dict "disasm.c" !out
+			)
+	with Toc.Error msg ->
+		Printf.fprintf stdout "ERROR: %s\n" msg;
+	| Toc.LocError (file, line, f) ->
+		Printf.fprintf stderr "ERROR: %s:%d: " file line;
+		f stderr;
+		output_char stderr '\n'
+	| Toc.PreError f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n'
+
 

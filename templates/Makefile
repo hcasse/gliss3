@@ -2,7 +2,8 @@
 	
 SOURCES = gliss.c \
 	api.c$(foreach modules) \
-	$(name).c$(end)
+	$(name).c$(end)$(foreach sources) \
+	$(path)$(end)
 
 OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS) lib$(proc).a

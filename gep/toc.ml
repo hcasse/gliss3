@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.5 2009/01/27 21:12:53 casse Exp $
+ * $Id: toc.ml,v 1.6 2009/01/29 18:11:38 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -22,6 +22,39 @@
 exception UnsupportedType of Irg.type_expr
 exception UnsupportedExpression of Irg.expr
 exception Error of string
+exception PreError of (out_channel -> unit)
+exception LocError of string * int * (out_channel -> unit)
+
+
+(** Execute the function f, capturing PreError exception and
+	adding error location to re-raise them as LocError.
+	@param file	Source file.
+	@param line	Source line.
+	@param f	Function execution.
+	@param arg	Argument to apply on f*)
+let locate_error file line f arg =
+	try
+		f arg
+	with PreError f ->
+		raise (LocError (file, line, f))
+
+
+(** Raise an error with the given message.
+	@param msg	Message to display. *)
+let error msg =
+	raise (PreError (fun out -> output_string out msg))
+
+
+(** Generate an error exception with the given message
+	from the given expression.
+	@param msg	Message to display.
+	@param expr	Expression causing the error. *)
+let error_on_expr msg expr =
+	raise (PreError (fun out ->
+		output_string out msg;
+		output_string out ": ";
+		Irg.output_expr out expr))
+
 
 (** C type in the generated code. *)
 type c_type =
@@ -352,6 +385,9 @@ let rec convert_expression out expr =
 		convert_expression out t;
 		Printf.fprintf out " else ";
 		convert_expression out e
+
+	| Irg.REF name ->
+		output_string out name
 
 	(*| Irg.SWITCH_EXPR (_,c, cases, def) ->*)
 		

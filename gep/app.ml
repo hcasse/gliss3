@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.4 2009/01/28 13:43:49 casse Exp $
+ * $Id: app.ml,v 1.5 2009/01/29 18:11:37 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -27,7 +27,8 @@ module TypeSet = Set.Make(OrderedType)
 
 (** Gather information useful for the generation. *)
 type maker_t = {
-	mutable get_params: Irg.spec -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
+	mutable get_params: Iter.inst -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
+	mutable get_instruction: Iter.inst -> Templater.dict_t -> Templater.dict_t
 }
 
 
@@ -78,12 +79,13 @@ let get_params maker inst f dict =
 		(Iter.get_params inst))
 
 let get_instruction maker f dict _ i = f
-	(("IDENT", out (fun _ -> Iter.get_name i)) ::
-	("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
-	("params", Templater.COLL (get_params maker i)) ::
-	("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
-	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
-	dict)
+	(maker.get_instruction  i
+		(("IDENT", out (fun _ -> Iter.get_name i)) ::
+		("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
+		("params", Templater.COLL (get_params maker i)) ::
+		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
+		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
+		dict))
 
 let get_register f dict _ sym =
 	match sym with
@@ -123,7 +125,8 @@ let get_memory f dict key sym =
 	
 
 let maker _ = {
-	get_params = fun _ _ _ _ dict -> dict;
+	get_params = (fun _ _ _ _ dict -> dict);
+	get_instruction = (fun _ dict -> dict)
 }
 
 let make_env info maker =
@@ -185,5 +188,5 @@ let process file f =
 		Printf.eprintf "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path
-	| Failure e ->
-		Lexer.display_error e; exit 3
+	(*| Failure e ->
+		Lexer.display_error e; exit 3*)
