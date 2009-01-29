@@ -1,5 +1,10 @@
-# $Id: Makefile,v 1.8 2008/11/18 10:09:58 casse Exp $
+# $Id: Makefile,v 1.9 2009/01/29 09:46:03 casse Exp $
 include ../Makefile.head
+
+ifndef NDEBUG
+OCAML_FLAGS+=-g
+OCAML_LDFLAGS+=-g
+endif
 
 LIB_SOURCES = \
 	IdMaker.ml \

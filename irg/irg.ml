@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.12 2008/12/05 15:48:40 barre Exp $
+ * $Id: irg.ml,v 1.13 2009/01/29 09:46:03 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -92,6 +92,7 @@ type expr =
 	| IF_EXPR of type_expr * expr * expr * expr
 	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr
 	| CONST of type_expr*const
+	| ELINE of string * int * expr
 	
 (** Statements *)
 type location =
@@ -301,6 +302,13 @@ let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
 let add_pos v_name v_file v_line = 
 	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
 
+
+(** Get a position from a symbol name.
+	@param name	Name of the symbol.
+	@return 	Matching position. *)
+let get_pos name =
+	StringHashtbl.find pos_table name
+
 (* --- display functions --- *)
 
 (** Used to print a position
@@ -311,49 +319,59 @@ let print_pos e=
 	(Printf.fprintf stdout "%s->%s:%d\n" e.ident e.file e.line)
 
 
+(** Output a constant.
+	@param out	Channel to output to.
+	@param cst	Constant to output. *)
+let output_const out cst =
+	match cst with
+	  NULL ->
+	    output_string out "<null>"
+	| CARD_CONST v ->
+		output_string out (Int32.to_string v)
+	| CARD_CONST_64 v->
+		output_string out (Int64.to_string v)
+	| STRING_CONST v ->
+		Printf.fprintf out "\"%s\"" v   
+	| FIXED_CONST v ->
+		Printf.fprintf out "%f" v
 
 (** Print a constant.
 	@param cst	Constant to display. *)
-let print_const cst =
-	match cst with
-	  NULL ->
-	    print_string "<null>"
-	| CARD_CONST v ->
-		print_string (Int32.to_string v)
-	| CARD_CONST_64 v->
-		print_string (Int64.to_string v)
-	| STRING_CONST v ->
-		Printf.printf "\"%s\"" v   
-	| FIXED_CONST v ->
-		print_float v
+let print_const cst = output_const stdout cst
+
+
+(** Print a type expression.
+	@param out	Channel to output to.
+	@param t	Type expression to display. *)
+let output_type_expr out t =
+	match t with
+	  NO_TYPE ->
+		output_string out "<no type>"
+	| BOOL ->
+		output_string out "bool"
+	| INT s ->
+		Printf.fprintf out "int(%d)" s
+	| CARD s ->
+		Printf.fprintf out "card(%d)" s
+	| FIX(s, f) ->
+		Printf.fprintf out "fix(%d, %d)" s f
+	| FLOAT(s, f) ->
+		Printf.fprintf out "float(%d, %d)" s f
+	| RANGE(l, u) ->
+		Printf.fprintf out "[%s..%s]" (Int32.to_string l) (Int32.to_string u)
+	| STRING ->
+		output_string out "string"
+	| ENUM l->
+		output_string out "enum (";
+		Printf.fprintf out "%s" (List.hd (List.rev l));
+		List.iter (fun i->(Printf.fprintf out ",%s" i)) (List.tl (List.rev l));
+		output_string out ")"
+	|UNKNOW_TYPE -> output_string out "unknow_type"
 
 
 (** Print a type expression.
 	@param t	Type expression to display. *)
-let print_type_expr t =
-	match t with
-	  NO_TYPE ->
-		print_string "<no type>"
-	| BOOL ->
-		print_string "bool"
-	| INT s ->
-		Printf.printf "int(%d)" s
-	| CARD s ->
-		Printf.printf "card(%d)" s
-	| FIX(s, f) ->
-		Printf.printf "fix(%d, %d)" s f
-	| FLOAT(s, f) ->
-		Printf.printf "float(%d, %d)" s f
-	| RANGE(l, u) ->
-		Printf.printf "[%s..%s]" (Int32.to_string l) (Int32.to_string u)
-	| STRING ->
-		print_string "string"
-	| ENUM l->
-		print_string "enum (";
-		Printf.printf "%s" (List.hd (List.rev l));
-		List.iter (fun i->(Printf.printf ",%s" i)) (List.tl (List.rev l));
-		print_string ")"
-	|UNKNOW_TYPE->print_string "unknow_type"
+let print_type_expr t = output_type_expr stdout t
 
 
 (** Print the unary operator.
@@ -393,147 +411,188 @@ let string_of_binop op =
 
 
 (** Print an expression.
+	@param out	Channel to output to.
 	@param expr	Expression to print. *)
-let rec print_expr e =
+let rec output_expr out e =
 
 	let print_arg fst arg =
-		if not fst then print_string ", ";
-		print_expr arg;
+		if not fst then output_string out ", ";
+		output_expr out arg;
 		false in
 	match e with
 	  NONE ->
-	  	print_string "<none>"
+	  	output_string out "<none>"
 	| COERCE (t, e) ->
-		print_string "coerce(";
-		print_type_expr t;
-		print_string ", ";
-		print_expr e;
-		print_string ")"
+		output_string out "coerce(";
+		output_type_expr out t;
+		output_string out ", ";
+		output_expr out e;
+		output_string out ")"
 	| FORMAT (fmt, args) ->
-		print_string "format(\"";
-		print_string fmt;
-		print_string "\", ";
+		output_string out "format(\"";
+		output_string out fmt;
+		output_string out "\", ";
 		let _ = List.fold_left print_arg true args in
-		print_string ")"
+		output_string out ")"
 	| CANON_EXPR (_, n, args) ->
-		print_string "\"";
-		print_string n;
-		print_string "\" (";
+		output_string out "\"";
+		output_string out n;
+		output_string out "\" (";
 		let _ = List.fold_left print_arg true args in
-		print_string ")"
+		output_string out ")"
 	| FIELDOF(t, e, n) ->
-		print_expr e;
-		print_string ".";
-		print_string n
+		output_expr out e;
+		output_string out ".";
+		output_string out n
 	| REF id ->
-		print_string id
+		output_string out id
 	| ITEMOF (_, e, idx) ->
-		print_expr e;
-		print_string "[";
-		print_expr idx;
-		print_string "]"
+		output_expr out e;
+		output_string out "[";
+		output_expr out idx;
+		output_string out "]"
 	| BITFIELD (_,e, l, u) ->
-		print_expr e;
-		print_string "<";
-		print_expr l;
-		print_string "..";
-		print_expr u;
-		print_string ">"
+		output_expr out e;
+		output_string out "<";
+		output_expr out l;
+		output_string out "..";
+		output_expr out u;
+		output_string out ">"
 	| UNOP (_,op, e) ->
-		print_string (string_of_unop op);
-		print_expr e
+		output_string out (string_of_unop op);
+		output_expr out e
 	| BINOP (_,op, e1, e2) ->
-		print_string "(";
-		print_expr e1;
-		print_string ")";
-		print_string (string_of_binop op);
-		print_string "(";
-		print_expr e2;
-		print_string ")"
+		output_string out "(";
+		output_expr out e1;
+		output_string out ")";
+		output_string out (string_of_binop op);
+		output_string out "(";
+		output_expr out e2;
+		output_string out ")"
 	| IF_EXPR (_,c, t, e) ->
-		print_string "if ";
-		print_expr c;
-		print_string " then ";
-		print_expr t;
-		print_string " else ";
-		print_expr e;
-		print_string " endif"
+		output_string out "if ";
+		output_expr out c;
+		output_string out " then ";
+		output_expr out t;
+		output_string out " else ";
+		output_expr out e;
+		output_string out " endif"
 	| SWITCH_EXPR (_,c, cases, def) ->
-		print_string "switch(";
-		print_expr c;
-		print_string ")";
-		print_string "{ ";
+		output_string out "switch(";
+		output_expr out c;
+		output_string out ")";
+		output_string out "{ ";
 		List.iter (fun (c, e) ->
-				print_string "case ";
-				print_expr c;
-				print_string ": ";
-				print_expr e;
-				print_string " "
+				output_string out "case ";
+				output_expr out c;
+				output_string out ": ";
+				output_expr out e;
+				output_string out " "
 			) (List.rev cases);
-		print_string "default: ";
-		print_expr def;
-		print_string " }"
+		output_string out "default: ";
+		output_expr out def;
+		output_string out " }"
+	| ELINE (_, _, e) ->
+		output_expr out e
 	| CONST (_,c) ->
-		print_const c
+		output_const out c
+
+
+(** Print an expression.
+	@param expr	Expression to print. *)
+let rec print_expr e = output_expr stdout e
+
+
+(** Print a location.
+	@param out	Channel to output to.
+	@param loc	Location to print. *)
+let rec output_location out loc =
+	match loc with
+	  LOC_REF id ->
+	  	output_string out id
+	| LOC_ITEMOF (e, idx) ->
+		output_location out e;
+		output_string out "[";
+		output_expr out idx;
+		output_string out "]"
+	| LOC_BITFIELD (e, l, u) ->
+		output_location out e;
+		output_string out "[";
+		output_expr out l;
+		output_string out "..";
+		output_expr out u;
+		output_string out "]"
+	| LOC_CONCAT (l1, l2) ->
+		output_location out l1;
+		output_string out "..";
+		output_location out l2
 
 
 (** Print a location.
 	@param loc	Location to print. *)
-let rec print_location loc =
-	match loc with
-	  LOC_REF id ->
-	  	print_string id
-	| LOC_ITEMOF (e, idx) ->
-		print_location e;
-		print_string "[";
-		print_expr idx;
-		print_string "]"
-	| LOC_BITFIELD (e, l, u) ->
-		print_location e;
-		print_string "[";
-		print_expr l;
-		print_string "..";
-		print_expr u;
-		print_string "]"
-	| LOC_CONCAT (l1, l2) ->
-		print_location l1;
-		print_string "..";
-		print_location l2
+let rec print_location loc = output_location stdout loc
+
+
+(** Print a statement
+	@param out	Channel to output to.
+	@param stat	Statement to print.*)
+let rec output_statement out stat =
+	match stat with
+	  NOP ->
+	  	output_string out "\t\t <NOP>;\n"
+	| SEQ (stat1, stat2) ->
+		output_statement out stat1;
+		output_statement out stat2
+	| EVAL ch ->
+		Printf.fprintf out "\t\t%s;\n" ch
+	| EVALIND (ch1, ch2) ->
+		Printf.fprintf out "\t\t%s.%s;\n" ch1 ch2
+	| SET (loc, exp) ->
+		output_string out "\t\t";
+		output_location out loc;
+		output_string out "=";
+		output_expr out exp;
+		output_string out ";\n"
+	| CANON_STAT (ch, expr_liste) ->
+		Printf.fprintf out "\t\t\"%s\" (" ch;
+		List.iter (output_expr out) expr_liste ;
+		output_string out ");\n"
+	| ERROR ch ->
+		Printf.fprintf out "\t\t error %s;\n" ch
+	| IF_STAT (exp,statT,statE) -> 
+		output_string out "\t\t if ";
+		output_expr out exp;
+		output_string out "\n";
+		output_string out "\t\t then \n";
+		output_statement out statT;
+		output_string out "\t\t else \n";
+		output_statement out statE;
+		output_string out "\t\t endif;\n"
+	| SWITCH_STAT (exp,stat_liste,stat) ->
+		output_string out "\t\t switch (";
+		output_expr out exp;
+		output_string out ") {\n";
+		List.iter (fun (v,s)->
+			output_string out "\t\t\t case";
+			output_expr out v;
+			output_string out " : \n\t\t";
+			output_statement out s) (List.rev stat_liste);
+		output_string out "\t\t\t default : \n\t\t";
+		output_statement out stat;
+		output_string out "\t\t }; \n"
+	| SETSPE (loc, exp) ->
+		output_string out "\t\tSETSPE:";
+		output_location out loc;
+		output_string out "=";
+		output_expr out exp;
+		output_string out ";\n"
+	| LINE (_,_,s)
+		-> output_statement out s
 
 
 (** Print a statement
 	@param stat	Statement to print.*)
-let rec print_statement stat=
-	match stat with
-	  NOP ->
-	  	print_string "\t\t <NOP>;\n"
-	| SEQ (stat1, stat2) ->
-		print_statement stat1; print_statement stat2
-	| EVAL ch ->
-		Printf.printf "\t\t%s;\n" ch
-	| EVALIND (ch1, ch2) ->
-		Printf.printf "\t\t%s.%s;\n" ch1 ch2
-	| SET (loc, exp) ->
-		print_string "\t\t";print_location loc; print_string "=";print_expr exp; print_string ";\n"
-	| CANON_STAT (ch, expr_liste) ->
-		Printf.printf "\t\t\"%s\" (" ch; List.iter print_expr expr_liste ;print_string ");\n"
-	| ERROR ch ->
-		Printf.printf "\t\t error %s;\n" ch
-	| IF_STAT (exp,statT,statE) -> 
-					print_string "\t\t if "; print_expr exp;print_string "\n";
-					print_string "\t\t then \n"; print_statement statT;
-					print_string "\t\t else \n";print_statement statE;
-					print_string "\t\t endif;\n"
-	|SWITCH_STAT (exp,stat_liste,stat) ->
-						print_string "\t\t switch (";print_expr exp;print_string ") {\n";
-						List.iter (fun (v,s)->	print_string "\t\t\t case";print_expr v;print_string " : \n\t\t";
-									print_statement s) (List.rev stat_liste);
-						print_string "\t\t\t default : \n\t\t";print_statement stat;
-						print_string "\t\t }; \n"
-	|SETSPE (loc, exp) ->
-		print_string "\t\tSETSPE:";print_location loc; print_string "=";print_expr exp; print_string ";\n"
-	|LINE (_,_,s)
-		-> print_statement s
+let rec print_statement stat= output_statement stdout stat
 
 
 
@@ -771,6 +830,7 @@ let rec substitute_in_expr name op ex =
 		SWITCH_EXPR(te, substitute_in_expr name op e1, List.map (fun (x,y) -> (substitute_in_expr name op x, substitute_in_expr name op y)) ee_l, substitute_in_expr name op e2)
 	| CONST(te, c)
 		-> CONST(te, c)
+	| ELINE (_, _, e) -> substitute_in_expr name op e
 
 (** search the symbol name in the given statement,
 the symbol is supposed to stand for a variable of type given by op,
@@ -837,6 +897,7 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		SWITCH_EXPR(te, change_name_of_var_in_expr e1 var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_expr y var_name new_name)) ee_l, change_name_of_var_in_expr e2 var_name new_name)
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
+	| ELINE(_, _, e) -> change_name_of_var_in_expr e var_name new_name
 
 
 let rec change_name_of_var_in_location loc var_name new_name =
@@ -1051,9 +1112,9 @@ let rec prefix_name_of_params_in_spec sp pfx =
 (* str_format is a regexp representing a %... from a format expr 
  expr_field is supposed to be an expr of type FIELDOF ("x.syntax") or else corresponding to str_format
  spec_type is the spec of the base of the expr (here : the spec of "x"), has meaning only for some types of expr *)
-let replace_format_by_attr str_format expr_field spec_type =
+let rec replace_format_by_attr str_format expr_field spec_type =
 	(*return the "useful" string from an expr of type format(...) or simple type *)
-	let get_str_from_format_expr f =
+	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
 		| CONST(STRING, s) ->
@@ -1062,6 +1123,7 @@ let replace_format_by_attr str_format expr_field spec_type =
 			| _ -> ""
 			)
 		| REF(s) -> s
+		| ELINE (_, _, e) -> get_str_from_format_expr e
 		| _ -> ""
 	in
 	match str_format with
@@ -1077,6 +1139,7 @@ let replace_format_by_attr str_format expr_field spec_type =
 			STRING_CONST(str) -> str
 			| _ -> ""
 			)
+		| ELINE (_, _, e) -> replace_format_by_attr str_format e spec_type
 		(* leave unchanged for simple expr of simple types, like "tmp", "x" *)
 		| _ -> t)
 
@@ -1084,19 +1147,25 @@ let replace_format_by_attr str_format expr_field spec_type =
 
 (* replace an "x.image" (x is an op foo) param by the params of the "image" attribute in the "foo" spec 
 the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params) *)
-let replace_field_expr_by_param_list expr_field spec_type =
-	let get_param_list_from_format_expr f =
+let rec replace_field_expr_by_param_list expr_field spec_type =
+	let rec get_param_list_from_format_expr f =
 		match f with
 		FORMAT(_, l) -> l
+		| ELINE (_, _, e) -> get_param_list_from_format_expr e
 		| _ -> []
 	in
 	match expr_field with
 	FIELDOF(_, _, s) ->
 		get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
+	| ELINE (_, _, e) -> replace_field_expr_by_param_list e spec_type
 	| q -> q::[]
 		
 	
 let rec search_spec_of_name name param_list =
+	(* !!DEBUG!! *)
+	output_string stderr "search_spec_of_name:\n";
+	List.iter (fun (p, _) -> Printf.fprintf stderr " - %s\n" p) param_list;
+
 	let spec_from_type t =
 		match t with
 		TYPE_ID(n) -> get_symbol n
@@ -1128,6 +1197,7 @@ let get_spec_from_expr e spec_params pfx_or_not =
 				prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 			else
 				search_spec_of_name name spec_params
+		| ELINE (_, _, e) -> rec_aux e p_l
 		| _ -> UNDEF
 	in
 		rec_aux e spec_params
@@ -1171,6 +1241,7 @@ let rec get_param_from_expr e p_l =
 			get_param_name e2
 		| REF(name) ->
 			name
+		| ELINE (_, _, e) -> get_param_name e
 		| _ ->
 			""
 	in
@@ -1221,7 +1292,7 @@ let transform_str_list reg_list expr_list spec_params =
 the vars to instantiate are given in a list of couples (name of var, spec of the var)
 the vars must have been instantiated to real op (not OR op which have no attribute at all) *)
 let change_format_attr expr_frmt param_list =
-	let get_str_from_format_expr f =
+	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
 		| CONST(STRING, s) ->
@@ -1230,24 +1301,27 @@ let change_format_attr expr_frmt param_list =
 			| _ -> ""
 			)
 		| REF(s) -> s
+		| ELINE (_, _, e) -> get_str_from_format_expr e
 		| _ -> ""
 	in
-	let get_param_from_format_expr f =
+	let rec get_param_from_format_expr f =
 		match f with
 		FORMAT(_, p) -> p
+		| ELINE (_, _, e) -> get_param_from_format_expr e
 		| _ -> []
 	in
 	let str_frmt = string_to_regexp_list (get_str_from_format_expr expr_frmt)
 	in
-	let param_frmt = get_param_from_format_expr expr_frmt
+	let param_frmt = get_param_from_format_expr expr_frmt	(* !!CHECK!! *)
 	in
-	let reduce_frmt f =
+	let rec reduce_frmt f =
 		match f with
 		FORMAT(str, p) ->
 			if p = [] then
 				CONST(STRING, STRING_CONST(str))
 			else
 				f
+		| ELINE (file, line, e) -> ELINE (file, line, reduce_frmt e)
 		| _ -> f
 	in
 		reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list (is_param_has_to_be_prefixed (get_param_from_expr x param_list) param_list))) param_frmt)))
@@ -1284,7 +1358,7 @@ let instantiate_in_stat st p_l =
 	in
 	aux st p_l
 		
-let instantiate_in_expr ex param_list =
+let rec instantiate_in_expr ex param_list =
 	let rec aux e p_l =
 		match p_l with
 		[] ->
@@ -1300,6 +1374,7 @@ let instantiate_in_expr ex param_list =
 	match ex with
 	FORMAT(_, _) ->
 		change_format_attr ex param_list
+	| ELINE (file, line, e) -> ELINE (file, line, instantiate_in_expr e param_list)
 	| _ ->
 		aux ex param_list
 
@@ -1382,8 +1457,10 @@ let instantiate_param_list p_l =
 let instantiate_attr a params=
 	match a with
 	ATTR_EXPR(n, e) ->
+		Printf.fprintf stderr "==> %s\n" n; (* !!DEBUG!! *)
 		ATTR_EXPR(n, instantiate_in_expr e params)
 	| ATTR_STAT(n, s) ->
+		Printf.fprintf stderr "==> %s\n" n; (* !!DEBUG!! *)
 		ATTR_STAT(n, instantiate_in_stat s params)
 	(* useless until now *)
 	| ATTR_USES ->
@@ -1462,6 +1539,10 @@ let rec add_new_attrs sp param_list =
 
 
 let instantiate_spec sp param_list =
+	(* !!DEBUG!! *)
+	output_string stderr "instantiate_spec:\n";
+	List.iter (fun (p, _) -> Printf.fprintf stderr " - %s\n" p) param_list;
+
 	let is_type_def_spec sp =
 		match sp with
 		TYPE(_, _) ->
@@ -1666,7 +1747,7 @@ let test_format name =
 	let spec_params = [("x",TYPE_ID("tutu1"));("y",TYPE_ID("tata1"))]
 	(*get_param_of_spec sp*)
 	in
-	let get_str_from_format_expr f =
+	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
 		| CONST(STRING, s) ->
@@ -1675,11 +1756,13 @@ let test_format name =
 			| _ -> ""
 			)
 		| REF(s) -> s
+		| ELINE (_, _, e) -> get_str_from_format_expr e
 		| _ -> ""
 	in
-	let get_param_from_format_expr f =
+	let rec get_param_from_format_expr f =
 		match f with
 		FORMAT(_, p) -> p
+		| ELINE (_, _, e) -> get_param_from_format_expr e
 		| _ -> []
 	in
 	let print_string_list l =

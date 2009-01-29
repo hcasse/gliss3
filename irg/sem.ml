@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.9 2008/11/18 08:59:34 barre Exp $
+ * $Id: sem.ml,v 1.10 2009/01/29 09:46:03 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -110,16 +110,16 @@ let rotate_right x y =
 	@param op	Unary operator.
 	@param c	Constant to apply the operator to.
 	@return		Result of the operation. *)
-let eval_unop op c =
+let rec eval_unop op c =
 	match (op, c) with
-	  ((*Irg.*)NOT, _) ->
-	  	(*Irg.*)CARD_CONST (if (is_true c) then Int32.zero else Int32.one)
-	| ((*Irg.*)BIN_NOT, (*Irg.*)CARD_CONST v) ->
-		(*Irg.*)CARD_CONST (Int32.lognot v)
-	| ((*Irg.*)NEG, (*Irg.*)CARD_CONST v) ->
-		(*Irg.*)CARD_CONST (Int32.neg v)
-	| ((*Irg.*)NEG, (*Irg.*)FIXED_CONST v) ->
-		(*Irg.*)FIXED_CONST (-. v)
+	  (NOT, _) ->
+	  	CARD_CONST (if (is_true c) then Int32.zero else Int32.one)
+	| (BIN_NOT, CARD_CONST v) ->
+		CARD_CONST (Int32.lognot v)
+	| (NEG, CARD_CONST v) ->
+		CARD_CONST (Int32.neg v)
+	| (NEG, FIXED_CONST v) ->
+		FIXED_CONST (-. v)
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
 			(string_of_unop op))) 
@@ -132,11 +132,11 @@ let eval_unop op c =
 	@param 		Result. *)
 let eval_binop_card op v1 v2 =
 	match op with
-	  (*Irg.*)ADD		->
-	  	(*Irg.*)CARD_CONST (Int32.add v1 v2)
-	| (*Irg.*)SUB		->
-		(*Irg.*)CARD_CONST (Int32.sub v1 v2)
-	| (*Irg.*)MUL		->
+	  ADD ->
+	  	CARD_CONST (Int32.add v1 v2)
+	| SUB ->
+		CARD_CONST (Int32.sub v1 v2)
+	| MUL ->
 		(*Irg.*)CARD_CONST (Int32.mul v1 v2)
 	| (*Irg.*)DIV		->
 		(*Irg.*)CARD_CONST (Int32.div v1 v2)
@@ -289,7 +289,8 @@ and eval_const expr =
 		(**)
 		|ENUM_POSS (_,_,v,_)->CARD_CONST v
 		(**)
-		| _ -> raise (SemError "this expression should be constant")) 
+		| _ -> raise (SemError "this expression should be constant"))
+	| ELINE (_, _, e) -> eval_const e 
 	| _ -> 
 		raise (SemError "this expression should be constant")
 
@@ -467,6 +468,7 @@ and get_type_expr exp=
 		|IF_EXPR (t,_,_,_)->t
 		|SWITCH_EXPR (t,_,_,_)->t
 		|CONST (t,_)->t
+		|ELINE (_, _, e) -> get_type_expr e
 
 
 (** Give the bit lenght of an expression 
@@ -729,15 +731,16 @@ let rec get_binop e1 e2 bop=
 			raise (SemErrorWithFun ("This binary operation is semantically incorrect",aff))
 		)
 	else
-		match bop with
-	 	(ADD|SUB)->get_add_sub e1 e2 bop
-		|(MUL|DIV|MOD)->get_mult_div_mod  e1 e2 bop
-		|EXP->BINOP (t1,bop,e1,e2)	(* A changer (le type)  *)
-		|(LSHIFT|RSHIFT|LROTATE|RROTATE)->BINOP(t1,bop,e1,e2)
-		|(LT|GT|LE|GE|EQ|NE)->BINOP(BOOL,bop,e1,e2)
-		|(AND|OR)-> BINOP(BOOL,bop,e1,e2)
-		|(BIN_AND|BIN_OR|BIN_XOR)->BINOP(t1, bop, e1,e2)
-		|CONCAT->get_concat e1 e2
+		Irg.ELINE (!(Lexer.file),!(Lexer.line),
+			match bop with
+	 		(ADD|SUB)->get_add_sub e1 e2 bop
+			|(MUL|DIV|MOD)->get_mult_div_mod  e1 e2 bop
+			|EXP->BINOP (t1,bop,e1,e2)	(* A changer (le type)  *)
+			|(LSHIFT|RSHIFT|LROTATE|RROTATE)->BINOP(t1,bop,e1,e2)
+			|(LT|GT|LE|GE|EQ|NE)->BINOP(BOOL,bop,e1,e2)
+			|(AND|OR)-> BINOP(BOOL,bop,e1,e2)
+			|(BIN_AND|BIN_OR|BIN_XOR)->BINOP(t1, bop, e1,e2)
+			|CONCAT->get_concat e1 e2)
 
 
 (** Check if the possible expressions of the conditionnal branchs of an if-then-else expression give a valid if-then-else expression.
@@ -774,7 +777,7 @@ let check_switch_expr test list_case default=
 
 (* --- this part is a definition of many subfunctions used in the verification --- *)
 
-let is_param_of_type_enum e=	(* check if an expression if a param of type eum *)
+let rec is_param_of_type_enum e=	(* check if an expression if a param of type eum *)
  	match e with
 		REF i ->( match (get_symbol i) with
 				PARAM (n,t)->	rm_symbol n;
@@ -797,6 +800,7 @@ let is_param_of_type_enum e=	(* check if an expression if a param of type eum *)
 				
 				|_->false
 			)
+		| ELINE (_, _, e) -> is_param_of_type_enum e
 		|_->false
 
 and get_list_poss_from_enum_expr e= (* Get a list of all possibility of the enum which is the type of the expression *)
@@ -829,7 +833,8 @@ and is_enum_poss e =	(* check if the expression is an ENUM_POSS *)
 	 REF s->(match (get_symbol s) with
 			ENUM_POSS _->true
 			|_->false
-		) 
+		)
+	| ELINE(_, _, e) -> is_enum_poss e
 	|_->false
 
 and get_enum_poss_info e=	(* Return a couple composed of the enum that the expression refer to and of the value of the expression *)
@@ -838,10 +843,11 @@ and get_enum_poss_info e=	(* Return a couple composed of the enum that the expre
 			ENUM_POSS (_,r,t,_)->(r,t)
 			|_->failwith ("get_enum : expression is not an enum poss")
 		)
+	| ELINE (_, _, e) -> get_enum_poss_info e
 	|_->failwith "get_enum : expression is not an enum poss"
 
 in
-let get_enum_poss_type e= get_type_ident (fst (get_enum_poss_info e))	(* Return the enum that the expression refer to *)
+let rec get_enum_poss_type e= get_type_ident (fst (get_enum_poss_info e))	(* Return the enum that the expression refer to *)
 
 and get_enum_poss_id e=	(* Get the id of the enum_poss refered by e*)
 	match e with
@@ -849,6 +855,7 @@ and get_enum_poss_id e=	(* Get the id of the enum_poss refered by e*)
 			ENUM_POSS (_,_,_,_)->s
 			|_->failwith ("get_enum_poss_id : expression is not an enum poss")
 		)
+	| ELINE (_, _, e) -> get_enum_poss_id e
 	|_->failwith "get_enum_poss_id : expression is not an enum poss"
 
 in
@@ -1098,8 +1105,9 @@ let change_string_dependences_syntax str e_list=
 
 let r_list=get_all_ref str
 in
-	let can_have_attribute e = match e with
+	let rec can_have_attribute e = match e with
 			 REF _->true
+			| ELINE (_, _, e) -> can_have_attribute e
 			|_->false
 	in
 	let rec temp r_l e_l=
@@ -1120,8 +1128,9 @@ let change_string_dependences_image str e_list=
 
 let r_list=get_all_ref str
 in
-	let can_have_attribute e = match e with
+	let rec can_have_attribute e = match e with
 			 REF _->true
+			| ELINE (_, _, e) -> can_have_attribute e
 			|_->false
 	in
 	let rec temp r_l e_l=

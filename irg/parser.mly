@@ -1,12 +1,12 @@
 /*
- * $Id: parser.mly,v 1.8 2008/07/31 14:54:31 jorquera Exp $
+ * $Id: parser.mly,v 1.9 2009/01/29 09:46:03 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
  */
 
 %{
-
+let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 %}
 
 %token<string>	ID
@@ -375,15 +375,13 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 
 AttrExpr :
 	ID DOT SYNTAX
-		{ Irg.FIELDOF (Irg.STRING, Irg.REF $1, "syntax") }
+		{ eline (Irg.FIELDOF (Irg.STRING, Irg.REF $1, "syntax")) }
 |	ID DOT IMAGE
-		{ Irg.FIELDOF (Irg.STRING,Irg.REF $1, "image") }
+		{ eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1, "image")) }
 |	STRING_CONST
-		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
+		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 |	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
-		{ 
-			Sem.build_format $3 $5
-		}
+		{  eline (Sem.build_format $3 $5) }
 ;
 
 FormatIdlist: 
@@ -606,7 +604,7 @@ Expr :
 				then
 					if not ((Sem.get_type_expr $5)=Irg.STRING)
 						then
-							Irg.COERCE ($3,$5) 
+							eline (Irg.COERCE ($3,$5)) 
 						else
 							raise (Sem.SemError "unable to coerce a string into another expression type")	
 				else
@@ -614,20 +612,20 @@ Expr :
 		}
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
 		{ 
-			Sem.build_format $3 $5
+			eline (Sem.build_format $3 $5)
 		}
 |	STRING_CONST LPAREN ArgList RPAREN
 		{
 			(if not (Irg.is_defined_canon $1)
 				then 
 					Lexer.display_warning (Printf.sprintf "the canonical function %s is not defined" $1));
-			Sem.build_canonical_expr $1 $3
+			eline (Sem.build_canonical_expr $1 $3)
 		}
 |	ID DOT SYNTAX
 		{ 
 		if Irg.is_defined $1
 			then
-				Irg.FIELDOF (Irg.STRING,Irg.REF $1,"syntax")
+				eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1,"syntax"))
 
 				(*if Sem.have_attribute $1 "syntax"
 					then
@@ -641,7 +639,7 @@ Expr :
 		{ 
 		if Irg.is_defined $1
 			then
-				Irg.FIELDOF (Irg.STRING,Irg.REF $1,"image")
+				eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1,"image"))
 
 				(*if Sem.have_attribute $1 "image"
 					then
@@ -655,7 +653,7 @@ Expr :
 		{ 	
 		if Irg.is_defined $1
 			then
-				Irg.FIELDOF (Irg.UNKNOW_TYPE,Irg.REF $1,$3)
+				eline (Irg.FIELDOF (Irg.UNKNOW_TYPE,Irg.REF $1,$3))
 
 				(*if Sem.have_attribute $1 $3
 					then
@@ -667,12 +665,12 @@ Expr :
 		}
 |	Expr DOUBLE_COLON Expr
 		{ 
-			Sem.get_binop $1 $3 Irg.CONCAT
+			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID 
 		{ 	if Irg.is_defined $1 
 				then 
-					Irg.REF $1
+					eline (Irg.REF $1)
 				else
 					raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 	 	}
@@ -690,11 +688,11 @@ Expr :
 					in
 					if v1<=v2
 					then
-						Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5)
+						eline (Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5))
 					else
-						Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5)
+						eline (Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5))
 
-				 )with Sem.SemError _ ->Irg.BITFIELD (Irg.UNKNOW_TYPE,Irg.REF $1,$3, $5)
+				 )with Sem.SemError _ -> eline (Irg.BITFIELD (Irg.UNKNOW_TYPE,Irg.REF $1,$3, $5))
 		
 			else
 				let dsp = fun _->(
@@ -710,7 +708,7 @@ Expr :
 		if Irg.is_defined $1 then
 			if (Sem.is_location $1) || (Sem.is_loc_spe $1)  || (Sem.is_loc_mode $1)
 				then
-					Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3) 
+					eline (Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3))
 				else 
 					let dsp = fun _->(
 							print_string "Type : ";
@@ -726,7 +724,7 @@ Expr :
 			then
 				if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
 					then
-						Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3), $6, $8) (* A changer *)
+						eline (Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3), $6, $8)) (* A changer *)
 					else 
 						let dsp = fun _->(
 								print_string "Type : ";
@@ -746,11 +744,11 @@ Expr :
 		}
 |	Expr STAR Expr
 		{
-			Sem.get_binop $1 $3 Irg.MUL
+			eline (Sem.get_binop $1 $3 Irg.MUL)
 		 }
 |	Expr SLASH Expr
 		{ 
-			Sem.get_binop $1 $3 Irg.DIV
+			eline (Sem.get_binop $1 $3 Irg.DIV)
 		 }
 |	Expr PERCENT Expr
 		{ 
@@ -842,23 +840,21 @@ Expr :
 			let m =24
 			and e=8
 			in
-			Irg.CONST (Irg.FLOAT(m,e),Irg.FIXED_CONST  $1) }	/* changed for convenience. Avoid typing problem between immediates values and const */
+			eline (Irg.CONST (Irg.FLOAT(m,e),Irg.FIXED_CONST  $1)) }	/* changed for convenience. Avoid typing problem between immediates values and const */
 |	CARD_CONST
 		{
 			let c=32
 			in 
-			Irg.CONST (Irg.CARD c,Irg.CARD_CONST $1) 
+			eline (Irg.CONST (Irg.CARD c,Irg.CARD_CONST $1)) 
 		}
 
 |	CARD_CONST_64
-		{
-			Irg.CONST (Irg.CARD 64,Irg.CARD_CONST_64 $1)
-		}
+		{ eline (Irg.CONST (Irg.CARD 64,Irg.CARD_CONST_64 $1)) }
 
 |	STRING_CONST
-		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
+		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 |	STRING_VALUE
-		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
+		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 /*|	DOLLAR { }
 |	BINARY_CONST { }
 |	HEX_CONST { }*/
@@ -869,7 +865,7 @@ Expr :
 		  in
 		if Sem.check_if_expr $4 $6
 			then
-				Irg.IF_EXPR (t1,$2, $4, $6)
+				eline (Irg.IF_EXPR (t1,$2, $4, $6))
 			else
 				(
 				 let dsp =(fun _->
@@ -886,7 +882,7 @@ Expr :
 		}
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
 		{	
-			Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6) 
+			eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6))
 		}	
 ;	
 
@@ -895,7 +891,7 @@ Bit_Expr :
 		{ 
 		if Irg.is_defined $1
 			then
-				Irg.REF $1
+				eline (Irg.REF $1)
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
@@ -926,11 +922,11 @@ Bit_Expr :
 |	LPAREN Bit_Expr RPAREN
 		{ $2 }
 |	FIXED_CONST
-		{ Irg.CONST (Irg.FIX(8,24),Irg.FIXED_CONST $1) }
+		{ eline (Irg.CONST (Irg.FIX(8,24),Irg.FIXED_CONST $1)) }
 |	CARD_CONST
-		{ Irg.CONST (Irg.CARD 32,Irg.CARD_CONST $1) }
+		{ eline (Irg.CONST (Irg.CARD 32,Irg.CARD_CONST $1)) }
 |	STRING_CONST
-		{ Irg.CONST (Irg.STRING,Irg.STRING_CONST $1) }
+		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 ;
 
 

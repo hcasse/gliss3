@@ -1,3 +1,5 @@
+type inst = Irg.spec
+
 type value = STAT of Irg.stat | EXPR of Irg.expr
 
 let print_value v =
