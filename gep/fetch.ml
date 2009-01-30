@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.5 2009/01/27 15:29:04 barre Exp $
+ * $Id: fetch.ml,v 1.6 2009/01/30 09:08:33 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -21,58 +21,51 @@
 
 
 
-(* return "0" (uppermost) or "1" (lowermost) on the given out_stream *)
-let output_bit_order out =
-	let i = Toc.info ()
-	in
-	let str_from_bito b =
-		match b with
-		Toc.UPPERMOST ->
+(* return the string of a given Irg.expr which is supposed to be an image attribute *)
+let rec get_str e =
+	match e with
+	Irg.FORMAT(str, _) ->
+		str
+	| Irg.CONST(t_e, c) ->
+		if t_e=Irg.STRING then
+			match c with
+			Irg.STRING_CONST(str) ->
+				str
+			| _ -> ""
+		else
+			""
+	| Irg.ELINE(_, _, e) ->
+		get_str e
+	| _ ->
+		""
+
+(* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)
+let get_length_from_format f =
+	let l = String.length f in
+	let new_f =
+		if l<=2 then
+		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
 			"0"
-		| Toc.LOWERMOST ->
-			"1"
+		else
+			String.sub f 1 (l-2)
 	in
-	output_string out (str_from_bito i.Toc.bito)
-	
+	Scanf.sscanf new_f "%d" (fun x->x)
+
+(* remove any space (space or tab char) in a string, return a string as result *)
+let remove_space s =
+	let rec concat_str_list s_l =
+		match s_l with
+		[] ->
+			""
+		| h::q ->
+			h ^ (concat_str_list q)
+	in
+	concat_str_list (Str.split (Str.regexp "[ \t]+") s)
+
+
 (* return the mask of an op from its spec, the result will be a string
 with only '0' or '1' chars representing the bits of the mask *)
 let get_string_mask_from_op sp =
-	let get_str e =
-		match e with
-		Irg.FORMAT(str, _) ->
-			str
-		| Irg.CONST(t_e, c) ->
-			if t_e=Irg.STRING then
-				match c with
-				Irg.STRING_CONST(str) ->
-					str
-				| _ -> ""
-			else
-				""
-		| _ ->
-			""
-	in
-	let get_length_from_format f =
-		let l = String.length f in
-		let new_f =
-			if l<=2 then
-			(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-				"0"
-			else
-				String.sub f 1 (l-2)
-		in
-		Scanf.sscanf new_f "%d" (fun x->x)
-	in
-	let remove_space s =
-		let rec concat_str_list s_l =
-			match s_l with
-			[] ->
-				""
-			| h::q ->
-				h ^ (concat_str_list q)
-		in
-		concat_str_list (Str.split (Str.regexp "[ \t]+") s)
-	in
 	let transform_str s =
 		let n = String.length s in
 		let rec aux str pos accu =
@@ -112,42 +105,6 @@ let get_string_mask_from_op sp =
 
 (* return the length of a given instruction, based on the image description *)
 let get_instruction_length sp =
-	let get_str e =
-		match e with
-		Irg.FORMAT(str, _) ->
-			str
-		| Irg.CONST(t_e, c) ->
-			if t_e=Irg.STRING then
-				match c with
-				Irg.STRING_CONST(str) ->
-					str
-				| _ -> ""
-			else
-				""
-		| _ ->
-			""
-	in
-	let get_length_from_format f =
-		let l = String.length f in
-		let new_f =
-			if l<=2 then
-			(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-				"0"
-			else
-				String.sub f 1 (l-2)
-		in
-		Scanf.sscanf new_f "%d" (fun x->x)
-	in
-	let remove_space s =
-		let rec concat_str_list s_l =
-			match s_l with
-			[] ->
-				""
-			| h::q ->
-				h ^ (concat_str_list q)
-		in
-		concat_str_list (Str.split (Str.regexp "[ \t]+") s)
-	in
 	let rec get_length_from_regexp_list l =
 		match l with
 		[] -> 0
@@ -172,42 +129,6 @@ let get_instruction_length sp =
 (* returns the value of an instruction code considering only the bit set in the mask,
 the result is a '0' or '1' string with the bits not set in the mask being marked with an 'X' *)
 let get_string_value_on_mask_from_op sp =
-	let get_str e =
-		match e with
-		Irg.FORMAT(str, _) ->
-			str
-		| Irg.CONST(t_e, c) ->
-			if t_e=Irg.STRING then
-				match c with
-				Irg.STRING_CONST(str) ->
-					str
-				| _ -> ""
-			else
-				""
-		| _ ->
-			""
-	in
-	let get_length_from_format f =
-		let l = String.length f in
-		let new_f =
-			if l<=2 then
-			(* shouldn't happen, we should have only formats like %...b, not %d or %f *)
-				"0"
-			else
-				String.sub f 1 (l-2)
-		in
-		Scanf.sscanf new_f "%d" (fun x->x)
-	in
-	let remove_space s =
-		let rec concat_str_list s_l =
-			match s_l with
-			[] ->
-				""
-			| h::q ->
-				h ^ (concat_str_list q)
-		in
-		concat_str_list (Str.split (Str.regexp "[ \t]+") s)
-	in
 	let rec get_mask_from_regexp_list l =
 		match l with
 		[] -> ""
@@ -803,7 +724,8 @@ let output_all_table_C_decl out num_bits =
 	it checks if each instruction is shorter or equals than n bits *)
 	let test n =
 		Iter.iter
-		(fun a x -> if (get_instruction_length x) > n then failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions are too long.") else true)
+		(fun a x -> if (get_instruction_length x) > n then
+			failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions are too long.") else true)
 		true
 	in
 	let aux dt =
@@ -839,35 +761,3 @@ let test_sort n =
 	| _ ->
 		()
 
-
-
-(* main program *)
-(*let _ =
-	try	
-		begin
-		(* parsing NML *)
-		let lexbuf = Lexing.from_channel (open_in "test/ppc.nml") in
-		Parser.top Lexer.main lexbuf;
-		(*print_dot_dec_tree_list (build_dec_nodes 0)*)
-		(*test_build_dec_nodes 0*)
-		output_all_table_C_decl (open_out "/home/barre/gliss2-caml/gliss2/dec.c")
-		(*test_sort 0*)
-		(* toto 200*)
-		end
-	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;
-	| Sys_error msg ->
-		Printf.eprintf "ERROR: %s\n" msg; exit 1
-	| Failure e ->
-		Lexer.display_error e; exit 3
-*)

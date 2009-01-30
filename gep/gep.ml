@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.20 2009/01/29 18:11:37 casse Exp $
+ * $Id: gep.ml,v 1.21 2009/01/30 09:08:33 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -112,7 +112,6 @@ let make_env info =
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
-	("target_bitorder", Templater.TEXT(fun out -> Fetch.output_bit_order out)) ::
 	(App.make_env info maker)
 
 
@@ -186,6 +185,8 @@ let _ =
 	App.process !nmp
 		(fun info ->
 			let dict = make_env info in
+			
+			Fetch.test_build_dec_nodes 0;
 			
 			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";

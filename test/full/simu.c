@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 	{
 		int n = ppc_fetch(f, a);
 		uint32_t code = ppc_mem_read32(ppc_get_memory(pf, 0), a);
-		printf("@ %08X => %08X => %d\t\t%s.\n", a, code, n, ppc_string_ident[n]);
+		printf("@ %08X => %08X => %d\t\t%s.\n", a, code, n, ppc_get_string_ident(n));
 		a += 4;
 	}
 
