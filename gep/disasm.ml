@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.3 2009/01/29 18:11:37 casse Exp $
+ * $Id: disasm.ml,v 1.4 2009/02/03 09:06:24 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -224,14 +224,16 @@ let _ =
 	@param inst	Current instruction.
 	@param expr	Syntax expression.
 	@raise Error	If there is an unsupported syntax expression. *)
-let rec gen_disasm out inst expr =
+let rec gen_disasm info inst expr =
 	match expr with
 	  Irg.FORMAT (fmt, args) ->
-		Printf.fprintf out "\tbuffer += sprintf(buffer, \"%s\"" fmt;
+		Printf.fprintf info.Toc.out "buffer += sprintf(buffer, \"%s\"" fmt;
 		List.iter
-			(fun arg -> output_string out ", "; Toc.convert_expression out arg)
+			(fun arg -> output_string info.Toc.out ", "; Toc.gen_expression info arg)
 			args;
-		output_string out ");\n"
+		output_string info.Toc.out ");\n"
+	| Irg.CONST (_, Irg.STRING_CONST str) ->
+		Printf.fprintf info.Toc.out "buffer += sprintf(buffer,  \"%%s\", \"%s\");\n" (Toc.cstring str)
 	| Irg.NONE
 	| Irg.CANON_EXPR _
 	| Irg.REF _
@@ -245,14 +247,15 @@ let rec gen_disasm out inst expr =
 	| Irg.CONST _
 	| Irg.COERCE _  -> Toc.error_on_expr "bad syntax expression" expr
 	| Irg.ELINE (file, line, e) ->
-		Printf.fprintf stderr "==> %s:%d\n" file line;
-		Toc.locate_error file line (gen_disasm out inst) e
+		Toc.locate_error file line (gen_disasm info inst) e
 
 
 (** Perform the disassembling of the given instruction.
 	@param inst		Instruction to get syntax from.
 	@param out		Output to use. *)
-let disassemble inst out =
+let disassemble inst out info =
+	info.Toc.out <- out;
+	info.Toc.inst <- Iter.get_name inst;
 	
 	(* get syntax *)
 	let syntax =
@@ -265,7 +268,9 @@ let disassemble inst out =
 	(* disassemble *)
 	let params = Iter.get_params inst in
 	Irg.param_stack params;
-	gen_disasm out inst syntax;
+	let (_, vars) = Toc.declare_expression syntax (0, []) in
+	Toc.declare_temp out vars;
+	gen_disasm info inst syntax;
 	Irg.param_unstack params
 
 
@@ -275,8 +280,7 @@ let _ =
 			(fun info ->
 				let maker = App.maker () in
 				maker.App.get_instruction <- (fun inst dict ->
-					Printf.fprintf stderr "disassemble %s\n" (Irg.name_of inst);
-					("disassemble", Templater.TEXT (fun out -> disassemble inst out)) :: dict);
+					("disassemble", Templater.TEXT (fun out -> disassemble inst out info)) :: dict);
 				let dict = App.make_env info maker in			
 				if not !quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
 				Templater.generate dict "disasm.c" !out

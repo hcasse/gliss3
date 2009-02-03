@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.5 2009/01/29 18:11:37 casse Exp $
+ * $Id: app.ml,v 1.6 2009/02/03 09:06:24 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -164,6 +164,7 @@ let make_env info maker =
 let process file f =
 	try	
 		begin
+			Lexer.file := file;
 			let lexbuf = Lexing.from_channel (open_in file) in
 			Parser.top Lexer.main lexbuf;
 			let info = Toc.info () in

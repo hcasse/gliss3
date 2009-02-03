@@ -1,4 +1,10 @@
+
+(** Type of integrated instructions. *)
 type inst = Irg.spec
+
+
+(** Null instruction. *)
+let null = Irg.UNDEF
 
 type value = STAT of Irg.stat | EXPR of Irg.expr
 

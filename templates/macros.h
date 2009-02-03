@@ -4,16 +4,16 @@
 
 /* state access macros */
 $(foreach registers)$(if !aliased)
-#define $(PROC)_$(NAME)(s) ((s)->$(NAME)))
+#define $(PROC)_$(NAME) ((state)->$(NAME)))
 $(end)$(end)
 $(foreach memories)
-#define $(PROC)_$(NAME)(s) ((s)->$(NAME)))
+#define $(PROC)_$(NAME) ((state)->$(NAME)))
 $(end)
 
 
 /* parameter access macros */
 $(foreach instructions)$(foreach params)
-#define $(PROC)_$(IDENT)_$(PARAM)(i) ((i)->instrinput[$(INDEX)].val.$(TYPE))
+#define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX)].val.$(TYPE))
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */
