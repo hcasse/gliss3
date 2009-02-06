@@ -35,6 +35,7 @@ static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 {
 	int i;
 	uint32_t tmp_mask;
+	uint32_t res = 0;
 
 	/* on fait un parcours du bit de fort poids de instr[0]
 	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
@@ -73,7 +74,7 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode(uint32_t code_inst)
 	
 	$(foreach params)/* param number $(INDEX) */
 	mask = $(mask_32)UL;
-	$(PROC)_$(IDENT)_$(PARAM)(res) = valeur_sur_mask_bloc(code_inst, mask); /* res->instrinput[$(INDEX)].val.$(TYPE) */
+	$(PROC)_$(IDENT)_$(PARAM)(res) = valeur_sur_mask_bloc(code_inst, mask); /* res->instrinput[$(INDEX)].val.$(param_type) */
 	res->instrinput[$(INDEX)].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;
 	$(end)
 	return res;

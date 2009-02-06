@@ -13,7 +13,7 @@ $(end)
 
 /* parameter access macros */
 $(foreach instructions)$(foreach params)
-#define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX)].val.$(TYPE))
+#define $(PROC)_$(IDENT)_$(PARAM)(inst) ((inst)->instrinput[$(INDEX)].val.$(param_type))
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */

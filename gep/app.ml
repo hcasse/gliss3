@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.6 2009/02/03 09:06:24 casse Exp $
+ * $Id: app.ml,v 1.7 2009/02/06 14:16:44 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -73,6 +73,7 @@ let get_params maker inst f dict =
 					("INDEX", out (fun _ -> string_of_int i)) ::
 					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
 					("PARAM_TYPE", out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type t)))) ::
+					("param_type", out (fun _ -> Toc.type_to_field (Toc.convert_type t))) ::
 					dict)));
 			i + 1)
 		0
