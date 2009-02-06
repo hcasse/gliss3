@@ -9,7 +9,7 @@ extern  "C"
 {
 #endif
 
-#include "../include/$(proc)/id.h"
+#include "../include/$(proc)/api.h"
 #include "../include/$(proc)/macros.h"
 
 /* TODO: add some error messages when malloc fails */

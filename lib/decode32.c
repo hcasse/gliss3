@@ -46,10 +46,9 @@ gliss_decoder_t *gliss_new_decoder(gliss_platform_t *state)
 	gliss_decoder_t *res = malloc(sizeof(gliss_decoder_t));
 	if (res == NULL)
 		gliss_error("not enough memory to create a gliss_decoder_t object"); /* I assume error handling will remain the same, we use gliss_error istead of iss_error ? */
-	res->mem = gliss_get_memory(state, GLISS_MAIN_MEMORY);
 	/*assert(number_of_decode_objects >= 0);*/
 	init_decoder(res, state);
-	number_of_decode_objects++;
+	number_of_decoder_objects++;
 	return res;
 }
 
@@ -58,7 +57,7 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 	if (decode == NULL)
 		/* we shouldn't try to free a void decoder_t object, should this output an error ? */
 		gliss_error("cannot delete an NULL gliss_decoder_t object");
-	number_of_decode_objects--;
+	number_of_decoder_objects--;
 	/*assert(number_of_decode_objects >= 0);*/
 	halt_decoder(decode);
 	free(decode);
