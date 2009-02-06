@@ -4,6 +4,7 @@ GFLAGS=-m \
 	-m loader:old_elf \
 	-m syscall:syscall-linux \
 	-m fetch:fetch32 \
+	-m decode:decode32 \
 	-a disasm.c
 
 all: ppc.nml src/config.h gep src/disasm.c simu
