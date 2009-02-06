@@ -1,21 +1,7 @@
 (* return the mask giving the nth param (counting from 0) of an instr of the given spec, the result will be a string
-with only '0' or '1' chars representing the bits of the mask *)
+with only '0' or '1' chars representing the bits of the mask,
+the params' order is the one used in the "image" attribute *)
 let get_string_mask_for_param_from_op sp n =
-	let get_str e =
-		match e with
-		Irg.FORMAT(str, _) ->
-			str
-		| Irg.CONST(t_e, c) ->
-			if t_e=Irg.STRING then
-				match c with
-				Irg.STRING_CONST(str) ->
-					str
-				| _ -> ""
-			else
-				""
-		| _ ->
-			""
-	in
 	let get_length_from_format f =
 		let l = String.length f in
 		let new_f =
@@ -58,7 +44,7 @@ let get_string_mask_for_param_from_op sp n =
 			e
 		| _ -> Irg.NONE
 	in
-	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))) n
+	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (Fetch.get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))) n
 
 
 

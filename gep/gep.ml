@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.21 2009/01/30 09:08:33 barre Exp $
+ * $Id: gep.ml,v 1.22 2009/02/06 10:21:54 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -185,8 +185,6 @@ let _ =
 	App.process !nmp
 		(fun info ->
 			let dict = make_env info in
-			
-			Fetch.test_build_dec_nodes 0;
 			
 			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
