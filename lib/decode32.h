@@ -21,4 +21,4 @@ extern  "C"
 }
 #endif
 
-#endif /* GLISS_GLISS_INCLUDE_GLISS_decode_H */
+#endif /* GLISS_GLISS_INCLUDE_GLISS_DECODE_H */

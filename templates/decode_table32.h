@@ -92,7 +92,7 @@ $(end)
 
 typedef $(proc)_inst_t *$(proc)_decode_function_t(uint32_t code_inst);
 
-static $(proc)_decode_function_t $(proc)_decode_table[] =
+static $(proc)_decode_function_t *$(proc)_decode_table[] =
 {
 	$(proc)_instr_UNKNOWN_decode$(foreach instructions),
 	$(proc)_instr_$(IDENT)_decode$(end)
