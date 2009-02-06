@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.4 2009/02/03 09:06:24 casse Exp $
+ * $Id: disasm.ml,v 1.5 2009/02/06 18:23:04 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -227,10 +227,13 @@ let _ =
 let rec gen_disasm info inst expr =
 	match expr with
 	  Irg.FORMAT (fmt, args) ->
+	  	let (_, vars) = Toc.declare_list args (0, []) in
+		Toc.declare_temp info.Toc.out vars;
+		ignore(Toc.pregen_list info args 0);
 		Printf.fprintf info.Toc.out "buffer += sprintf(buffer, \"%s\"" fmt;
-		List.iter
-			(fun arg -> output_string info.Toc.out ", "; Toc.gen_expression info arg)
-			args;
+		ignore(List.fold_left
+			(fun idx arg -> output_string info.Toc.out ", "; Toc.gen_expression info arg idx)
+			0 args);
 		output_string info.Toc.out ");\n"
 	| Irg.CONST (_, Irg.STRING_CONST str) ->
 		Printf.fprintf info.Toc.out "buffer += sprintf(buffer,  \"%%s\", \"%s\");\n" (Toc.cstring str)

@@ -4,11 +4,18 @@
 #include <stdio.h>
 /* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
 
+#include "../include/gliss/mem.h"
 #include "fetch.h"
 
 #define gliss_error(e) fprintf(stderr, (e))
 /* we should pass the next option on command line */
 #define GLISS_NO_CACHE_FETCH
+
+/* endianness */
+typedef enum gliss_endianness_t {
+  little = 0,
+  big = 1
+} gliss_endianness_t;
 
 /* fetch structure */
 struct gliss_fetch_t

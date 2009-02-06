@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.7 2009/02/03 09:06:24 casse Exp $
+ * $Id: toc.ml,v 1.8 2009/02/06 18:23:04 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -346,11 +346,6 @@ let convert_binop out op =
 let rec declare_expression expr ctx =
 	let get (idx, vars) t = (idx + 1, (idx, t)::vars) in
 
-	let declare_list args ctx =
-		List.fold_left
-			(fun ctx arg -> declare_expression arg ctx)
-			ctx args in
-	
 	match expr with
 	  Irg.NONE ->
 	  	ctx
@@ -380,6 +375,10 @@ let rec declare_expression expr ctx =
 	| Irg.CONST _ -> ctx
 	| Irg.ELINE (_, _, expr) -> declare_expression expr ctx
 
+and declare_list args ctx =
+	List.fold_left (fun ctx arg -> declare_expression arg ctx) ctx args
+	
+
 
 (** Generate the declaration of the given list of
 	temporary variables.
@@ -394,79 +393,99 @@ let rec declare_temp out vars =
 		vars
 
 
+(** Count the number of used temporary variables
+	without generating the codE.
+	@param		Expression to compute.
+	@param 		Initial index of temporaries.
+	@return		Final index of temporaries. *)
 let rec count_expression expr idx =
-	idx
+	match expr with
+	| Irg.REF _
+	| Irg.NONE
+	| Irg.FIELDOF _
+	| Irg.CONST _ ->
+		idx
+	| Irg.COERCE (_, e) ->
+		count_expression e idx
+	| Irg.UNOP (_, _, e) ->
+		count_expression e idx
+	| Irg.BINOP (t, _, e1, e2) ->
+		count_expression_list [e1; e2] idx
+	| Irg.FORMAT (_, args) ->
+		count_expression_list args idx
+	| Irg.CANON_EXPR (_, _, args) ->
+		count_expression_list args idx
+	| Irg.ITEMOF (_, _, index) ->
+		count_expression index idx
+	| Irg.BITFIELD (_, e, l, u) ->
+		count_expression_list [e; l; u] idx
+	| Irg.IF_EXPR (_, c, t, e) ->
+		count_expression_list [c; t; e] (idx + 1)
+	| Irg.SWITCH_EXPR (_, cond, cases, def) ->
+		count_expression_list (cond::def::(snd (List.split cases))) (idx + 1)
+	| Irg.ELINE (_, _, expr) ->
+		count_expression expr idx
+
 and count_expression_list exprs idx =
 	List.fold_left (fun idx expr -> count_expression expr idx) idx exprs
 
 
 (** Generate the code for the given expression.
 	@param info		Generation information.
-	@param expr		Expression to generate. *)
-let rec gen_expression info expr =
+	@param expr		Expression to generate.
+	@param idx		Initial index of temporaries.
+	@return			Final index of temporaries. *)
+let rec gen_expression (info: info_t) (expr: Irg.expr) idx =
+
+	let get_function op t =
+		match op with
+		| Irg.LROTATE -> Printf.sprintf "gliss_rotate_left%s" (type_to_mem(convert_type t))
+		| Irg.RROTATE -> Printf.sprintf "gliss_rotate_right%s" (type_to_mem(convert_type t))
+		| Irg.EXP -> Printf.sprintf "gliss_exp%s" (type_to_mem(convert_type t))
+		| Irg.CONCAT -> Printf.sprintf "gliss_concat%s" (type_to_mem(convert_type t))
+		| _ -> "" in
+
 	match expr with
 	| Irg.NONE ->
-		Printf.fprintf info.out ""
+		idx
 	
+	| Irg.REF name ->
+		get_unindexed info name; idx
+
 	| Irg.UNOP (_, op, e) -> 
 		convert_unop info.out op;
-		gen_expression info e
+		gen_expression info e idx
 
-	| Irg.BINOP (t, Irg.LROTATE, e1, e2) ->
-		Printf.fprintf info.out "gliss_rotate_left%s (" (type_to_mem(convert_type t));
-		gen_expression info e1;
-		Printf.fprintf info.out ",";
-		gen_expression info e2;
-		Printf.fprintf info.out ",";
-		Printf.fprintf info.out "%d" (type_to_int t);
-		Printf.fprintf info.out ")"
+	| Irg.BINOP (t, op, e1, e2) ->
+		let fname = get_function op t in
+		if fname = "" then
+			begin
+				output_char info.out '(';
+				let idx = gen_expression info e1 idx in
+				output_char info.out ' ';
+				convert_binop info.out op;
+				output_char info.out ' ';
+				let idx = gen_expression info e2 idx in
+				output_char info.out ')';
+				idx
+			end
+		else
+			begin
+				Printf.fprintf info.out "%s(" fname;
+				let idx = gen_expression info e1 idx in
+				output_string info.out ", ";
+				let idx = gen_expression info e2 idx in
+				output_char info.out ')';
+				idx
+			end
 		
-
-	| Irg.BINOP (t, Irg.RROTATE, e1, e2) ->
-		Printf.fprintf info.out "gliss_rotate_right%s (" (type_to_mem(convert_type t));
-		gen_expression info e1;
-		Printf.fprintf info.out ",";
-		gen_expression info e2;
-		Printf.fprintf info.out ",";
-		Printf.fprintf info.out "%d" (type_to_int t);
-		Printf.fprintf info.out ")"
-
-	| Irg.BINOP (t, Irg.EXP, e1, e2) ->
-		Printf.fprintf info.out "gliss_exp%s (" (type_to_mem(convert_type t));
-		gen_expression info e1;
-		Printf.fprintf info.out ", ";
-		gen_expression info e2;
-		Printf.fprintf info.out ")"
-
-	(*| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
-		Printf.fprintf out "gliss_concat%s (" (type_to_mem(convert_type t));
-		convert_expression out e1;
-		Printf.fprintf out ", ";
-		convert_expression out e2;
-		Printf.fprintf out ",";*)
-
-	| Irg.BINOP (_, op, e1, e2)-> 
-		Printf.fprintf info.out "(";
-		gen_expression info e1;
-		Printf.fprintf info.out ")";
-		convert_binop info.out op;
-		Printf.fprintf info.out "(";
-		gen_expression info e2;
-		Printf.fprintf info.out ")"
- 	
 	| Irg.IF_EXPR (_, c, t, e) ->
-		Printf.fprintf info.out "if (";
-		gen_expression info c;
-		Printf.fprintf info.out ") ";
-		gen_expression info t;
-		Printf.fprintf info.out " else ";
-		gen_expression info e
+		output_string info.out (temp_name idx);
+		count_expression_list [c; t; e] (idx + 1)
 
-	| Irg.REF name ->
-		get_unindexed info name
-
-	(*| Irg.SWITCH_EXPR (_,c, cases, def) ->*)
-		
+	| Irg.SWITCH_EXPR (_, cond, cases, def) ->
+		output_string info.out (temp_name idx);
+		count_expression_list (cond::def::(snd (List.split cases))) (idx + 1)		
 
 	| _ -> raise (UnsupportedExpression expr) 
 
@@ -477,12 +496,68 @@ let rec gen_expression info expr =
 	@param expr		Expression to generation.
 	@param idx		Top temporary index.
 	@return			Overall temporary index. *)
-let rec pregen_expression info expr idx =
+let rec pregen_expression (info : info_t) expr idx =
 
-	let pregen_list args idx =
-		List.fold_left
-			(fun idx arg -> pregen_expression info arg idx)
-			idx args in
+	let make_if (cond: Irg.expr) tpart epart =
+		let tmp = idx in
+		
+		(* condition *)
+		let cond_idx = pregen_expression info cond (idx + 1) in
+		output_string info.out "\tif(";
+		ignore (gen_expression info cond (idx + 1));
+		
+		(* the part *)
+		output_string info.out "\t) {\n";
+		let tpart_idx = pregen_expression info  tpart cond_idx in
+		Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
+		ignore(gen_expression info tpart cond_idx);
+		
+		(* else part *)
+		output_string info.out "\t} else {\n";
+		let epart_idx = pregen_expression info epart tpart_idx in
+		Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
+		ignore (gen_expression info tpart tpart_idx);		
+
+		(* end of if *)
+		output_string info.out "\t}\n";
+		epart_idx in
+	
+	let make_switch cond cases def =
+		let tmp = idx in
+		
+		(* the condition *)
+		let cond_idx = pregen_expression info cond idx in
+		output_string info.out "\tswitch(";
+		ignore(gen_expression info cond idx);
+		output_string info.out ") {\n";
+		
+		(* the cases *)
+		let case_idx = List.fold_left
+			(fun idx (case, expr) ->
+				output_string info.out "\t\tcase ";
+				ignore(gen_expression info case 0);
+				output_string info.out ": {\n";
+				let new_idx = pregen_expression info expr idx in
+				Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
+				ignore(gen_expression info expr idx);
+				output_string info.out "; }\n\t\tbreak;\n";
+				new_idx
+			)
+			(count_expression def cond_idx) cases in
+		
+		(* default case *)
+		if def <> Irg.NONE then
+			begin
+				output_string info.out "\tdefault: {\n";
+				ignore(pregen_expression info def cond_idx);
+				Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
+				ignore(gen_expression info def cond_idx);
+				output_string info.out ";\n\t}\n\tbreak;\n"
+			end;
+		
+		(* the end *)
+		output_string info.out "\t}\n";
+		case_idx in
 	
 	match expr with
 	  Irg.NONE
@@ -491,27 +566,32 @@ let rec pregen_expression info expr idx =
 	| Irg.COERCE (_, expr) ->
 		pregen_expression info expr idx
 	| Irg.FORMAT (_, args) ->
-		pregen_list args idx
+		pregen_list info args idx
 	| Irg.CANON_EXPR (_, _, args) ->
-		pregen_list args idx
+		pregen_list info args idx
 	| Irg.ITEMOF (t, Irg.REF name, index) ->
 		pregen_expression info index idx
 	| Irg.ITEMOF _
 	| Irg.FIELDOF _ ->
 		failwith "???"
 	| Irg.BITFIELD (_, expr, low, up) ->
-		pregen_list [expr; low; up] idx
+		pregen_list info [expr; low; up] idx
 	| Irg.UNOP (_, _, expr) ->
 		pregen_expression info expr idx
 	| Irg.BINOP (_, _, expr1, expr2) ->
-		pregen_list [expr1; expr2] idx
+		pregen_list info [expr1; expr2] idx
 	| Irg.IF_EXPR (t, cond, tpart, epart) ->
-		count_expression_list [tpart; epart] (pregen_expression info cond idx)
+		make_if cond tpart epart
 	| Irg.SWITCH_EXPR (t, cond, cases, def) ->
-		count_expression_list (def::(snd (List.split cases))) (pregen_expression info cond (idx + 1))
+		make_switch cond cases def 
 	| Irg.CONST _ -> idx
 	| Irg.ELINE (_, _, expr) -> pregen_expression info expr idx
 
+and pregen_list info args idx =
+	List.fold_left
+		(fun idx arg -> pregen_expression info arg idx)
+		idx args
+	
 
 (** Convert an OCAML string to generated C string code.
 	Replace '"' and '\', respectively, by '\"' and '\\'.
