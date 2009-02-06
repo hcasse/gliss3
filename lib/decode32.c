@@ -5,7 +5,7 @@
 /* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
 
 #include "decode.h" /* api.h will be in it, for fetch functions, decode_table.h also */
-#include "config.h"
+#include "config.h" /* for memory endiannesses */
 
 #define gliss_error(e) fprintf(stderr, (e))
 
@@ -65,14 +65,6 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 }
 
 
-/* copied from loader.c */
-static int is_host_little(void)
-{
-    uint32_t x;
-    x = 0xDEADBEEF;
-    return ( ((unsigned char) x) == 0xEF );
-}
-
 /* Fonctions Principales */
 
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
@@ -92,4 +84,4 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 }
 
 
-/* End of file gliss_fetch.c */
+/* End of file gliss_decode.c */
