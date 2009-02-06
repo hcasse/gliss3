@@ -7,10 +7,12 @@ GFLAGS=-m \
 	-m decode:decode32 \
 	-a disasm.c
 
-all: ppc.nml src/config.h gep src/disasm.c simu
+all: ppc.nml src/config.h gep src/disasm.c lib simu
 
 gep:
 	../../gep/gep $(GFLAGS) ppc.nml
+
+lib:
 	(cd src; make)
 
 simu: simu.c

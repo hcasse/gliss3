@@ -19,6 +19,13 @@ extern  "C"
 #define GLISS_FETCH_INIT(s)
 #define GLISS_FETCH_DESTROY(s)
 
+/* fetch structure */
+struct gliss_fetch_t
+{
+	/* the memory which we are supposed to fetch from, useful on Harvard architectures where we deal with several memories */
+	gliss_memory_t *mem;
+};
+
 #if defined(__cplusplus)
 }
 #endif

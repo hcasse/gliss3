@@ -17,13 +17,6 @@ typedef enum gliss_endianness_t {
   big = 1
 } gliss_endianness_t;
 
-/* fetch structure */
-struct gliss_fetch_t
-{
-	/* the memory which we are supposed to fetch from, useful on Harvard architectures where we deal with several memories */
-	gliss_memory_t *mem;
-};
-
 /* Extern Modules */
 /* Constants */
 #ifndef GLISS_NO_CACHE_FETCH

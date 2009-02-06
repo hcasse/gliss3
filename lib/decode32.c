@@ -4,10 +4,17 @@
 #include <stdio.h>
 /* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
 
+#include "fetch.h"
 #include "decode.h" /* api.h will be in it, for fetch functions, decode_table.h also */
 #include "config.h" /* for memory endiannesses */
 
 #define gliss_error(e) fprintf(stderr, (e))
+
+/* endianness */
+typedef enum gliss_endianness_t {
+  little = 0,
+  big = 1
+} gliss_endianness_t;
 
 /* decode structure */
 struct gliss_decoder_t
