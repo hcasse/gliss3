@@ -108,7 +108,6 @@ let get_name instr =
 		  Irg.FORMAT(s, e_l) -> s
 		| Irg.CONST(Irg.STRING, Irg.STRING_CONST str) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
-		| e -> begin Irg.print_expr e; "" end
 		| _ -> failwith "syntax does not reduce to a string" in
 
 	

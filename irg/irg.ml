@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.15 2009/01/30 09:08:33 barre Exp $
+ * $Id: irg.ml,v 1.16 2009/02/06 09:59:57 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -486,9 +486,7 @@ let rec output_expr out e =
 		output_expr out def;
 		output_string out " }"
 	| ELINE (_, _, e) ->
-		output_string out "EL{";
-		output_expr out e;
-		output_string out "}"
+		output_expr out e
 	| CONST (_,c) ->
 		output_const out c
 
@@ -581,8 +579,8 @@ let rec output_statement out stat =
 		output_string out "=";
 		output_expr out exp;
 		output_string out ";\n"
-	| LINE (_,_,s)
-		-> output_statement out s
+	| LINE (_,_,s) ->
+		output_statement out s
 
 
 (** Print a statement
@@ -730,6 +728,46 @@ let print_spec spec =
 
 (* now let's try to obtain all the real OPs from a given OP by "unrolling" all MODES *)
 
+
+(* some useful functions *)
+
+let get_type p =
+	match p with
+	(str, TYPE_ID(n)) ->
+		n
+	| _ ->
+		"[err741]"		
+
+let get_name p =
+	match p with
+	(str, _) ->
+		str
+
+let print_param p =
+	match p with
+	(str, TYPE_ID(n)) ->
+		Printf.printf " (%s:%s) " (get_name p) (get_type p)
+	| (str, TYPE_EXPR(t)) ->
+		begin
+		Printf.printf " (%s:" (get_name p);
+		print_type (TYPE_EXPR(t));
+		print_string ") "
+		end
+
+let rec print_param_list l =
+begin
+	match l with
+	[] ->
+		print_string "\n"
+	| h::q ->
+		begin
+		print_param h;
+		print_param_list q
+		end
+end
+
+
+
 (** get the statement associated with attribute name_attr of the spec sp *)
 let get_stat_from_attr_from_spec sp name_attr =
 	let rec get_attr n a =
@@ -862,7 +900,6 @@ let rec substitute_in_stat name op statement =
 		(* don't know what it is exactly, cannot find an example *)
 		SETSPE(l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
-		(* is it ok to do this ? *)
 		LINE(s, i, substitute_in_stat name op st)
 		
 
@@ -1006,11 +1043,11 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 		| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
-			| _ -> ""
+			| _ -> "[err1008]"
 			)
 		| REF(s) -> s
 		| ELINE (_, _, e) -> get_str_from_format_expr e
-		| _ -> ""
+		| _ -> "[err1012]"
 	in
 	match str_format with
 	Str.Text(t) -> t
@@ -1075,41 +1112,6 @@ let rec search_spec_of_name name param_list =
 		TYPE_ID(n) -> get_symbol n
 		| _ -> UNDEF
 	in
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-	begin
-		match l with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	end
-	in
 	let rec rec_aux nam p_l =
 		match p_l with
 		(n, t)::q ->
@@ -1131,41 +1133,6 @@ let rec search_spec_of_name name param_list =
 if e is like "x.image", it returns the spec of "x" where all var names are prefixed by the name of the former param,
 avoid same name for different vars if instantiating several params of same type *)
 let get_spec_from_expr e spec_params =
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-	begin
-		match l with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	end
-	in
 	let rec rec_aux ex p_l =
 		match ex with
 		FIELDOF(_, expre, _) -> rec_aux expre spec_params
@@ -1219,41 +1186,6 @@ the format is supposed to be an attribute of a spec
 whose params are given in spec_params 
 returns a string list where each format has been replaced by the correct image or syntax (or else) *)
 let transform_str_list reg_list expr_list spec_params =
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-	begin
-		match l with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	end
-	in
 	let rec print_reg_list rl =
 		match rl with
 		[] ->
@@ -1310,41 +1242,6 @@ let transform_str_list reg_list expr_list spec_params =
 the vars to instantiate are given in a list of couples (name of var, spec of the var)
 the vars must have been instantiated to real op (not OR op which have no attribute at all) *)
 let change_format_attr expr_frmt param_list =
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-	begin
-		match l with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	end
-	in
 	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
@@ -1355,7 +1252,7 @@ let change_format_attr expr_frmt param_list =
 			)
 		| REF(s) -> s
 		| ELINE(_, _, e) -> get_str_from_format_expr e
-		| _ -> ""
+		| _ -> "[err1357]"
 	in
 	let rec get_param_from_format_expr f =
 		match f with
@@ -1374,15 +1271,27 @@ let change_format_attr expr_frmt param_list =
 				CONST(STRING, STRING_CONST(str))
 			else
 				f
-		| ELINE (file, line, e) -> ELINE (file, line, reduce_frmt e)
+		| ELINE (file, line, e) ->
+			(* rough fix for a bug where we obtain a lot of EL imbricated outside a transformed format *)
+			(match e with
+			ELINE(_, _, _) ->
+				reduce_frmt e
+			| _ ->
+				ELINE(file, line, reduce_frmt e)
+			)
 		| _ -> f
 	in
 	begin
 	(*print_string "Chg_frmt_attr\nfrmt_expr = ";
 	print_expr expr_frmt;
 	print_string "\nparams = ";
-	print_param_list param_list;*)
-	reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
+	print_param_list param_list;
+	*)
+	let res = reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
+	in
+	(*print_expr res;
+	flush stdout;*)
+	res
 	end
 
 (* replace the type by the spec if the param refers to an op or mode,
@@ -1421,6 +1330,11 @@ let rec instantiate_in_expr ex param_list =
 	in
 	match ex with
 	FORMAT(_, _) ->
+		(*Printf.printf "inst_in_exp, expr : ";
+		print_expr ex;
+		Printf.printf "\napres :";
+		print_expr (change_format_attr ex param_list);
+		print_string "\n\n";*)
 		change_format_attr ex param_list
 	| ELINE(a, b, e) ->
 		ELINE(a, b, instantiate_in_expr e param_list)
@@ -1586,39 +1500,6 @@ let rec add_new_attrs sp param_list =
 
 
 let instantiate_spec sp param_list =
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-		match l with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	in
 	let is_type_def_spec sp =
 		match sp with
 		TYPE(_, _) ->
@@ -1649,21 +1530,9 @@ let instantiate_spec sp param_list =
 	in
 	let new_param_list = simplify_param_list param_list
 	in
-	(*begin
-	print_string "\n##################################\nInstantiate_spec\n####spec =\n";
-	print_spec sp;
-	print_string "####prms = ";
-	print_param_list new_param_list;
-	print_string "####res =\n";*)
 	match sp with
 	AND_OP(name, params, attrs) ->
-		let res = add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
-		in
-		begin
-		(*print_spec res;
-		print_string "\n";*)
-		res
-		end
+		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
 	| _ ->
 		UNDEF
 
@@ -1703,7 +1572,6 @@ let rec instantiate_spec_list s_l =
 			a::(instantiate_spec_list b)
 
 
-(*let tree_of_all_ops = op_tree_op (get_symbol "instruction")*)
 
 
 (* this function instantiate all possible instructions given by the spec name in the hashtable *)			
@@ -1736,6 +1604,31 @@ let instantiate_instructions name =
 		| _ ->
 			false
 	in
+	let rec clean_attr a =
+		match a with
+		ATTR_EXPR(n, e) ->
+			(match e with
+			ELINE(f, l, ee) ->
+				(match ee with
+				ELINE(_, _, eee) ->
+					clean_attr (ATTR_EXPR(n, ELINE(f, l, eee)))
+				| _ ->
+					ATTR_EXPR(n, ELINE(f, l, ee))
+				)
+			| _ ->
+				a
+			)
+		| _ ->
+			a
+	in
+	(* a try to fix over imbrication of ELINE *)
+	let rec clean_eline s =
+		match s with
+		AND_OP(n, st_l, al) ->
+			AND_OP(n, st_l, List.map clean_attr al)
+		| _ ->
+			s
+	in
 	let rec clean_instructions s_l =
 		match s_l with
 		[] ->
@@ -1744,7 +1637,7 @@ let instantiate_instructions name =
 			if is_void_spec h then
 				clean_instructions t
 			else
-				h::(clean_instructions t)
+				(clean_eline h)::(clean_instructions t)
 	in
 	let rec aux s_l =
 		if List.exists is_instantiable s_l then
@@ -1772,41 +1665,6 @@ let test_instant_spec name =
 	print_spec_list (instantiate_instructions name)
 
 let test_instant_param p =
-	let get_type p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			n
-		| _ ->
-			""		
-	in
-	let get_name p =
-		match p with
-		(str, _) ->
-			str
-	in
-	let print_param p =
-		match p with
-		(str, TYPE_ID(n)) ->
-			Printf.printf " (%s:%s) " (get_name p) (get_type p)
-		| (str, TYPE_EXPR(t)) ->
-			begin
-			Printf.printf " (%s:" (get_name p);
-			print_type (TYPE_EXPR(t));
-			print_string ") "
-			end
-	in
-	let rec print_param_list l =
-	begin
-		match l with
-		[] ->
-			()
-		| h::q ->
-			begin
-			print_param h;
-			print_param_list q
-			end
-	end
-	in
 	let rec print_param_list_list l =
 	begin
 		match l with

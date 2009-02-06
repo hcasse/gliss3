@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.10 2009/01/29 09:46:03 casse Exp $
+ * $Id: sem.ml,v 1.11 2009/02/06 09:59:58 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1095,7 +1095,7 @@ let build_format str exp_list=
 			in
 			if not (List.for_all (fun e->e) test_list) then raise (SemError (Printf.sprintf "incorrect type in this format "))
 			else
-			FORMAT (str, exp_list)
+			FORMAT (str, (List.rev exp_list))
 
 
 
