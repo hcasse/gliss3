@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.h,v 1.5 2009/02/11 13:44:46 casse Exp $
+ *	$Id: old_elf.h,v 1.6 2009/02/12 12:22:24 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -172,12 +172,17 @@ typedef int gliss_sect_t;
 int gliss_loader_count_sects(gliss_loader_t *loader);
 Elf32_Shdr *gliss_loader_first_sect(gliss_loader_t *loader, gliss_sect_t *sect);
 Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect);
+/* the name of an ELF "element" (symbol, section...) cannot be accessed directly from an Elf32_* */
+char *gliss_loader_name_of_sect(gliss_sect_t sect);
 
 /* symbol iteration */
 typedef int gliss_sym_t;
 int gliss_loader_count_syms(gliss_loader_t *loader);
 Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym);
 Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym);
+/* the name of an ELF "element" (symbol, section...) cannot be accessed directly from an Elf32_* */
+char *gliss_loader_name_of_sym(gliss_sym_t sym);
+
 
 
 #if defined(__cplusplus)
