@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.3 2009/02/11 13:44:46 casse Exp $
+ *	$Id: old_elf.c,v 1.4 2009/02/12 11:29:27 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -724,3 +724,69 @@ gliss_address_t gliss_loader_start(gliss_loader_t *loader) {
 	assert(loader);
 	return loader->Text.txt_addr;
 }
+
+
+/* section iteration */
+
+int gliss_loader_count_sects(gliss_loader_t *loader)
+{
+	return loader->Tables.sechdr_tbl_size;
+}
+
+Elf32_Shdr *gliss_loader_first_sect(gliss_loader_t *loader, gliss_sect_t *sect)
+{
+	/* initialize the iterator (starts at 0) */
+	*sect = 0;
+	/* return the first elf section */
+	return loader->Tables.sec_header_tbl;
+}
+
+Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect)
+{
+	/* first check the iterator */
+	if (*sect < 0)
+		/* an negative iterator could be the convention for an "out bound" iterator (eg: if we call this function on the very last section) */
+		return 0;
+	if (*sect == (loader->Tables.sechdr_tbl_size - 1))
+	{
+		/* we are on the last section, we cannot go any further */
+		*sect = -1;
+		return 0;
+	}
+
+	return &loader->Tables.sec_header_tbl[++(*sect)];
+}
+
+
+/* symbol iteration */
+
+int gliss_loader_count_syms(gliss_loader_t *loader)
+{
+	return loader->Tables.symtbl_ndx;
+}
+
+Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
+{
+	/* initialize the iterator (starts at 0) */
+	*sym = 0;
+	/* return the first elf symbol */
+	return loader->Tables.sym_tbl;
+}
+
+Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
+{
+	/* first check the iterator */
+	if (*sym < 0)
+		/* an negative iterator could be the convention for an "out bound" iterator (eg: if we call this function on the very last symbol) */
+		return 0;
+	if (*sym == (loader->Tables.symtbl_ndx - 1))
+	{
+		/* we are on the last symbol, we cannot go any further */
+		*sym = -1;
+		return 0;
+	}
+	
+	(*sym)++;
+	return &loader->Tables.sym_tbl[++(*sym)];
+}
+

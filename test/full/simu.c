@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <ppc/api.h>
+#include <../src/loader.h>
 
 int main(int argc, char **argv) {
 	ppc_platform_t *pf;
+	ppc_sym_t s_it;
+	Elf32_Sym *s;
 	
 	/* test arguments */
 	if(argc != 2) {
@@ -23,21 +26,38 @@ int main(int argc, char **argv) {
 		return 3;
 	}
 	
-	ppc_fetch_t *f = ppc_new_fetch(pf);
+	/*ppc_fetch_t *f = ppc_new_fetch(pf);*/
 	/* the exe i have tested have their code beginnin at this address */
-	ppc_address_t a = 0x10000080;
+	/*ppc_address_t a = 0x10000080;
 	int i;
 	for (i=0; i<100; i++)
 	{
 		int n = ppc_fetch(f, a);
 		uint32_t code = ppc_mem_read32(ppc_get_memory(pf, 0), a);
-		printf("@ %08X => %08X => %d\t\t%s.\n", a, code, n, ppc_get_string_ident(n));
+		//printf("@ %08X => %08X => %d\t\t%s.\n", a, code, n, ppc_get_string_ident(n));
 		a += 4;
 	}
-
 	ppc_delete_fetch(f);
+	
+	printf("\ntesting decode\n");
+	ppc_decoder_t *d = ppc_new_decoder(pf);
+	a = 0x10000080;
+	for (i=0; i<100; i++)
+	{
+		char buff[100];
+		ppc_inst_t *inst = ppc_decode(d, a);
+		ppc_disasm(buff, inst);
+		uint32_t code = ppc_mem_read32(ppc_get_memory(pf, 0), a);
+		printf("@ %08X => %08X => %s.\n", a, code, buff);
+		a += 4;
+	}
+	ppc_delete_decoder(d);*/
+	
+	/* dump symbol table */
 
-	printf("testing decode");
+	printf("dump symbol table\n");
+	s = gliss_loader_first_sym()
+	
 	
 	/* delete the platform */
 	ppc_unlock_platform(pf);
@@ -45,8 +65,3 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-/* decoding */
-ppc_decoder_t *ppc_new_decoder(ppc_platform_t *state);
-void ppc_delete_decoder(ppc_decoder_t *fetch);
-ppc_inst_t *ppc_decode(ppc_decoder_t *decoder, ppc_address_t address);
-void ppc_free_inst(ppc_inst_t *inst);
