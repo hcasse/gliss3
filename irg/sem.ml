@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.12 2009/02/16 15:53:28 casse Exp $
+ * $Id: sem.ml,v 1.13 2009/02/16 18:20:30 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1024,7 +1024,7 @@ let rec is_loc_spe id=
 *)
 let is_setspe loc=	
 	match loc with
-	LOC_REF (_, id) -> (let symb= get_symbol id 
+	LOC_REF (_, id, Irg.NONE, Irg.NONE, Irg.NONE) -> (let symb= get_symbol id 
 			in
 			match  symb with
 				|PARAM _->true
@@ -1238,9 +1238,7 @@ let build_canonical_stat name param=
 	@return		Type of the location. *)
 let get_loc_type loc =
 	match loc with
-	| LOC_REF (t, _) -> t
-	| LOC_ITEMOF (t, _, _) -> t
-	| LOC_BITFIELD (t, _, _, _) -> t
+	| LOC_REF (t, _, _, _, _) -> t
 	| LOC_CONCAT (t, _, _) -> t
 
 

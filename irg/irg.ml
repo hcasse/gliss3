@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.17 2009/02/16 15:53:27 casse Exp $
+ * $Id: irg.ml,v 1.18 2009/02/16 18:20:29 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -96,9 +96,7 @@ type expr =
 	
 (** Statements *)
 type location =
-	  LOC_REF of type_expr * string
-	| LOC_ITEMOF of type_expr * location * expr
-	| LOC_BITFIELD of type_expr * location * expr * expr
+	  LOC_REF of type_expr * string * expr * expr * expr
 	| LOC_CONCAT of type_expr * location * location
 
 type mem_attr =
@@ -501,23 +499,25 @@ let rec print_expr e = output_expr stdout e
 	@param loc	Location to print. *)
 let rec output_location out loc =
 	match loc with
-	  LOC_REF (_, id) ->
-	  	output_string out id
-	| LOC_ITEMOF (_, e, idx) ->
-		output_location out e;
-		output_string out "[";
-		output_expr out idx;
-		output_string out "]"
-	| LOC_BITFIELD (_, e, l, u) ->
-		output_location out e;
-		output_string out "[";
-		output_expr out l;
-		output_string out "..";
-		output_expr out u;
-		output_string out "]"
+	  LOC_REF (_, id, idx, lo, up) ->
+	  	output_string out id;
+		if idx <> NONE then
+			begin
+				output_string out "[";
+				output_expr out idx;
+				output_string out "]"
+			end;
+		if lo <> NONE then
+			begin
+				output_string out "<";
+				output_expr out lo;
+				output_string out "..";
+				output_expr out up;
+				output_string out ">"
+			end
 	| LOC_CONCAT (_, l1, l2) ->
 		output_location out l1;
-		output_string out "..";
+		output_string out "::";
 		output_location out l2
 
 
@@ -940,15 +940,13 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 
 let rec change_name_of_var_in_location loc var_name new_name =
 	match loc with
-	LOC_REF(t, s) ->
-		if s = var_name then
-			LOC_REF(t, new_name)
-		else
-			LOC_REF(t, s)
-	| LOC_ITEMOF(t, l, e) ->
-		LOC_ITEMOF(t, change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
-	| LOC_BITFIELD(t, l, e1, e2) ->
-		LOC_BITFIELD(t, change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name)
+	LOC_REF(t, s, i, l, u) ->
+		LOC_REF (
+			t,
+			(if s = var_name then new_name else s),
+			change_name_of_var_in_expr i var_name new_name,
+			change_name_of_var_in_expr l var_name new_name,
+			change_name_of_var_in_expr u var_name new_name)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
 
