@@ -1,5 +1,5 @@
 /*
- *	$Id: gliss.h,v 1.1 2008/12/23 09:36:36 casse Exp $
+ *	$Id: gliss.h,v 1.2 2009/02/16 18:42:09 casse Exp $
  *	gliss declarations
  *
  *	This file is part of OTAWA
@@ -58,5 +58,26 @@ int32_t gliss_exp32(int32_t v1, int32_t v2);
 uint32_t gliss_exp32u(uint32_t v1, uint32_t v2);
 int64_t gliss_exp64(int64_t v1, int64_t v2);
 uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
+
+/* set field */
+#define gliss_set_field8(v, s, l, u) ((int8_t)gliss_set_field32u(v, s, l, u))
+#define gliss_set_field8u(v, s, l, u) gliss_set_field32u(v, s, l, u)
+#define gliss_set_field16(v, s, l, u) ((int16_t)gliss_set_field32u(v, s, l, u))
+#define gliss_set_field16u(v, s, l, u) gliss_set_field32u(v, s, l, u)
+#define gliss_set_field32(v, s, l, u) ((int32_t)gliss_set_field32u(v, s, l, u))
+uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t l, int32_t u);
+#define gliss_set_field64(v, s, l, u) ((int64_t)gliss_set_field64u(v, s, l, u))
+uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t l, int32_t u);
+
+/* field */
+#define gliss_field8(v, l, u) gliss_field32u(v, l, u)
+#define gliss_field8u(v, l, u) gliss_field32u(v, l, u)
+#define gliss_field16(v, l, u) gliss_field32u(v, l, u)
+#define gliss_field16u(v, l, u) gliss_field32u(v, l, u)
+#define gliss_field32(v, l, u) gliss_field32u(v, l, u)
+uint32_t gliss_field32u(uint32_t v, uint32_t l, uint32_t u);
+#define gliss_field64(v, l, u) gliss_field64u(v, l, u)
+uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u);
+
 
 #endif /* GLISS_H */

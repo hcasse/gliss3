@@ -1,5 +1,5 @@
 /*
- *	$Id: gliss.c,v 1.2 2008/12/22 14:54:59 casse Exp $
+ *	$Id: gliss.c,v 1.3 2009/02/16 18:42:09 casse Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -72,4 +72,25 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2) {
 			v1 <<= 1;
 		}	
 	return res;
+}
+
+
+uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t l, int32_t u) {
+	uint32_t mask = ((1 << (u - l) ) - 1) << l;
+	return (v & ~mask) | ((s << l) & mask);
+}
+
+
+uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t l, int32_t u) {
+	uint64_t mask = ((1 << (u - l) ) - 1) << l;
+	return (v & ~mask) | ((s << l) & mask);
+}
+
+uint32_t gliss_field32u(uint32_t v, uint32_t l, uint32_t u) {
+	return (v & ((1 << (u - l)) - 1)) >> l;
+}
+
+
+uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u) {
+	return (v & ((1 << (u - l)) - 1)) >> l;
 }
