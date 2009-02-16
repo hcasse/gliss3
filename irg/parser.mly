@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.9 2009/01/29 09:46:03 casse Exp $
+ * $Id: parser.mly,v 1.10 2009/02/16 15:53:27 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -286,14 +286,17 @@ MemLocation:
 	MemLocBase
 		{ $1 }
 |	MemLocBase BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{ Irg.LOC_BITFIELD ($1, $3, $5) }
+		{ Irg.LOC_BITFIELD (Sem.get_loc_type $1, $1, $3, $5) }
 ;
 
 MemLocBase:
 	ID
-		{ Irg.LOC_REF $1 }
+		{ Irg.LOC_REF (Sem.get_loc_ref_type $1, $1) }
 |	ID LBRACK Expr RBRACK
-		{ Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3) }
+		{
+			let t = Sem.get_loc_ref_type $1 in
+			Irg.LOC_ITEMOF(t, Irg.LOC_REF (t, $1), $3)
+		}
 ;
 
 ModeSpec:
@@ -509,7 +512,7 @@ Opt_Bit_Optr :
 Location :
 	ID
 		{ if (Sem.is_location $1) || (Sem.is_loc_spe $1) || (Sem.is_loc_mode $1)
-			then	Irg.LOC_REF $1 
+			then	Irg.LOC_REF (Sem.get_loc_ref_type $1, $1)
 			else	
 				let dsp=fun _->(
 					print_string "Type : ";
@@ -523,7 +526,8 @@ Location :
 		{ 
 			if (Sem.is_location $1) || (Sem.is_loc_spe $1)	 || (Sem.is_loc_mode $1) 
 			then
-				Irg.LOC_BITFIELD (Irg.LOC_REF $1, $3, $5)
+				let t = Sem.get_loc_ref_type $1 in
+				Irg.LOC_BITFIELD (t, Irg.LOC_REF (t, $1), $3, $5)
 			else 
 				let dsp = fun _->(
 						print_string "Type : ";
@@ -536,7 +540,8 @@ Location :
 		{ 
 			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
 			then
-				Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3) 
+				let t = Sem.get_loc_ref_type $1 in
+				Irg.LOC_ITEMOF (t, Irg.LOC_REF (t, $1), $3) 
 			else 
 				let dsp = fun _->(
 						print_string "Type : ";
@@ -549,7 +554,8 @@ Location :
 		{ 
 			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
 			then
-				Irg.LOC_BITFIELD (Irg.LOC_ITEMOF (Irg.LOC_REF $1, $3), $6, $8) 
+				let t = Sem.get_loc_ref_type $1 in
+				Irg.LOC_BITFIELD (t, Irg.LOC_ITEMOF (t, Irg.LOC_REF (t, $1), $3), $6, $8) 
 			else 
 				let dsp = fun _->(
 						print_string "Type : ";
@@ -559,7 +565,12 @@ Location :
 				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))	
 		}
 |	Location DOUBLE_COLON Location
-		{ Irg.LOC_CONCAT ($1, $3) }
+		{
+			let length =
+				(Sem.get_type_length (Sem.get_loc_type $1)) +
+				(Sem.get_type_length (Sem.get_loc_type $3)) in
+			Irg.LOC_CONCAT (Irg.CARD length, $1, $3)
+		}
 ;
 
 

@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.11 2009/02/06 09:59:58 barre Exp $
+ * $Id: sem.ml,v 1.12 2009/02/16 15:53:28 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -471,27 +471,38 @@ and get_type_expr exp=
 		|ELINE (_, _, e) -> get_type_expr e
 
 
+(** Give the bit length of a type expression
+	@param t		the type expression of which we want the size
+	@return 		the bit-length of the expression (as an iteger)
+	@raise Failure	this exception is raised when it is not possible
+					to determine the length (for expressions of type NO_TYPE,
+					STRING or UNKNOW_TYPE)
+*)
+let get_type_length t =
+	match t with
+	| BOOL -> 1
+	| INT n -> n
+	| CARD n -> n
+	| FIX (n,m) -> n + m
+	| FLOAT (n,m) -> n + m
+	| ENUM l ->
+		let i = List.length l in
+		int_of_float (ceil ((log (float i)) /. (log 2.)))
+	| RANGE (_, m) ->
+		int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
+	| NO_TYPE
+	| STRING
+	| UNKNOW_TYPE -> 
+		failwith "length unknown"
+
+
 (** Give the bit lenght of an expression 
 	@param e	the expression of wich we want the size
 	@return 	the bit-length of the expression (as an iteger)
 	@raise Failure	this exception is raised when it is not possible to determine the length (for expressions of type NO_TYPE, STRING or UNKNOW_TYPE)
 *)
 let get_length_from_expr e=	
-	let t=get_type_expr e
-	in
-	match t with
-	 BOOL-> 1
-	|INT n->n
-	|CARD n->n
-	|FIX (n,m)->n+m
-	|FLOAT(n,m)->n+m
-	|ENUM l->(	let i = List.length l 
-			in
-			int_of_float (ceil ((log (float i)) /. (log 2.)))
-		 )
-	|RANGE (_, m)->int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
-	|(NO_TYPE|STRING|UNKNOW_TYPE)->failwith "length unknown"
-
+	get_type_length (get_type_expr e)
 
 
 (** Check the matching of a unary operation and the type of its operand.
@@ -1013,7 +1024,7 @@ let rec is_loc_spe id=
 *)
 let is_setspe loc=	
 	match loc with
-	LOC_REF id->(let symb= get_symbol id 
+	LOC_REF (_, id) -> (let symb= get_symbol id 
 			in
 			match  symb with
 				|PARAM _->true
@@ -1221,6 +1232,30 @@ let build_canonical_stat name param=
 				then
 					Lexer.display_warning (Printf.sprintf "the result of the canonical function %s is not used" name));
 			CANON_STAT (name , param)
+
+(** Get type of a location.
+	@param loc	Location to get type of.
+	@return		Type of the location. *)
+let get_loc_type loc =
+	match loc with
+	| LOC_REF (t, _) -> t
+	| LOC_ITEMOF (t, _, _) -> t
+	| LOC_BITFIELD (t, _, _, _) -> t
+	| LOC_CONCAT (t, _, _) -> t
+
+
+(** Get the type of location reference.
+	@param name			Location reference name.
+	@return				Type of the matching location.
+	@raise SemError		Raised when the reference does not exist,
+						or is not a location. *)
+let get_loc_ref_type name =
+	match Irg.get_symbol name with
+	| Irg.UNDEF -> raise (SemError (name ^ " is undefined"))
+	| Irg.MEM (_, _, t, _) -> t
+	| Irg.REG (_, _, t, _) -> t
+	| Irg.VAR (_, _, t) -> t
+	| _ -> raise (SemError (name ^ " is not a location"))
 
 (*					-----
 	The function have attribute commented here was used to check the good usage of attributes.
