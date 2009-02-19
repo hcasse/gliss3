@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.22 2009/02/06 10:21:54 barre Exp $
+ * $Id: gep.ml,v 1.23 2009/02/19 10:25:18 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -104,9 +104,13 @@ let make_env info =
 	let add_mask_32_to_param inst idx _ _ dict =
 		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
 		dict in
+	let add_size_to_inst inst dict =
+		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
+		dict in
 
 	let maker = App.maker() in
 	maker.App.get_params <- add_mask_32_to_param;
+	maker.App.get_instruction <- add_size_to_inst;
 
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
@@ -209,6 +213,7 @@ let _ =
 			make_template "platform.h" "src/platform.h" dict;
 			make_template "fetch_table32.h" "src/fetch_table.h" dict;
 			make_template "decode_table32.h" "src/decode_table.h" dict;
+			make_template "inst_size_table.h" "src/inst_size_table.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
