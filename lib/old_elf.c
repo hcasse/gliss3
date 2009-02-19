@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.4 2009/02/12 11:29:27 barre Exp $
+ *	$Id: old_elf.c,v 1.5 2009/02/19 11:16:58 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -757,12 +757,19 @@ Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect)
 	return &loader->Tables.sec_header_tbl[++(*sect)];
 }
 
+char *gliss_loader_name_of_sect(gliss_loader_t *loader, gliss_sect_t sect)
+{
+	return loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
+}
+
 
 /* symbol iteration */
 
 int gliss_loader_count_syms(gliss_loader_t *loader)
 {
-	return loader->Tables.symtbl_ndx;
+	/* NON c'est le numero de la section des symboles !!! */
+	int i = loader->Tables.symtbl_ndx;
+	return loader->Tables.sec_header_tbl[i].sh_size / loader->Tables.sec_header_tbl[i].sh_entsize;
 }
 
 Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
@@ -775,18 +782,24 @@ Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 
 Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 {
+	int nb = gliss_loader_count_syms(loader);
+	
 	/* first check the iterator */
 	if (*sym < 0)
 		/* an negative iterator could be the convention for an "out bound" iterator (eg: if we call this function on the very last symbol) */
 		return 0;
-	if (*sym == (loader->Tables.symtbl_ndx - 1))
+	if (*sym == (nb - 1))
 	{
 		/* we are on the last symbol, we cannot go any further */
 		*sym = -1;
 		return 0;
 	}
-	
-	(*sym)++;
+
 	return &loader->Tables.sym_tbl[++(*sym)];
+}
+
+char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
+{
+	return loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
 }
 
