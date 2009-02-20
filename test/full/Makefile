@@ -5,6 +5,7 @@ GFLAGS=-m \
 	-m syscall:syscall-linux \
 	-m fetch:fetch32 \
 	-m decode:decode32 \
+	-m inst_size:inst_size \
 	-a disasm.c
 
 all: ppc.nml src/config.h gep src/disasm.c lib simu
