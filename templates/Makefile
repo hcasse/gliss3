@@ -7,7 +7,9 @@ SOURCES = gliss.c \
 
 OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS) lib$(proc).a
-	
+
+CFLAGS += -g3
+
 all: lib$(proc).a
 
 lib$(proc).a: $$(OBJECTS)

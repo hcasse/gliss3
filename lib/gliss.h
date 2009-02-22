@@ -1,5 +1,5 @@
 /*
- *	$Id: gliss.h,v 1.2 2009/02/16 18:42:09 casse Exp $
+ *	$Id: gliss.h,v 1.3 2009/02/23 00:07:34 casse Exp $
  *	gliss declarations
  *
  *	This file is part of OTAWA
@@ -79,5 +79,17 @@ uint32_t gliss_field32u(uint32_t v, uint32_t l, uint32_t u);
 #define gliss_field64(v, l, u) gliss_field64u(v, l, u)
 uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u);
 
+/* enumeration */
+int gliss_enumerate(int val, int max);
+
+/* coercition */
+int32_t gliss_coerce_ftoi(float f);
+uint32_t gliss_coerce_ftou(float f);
+int64_t gliss_coerce_dtoi(double d);
+uint64_t gliss_coerce_dtou(double d);
+float gliss_coerce_itof(int32_t i);
+float gliss_coerce_utof(uint32_t u);
+double gliss_coerce_itod(int64_t i);
+double gliss_coerce_utod(uint64_t u);
 
 #endif /* GLISS_H */

@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.8 2009/02/06 18:23:04 casse Exp $
+ * $Id: toc.ml,v 1.9 2009/02/23 00:07:34 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -76,13 +76,16 @@ type bit_order = UPPERMOST | LOWERMOST
 
 (** Gather information useful for the generation. *)
 type info_t = {
-	mutable out: out_channel;	(** Out channel *)
-	mutable proc: string;		(** Processor name *)
-	mutable state: string;		(** state variable name *)
-	mutable ipath: string;		(** include path *)
-	mutable spath: string;		(** source path *)
-	mutable bito: bit_order;	(** define bit order for bit fields *)
-	mutable inst: string;		(** current  integrated instruction name *)
+	mutable out: out_channel;		(** out channel *)
+	mutable proc: string;			(** processor name *)
+	mutable state: string;			(** state variable name *)
+	mutable ipath: string;			(** include path *)
+	mutable spath: string;			(** source path *)
+	mutable bito: bit_order;		(** define bit order for bit fields *)
+	mutable inst: string;			(** current  integrated instruction name *)
+	mutable temp: int;				(** index for a new temporary *)
+	mutable temps: (string * Irg.type_expr) list;		(** list of temporaries *)
+	mutable vars: (string * (int * Irg.type_expr)) list	(** list of used variables *)
 }
 
 
@@ -109,6 +112,9 @@ let info _ =
 		ipath = "include/" ^ p;
 		spath = "src";
 		bito = b;
+		temp = 0;
+		temps = [];
+		vars = []
 	}
 
 
@@ -300,6 +306,59 @@ let get_indexed info i name index expr =
 	| _ -> assert false
 
 
+(** Build a new temporary.
+	@param info	Current generation information.
+	@param t	Type of the temporary.
+	@return		Temporary name. *)
+let new_temp info typ =
+	let var = Printf.sprintf "__gtmp_%d" info.temp in
+	info.temp <- info.temp + 1;
+	info.temps <- (var, typ)::info.temps;
+	var
+
+
+(** Add a used variable (and only if it has not been declared).
+	@param info	Generation information.
+	@param name	Name of the variable.
+	@param cnt	Count of array.
+	@param typ	Type of the variable. *)
+let add_var info name cnt typ =
+	if not (List.mem_assoc name info.vars)
+	then info.vars <- (name, (cnt, typ)) :: info.vars
+
+
+(** Declare temporaries variables.
+	@param	Generation information. *)
+let declare_temps info =
+	List.iter
+		(fun (name, typ) ->
+			Irg.add_symbol name (Irg.VAR (name, 1, typ));
+			Printf.fprintf info.out "\t%s %s; "
+				(type_to_string (convert_type typ))
+				name
+		)
+		info.temps;
+	List.iter
+		(fun (name, (cnt, typ)) ->
+			Printf.fprintf info.out "\t%s %s%s; "
+				(type_to_string (convert_type typ))
+				name
+				(if cnt = 1 then "" else Printf.sprintf "[%d]" cnt)
+		)
+		info.vars
+
+
+(** cleanup temporaries.
+	@param info	Generation information. *)
+let cleanup_temps info =
+	List.iter
+		(fun (name, _) -> Irg.rm_symbol name)
+		info.temps;
+	info.temp <- 0;
+	info.temps <- [];
+	info.vars <- []
+
+
 (** Convert unary operator to C operator.
 	@param out	Channel to output to.
 	@param op	Unary operator to convert. *)
@@ -339,260 +398,6 @@ let convert_binop out op =
 	| Irg.EXP	-> Printf.fprintf out ""
 
 
-(** Generate the variables required to translate the given expression.
-	@param ctx	(top index of generated variables, variables created until now).
-	@param expr	Expression to process.
-	@return		(top index, created variables) *)
-let rec declare_expression expr ctx =
-	let get (idx, vars) t = (idx + 1, (idx, t)::vars) in
-
-	match expr with
-	  Irg.NONE ->
-	  	ctx
-	| Irg.COERCE (_, expr) ->
-		declare_expression expr ctx
-	| Irg.FORMAT (_, args) ->
-		declare_list args ctx
-	| Irg.CANON_EXPR (_, _, args) ->
-		declare_list args ctx
-	| Irg.REF _ ->
-		ctx
-	| Irg.ITEMOF (t, Irg.REF name, index) ->
-		declare_expression index ctx
-	| Irg.ITEMOF _
-	| Irg.FIELDOF _ ->
-		failwith "???"
-	| Irg.BITFIELD (_, expr, low, up) ->
-		declare_list [expr; low; up] ctx
-	| Irg.UNOP (_, _, expr) ->
-		declare_expression expr ctx
-	| Irg.BINOP (_, _, expr1, expr2) ->
-		declare_list [expr1; expr2] ctx
-	| Irg.IF_EXPR (t, cond, tpart, epart) ->
-		declare_list [cond; tpart; epart] (get ctx t)
-	| Irg.SWITCH_EXPR (t, cond, cases, def) ->
-		declare_list (cond::def::(snd (List.split cases))) (get ctx t)
-	| Irg.CONST _ -> ctx
-	| Irg.ELINE (_, _, expr) -> declare_expression expr ctx
-
-and declare_list args ctx =
-	List.fold_left (fun ctx arg -> declare_expression arg ctx) ctx args
-	
-
-
-(** Generate the declaration of the given list of
-	temporary variables.
-	@param out	Channel to output to.
-	@param vars	List of temporaries to declare. *)
-let rec declare_temp out vars =
-	List.iter
-		(fun (i, t) ->
-			Printf.fprintf out "\t%s %s; "
-				(type_to_string (convert_type t))
-				(temp_name i))
-		vars
-
-
-(** Count the number of used temporary variables
-	without generating the codE.
-	@param		Expression to compute.
-	@param 		Initial index of temporaries.
-	@return		Final index of temporaries. *)
-let rec count_expression expr idx =
-	match expr with
-	| Irg.REF _
-	| Irg.NONE
-	| Irg.FIELDOF _
-	| Irg.CONST _ ->
-		idx
-	| Irg.COERCE (_, e) ->
-		count_expression e idx
-	| Irg.UNOP (_, _, e) ->
-		count_expression e idx
-	| Irg.BINOP (t, _, e1, e2) ->
-		count_expression_list [e1; e2] idx
-	| Irg.FORMAT (_, args) ->
-		count_expression_list args idx
-	| Irg.CANON_EXPR (_, _, args) ->
-		count_expression_list args idx
-	| Irg.ITEMOF (_, _, index) ->
-		count_expression index idx
-	| Irg.BITFIELD (_, e, l, u) ->
-		count_expression_list [e; l; u] idx
-	| Irg.IF_EXPR (_, c, t, e) ->
-		count_expression_list [c; t; e] (idx + 1)
-	| Irg.SWITCH_EXPR (_, cond, cases, def) ->
-		count_expression_list (cond::def::(snd (List.split cases))) (idx + 1)
-	| Irg.ELINE (_, _, expr) ->
-		count_expression expr idx
-
-and count_expression_list exprs idx =
-	List.fold_left (fun idx expr -> count_expression expr idx) idx exprs
-
-
-(** Generate the code for the given expression.
-	@param info		Generation information.
-	@param expr		Expression to generate.
-	@param idx		Initial index of temporaries.
-	@return			Final index of temporaries. *)
-let rec gen_expression (info: info_t) (expr: Irg.expr) idx =
-
-	let get_function op t =
-		match op with
-		| Irg.LROTATE -> Printf.sprintf "gliss_rotate_left%s" (type_to_mem(convert_type t))
-		| Irg.RROTATE -> Printf.sprintf "gliss_rotate_right%s" (type_to_mem(convert_type t))
-		| Irg.EXP -> Printf.sprintf "gliss_exp%s" (type_to_mem(convert_type t))
-		| Irg.CONCAT -> Printf.sprintf "gliss_concat%s" (type_to_mem(convert_type t))
-		| _ -> "" in
-
-	match expr with
-	| Irg.NONE ->
-		idx
-	
-	| Irg.REF name ->
-		get_unindexed info name; idx
-
-	| Irg.UNOP (_, op, e) -> 
-		convert_unop info.out op;
-		gen_expression info e idx
-
-	| Irg.BINOP (t, op, e1, e2) ->
-		let fname = get_function op t in
-		if fname = "" then
-			begin
-				output_char info.out '(';
-				let idx = gen_expression info e1 idx in
-				output_char info.out ' ';
-				convert_binop info.out op;
-				output_char info.out ' ';
-				let idx = gen_expression info e2 idx in
-				output_char info.out ')';
-				idx
-			end
-		else
-			begin
-				Printf.fprintf info.out "%s(" fname;
-				let idx = gen_expression info e1 idx in
-				output_string info.out ", ";
-				let idx = gen_expression info e2 idx in
-				output_char info.out ')';
-				idx
-			end
-		
-	| Irg.IF_EXPR (_, c, t, e) ->
-		output_string info.out (temp_name idx);
-		count_expression_list [c; t; e] (idx + 1)
-
-	| Irg.SWITCH_EXPR (_, cond, cases, def) ->
-		output_string info.out (temp_name idx);
-		count_expression_list (cond::def::(snd (List.split cases))) (idx + 1)		
-
-	| _ -> raise (UnsupportedExpression expr) 
-
-
-(** Generate expression that can not be embedded in
-	C expressions.
-	@param info		Generation information.
-	@param expr		Expression to generation.
-	@param idx		Top temporary index.
-	@return			Overall temporary index. *)
-let rec pregen_expression (info : info_t) expr idx =
-
-	let make_if (cond: Irg.expr) tpart epart =
-		let tmp = idx in
-		
-		(* condition *)
-		let cond_idx = pregen_expression info cond (idx + 1) in
-		output_string info.out "\tif(";
-		ignore (gen_expression info cond (idx + 1));
-		
-		(* the part *)
-		output_string info.out "\t) {\n";
-		let tpart_idx = pregen_expression info  tpart cond_idx in
-		Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
-		ignore(gen_expression info tpart cond_idx);
-		
-		(* else part *)
-		output_string info.out "\t} else {\n";
-		let epart_idx = pregen_expression info epart tpart_idx in
-		Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
-		ignore (gen_expression info tpart tpart_idx);		
-
-		(* end of if *)
-		output_string info.out "\t}\n";
-		epart_idx in
-	
-	let make_switch cond cases def =
-		let tmp = idx in
-		
-		(* the condition *)
-		let cond_idx = pregen_expression info cond idx in
-		output_string info.out "\tswitch(";
-		ignore(gen_expression info cond idx);
-		output_string info.out ") {\n";
-		
-		(* the cases *)
-		let case_idx = List.fold_left
-			(fun idx (case, expr) ->
-				output_string info.out "\t\tcase ";
-				ignore(gen_expression info case 0);
-				output_string info.out ": {\n";
-				let new_idx = pregen_expression info expr idx in
-				Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
-				ignore(gen_expression info expr idx);
-				output_string info.out "; }\n\t\tbreak;\n";
-				new_idx
-			)
-			(count_expression def cond_idx) cases in
-		
-		(* default case *)
-		if def <> Irg.NONE then
-			begin
-				output_string info.out "\tdefault: {\n";
-				ignore(pregen_expression info def cond_idx);
-				Printf.fprintf info.out "\t\t%s = " (temp_name tmp);
-				ignore(gen_expression info def cond_idx);
-				output_string info.out ";\n\t}\n\tbreak;\n"
-			end;
-		
-		(* the end *)
-		output_string info.out "\t}\n";
-		case_idx in
-	
-	match expr with
-	  Irg.NONE
-	| Irg.REF _ ->
-	  	idx
-	| Irg.COERCE (_, expr) ->
-		pregen_expression info expr idx
-	| Irg.FORMAT (_, args) ->
-		pregen_list info args idx
-	| Irg.CANON_EXPR (_, _, args) ->
-		pregen_list info args idx
-	| Irg.ITEMOF (t, Irg.REF name, index) ->
-		pregen_expression info index idx
-	| Irg.ITEMOF _
-	| Irg.FIELDOF _ ->
-		failwith "???"
-	| Irg.BITFIELD (_, expr, low, up) ->
-		pregen_list info [expr; low; up] idx
-	| Irg.UNOP (_, _, expr) ->
-		pregen_expression info expr idx
-	| Irg.BINOP (_, _, expr1, expr2) ->
-		pregen_list info [expr1; expr2] idx
-	| Irg.IF_EXPR (t, cond, tpart, epart) ->
-		make_if cond tpart epart
-	| Irg.SWITCH_EXPR (t, cond, cases, def) ->
-		make_switch cond cases def 
-	| Irg.CONST _ -> idx
-	| Irg.ELINE (_, _, expr) -> pregen_expression info expr idx
-
-and pregen_list info args idx =
-	List.fold_left
-		(fun idx arg -> pregen_expression info arg idx)
-		idx args
-	
-
 (** Convert an OCAML string to generated C string code.
 	Replace '"' and '\', respectively, by '\"' and '\\'.
 	@param str	String to transform.
@@ -606,4 +411,430 @@ let cstring str =
 		| c -> aux str (i + 1) (res ^ (String.make 1 c)) in
 		
 	aux str 0 ""
+
+
+(** Prepare expression for generation.
+	@param info		Generation information.
+	@param stats	Prefix statements.	
+	@param expr		Expression to prepare.
+	@return			(new prefix statements, prepared expression) *)
+let rec prepare_expr info stats expr =
+
+	let set typ var expr =
+		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+
+	match expr with
+	| Irg.NONE
+	| Irg.CONST _
+	| Irg.REF _ ->
+		(stats, expr)
+	| Irg.COERCE (typ, expr) ->
+		let (stats, expr) = prepare_expr info stats expr in
+		(stats, Irg.COERCE (typ, expr))
+	| Irg.FORMAT (fmt, args) ->
+		let (stats, args) = prepare_exprs info stats args in
+		(stats, Irg.FORMAT (fmt, List.rev args))
+	| Irg.CANON_EXPR (typ, name, args) -> 
+		let (stats, args) = prepare_exprs info stats args in
+		(stats, Irg.CANON_EXPR (typ, name, List.rev args))
+	| Irg.FIELDOF (typ, base, id) ->
+		let (stats, base) = prepare_expr info stats base in
+		(stats, Irg.FIELDOF (typ, base, id))
+	| Irg.ITEMOF (typ, tab, idx) ->
+		let (stats, tab) = prepare_expr info stats tab in
+		let (stats, idx) = prepare_expr info stats idx in
+		(stats, Irg.ITEMOF (typ, tab, idx))	
+	| Irg.BITFIELD (typ, expr, lo, up) ->
+		let (stats, expr) = prepare_expr info stats expr in
+		let (stats, lo) = prepare_expr info stats lo in
+		let (stats, up) = prepare_expr info stats up in
+		(stats, Irg.BITFIELD (typ, expr, lo, up))
+	| Irg.UNOP (typ, op, arg) ->
+		let (stats, arg) = prepare_expr info stats arg in
+		(stats, Irg.UNOP (typ, op, arg))
+	| Irg.BINOP (typ, op, arg1, arg2) ->
+		let (stats, arg1) = prepare_expr info stats arg1 in
+		let (stats, arg2) = prepare_expr info stats arg2 in
+		(stats, Irg.BINOP (typ, op, arg1, arg2))
+
+	| Irg.IF_EXPR (typ, cond, tpart, epart) ->
+		let (stats, cond) = prepare_expr info stats cond in
+		let (stats, tpart) = prepare_expr info stats tpart in
+		let (stats, epart) = prepare_expr info stats epart in
+		let tmp = new_temp info typ in
+		(Irg.SEQ(stats, Irg.IF_STAT (cond, set typ tmp tpart, set typ tmp epart)),
+		Irg.REF tmp)
+		
+	| Irg.SWITCH_EXPR (typ, cond, cases, def) ->
+		let tmp = new_temp info typ in
+		let (stats, cond) = prepare_expr info stats cond in
+		let (stats, def) = prepare_expr info stats def in
+		let (stats, cases) = List.fold_left
+			(fun (stats, cases) (case, expr) ->
+				let (stats, expr) = prepare_expr info stats expr in
+				(stats, (case, set typ tmp expr) :: cases))
+			(stats, [])
+			cases in
+		(Irg.SEQ(stats, Irg.SWITCH_STAT (cond, cases, set typ tmp def)),
+		Irg.REF tmp)
+	
+	| Irg.ELINE (file, line, expr) ->
+		let (stats, expr) = prepare_expr info stats expr in
+		(stats, Irg.ELINE (file, line, expr))
+
+and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
+	List.fold_left
+		(fun (stats, args) arg ->
+			let (stats, arg) = prepare_expr info stats arg in
+			(stats, arg::args))
+		(stats, [])
+		args
+
+
+(** Prepare a statement before generation. It includes:
+	- preparation of expressions,
+	- split of concatenation location in assignment.
+	@param info		Generation information.
+	@param stat		Statement to prepare.
+	@return			Prepared statement. *)
+let rec prepare_stat info stat =
+
+	let card v =
+		Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int v)) in
+	let add e1 e2 =
+		Irg.BINOP (Irg.CARD(32), Irg.ADD, e1, e2) in
+	let sub e1 e2 =
+		Irg.BINOP (Irg.CARD(32), Irg.SUB, e1, e2) in
+	let rshift typ e1 e2 =
+		Irg.BINOP (typ, Irg.RSHIFT, e1, e2) in
+	
+	let rec get_shift loc =
+		match loc with
+		| Irg.LOC_REF (typ, _, _, Irg.NONE, Irg.NONE) ->
+	  		card (Sem.get_type_length typ)
+		| Irg.LOC_REF (typ, _, _, lo, up) ->
+			add (card 1) (sub up lo)
+		| Irg.LOC_CONCAT (_, loc1, loc2) ->
+			add (get_shift loc1) (get_shift loc2) in
+	
+	let rec set loc expr shift =
+		match loc with
+		| Irg.LOC_REF _ ->
+			if shift = Irg.NONE then Irg.SET (loc, expr)
+			else Irg.SET (loc, rshift (Sem.get_loc_type loc) expr shift)
+		| Irg.LOC_CONCAT (typ, loc1, loc2) ->
+			Irg.SEQ(
+				set loc1 expr shift,
+				set loc2 expr (add shift (get_shift loc1))
+			) in
+	
+	let prepare_set loc expr =
+		match loc with
+		| Irg.LOC_REF _ -> Irg.SET (loc, expr)
+		| Irg.LOC_CONCAT _ ->
+			let tmp = new_temp info (Sem.get_loc_type loc) in
+			Irg.SEQ(
+				Irg.SET (Irg.LOC_REF (Sem.get_loc_type loc, tmp, Irg.NONE, Irg.NONE, Irg.NONE), expr),
+				set loc (Irg.REF tmp) (card 0)) in
+	
+	match stat with
+	| Irg.NOP
+	| Irg.ERROR _ ->
+		stat
+	| Irg.SEQ (s1, s2) ->
+		Irg.SEQ (prepare_stat info s1, prepare_stat info s2)
+	| Irg.SET (loc, expr) ->
+		let (stats, expr) = prepare_expr info Irg.NOP expr in
+		Irg.SEQ (stats, prepare_set loc expr)
+	| Irg.CANON_STAT (name, args) ->
+		let (stats, args) = prepare_exprs info Irg.NOP args in
+		Irg.CANON_STAT (name, List.rev args)
+
+	| Irg.IF_STAT (cond, tpart, epart) ->
+		let (stats, cond) = prepare_expr info Irg.NOP cond in
+		Irg.SEQ (stats, Irg.IF_STAT (cond,
+			prepare_stat info tpart,
+			prepare_stat info epart))
+
+	| Irg.SWITCH_STAT (cond, cases, def) ->
+		let (stats, cond) = prepare_expr info Irg.NOP cond in
+		let cases = List.map
+			(fun (case, stat) -> (case, prepare_stat info stat))
+			cases in
+		Irg.SEQ (stats, Irg.SWITCH_STAT (cond, cases, prepare_stat info def))
+
+	| Irg.LINE (file, line, stat) ->
+		Irg.LINE (file, line, prepare_stat info stat)
+
+	| Irg.EVAL _
+	| Irg.EVALIND _
+	| Irg.SETSPE _ ->
+		failwith "must have been removed !"
+
+
+(** Generate a prepared expression.
+	@param info		Generation information.
+	@param expr		Expression to generate. *)	
+let rec gen_expr info (expr: Irg.expr) =
+	let out = output_string info.out in
+
+	let get_function op t =
+		match op with
+		| Irg.LROTATE -> Printf.sprintf "gliss_rotate_left%s" (type_to_mem(convert_type t))
+		| Irg.RROTATE -> Printf.sprintf "gliss_rotate_right%s" (type_to_mem(convert_type t))
+		| Irg.EXP -> Printf.sprintf "gliss_exp%s" (type_to_mem(convert_type t))
+		| Irg.CONCAT -> Printf.sprintf "gliss_concat%s" (type_to_mem(convert_type t))
+		| _ -> "" in
+
+	match expr with
+	| Irg.NONE -> ()
+
+	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
+	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
+	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
+	| Irg.CONST (_, Irg.STRING_CONST _) -> failwith "string constant"
+	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v  
+	
+	| Irg.REF name ->
+		(match Irg.get_symbol name with
+		| Irg.VAR _ -> out name
+		| Irg.REG _ -> out (state_macro info name)
+		| Irg.PARAM _ -> out (param_macro info name)
+		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
+		| _ -> failwith "expression form must have been removed")
+
+	| Irg.ITEMOF (_, Irg.REF name, idx) ->
+		(match Irg.get_symbol name with
+		| Irg.VAR _ ->
+			out name;
+			out "[";
+			gen_expr info idx;
+			out "]"
+		| Irg.REG _ -> out (state_macro info name); out "["; gen_expr info idx; out "]"
+		| Irg.MEM (_, _, typ, _)  ->
+			out info.proc;
+			out "_mem_read";
+			out (type_to_mem (convert_type typ));
+			out "(";
+			out (state_macro info name);
+			out ", ";
+			gen_expr info idx;
+			out ")"
+		| _ -> failwith "invalid itemof")
+	| Irg.ITEMOF _ -> failwith "invalid itemof"
+
+	| Irg.BITFIELD (typ, expr, lo, up) ->
+		out "gliss_field";
+		out (type_to_mem (convert_type typ));
+		out "(";
+		gen_expr info expr;
+		out ", ";
+		gen_expr info lo;
+		out ", ";
+		gen_expr info up;
+		out ")"
+
+	| Irg.UNOP (_, op, e) -> 
+		convert_unop info.out op;
+		gen_expr info e
+
+	| Irg.BINOP (t, op, e1, e2) ->
+		let fname = get_function op t in
+		if fname = "" then
+			begin
+				out "(";
+				gen_expr info e1;
+				out " ";
+				convert_binop info.out op;
+				out " ";
+				gen_expr info e2;
+				out ")"
+			end
+		else
+			begin
+				out fname;
+				out "(";
+				gen_expr info e1;
+				out ", ";
+				gen_expr info e2;
+				out ")"
+			end
+
+	| Irg.COERCE (typ, expr) ->
+		let mask m =
+			gen_expr info expr;
+			out "& 0x";
+			Printf.fprintf info.out "%LX" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
+		let apply pref suff = out pref; gen_expr info expr; out suff in
+		let trans _ = gen_expr info expr in
+		let otyp = Sem.get_type_expr expr in
+		let to_range lo up =
+			apply (Printf.sprintf "%s_check_range(" info.proc) (Printf.sprintf  ", %ld, %ld)" lo up) in
+		let to_enum vals =
+			apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
+		let coerce fn =
+			apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
+		if typ = otyp then gen_expr info expr else
+		(match (typ, otyp) with
+		| Irg.BOOL, Irg.INT _
+		| Irg.BOOL, Irg.CARD _
+		| Irg.BOOL, Irg.ENUM _
+		| Irg.BOOL, Irg.FLOAT _
+		| Irg.BOOL, Irg.RANGE _
+		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
+		| Irg.INT _, Irg.BOOL		
+		| Irg.INT _, Irg.INT _ -> trans ()
+		| Irg.INT n, Irg.CARD m when n > m -> mask m
+		| Irg.INT _, Irg.CARD _ -> trans ()
+		| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"
+		| Irg.INT 64, Irg.FLOAT (52, 12) -> coerce "dtoi"
+		| Irg.INT _, Irg.RANGE _
+ 		| Irg.INT _, Irg.ENUM _ -> trans ()
+		| Irg.CARD _, Irg.BOOL -> trans ()
+		| Irg.CARD n, Irg.INT m when n > m -> mask m
+		| Irg.CARD _, Irg.INT _ 
+		| Irg.CARD _, Irg.CARD _ -> trans ()
+		| Irg.CARD 32, Irg.FLOAT (23, 9) -> coerce "ftou"
+		| Irg.CARD 64, Irg.FLOAT (52, 12) -> coerce "dtou"
+		| Irg.CARD _, Irg.RANGE _
+		| Irg.CARD _, Irg.ENUM _ -> trans ()
+		| Irg.FLOAT (23, 9), Irg.INT 32 -> coerce "itof"
+		| Irg.FLOAT (23, 9), Irg.CARD 32 -> coerce "utof"
+		| Irg.FLOAT (52, 12), Irg.INT 64 -> coerce "itod"
+		| Irg.FLOAT (52, 12), Irg.CARD 64 -> coerce "itod"
+		| Irg.RANGE (lo, up), _ -> to_range lo up
+		| Irg.ENUM vals, _ -> to_enum vals
+		| _ -> error_on_expr "unsupported coercition" expr)
+	
+	| Irg.CANON_EXPR (_, name, args) ->
+		out name;
+		out "(";
+		ignore (List.fold_left
+			(fun com arg -> if com then out ", "; gen_expr info arg; true)
+			false args);
+		out ")"
+	
+	| Irg.ELINE (file, line, expr) -> gen_expr info expr
+	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
+	| Irg.IF_EXPR _
+	| Irg.SWITCH_EXPR _
+	| Irg.FIELDOF _ -> failwith "should have been reduced"
+
+
+(** Generate a prepared statement.
+	@param info		Generation information.
+	@param stat		Statement to generate. *)
+let rec gen_stat info stat =
+	let out = output_string info.out in
+
+	let iter_args args =
+		ignore(List.fold_left
+			(fun first arg ->
+				if not first then out ", ";
+				ignore (gen_expr info arg); false)
+			true
+			args) in
+
+	let set_field typ id idx lo up expr =
+		if lo = Irg.NONE then expr
+		else
+			Irg.CANON_EXPR (
+				typ,
+				Printf.sprintf "%s_set_field%s("
+					info.proc (type_to_mem (convert_type typ)),
+				[
+					if idx = Irg.NONE then Irg.REF id
+					else Irg.ITEMOF (typ, Irg.REF id, idx);
+					expr;
+					lo;
+					up
+				]
+			) in
+
+	match stat with
+	| Irg.NOP -> ()
+
+	| Irg.SEQ (s1, s2) ->
+		gen_stat info s1; gen_stat info s2
+
+	| Irg.SET (Irg.LOC_REF(typ, id, idx, lo, up), expr) ->
+		out "\t";
+		(match Irg.get_symbol id with
+		| Irg.VAR _ ->
+			out id;
+			if idx <> Irg.NONE then
+				(out "["; gen_expr info idx; out "]");
+			out " = ";
+			gen_expr info (set_field typ id idx lo up expr);
+			out ";\n"
+		| Irg.REG _ ->
+			out (state_macro info id);
+			if idx <> Irg.NONE then
+				(out "["; gen_expr info idx; out "]");
+			out " = ";
+			gen_expr info (set_field typ id idx lo up expr);
+			out ";\n"
+		| Irg.MEM _ ->
+			out (Printf.sprintf "%s_mem_write%s(" info.proc
+				(type_to_mem (convert_type typ)));
+			out (state_macro info id);
+			out ", ";
+			gen_expr info idx;
+			out ", ";
+			gen_expr info (set_field typ id Irg.NONE lo up expr);
+			out ");\n"
+		| _ -> failwith "should be data identifier")
+	| Irg.SET _ ->
+		failwith "should have been removed"
+
+	| Irg.CANON_STAT (name, args) ->
+		out "\t";
+		out name;
+		out "(";
+		iter_args args;
+		out ");\n"
+
+	| Irg.ERROR msg ->
+		Printf.fprintf info.out "\t%s_error(\"%s\");\n"
+			info.proc
+			(cstring msg)
+
+	| Irg.IF_STAT (cond, tpart, epart) -> 
+		out "\tif(";
+		gen_expr info cond;
+		out ") {\n";
+		gen_stat info tpart;
+		out "\t}\n";
+		if epart <> Irg.NOP then
+			begin
+				out "\telse {\n";
+				gen_stat info epart;
+				out "\t}\n"
+			end
+
+	| Irg.SWITCH_STAT (cond, cases, def) ->
+		out "\tswitch(";
+		gen_expr info cond;
+		out ") {\n";
+		List.iter
+			(fun (case, stat) ->
+				out "\t case ";
+				gen_expr info case;
+				out ":\n";
+				gen_stat info stat)
+			cases;
+		if def <> Irg.NOP then
+			begin
+				out "\tdefault:\n";
+				gen_stat info stat;
+			end;
+		out "\t}\n"
+
+	| Irg.LINE (_, _, stat) -> 
+		gen_stat info stat
+
+	| Irg.SETSPE _
+	| Irg.EVAL _
+	| Irg.EVALIND _ ->
+		failwith "must have been removed"
 

@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.5 2009/02/06 18:23:04 casse Exp $
+ * $Id: disasm.ml,v 1.6 2009/02/23 00:07:34 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -225,16 +225,14 @@ let _ =
 	@param expr	Syntax expression.
 	@raise Error	If there is an unsupported syntax expression. *)
 let rec gen_disasm info inst expr =
+	let out = output_string info.Toc.out in
 	match expr with
 	  Irg.FORMAT (fmt, args) ->
-	  	let (_, vars) = Toc.declare_list args (0, []) in
-		Toc.declare_temp info.Toc.out vars;
-		ignore(Toc.pregen_list info args 0);
 		Printf.fprintf info.Toc.out "buffer += sprintf(buffer, \"%s\"" fmt;
-		ignore(List.fold_left
-			(fun idx arg -> output_string info.Toc.out ", "; Toc.gen_expression info arg idx)
-			0 args);
-		output_string info.Toc.out ");\n"
+		List.iter
+			(fun arg -> out ", "; Toc.gen_expr info arg)
+			args;
+		out ");\n"
 	| Irg.CONST (_, Irg.STRING_CONST str) ->
 		Printf.fprintf info.Toc.out "buffer += sprintf(buffer,  \"%%s\", \"%s\");\n" (Toc.cstring str)
 	| Irg.NONE
@@ -271,9 +269,10 @@ let disassemble inst out info =
 	(* disassemble *)
 	let params = Iter.get_params inst in
 	Irg.param_stack params;
-	let (_, vars) = Toc.declare_expression syntax (0, []) in
-	Toc.declare_temp out vars;
+	let (stats, syntax) = Toc.prepare_expr info Irg.NOP syntax in
+	Toc.declare_temps info;
 	gen_disasm info inst syntax;
+	Toc.cleanup_temps info;	
 	Irg.param_unstack params
 
 

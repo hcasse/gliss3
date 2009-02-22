@@ -1,5 +1,5 @@
 /*
- *	$Id: gliss.c,v 1.3 2009/02/16 18:42:09 casse Exp $
+ *	$Id: gliss.c,v 1.4 2009/02/23 00:07:34 casse Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -21,6 +21,8 @@
  */
 
 #include "gliss.h"
+
+extern void gliss_error(const char *message);
 
 int32_t gliss_exp32(int32_t v1, int32_t v2) {
 	if(v1 >= 0)
@@ -94,3 +96,39 @@ uint32_t gliss_field32u(uint32_t v, uint32_t l, uint32_t u) {
 uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u) {
 	return (v & ((1 << (u - l)) - 1)) >> l;
 }
+
+
+/**
+ * Test if the value in the range [0, max].
+ * Call gliss_error() else.
+ * @param val	Value to test.
+ * @param max	Maximum enumration value.
+ * @return		Value.
+ */
+int gliss_enumerate(int val, int max) {
+	if(val >= max)
+		gliss_error("coercition to enumeration out of bounds");
+	else
+		return val;
+}
+
+
+/* bit-to-bit conversions */
+#define COERCE(name, tr, ta) \
+	tr gliss_coerce_##name(ta arg) { \
+		union { \
+			tr res; \
+			ta arg; \
+		} v; \
+		v.arg = arg; \
+		return v.res; \
+	}
+
+COERCE(ftoi, int32_t, float)
+COERCE(ftou, uint32_t, float)
+COERCE(dtoi, int64_t, double)
+COERCE(dtou, uint64_t, double)
+COERCE(itof, float, int32_t)
+COERCE(utof, float, uint32_t)
+COERCE(itod, double, int64_t)
+COERCE(utod, double, uint64_t)
