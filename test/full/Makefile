@@ -6,6 +6,7 @@ GFLAGS=-m \
 	-m fetch:fetch32 \
 	-m decode:decode32 \
 	-m inst_size:inst_size \
+	-m prog_disasm:prog_disasm \
 	-a disasm.c
 
 all: ppc.nml src/config.h gep src/disasm.c lib simu
