@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.7 2009/02/06 14:16:44 barre Exp $
+ * $Id: app.ml,v 1.8 2009/02/25 17:30:24 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -30,6 +30,53 @@ type maker_t = {
 	mutable get_params: Iter.inst -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
 	mutable get_instruction: Iter.inst -> Templater.dict_t -> Templater.dict_t
 }
+
+
+
+(** Build the given directory.
+	@param path			Path of the directory.
+	@raise Sys_error	If there is an error. *)
+let makedir path =
+	if not (Sys.file_exists path) then
+		try 
+			Unix.mkdir path 0o740
+		with Unix.Unix_error (code, _, _) ->
+			raise (Sys_error (Printf.sprintf "cannot create \"%s\": %s" path (Unix.error_message code)))
+	else
+		let stats = Unix.stat path in
+		if stats.Unix.st_kind <> Unix.S_DIR
+		then raise (Sys_error (Printf.sprintf "cannot create directory \"%s\": file in the middle" path))
+
+
+
+(* regular expressions *)
+let lower_re = Str.regexp "gliss_"
+let upper_re = Str.regexp "GLISS_"
+let path_re = Str.regexp "gliss/"
+
+(** Replace the "gliss" and "GLISS" words in the input file
+	to create the output file.
+	@param info		Generation information.
+	@param in_file	Input file.
+	@param out_file	Output file. *)
+let replace_gliss info in_file out_file =
+	let in_stream = open_in in_file in
+	let out_stream = open_out out_file in
+	let lower = info.Toc.proc ^ "_" in 
+	let upper = String.uppercase lower in
+	let rec trans _ =
+		let line = input_line in_stream in
+		output_string out_stream
+			(Str.global_replace path_re (info.Toc.proc ^ "/")
+			(Str.global_replace upper_re upper
+			(Str.global_replace lower_re lower line)));
+		output_char out_stream '\n';
+		trans () in
+	try
+		trans ()
+	with End_of_file ->
+		close_in in_stream;
+		close_out out_stream
 
 
 (* Test if memory or register attributes contains ALIAS.
@@ -192,3 +239,17 @@ let process file f =
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path
 	(*| Failure e ->
 		Lexer.display_error e; exit 3*)
+
+
+(** Find a source from "lib/"
+	@param source		Looked source.
+	@param paths		List of paths to look in.
+	@raise Not_found	If the source can not be found. *)
+let rec find_lib source paths = 
+	match paths with
+	| [] ->  raise Not_found
+	| path::tail ->
+		let source_path = path ^ "/" ^ source in
+		if Sys.file_exists source_path then path
+		else find_lib source tail
+	

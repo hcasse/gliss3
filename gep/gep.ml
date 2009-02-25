@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.23 2009/02/19 10:25:18 barre Exp $
+ * $Id: gep.ml,v 1.24 2009/02/25 17:30:24 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -72,21 +72,6 @@ let _ =
 	end
 
 
-(** Build the given directory.
-	@param path			Path of the directory.
-	@raise Sys_error	If there is an error. *)
-let makedir path =
-	if not (Sys.file_exists path) then
-		try 
-			Unix.mkdir path 0o740
-		with Unix.Unix_error (code, _, _) ->
-			raise (Sys_error (Printf.sprintf "cannot create \"%s\": %s" path (Unix.error_message code)))
-	else
-		let stats = Unix.stat path in
-		if stats.Unix.st_kind <> Unix.S_DIR
-		then raise (Sys_error (Printf.sprintf "cannot create directory \"%s\": file in the middle" path))
-
-
 (* Universal environment building *)
 let get_module f dict (name, _) =
 	f (
@@ -127,57 +112,21 @@ let link src dst =
 	Unix.symlink src dst
 
 
-(* regular expressions *)
-let lower_re = Str.regexp "gliss_"
-let upper_re = Str.regexp "GLISS_"
-let path_re = Str.regexp "gliss/"
-
-(** Replace the "gliss" and "GLISS" words in the input file
-	to create the output file.
-	@param info		Generation information.
-	@param in_file	Input file.
-	@param out_file	Output file. *)
-let replace_gliss info in_file out_file =
-	let in_stream = open_in in_file in
-	let out_stream = open_out out_file in
-	let lower = info.Toc.proc ^ "_" in 
-	let upper = String.uppercase lower in
-	let rec trans _ =
-		let line = input_line in_stream in
-		output_string out_stream
-			(Str.global_replace path_re (info.Toc.proc ^ "/")
-			(Str.global_replace upper_re upper
-			(Str.global_replace lower_re lower line)));
-		output_char out_stream '\n';
-		trans () in
-	try
-		trans ()
-	with End_of_file ->
-		close_in in_stream;
-		close_out out_stream
-
-
 (** Link a module for building.
 	@param info	Generation information.
 	@param m	Original module name.
 	@param name	Final name of the module. *)
 let process_module info m name =
-
-	(* find the module *)
-	let rec find paths =
-		if paths = [] then raise (Sys_error ("cannot find module " ^ m)) else
-		let path = (List.hd paths) ^ "/" ^ m in
-		if Sys.file_exists (path ^ ".c") then path
-		else find (List.tl paths) in
-	let path = find paths in
-	
-	(* link it *)
-	let source = info.Toc.spath ^ "/" ^ name ^ ".c" in
-	let header = info.Toc.spath ^ "/" ^ name ^ ".h" in
-	if not !quiet then Printf.printf "creating \"%s\"\n" source;
-	replace_gliss info (path ^ ".c") source;
-	if not !quiet then Printf.printf "creating \"%s\"\n" header;
-	replace_gliss info (path ^ ".h") header
+	try
+		let source = info.Toc.spath ^ "/" ^ name ^ ".c" in
+		let header = info.Toc.spath ^ "/" ^ name ^ ".h" in
+		let path = App.find_lib (m ^ ".c") paths in
+		if not !quiet then Printf.printf "creating \"%s\"\n" source;
+		App.replace_gliss info (path ^ "/" ^ m ^ ".c") source;
+		if not !quiet then Printf.printf "creating \"%s\"\n" header;
+		App.replace_gliss info (path ^ "/" ^ m ^ ".h") header
+	with Not_found ->
+		raise (Sys_error ("cannot find module " ^ m))
 
 
 let make_template template file dict =
@@ -192,16 +141,16 @@ let _ =
 			
 			(* include generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
-			makedir "include";
+			App.makedir "include";
 			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.ipath;
-			makedir info.Toc.ipath;
+			App.makedir info.Toc.ipath;
 			make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 			make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
 			make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 			
 			(* source generation *)
 			if not !quiet then Printf.printf "creating \"include/\"\n";
-			makedir "src";
+			App.makedir "src";
 			link
 				((Unix.getcwd ()) ^ "/" ^ info.Toc.ipath)
 				(info.Toc.spath ^ "/target");

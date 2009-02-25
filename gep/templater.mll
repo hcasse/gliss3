@@ -144,12 +144,21 @@ and scan_end buf cnt = parse
 {
 (** Perform a template generation.
 	@param dict		Dictionnary to use.
-	@param template	Template name (take from SOURCE_DIRECTORY/templates)
+	@param in_path	Input template path.
 	@param out_path	Path of the output file. *)
-let generate dict template out_path =
+let generate_path dict in_path out_path =
 	let output = open_out out_path in
-	let input = open_in (Config.source_dir ^ "/templates/" ^ template) in
+	let input = open_in in_path in
 	scanner output dict (Lexing.from_channel input);
 	close_in input;
 	close_out output
+
+
+(** Perform a template generation.
+	@param dict		Dictionnary to use.
+	@param template	Template name (take from SOURCE_DIRECTORY/templates)
+	@param out_path	Path of the output file. *)
+let generate dict template out_path =
+	generate_path dict (Config.source_dir ^ "/templates/" ^ template) out_path
 }
+

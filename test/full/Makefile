@@ -1,4 +1,4 @@
-CLEAN=include src
+CLEAN=include src disasm
 GFLAGS=-m \
 	sysparm:sysparm-reg32 \
 	-m loader:old_elf \
@@ -6,10 +6,9 @@ GFLAGS=-m \
 	-m fetch:fetch32 \
 	-m decode:decode32 \
 	-m inst_size:inst_size \
-	-m prog_disasm:prog_disasm \
 	-a disasm.c
 
-all: ppc.nml src/config.h gep src/disasm.c lib simu
+all: ppc.nml src/config.h gep src/disasm.c lib ppc-disasm simu
 
 gep:
 	../../gep/gep $(GFLAGS) ppc.nml
@@ -20,12 +19,15 @@ lib:
 simu: simu.c
 	$(CC) $(CFLAGS) $< -Iinclude -o $@ -L src -lppc
 
+ppc-disasm:
+	cd disasm; make
+
 src/config.h: config.tpl
 	test -d src || mkdir src
 	cp config.tpl src/config.h
 
 src/disasm.c:
-	../../gep/gliss_disasm ppc.nml -o $@
+	../../gep/gliss_disasm ppc.nml -o $@ -c
 
 clean:
 	rm -rf $(CLEAN)
