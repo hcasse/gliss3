@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.24 2009/02/25 17:30:24 casse Exp $
+ * $Id: gep.ml,v 1.25 2009/02/25 21:32:16 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -86,6 +86,12 @@ let get_source f dict source =
 
 let make_env info =
 
+	let min_size =
+		Iter.iter (fun min inst ->
+			let size = Fetch.get_instruction_length inst in
+			if size < min then size else min)
+			1024 in
+
 	let add_mask_32_to_param inst idx _ _ dict =
 		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
 		dict in
@@ -101,6 +107,7 @@ let make_env info =
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
+	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	(App.make_env info maker)
 
 
