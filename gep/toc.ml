@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.9 2009/02/23 00:07:34 casse Exp $
+ * $Id: toc.ml,v 1.10 2009/02/25 14:07:59 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -597,6 +597,7 @@ let rec gen_expr info (expr: Irg.expr) =
 	
 	| Irg.REF name ->
 		(match Irg.get_symbol name with
+		| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) 
 		| Irg.VAR _ -> out name
 		| Irg.REG _ -> out (state_macro info name)
 		| Irg.PARAM _ -> out (param_macro info name)
@@ -678,7 +679,6 @@ let rec gen_expr info (expr: Irg.expr) =
 		(match (typ, otyp) with
 		| Irg.BOOL, Irg.INT _
 		| Irg.BOOL, Irg.CARD _
-		| Irg.BOOL, Irg.ENUM _
 		| Irg.BOOL, Irg.FLOAT _
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
