@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.11 2009/02/16 18:20:30 casse Exp $
+ * $Id: parser.mly,v 1.12 2009/03/04 21:59:32 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -621,9 +621,7 @@ Expr :
 		}
 |	STRING_CONST LPAREN ArgList RPAREN
 		{
-			(if not (Irg.is_defined_canon $1)
-				then 
-					Lexer.display_warning (Printf.sprintf "the canonical function %s is not defined" $1));
+			Sem.test_canonical $1;
 			eline (Sem.build_canonical_expr $1 $3)
 		}
 |	ID DOT SYNTAX

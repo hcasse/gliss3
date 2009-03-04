@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.13 2009/02/16 18:20:30 casse Exp $
+ * $Id: sem.ml,v 1.14 2009/03/04 21:59:33 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1253,7 +1253,27 @@ let get_loc_ref_type name =
 	| Irg.MEM (_, _, t, _) -> t
 	| Irg.REG (_, _, t, _) -> t
 	| Irg.VAR (_, _, t) -> t
+	| Irg.PARAM _ -> Irg.UNKNOW_TYPE
 	| _ -> raise (SemError (name ^ " is not a location"))
+
+
+(* list of undefined canonical type *)
+let undef_canons: string list ref = ref []
+
+
+(** Test if a canonical function is defined.
+	Display an error if it not defined.
+	@param name	Name of the canonical function. *)
+let test_canonical name =
+	if not (Irg.is_defined_canon name)
+	&& not (List.mem name !undef_canons)
+	then
+		begin
+			undef_canons := name :: !undef_canons;
+			Lexer.display_warning
+				(Printf.sprintf "the canonical function %s is not defined" name)
+		end
+
 
 (*					-----
 	The function have attribute commented here was used to check the good usage of attributes.

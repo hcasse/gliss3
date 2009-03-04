@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.8 2008/09/30 11:03:42 casse Exp $
+ * $Id: lexer.mll,v 1.9 2009/03/04 21:59:32 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -83,11 +83,11 @@ let _ =
 
 (* Error management *)
 let display_error msg =
-	Printf.fprintf stderr "%s:%d:%s\n" !file !line msg
+	Printf.fprintf stderr "ERROR: %s:%d: %s\n" !file !line msg
 
 (*warning management *)
 let display_warning msg=
-	Printf.fprintf stderr "Warning%s:%d:%s\n" !file !line msg
+	Printf.fprintf stderr "WARNING: %s:%d: %s\n" !file !line msg
 
 (* Lexing add-ons *)
 let rec dotdot lexbuf i found =
