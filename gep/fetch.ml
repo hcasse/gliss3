@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.6 2009/01/30 09:08:33 barre Exp $
+ * $Id: fetch.ml,v 1.7 2009/03/05 13:00:46 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -126,6 +126,8 @@ let get_instruction_length sp =
 	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
 
+
+
 (* returns the value of an instruction code considering only the bit set in the mask,
 the result is a '0' or '1' string with the bits not set in the mask being marked with an 'X' *)
 let get_string_value_on_mask_from_op sp =
@@ -167,6 +169,16 @@ let get_value_on_mask sp =
 		in
 		aux s 0 []
 	in
+	let char_list_to_str l =
+		let rec aux cl s =
+		match cl with
+		[] ->
+			s
+		| a::b ->
+			(aux b (s^(String.make 1 a)))
+		in
+		aux l ""
+	in
 	let rec clear_X c_l =
 		match c_l with
 		[] ->
@@ -177,7 +189,7 @@ let get_value_on_mask sp =
 			else
 				a::(clear_X b)
 	in
-	clear_X (str_to_char_list v)
+	char_list_to_str (clear_X (str_to_char_list v))
 
 
 (* convert the 1st 32 chars of a string to an int32
@@ -718,23 +730,23 @@ let sort_dectree_list d_l =
 	List.sort comp_fun d_l
 			
 let output_all_table_C_decl out num_bits =
-	let dl = sort_dectree_list (build_dec_nodes 0)
-	in
 	(* this function will check if we can generate a fetch ok for n bits,
-	it checks if each instruction is shorter or equals than n bits *)
+	it checks if each instruction is n bits (risc isa) *)
 	let test n =
 		Iter.iter
-		(fun a x -> if (get_instruction_length x) > n then
-			failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions are too long.") else true)
+		(fun a x -> if (get_instruction_length x) <> n then
+			failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
 		true
 	in
-	let aux dt =
-		if test num_bits then
-			output_table_C_decl out dt dl
-		else
-			()
+	let aux dl dt =
+		output_table_C_decl out dt dl
 	in
-	List.iter aux dl
+	if test num_bits then
+		let dl  = sort_dectree_list (build_dec_nodes 0)
+		in
+		List.iter (aux dl) dl
+	else
+		()
 		
 
 let test_sort n =
