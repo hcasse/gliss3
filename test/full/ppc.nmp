@@ -28,9 +28,9 @@
 
 
 
-//include op "uisa_fp_instr.nmp"
-//include op "vea_instr.nmp"
-//include op "oea_instr.nmp"
+include op "uisa_fp_instr.nmp"
+include op "vea_instr.nmp"
+include op "oea_instr.nmp"
 
 // ========================================================================= //
 // 1. Definitions                                                            //
@@ -341,7 +341,159 @@ mode UIMM16 ( n : card ( 16 ) ) = n
 // ------------------------------------------------------------------------- //
 
 
+macro CR_BIT(x)= \
+	CR[(31-(x))/4]<((31-(x))-(((31-(x))/4)*4))..((31-(x))-(((31-(x))/4)*4))> \
 
+macro add_overflow_check(op1,op2,res)= \
+	if (op1 >= 0 && op2 >= 0 && res < 0) then \
+		XER <OV_XER..OV_XER> = 1; \
+      	XER <SO_XER..SO_XER> = 1; \
+    else \
+		if (op1 < 0 && op2 < 0 && res >= 0) then \
+			XER <OV_XER..OV_XER> = 1; \
+          	XER <SO_XER..SO_XER> = 1; \
+     	else \
+          	XER <OV_XER..OV_XER> = 0; \
+		endif; \
+	endif;\
+	
+
+macro add_carry_check(op1,op2,res)= \
+	if (op1 >= 0 && op2 >= 0) then \
+		XER <CA_XER..CA_XER> = 0; \
+	else \
+		if (op1<0 && op2<0) then \
+			XER <CA_XER..CA_XER> = 1; \
+		else \
+			if (res>=0) then \
+				XER <CA_XER..CA_XER> = 1; \
+			else \
+				XER <CA_XER..CA_XER> = 0; \
+			endif; \
+		endif; \
+	endif; \
+
+macro add_carry_check_extended(op1,op2,res,car)= \
+	//if (car == 1 && op1 == 0 && op2 == -1) then \
+	//	XER <CA_XER..CA_XER> = 0; \
+	//else \
+		if (car == 0 || (((op1>=0 && op2>=0) || (op1<0 && op2<0)) && res!=0) ) then \
+			add_carry_check(op1,op2,res); \
+		else \
+			XER <CA_XER..CA_XER> = 1; \
+		endif; \
+	//endif; \
+
+macro sub_overflow_check(op1,op2,res)= \
+	if op1 >= 0 then \
+		if op2 >= 0 then \
+          	XER <OV_XER..OV_XER> = 0; \
+		else \
+			if res < 0 then \
+	          	XER <OV_XER..OV_XER> = 0; \
+			else \
+				XER <OV_XER..OV_XER> = 1; \
+	    	  	XER <SO_XER..SO_XER> = 1; \
+			endif; \
+		endif; \
+	else \
+		if op1 == 0x80000000 then \
+			XER <OV_XER..OV_XER> = 1; \
+    	  	XER <SO_XER..SO_XER> = 1; \
+		else \
+			if op2 < 0 then \
+	          	XER <OV_XER..OV_XER> = 0; \
+			else \
+				if res < 0 then \
+					XER <OV_XER..OV_XER> = 1; \
+      				XER <SO_XER..SO_XER> = 1; \
+				else \
+		          	XER <OV_XER..OV_XER> = 0; \
+				endif; \
+			endif; \
+		endif; \
+	endif; \
+
+macro sub_overflow_carry_check(op1,op2,res,carry)= \
+	if carry==0 then \
+		add_overflow_check(~op1,op2,res); \
+	else \
+		sub_overflow_check(op1,op2,res); \
+	endif; \
+
+
+macro sub_carry_check(op1,op2,ca)= \
+	if (op1 >= 0 && op2 < 0) then \
+		XER <CA_XER..CA_XER> = 1; \
+	else \
+		if (op1 < 0 && op2 >= 0) then \
+			XER <CA_XER..CA_XER> = 0; \
+		else \
+			if ca == 1 then \
+				if op1 > op2 then \
+					XER <CA_XER..CA_XER> = 0; \
+				else \
+					XER <CA_XER..CA_XER> = 1; \
+				endif; \
+			else \
+				if op1 >= op2 then \
+					XER <CA_XER..CA_XER> = 0; \
+				else \
+					XER <CA_XER..CA_XER> = 1; \
+				endif; \
+			endif; \
+		endif; \
+	endif;\
+
+macro mul_overflow_check(op1,op2,res) = \
+	TMP_M_OP1_H0 = op1; \
+	TMP_M_OP2_H0 = op2; \
+	TMP_M_RES_H0 = res; \
+	\
+	if op1 < 0 then \
+		TMP_M_OP1_H1 = 0xffffffff; \
+	else \
+		TMP_M_OP1_H1 = 0; \
+	endif; \
+	if op2 < 0 then \
+		TMP_M_OP2_H1 = 0xffffffff; \
+	else \
+		TMP_M_OP2_H1 = 0; \
+	endif; \
+	if res < 0 then \
+		TMP_M_RES_H1 = 0xffffffff; \
+	else \
+		TMP_M_RES_H1 = 0; \
+	endif; \
+	\
+	if TMP_M_OP1*TMP_M_OP2 != TMP_M_RES then \
+		XER <OV_XER..OV_XER> = 1; \
+    	XER <SO_XER..SO_XER> = 1; \
+	else \
+		XER <OV_XER..OV_XER> = 0; \
+	endif; \
+
+macro div_overflow_check(op1,op2) = \
+	if ((op1 == 0x80000000 && op2 == -1) || (op2 == 0)) then \
+		XER <OV_XER..OV_XER> = 1; \
+		XER <SO_XER..SO_XER> = 1; \
+	else \
+		XER<OV_XER..OV_XER> = 0; \
+	endif; \
+ 
+macro neg_overflow_check(op1) = \
+	if op1 == 0x80000000 then \
+		XER <OV_XER..OV_XER> = 1; \
+		XER <SO_XER..SO_XER> = 1; \
+	else \
+		XER<OV_XER..OV_XER> = 0; \
+	endif; \
+
+macro CR7_update(val) = \
+	CR[7]<LT..LT> = ((val)<0); \
+    CR[7]<GT..GT> = ((val)>0); \
+	CR[7]<EQ..EQ> = ((val)==0); \
+	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; \
 
 
 		
@@ -364,22 +516,23 @@ op uisa_instr   = uisa_base_instr
                 | uisa_fp_instr
 
 op init ()
-   action = {
-        MSR = 0; 
-	MSR<MSR_FP..MSR_FP> = 1;
-	MSR<MSR_PR..MSR_PR> = 0;
-	MSR<MSR_FE1..MSR_FE1> = 0;
-	MSR<MSR_FE0..MSR_FE0> = 0;
+	action = {
+    	MSR = 0; 
+		MSR<MSR_FP..MSR_FP> = 1;
+		MSR<MSR_PR..MSR_PR> = 0;
+		MSR<MSR_FE1..MSR_FE1> = 0;
+		MSR<MSR_FE0..MSR_FE0> = 0;
         MSR<MSR_LE..MSR_LE> = 0;
-	TB = 0;
-FPR[0]=0; FPR[1]=0; FPR[2]=0; FPR[3]=0; FPR[4]=0; FPR[5]=0; FPR[6]=0; FPR[7]=0; FPR[8]=0; FPR[9]=0;
-FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
-FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
-FPR[30]=0; FPR[31]=0;
-CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
-L2PM = 0;
-
-           }
+		TB = 0;
+		FPR[0]=0; FPR[1]=0; FPR[2]=0; FPR[3]=0; FPR[4]=0; FPR[5]=0; FPR[6]=0; FPR[7]=0; FPR[8]=0; FPR[9]=0;
+		FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
+		FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
+		FPR[30]=0; FPR[31]=0;
+		CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
+		L2PM = 0;
+		XER = 0;
+		FPSCR = 0;	// Fixed by casse@irit.fr
+	}
 
 op uisa_base_instr  = branch_instr
                     | non_branch_instr
@@ -561,7 +714,7 @@ op branch_cond_ctr ( BO : card ( 5 ), BI : card ( 5 ) )
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
 		if ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD>  ^ !BO <3..3> ) ) then
-			NIA = (CTR & 0xfffffffc);
+			NIA = ( CTR & 0xfffffffc );
 		endif;
 		}
 
@@ -1575,28 +1728,13 @@ op add ( rd : index, ra : REG_IND, rb : REG_IND ,Rc : card (1) , Oe : card(1))
 
 		TMP_RES = ra + rb;
 		if Oe then
-				if (ra >= 0 &&  rb >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  rb < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+			add_overflow_check(ra, rb, TMP_RES);
 		endif;               
         
 		GPR[rd] = TMP_RES;
 		
 		if Rc then
-				CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+			CR7_update(TMP_RES);
        	endif;
         }
 
@@ -1631,20 +1769,7 @@ op add_imm_carry ( rd : index, ra : REG_IND, imm : SIMM16 )
    action = {
  
 		TMP_RES = ra + imm;         // Set carry bit
-			if (ra >= 0 &&  imm >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  imm<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;
+		add_carry_check(ra, imm, TMP_RES);
 		GPR[rd] = TMP_RES;
 
        	}
@@ -1655,28 +1780,11 @@ op add_imm_carry_record ( rd : index, ra : REG_IND, imm : SIMM16 )
    action = {
 
 		TMP_RES = ra + imm;         // Set carry bit
-			if (ra >= 0 &&  imm >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  imm<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;		
+		add_carry_check(ra, imm, TMP_RES);		
 
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
   		}
 
 // Add with carry Instructions
@@ -1692,20 +1800,7 @@ op add_carrying ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
  
 		TMP_RES = ra + rb;
-			if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;
+		add_carry_check(ra, rb, TMP_RES);
 		GPR[rd] = TMP_RES;
         }
 
@@ -1715,27 +1810,10 @@ op add_carry_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
  
 		TMP_RES = ra + rb; 
-			if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;
+		add_carry_check(ra, rb, TMP_RES);
 		GPR[rd] = TMP_RES;
 		
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;        
+		CR7_update(TMP_RES);        
         }
 
 op add_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -1745,32 +1823,8 @@ op add_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
  
 		TMP_RES = ra + rb; 
 	
-			if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;
-			if (ra >= 0 &&  rb >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  rb < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check(ra, rb, TMP_RES);
+		add_overflow_check(ra, rb, TMP_RES);
 
 		GPR[rd] = TMP_RES;
       	}
@@ -1782,40 +1836,12 @@ op add_carry_overflow_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
  
 		TMP_RES = ra + rb; 
 	
-			if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-;
-			if (ra >= 0 &&  rb >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  rb < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check(ra, rb, TMP_RES);
+		add_overflow_check(ra, rb, TMP_RES);
 
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 	  	}
 
 // Add extended Instructions
@@ -1831,29 +1857,7 @@ op add_extend ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
     	TMP_RES = ra + rb + XER < CA_XER..CA_XER >;
-			//if (XER < CA_XER..CA_XER> == 1 && ra == 0 &&  rb == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER < CA_XER..CA_XER> == 0 || (((ra>=0 &&  rb>=0) || (ra<0 &&  rb<0)) &&  TMP_RES!=0) ) then 
-				if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;		
+		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);		
 		GPR[rd] = TMP_RES;
 		
        	}
@@ -1864,36 +1868,10 @@ op add_extend_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
       	TMP_RES = ra + rb + XER <CA_XER..CA_XER>;
-			//if (XER < CA_XER..CA_XER> == 1 && ra == 0 &&  rb == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER < CA_XER..CA_XER> == 0 || (((ra>=0 &&  rb>=0) || (ra<0 &&  rb<0)) &&  TMP_RES!=0) ) then 
-				if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
+		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 		
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 		}
 
 op add_extend_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -1902,41 +1880,8 @@ op add_extend_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
       	TMP_RES = ra + rb + XER <CA_XER..CA_XER>;
-			//if (XER < CA_XER..CA_XER> == 1 && ra == 0 &&  rb == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER < CA_XER..CA_XER> == 0 || (((ra>=0 &&  rb>=0) || (ra<0 &&  rb<0)) &&  TMP_RES!=0) ) then 
-				if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 &&  rb >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  rb < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);
+		add_overflow_check(ra, rb, TMP_RES);
 		TMP_RES = GPR[rd];
 
      	}
@@ -1947,49 +1892,12 @@ op add_extd_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
       	TMP_RES = ra + rb + XER <CA_XER..CA_XER>;
-			//if (XER < CA_XER..CA_XER >  == 1 && ra == 0 &&  rb == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER < CA_XER..CA_XER >  == 0 || (((ra>=0 &&  rb>=0) || (ra<0 &&  rb<0)) &&  TMP_RES!=0) ) then 
-				if (ra >= 0 &&  rb >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 &&  rb<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 &&  rb >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  rb < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER > );
+		add_overflow_check(ra, rb, TMP_RES);
 	
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
   		}
 
 // Add minus one Instructions
@@ -2005,29 +1913,7 @@ op add_me ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			//if (XER<CA_XER..CA_XER> == 1 && ra == 0 && -1 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER<CA_XER..CA_XER> == 0 || (((ra>=0 && -1>=0) || (ra<0 && -1<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && -1 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && -1<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
+		add_carry_check_extended(ra,-1,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
        	}
 
@@ -2037,36 +1923,10 @@ op add_me_cr_update ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			//if (XER <CA_XER..CA_XER> == 1 && ra == 0 && -1 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER <CA_XER..CA_XER> == 0 || (((ra>=0 && -1>=0) || (ra<0 && -1<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && -1 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && -1<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
+		add_carry_check_extended(ra,-1,TMP_RES, XER <CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;     	}
+		CR7_update(TMP_RES);     	}
 
 op add_me_overflow ( rd : index, ra : REG_IND)
    syntax = format ( "addmeo r%d,%s", rd, ra.syntax )
@@ -2074,41 +1934,8 @@ op add_me_overflow ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			//if (XER <CA_XER..CA_XER> == 1 && ra == 0 && -1 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER <CA_XER..CA_XER> == 0 || (((ra>=0 && -1>=0) || (ra<0 && -1<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && -1 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && -1<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 &&  -1 >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  -1 < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra,-1,TMP_RES,XER <CA_XER..CA_XER>);
+		add_overflow_check(ra, -1, TMP_RES);
 		GPR[rd] = TMP_RES;
 		
     	}
@@ -2119,48 +1946,11 @@ op add_me_overflow_cr_update ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			//if (XER <CA_XER..CA_XER> == 1 && ra == 0 && -1 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER <CA_XER..CA_XER> == 0 || (((ra>=0 && -1>=0) || (ra<0 && -1<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && -1 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && -1<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 &&  -1 >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 &&  -1 < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra,-1,TMP_RES,XER <CA_XER..CA_XER>);
+		add_overflow_check(ra, -1, TMP_RES);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
   		}
 
 // Add zero extended Instructions
@@ -2176,29 +1966,7 @@ op add_ze ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
-			//if (XER<CA_XER..CA_XER> == 1 && ra == 0 && 0 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER<CA_XER..CA_XER> == 0 || (((ra>=0 && 0>=0) || (ra<0 && 0<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && 0 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && 0<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
+		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 
   		}
@@ -2208,36 +1976,10 @@ op add_ze_cr_update ( rd : index, ra : REG_IND)
    image  = format ( "011111%5b%s0000000110010101", rd, ra.image )
    action = {
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
-			//if (XER<CA_XER..CA_XER> == 1 && ra == 0 && 0 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER<CA_XER..CA_XER> == 0 || (((ra>=0 && 0>=0) || (ra<0 && 0<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && 0 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && 0<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
+		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 		
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;            
+		CR7_update(TMP_RES);            
       	}
 
 op add_ze_overflow ( rd : index, ra : REG_IND)
@@ -2246,41 +1988,8 @@ op add_ze_overflow ( rd : index, ra : REG_IND)
    action = {
 
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
-			//if (XER<CA_XER..CA_XER> == 1 && ra == 0 && 0 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER<CA_XER..CA_XER> == 0 || (((ra>=0 && 0>=0) || (ra<0 && 0<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && 0 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && 0<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 && 0 >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 && 0 < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
+		add_overflow_check(ra,0,TMP_RES);
 		GPR[rd] = TMP_RES;
 
 		}
@@ -2291,48 +2000,11 @@ op add_ze_overflow_cr_update ( rd : index, ra : REG_IND)
    action = {
             
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
-			//if (XER<CA_XER..CA_XER> == 1 && ra == 0 && 0 == -1) then \
-	//	XER <CA_XER..CA_XER> = 0; \
-	//else \
-		if (XER<CA_XER..CA_XER> == 0 || (((ra>=0 && 0>=0) || (ra<0 && 0<0)) && TMP_RES!=0) ) then 
-				if (ra >= 0 && 0 >= 0) then 
-		XER <CA_XER..CA_XER> = 0; 
-	else 
-		if (ra<0 && 0<0) then 
-			XER <CA_XER..CA_XER> = 1; 
-		else 
-			if (TMP_RES>=0) then 
-				XER <CA_XER..CA_XER> = 1; 
-			else 
-				XER <CA_XER..CA_XER> = 0; 
-			endif; 
-		endif; 
-	endif; 
-; 
-		else 
-			XER <CA_XER..CA_XER> = 1; 
-		endif; 
-	//endif; \
-;
-			if (ra >= 0 && 0 >= 0 && TMP_RES < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (ra < 0 && 0 < 0 && TMP_RES >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	;
+		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
+		add_overflow_check(ra,0,TMP_RES);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;      	
+		CR7_update(TMP_RES);      	
 		}
 
 // Integer Subtract Instructions
@@ -2372,11 +2044,7 @@ op sub_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 
 		TMP_RES = ~ra + rb + 1;
 	  	GPR [ rd ] = TMP_RES;	
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 		}
 
 op sub_overflow_enable ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -2386,35 +2054,7 @@ op sub_overflow_enable ( rd : index, ra : REG_IND, rb : REG_IND )
 
       	TMP_RES = ~ra + rb + 1;
 
-			if ra >= 0 then 
-		if  rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if TMP_RES < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if  rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if TMP_RES < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-;
+		sub_overflow_check(ra, rb, TMP_RES);
   		GPR[rd] = TMP_RES;
 		}
 
@@ -2424,41 +2064,9 @@ op sub_crup_overen ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
       	TMP_RES = ~ra + rb + 1;
-			if ra >= 0 then 
-		if  rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if TMP_RES < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if  rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if TMP_RES < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-;
+		sub_overflow_check(ra, rb, TMP_RES);
 		GPR[rd]=TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;	
+		CR7_update(TMP_RES);	
 		}
 
 // Subtract Immediate Instruction
@@ -2469,28 +2077,7 @@ op sub_imm_carry_rec ( rd : index, ra : REG_IND, imm : IMM16 )
    action = {
 		
 		TMP_RES = ~ra + 1 + imm;
-        	if (ra >= 0 && imm < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && imm >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if 1 == 1 then 
-				if ra > imm then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= imm then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+        sub_carry_check(ra,imm,1);
 		GPR[rd] = TMP_RES;
 
     	}
@@ -2508,28 +2095,7 @@ op sub_carrying ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
  
   		TMP_RES = ~ra + rb + 1;
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if 1 == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,rb,1);
 		GPR[rd] = TMP_RES;
    		}
 
@@ -2540,34 +2106,9 @@ op sub_carry_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
  
     	TMP_RES = ~ra + rb + 1; 
 
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if 1 == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,rb,1);
 		GPR[rd] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
      	}
 
 op sub_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -2577,57 +2118,8 @@ op sub_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
  
     	TMP_RES = ~ra + rb + 1; 
 
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if 1 == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if ra >= 0 then 
-		if rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if TMP_RES < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if TMP_RES < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-;
+		sub_carry_check(ra,rb,1);
+		sub_overflow_check(ra,rb,TMP_RES);
 
 		GPR[rd] = TMP_RES;
 		}
@@ -2639,65 +2131,12 @@ op sub_carry_overflow_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
  
     	TMP_RES = ~ra + rb + 1; 
 
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if 1 == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if ra >= 0 then 
-		if rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if TMP_RES < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if TMP_RES < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-;
+		sub_carry_check(ra,rb,1);
+		sub_overflow_check(ra,rb,TMP_RES);
 
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
      	}
 
 // Subtract extended Instructions
@@ -2713,28 +2152,7 @@ op sub_extend ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 		
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
 		GPR[rd] = TMP_RES;
 		
      	}
@@ -2745,35 +2163,10 @@ op sub_extend_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;      	}
+		CR7_update(TMP_RES);      	}
 
 op sub_extend_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfeo r%d,%s,%s", rd, ra.syntax, rb.syntax )
@@ -2781,73 +2174,8 @@ op sub_extend_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;	
-			if TMP_RES==0 then 
-			if (~ra >= 0 && rb >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && rb < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_overflow_carry_check(ra,rb,XER<CA_XER..CA_XER>,TMP_RES);
     	GPR[rd] = TMP_RES;
 	
 		}
@@ -2858,80 +2186,11 @@ op sub_extd_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && rb < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && rb >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= rb then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;	
-			if TMP_RES==0 then 
-			if (~ra >= 0 && rb >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && rb < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if rb >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if rb < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_overflow_carry_check(ra,rb,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;      	
+		CR7_update(TMP_RES);      	
 		}
 
 // Subtract minus one Instructions
@@ -2947,28 +2206,7 @@ op sub_me ( rd : index, ra : REG_IND)
    action = {
             
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			if (ra >= 0 && -1 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && -1 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
        	}
 
@@ -2978,35 +2216,10 @@ op sub_me_cr_update ( rd : index, ra : REG_IND)
    action = {
                         
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			if (ra >= 0 && -1 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && -1 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
        	}
 
 op sub_me_overflow ( rd : index, ra : REG_IND)
@@ -3014,73 +2227,8 @@ op sub_me_overflow ( rd : index, ra : REG_IND)
    image  = format ( "011111%5b%s0000010111010000", rd, ra.image )
    action = {
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			if (ra >= 0 && -1 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && -1 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if TMP_RES==0 then 
-			if (~ra >= 0 && -1 >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && -1 < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if -1 >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if -1 < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
+		sub_overflow_carry_check(ra,-1,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 
 		}
@@ -3091,80 +2239,11 @@ op sub_me_overflow_cr_update ( rd : index, ra : REG_IND)
    action = {
             
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
-			if (ra >= 0 && -1 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && -1 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= -1 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if TMP_RES==0 then 
-			if (~ra >= 0 && -1 >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && -1 < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if -1 >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if -1 < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
+		sub_overflow_carry_check(ra,-1,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 	
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
        	}
 
 // Subtract zero extended Instructions
@@ -3180,28 +2259,7 @@ op sub_ze ( rd : index, ra : REG_IND)
    action = {
             
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && 0 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && 0 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 		}
 
@@ -3211,35 +2269,10 @@ op sub_ze_cr_update ( rd : index, ra : REG_IND)
    action = {
             
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && 0 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && 0 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
+		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
        	}
 
 op sub_ze_overflow ( rd : index, ra : REG_IND)
@@ -3248,73 +2281,8 @@ op sub_ze_overflow ( rd : index, ra : REG_IND)
    action = {
 
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && 0 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && 0 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if TMP_RES==0 then 
-			if (~ra >= 0 && 0 >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && 0 < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if 0 >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if 0 < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
+		sub_overflow_carry_check(ra,0,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 
 		}
@@ -3324,80 +2292,11 @@ op sub_ze_overflow_cr_update ( rd : index, ra : REG_IND)
    image  = format ( "011111%5b%s0000010110010001", rd, ra.image )
    action = {
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
-			if (ra >= 0 && 0 < 0) then 
-		XER <CA_XER..CA_XER> = 1; 
-	else 
-		if (ra < 0 && 0 >= 0) then 
-			XER <CA_XER..CA_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> == 1 then 
-				if ra > 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			else 
-				if ra >= 0 then 
-					XER <CA_XER..CA_XER> = 0; 
-				else 
-					XER <CA_XER..CA_XER> = 1; 
-				endif; 
-			endif; 
-		endif; 
-	endif;
-;
-			if TMP_RES==0 then 
-			if (~ra >= 0 && 0 >= 0 && XER<CA_XER..CA_XER> < 0) then 
-		XER <OV_XER..OV_XER> = 1; 
-      	XER <SO_XER..SO_XER> = 1; 
-    else 
-		if (~ra < 0 && 0 < 0 && XER<CA_XER..CA_XER> >= 0) then 
-			XER <OV_XER..OV_XER> = 1; 
-          	XER <SO_XER..SO_XER> = 1; 
-     	else 
-          	XER <OV_XER..OV_XER> = 0; 
-		endif; 
-	endif;
-	; 
-	else 
-			if ra >= 0 then 
-		if 0 >= 0 then 
-          	XER <OV_XER..OV_XER> = 0; 
-		else 
-			if XER<CA_XER..CA_XER> < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				XER <OV_XER..OV_XER> = 1; 
-	    	  	XER <SO_XER..SO_XER> = 1; 
-			endif; 
-		endif; 
-	else 
-		if ra == 0x80000000 then 
-			XER <OV_XER..OV_XER> = 1; 
-    	  	XER <SO_XER..SO_XER> = 1; 
-		else 
-			if 0 < 0 then 
-	          	XER <OV_XER..OV_XER> = 0; 
-			else 
-				if XER<CA_XER..CA_XER> < 0 then 
-					XER <OV_XER..OV_XER> = 1; 
-      				XER <SO_XER..SO_XER> = 1; 
-				else 
-		          	XER <OV_XER..OV_XER> = 0; 
-				endif; 
-			endif; 
-		endif; 
-	endif; 
-; 
-	endif; 
-;
+		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
+		sub_overflow_carry_check(ra,0,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
   		}
 
 // Integer Multiply Instructions
@@ -3435,11 +2334,7 @@ op mult_lw_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
       
 		 TMP_RES = ra * rb;
 		 GPR [ rd ] = TMP_RES ;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
         }
 
 op mult_lw_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -3448,33 +2343,7 @@ op mult_lw_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
      	TMP_RES = ra * rb;
-			TMP_M_OP1_H0 = ra; 
-	TMP_M_OP2_H0 =  rb; 
-	TMP_M_RES_H0 = TMP_RES ; 
-	
-	if ra < 0 then 
-		TMP_M_OP1_H1 = 0xffffffff; 
-	else 
-		TMP_M_OP1_H1 = 0; 
-	endif; 
-	if  rb < 0 then 
-		TMP_M_OP2_H1 = 0xffffffff; 
-	else 
-		TMP_M_OP2_H1 = 0; 
-	endif; 
-	if TMP_RES  < 0 then 
-		TMP_M_RES_H1 = 0xffffffff; 
-	else 
-		TMP_M_RES_H1 = 0; 
-	endif; 
-	
-	if TMP_M_OP1*TMP_M_OP2 != TMP_M_RES then 
-		XER <OV_XER..OV_XER> = 1; 
-    	XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER <OV_XER..OV_XER> = 0; 
-	endif; 
-;
+		mul_overflow_check(ra, rb, TMP_RES );
 		GPR[rd] = TMP_RES;
 		
 		}
@@ -3485,40 +2354,10 @@ op mult_lw_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
      	TMP_RES = ra * rb;
-			TMP_M_OP1_H0 = ra; 
-	TMP_M_OP2_H0 =  rb; 
-	TMP_M_RES_H0 = TMP_RES ; 
-	
-	if ra < 0 then 
-		TMP_M_OP1_H1 = 0xffffffff; 
-	else 
-		TMP_M_OP1_H1 = 0; 
-	endif; 
-	if  rb < 0 then 
-		TMP_M_OP2_H1 = 0xffffffff; 
-	else 
-		TMP_M_OP2_H1 = 0; 
-	endif; 
-	if TMP_RES  < 0 then 
-		TMP_M_RES_H1 = 0xffffffff; 
-	else 
-		TMP_M_RES_H1 = 0; 
-	endif; 
-	
-	if TMP_M_OP1*TMP_M_OP2 != TMP_M_RES then 
-		XER <OV_XER..OV_XER> = 1; 
-    	XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER <OV_XER..OV_XER> = 0; 
-	endif; 
-;
+		mul_overflow_check(ra, rb, TMP_RES );
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
         }
 
 // Multiply Low Immediate
@@ -3557,11 +2396,7 @@ op mult_hi_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 		TMP_SDWORD = TMP_SDWORD * rb;
 		GPR [ rd ] = TMP_SDWORD < 63..32 >;
 
-			CR[7]<LT..LT> = ((TMP_SDWORD < 63..32 >)<0); 
-    CR[7]<GT..GT> = ((TMP_SDWORD < 63..32 >)>0); 
-	CR[7]<EQ..EQ> = ((TMP_SDWORD < 63..32 >)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_SDWORD < 63..32 >);
 		} 
 
 // Multiply High word unsigned
@@ -3588,11 +2423,7 @@ op mult_hi_us_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 	TMP_DWORD = TMP_DWORD * coerce ( card ( 32 ) , rb );
         GPR [ rd ] = TMP_DWORD < 63..32 >;
 
-			CR[7]<LT..LT> = ((TMP_DWORD < 63..32 >)<0); 
-    CR[7]<GT..GT> = ((TMP_DWORD < 63..32 >)>0); 
-	CR[7]<EQ..EQ> = ((TMP_DWORD < 63..32 >)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_DWORD < 63..32 >);
 		} 
 
 // Integer Divide Instructions
@@ -3632,11 +2463,7 @@ op divw_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 		else
 	         TMP_RES = ra / rb;
 		 GPR [ rd ] = TMP_RES;
-		 	CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		 CR7_update(TMP_RES);
 		endif;
 
 		}
@@ -3653,13 +2480,7 @@ op divw_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
 	        TMP_RES = ra / rb;
 		endif;
 	
-			if ((ra == 0x80000000 && rb == -1) || (rb == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+		div_overflow_check(ra,rb);
 		GPR[rd] = TMP_RES;
 
 		}
@@ -3671,30 +2492,14 @@ op divw_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
 
 		if ( rb == 0 || ( ra == 0x80000000 & rb == -1 ) ) then
 			TMP_RES = 0;
-				if ((ra == 0x80000000 && rb == -1) || (rb == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+			div_overflow_check(ra,rb);
 			GPR[rd] = TMP_RES;
 			CR[7]<SO..SO> = XER<SO_XER..SO_XER>;
 		else
 	        TMP_RES = ra / rb;
-				if ((ra == 0x80000000 && rb == -1) || (rb == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+			div_overflow_check(ra,rb);
 			GPR[rd] = TMP_RES;
-				CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+			CR7_update(TMP_RES);
 		endif;
 		}
 
@@ -3728,11 +2533,7 @@ op divwus_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 		else
 			TMP_RES = coerce ( card ( 32 ) , ra ) / coerce ( card ( 32 ) , rb );
 			GPR [ rd ] = TMP_RES;
-				CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+			CR7_update(TMP_RES);
 		endif;		
 
 		}
@@ -3748,13 +2549,8 @@ op divwus_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
 			TMP_RES = coerce ( card ( 32 ) , ra ) / coerce ( card ( 32 ) , rb );
 		endif;
 
-			if ((coerce ( card ( 32 ) , ra ) == 0x80000000 && coerce ( card ( 32 ) , rb ) == -1) || (coerce ( card ( 32 ) , rb ) == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+		div_overflow_check(coerce ( card ( 32 ) , ra ),
+						   coerce ( card ( 32 ) , rb ));
 		GPR[rd] = TMP_RES;
 		
 		}
@@ -3766,30 +2562,16 @@ op divwus_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
 
 		if rb == 0 then
 			TMP_RES = 0;
-				if ((coerce ( card ( 32 ) , ra ) == 0x80000000 && coerce ( card ( 32 ) , rb ) == -1) || (coerce ( card ( 32 ) , rb ) == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+			div_overflow_check(coerce ( card ( 32 ) , ra ),
+							   coerce ( card ( 32 ) , rb ));
 			GPR[rd] = TMP_RES;
-			CR[7]<SO..SO> =XER<SO_XER..SO_XER>;
+			CR[7]<SO..SO>=XER<SO_XER..SO_XER>;
 		else
 			TMP_RES = coerce ( card ( 32 ) , ra ) / coerce ( card ( 32 ) , rb );
-				if ((coerce ( card ( 32 ) , ra ) == 0x80000000 && coerce ( card ( 32 ) , rb ) == -1) || (coerce ( card ( 32 ) , rb ) == 0)) then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
- ;
+			div_overflow_check(coerce ( card ( 32 ) , ra ),
+							   coerce ( card ( 32 ) , rb ));
 			GPR[rd] = TMP_RES;
-				CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+			CR7_update(TMP_RES);
 		endif;
 		}
 
@@ -3821,11 +2603,7 @@ op neg_cr_update ( rd : index, ra : REG_IND)
 
 		TMP_RES = ~ra + 1;
 		GPR [ rd ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
         }
 
 op neg_overflow ( rd : index, ra : REG_IND)
@@ -3834,13 +2612,7 @@ op neg_overflow ( rd : index, ra : REG_IND)
    action = {
 
 		TMP_RES = ~ra + 1;
-			if ra == 0x80000000 then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
-;
+		neg_overflow_check(ra);
 		GPR[rd] = TMP_RES;
 
         }
@@ -3851,20 +2623,10 @@ op neg_overflow_cr_upd ( rd : index, ra : REG_IND)
    action = {
 
 		TMP_RES = ~ra + 1;
-			if ra == 0x80000000 then 
-		XER <OV_XER..OV_XER> = 1; 
-		XER <SO_XER..SO_XER> = 1; 
-	else 
-		XER<OV_XER..OV_XER> = 0; 
-	endif; 
-;
+		neg_overflow_check(ra);
 		GPR[rd] = TMP_RES;
 
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
         }
 
 // Integer Compare Instructions
@@ -4027,11 +2789,7 @@ op or_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = rs | rb;
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 		}   
 
 op or_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
@@ -4076,11 +2834,7 @@ op orc_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = rs | ( ~rb );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 		}   
 
 // AND Instructions
@@ -4109,11 +2863,7 @@ op and_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = rs & rb;
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}   
 
@@ -4126,11 +2876,7 @@ op and_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
 		TMP_WORD_A0 = imm;
 		GPR [ ra ] = rs & TMP_WORD;
 
-			CR[7]<LT..LT> = ((rs & TMP_WORD)<0); 
-    CR[7]<GT..GT> = ((rs & TMP_WORD)>0); 
-	CR[7]<EQ..EQ> = ((rs & TMP_WORD)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(rs & TMP_WORD);
 		}   
 
 op and_imm_shift ( rs : REG_IND, ra : index, imm : UIMM16 )
@@ -4142,11 +2888,7 @@ op and_imm_shift ( rs : REG_IND, ra : index, imm : UIMM16 )
 		TMP_WORD_A0 = 0;
 		GPR [ ra ] = rs & TMP_WORD;
 
-			CR[7]<LT..LT> = ((rs & TMP_WORD)<0); 
-    CR[7]<GT..GT> = ((rs & TMP_WORD)>0); 
-	CR[7]<EQ..EQ> = ((rs & TMP_WORD)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(rs & TMP_WORD);
 		}   
 
 op and_comp =   andc
@@ -4168,11 +2910,7 @@ op andc_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = rs & ( ~rb );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}   
 
@@ -4201,11 +2939,7 @@ op xor_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = rs ^ rb;
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}   
 
@@ -4253,11 +2987,7 @@ op nor_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = ~( rs | rb );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 		}   
 
 // NAND Instructions
@@ -4281,11 +3011,7 @@ op nand_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		TMP_RES = ~( rs & rb );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}   
 
@@ -4312,11 +3038,7 @@ op eqv_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_RES = ~( rs ^ rb );
 
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}
 
@@ -4347,11 +3069,7 @@ op extsb_cr_update ( rs : index, ra : index )
 		//TMP_SBYTE = GPR [ rs ] < 0..7 >;
 		TMP_SBYTE = GPR [ rs ] < 7..0 >; 	
 		GPR [ ra ] = TMP_SBYTE;   // sign extension
-			CR[7]<LT..LT> = ((TMP_SBYTE)<0); 
-    CR[7]<GT..GT> = ((TMP_SBYTE)>0); 
-	CR[7]<EQ..EQ> = ((TMP_SBYTE)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_SBYTE);
 
 
 		}
@@ -4379,11 +3097,7 @@ op extsh_cr_update ( rs : index, ra : index )
 		TMP_SHWORD = GPR [ rs ] < 15..0 >;
 		GPR [ ra ] = TMP_SHWORD; // sign extension
 
-			CR[7]<LT..LT> = ((TMP_SHWORD)<0); 
-    CR[7]<GT..GT> = ((TMP_SHWORD)>0); 
-	CR[7]<EQ..EQ> = ((TMP_SHWORD)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_SHWORD);
 
 		}
 
@@ -4420,11 +3134,7 @@ op cntlzw_cr_update ( rs : REG_IND, ra : index )
 		TMP_SBYTE = 31;
 		loop;
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-; 
+		CR7_update(TMP_RES); 
 		CR[7] <LT..LT> = 0;
 		}
    loop   = {
@@ -4494,11 +3204,7 @@ op rlwinm_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : ind
 			
 		TMP_RES = ( ( rs <<< sh ) & TMP_WORD );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
         }  
 
@@ -4537,11 +3243,7 @@ op rlwnm_cr_update ( rs : REG_IND, ra : index, rb : index, mb : index, me : inde
 			
 		TMP_RES = ( ( rs <<< coerce ( card ( 5 ), GPR [ rb ] < 4..0 > ) ) & TMP_WORD );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}  
 
@@ -4580,11 +3282,7 @@ op rlwimi_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : ind
 			
 		TMP_RES = ( ( rs <<< sh ) & TMP_WORD ) | ( GPR [ ra ] & ~TMP_WORD );
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}  
 
@@ -4623,11 +3321,7 @@ op slw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		endif;
 
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}
 
@@ -4664,11 +3358,7 @@ op srw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 			TMP_RES = 0;
 		endif;
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}
 
@@ -4682,18 +3372,18 @@ op srawi ( rs : REG_IND, ra : index, sh : index )
 		
 		if rs <31..31> == 0 then
 			TMP_WORD = 0;
-			TMP_WORD<31-sh..0> =~TMP_WORD<31-sh..0>;
+			TMP_WORD<31-sh..0>=~TMP_WORD<31-sh..0>;
 			GPR [ ra ] = ( rs >> sh ) & TMP_WORD;
-			XER<CA_XER..CA_XER> =0;
+			XER<CA_XER..CA_XER>=0;
 		else
 			TMP_WORD = 0;
-			TMP_WORD<31..31-sh> =~TMP_WORD<31..31-sh>;
+			TMP_WORD<31..31-sh>=~TMP_WORD<31..31-sh>;
 			GPR [ ra ] = ( rs >> sh ) | TMP_WORD;
 			TMP_WORD = 0;
-			TMP_WORD<sh..0> =~TMP_WORD<sh..0>;
+			TMP_WORD<sh..0>=~TMP_WORD<sh..0>;
 			TMP_WORD = TMP_WORD & rs;
 			if TMP_WORD != 0 then
-				XER<CA_XER..CA_XER> =1;
+				XER<CA_XER..CA_XER>=1;
 			else
 				XER<CA_XER..CA_XER>=0;
 			endif;
@@ -4725,11 +3415,7 @@ op srawi_cr_update ( rs : REG_IND, ra : index, sh : index )
 			endif;
 		endif;	
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 
 		}
@@ -4782,11 +3468,7 @@ op sraw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		endif; 
 
 		GPR [ ra ] = TMP_RES;
-			CR[7]<LT..LT> = ((TMP_RES)<0); 
-    CR[7]<GT..GT> = ((TMP_RES)>0); 
-	CR[7]<EQ..EQ> = ((TMP_RES)==0); 
-	CR[7]<SO..SO> = XER <SO_XER..SO_XER>; 
-;
+		CR7_update(TMP_RES);
 
 		}
 
@@ -4818,10 +3500,7 @@ op cr_and ( crbd : index, crba : index, crbb : index)
    image  = format ( "010011%5b%5b%5b01000000010", crbd, crba, crbb )
    action = {
 	
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- & 	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) & CR_BIT(crbb);
 
             }
 
@@ -4830,10 +3509,7 @@ op cr_or ( crbd : index, crba : index, crbb : index)
    image  = format ( "010011%5b%5b%5b01110000010", crbd, crba, crbb )
    action = {
 
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- | 	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) | CR_BIT(crbb);
 
             }
 
@@ -4841,10 +3517,7 @@ op cr_xor ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crxor crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b00110000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- ^ 	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) ^ CR_BIT(crbb);
 
             }
 
@@ -4852,50 +3525,35 @@ op cr_nand ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crnand crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b00111000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = ~(	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- & 	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-);
+		CR_BIT(crbd) = ~(CR_BIT(crba) & CR_BIT(crbb));
             }
 
 op cr_nor ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crnor crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b00001000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = ~(	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- | 	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-);
+		CR_BIT(crbd) = ~(CR_BIT(crba) | CR_BIT(crbb));
              }
 
 op cr_eqv ( crbd : index, crba : index, crbb : index)
    syntax = format ( "creqv crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b01001000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- ^ ~	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) ^ ~CR_BIT(crbb);
             }
 
 op cr_and_comp ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crandc crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b00100000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- & ~	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) & ~CR_BIT(crbb);
             }
 
 op cr_or_comp ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crorc crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b01101000010", crbd, crba, crbb )
    action = {
-			CR[(31-(crbd))/4]<((31-(crbd))-(((31-(crbd))/4)*4))..((31-(crbd))-(((31-(crbd))/4)*4))> 
- = 	CR[(31-(crba))/4]<((31-(crba))-(((31-(crba))/4)*4))..((31-(crba))-(((31-(crba))/4)*4))> 
- | ~	CR[(31-(crbb))/4]<((31-(crbb))-(((31-(crbb))/4)*4))..((31-(crbb))-(((31-(crbb))/4)*4))> 
-;
+		CR_BIT(crbd) = CR_BIT(crba) | ~CR_BIT(crbb);
             }
 
 op mov_cr_field ( crfd : card ( 3 ), crfs : card ( 3 ) )

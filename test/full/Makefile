@@ -1,4 +1,4 @@
-CLEAN=include src disasm
+CLEAN=include src disasm ppc.nml
 GFLAGS=-m \
 	sysparm:sysparm-reg32 \
 	-m loader:old_elf \
@@ -9,6 +9,9 @@ GFLAGS=-m \
 	-a disasm.c
 
 all: ppc.nml src/config.h gep src/disasm.c lib ppc-disasm simu
+
+ppc.nml: ppc.nmp oea_instr.nmp uisa_fp_instr.nmp  vea_instr.nmp
+	../../gep/gliss-nmp2nml.pl $< $@
 
 gep:
 	../../gep/gep $(GFLAGS) ppc.nml
