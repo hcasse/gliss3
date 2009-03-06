@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.18 2009/02/16 18:20:29 casse Exp $
+ * $Id: irg.ml,v 1.19 2009/03/06 10:22:08 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -442,7 +442,17 @@ let rec output_expr out e =
 		output_string out "[";
 		output_expr out idx;
 		output_string out "]"
-	| BITFIELD (_,e, l, u) ->
+	| BITFIELD (t, e, l, u) ->
+		output_string out "IRG[";
+		output_type_expr out t;
+		output_char out ',';
+		output_expr out e;
+		output_char out ',';
+		output_expr out l;
+		output_char out ',';
+		output_expr out u;
+		output_char out ']';
+		
 		output_expr out e;
 		output_string out "<";
 		output_expr out l;
@@ -730,6 +740,30 @@ let print_spec spec =
 
 
 (* some useful functions *)
+
+let get_isize _ =
+	let s = get_symbol "gliss_isize"
+	in
+	match s with
+	UNDEF ->
+		[]
+	| LET(st, cst) ->
+		(match cst with
+		STRING_CONST(nums) ->
+			List.map
+			(fun x ->
+				try
+				int_of_string x
+				with
+				Failure "int_of_string" ->
+					failwith "gliss_isize must be a string containing integers seperated by commas."
+			)
+			(Str.split (Str.regexp ",") nums)
+		| _ ->
+			failwith "gliss_isize must be defined as a string constant (let gliss_size = \"...\")"
+		)
+	| _ ->
+		failwith "gliss_isize must be defined as a string constant (let gliss_size = \"...\")"
 
 let get_type p =
 	match p with
