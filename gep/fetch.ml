@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.7 2009/03/05 13:00:46 barre Exp $
+ * $Id: fetch.ml,v 1.8 2009/03/06 12:46:17 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -580,7 +580,7 @@ let print_dot_dec_tree_list tl =
 	end
 
 
-(* outputs the declaration of all structures related to the given DecTree in C language,
+(* outputs the declaration of all structures related to the given DecTree dt in C language,
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
 dl is the global list of all nodes, used to find sons for instance *)
@@ -733,10 +733,19 @@ let output_all_table_C_decl out num_bits =
 	(* this function will check if we can generate a fetch ok for n bits,
 	it checks if each instruction is n bits (risc isa) *)
 	let test n =
-		Iter.iter
-		(fun a x -> if (get_instruction_length x) <> n then
-			failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
-		true
+		let isize = Irg.get_isize ()
+		in
+		(* n must be a valid instr size (risc isa) or isize must be void (cisc isa) *)
+		if isize = [] then
+			true
+		else
+			if List.exists (fun x -> x=n) isize then
+				Iter.iter
+				(fun a x -> if (get_instruction_length x) <> n then
+					failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
+				true
+			else
+				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, no instruction of this size.")
 	in
 	let aux dl dt =
 		output_table_C_decl out dt dl
