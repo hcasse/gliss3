@@ -44,7 +44,7 @@ module Make(H: Hashtbl.HashedType) = struct
 
 	module HashedString = struct
 		type t = string
-		let equal (s1 : t) (s2 : t) = s1 == s2
+		let equal (s1 : t) (s2 : t) = s1 = s2
 		let hash (s : t) = Hashtbl.hash s
 	end
 	module NameMap = Hashtbl.Make(HashedString)
@@ -66,7 +66,7 @@ module Make(H: Hashtbl.HashedType) = struct
 			if not (NameMap.mem nmap nname)
 			then nname
 			else find_name name (i + 1) in
-				
+		
 		try InstMap.find imap i
 		with Not_found ->
 			begin
