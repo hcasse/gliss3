@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.8 2009/02/25 17:30:24 casse Exp $
+ * $Id: app.ml,v 1.9 2009/03/07 13:02:15 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -232,6 +232,11 @@ let process file f =
 		fn (); exit 2;
 	| Toc.Error msg -> 
 		Printf.fprintf stderr "ERROR: %s\n" msg;
+		exit 4
+	| Toc.PreError f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n';
 		exit 4
 	| Sys_error msg ->
 		Printf.eprintf "ERROR: %s\n" msg; exit 1

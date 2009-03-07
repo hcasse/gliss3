@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 2009/01/29 18:11:37 casse Exp $
+# $Id: Makefile,v 1.10 2009/03/07 13:02:15 casse Exp $
 include ../Makefile.head
 
 OCAML_FLAGS=-I ../irg
@@ -18,6 +18,8 @@ GEP_SOURCES = \
 gep_LIBS = str unix ../irg/irg
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
 
+gep: ../irg/irg.cma
+
 DISASM_SOURCES = \
 	config.ml \
 	toc.ml \
@@ -27,6 +29,7 @@ DISASM_SOURCES = \
 gliss_disasm_LIBS = str unix ../irg/irg
 $(eval $(call ocaml_prog,gliss_disasm,$(DISASM_SOURCES)))
 
+gliss_disasm: ../irg/irg.cma
 
 config.ml:
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml

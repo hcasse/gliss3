@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.10 2009/02/25 14:07:59 casse Exp $
+ * $Id: toc.ml,v 1.11 2009/03/07 13:02:16 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-exception UnsupportedType of Irg.type_expr
+(*exception UnsupportedType of Irg.type_expr*)
 exception UnsupportedExpression of Irg.expr
 exception Error of string
 exception PreError of (out_channel -> unit)
@@ -43,6 +43,14 @@ let locate_error file line f arg =
 	@param msg	Message to display. *)
 let error msg =
 	raise (PreError (fun out -> output_string out msg))
+
+
+(** Raise an unsupported type error.
+	@param t	Unsupported type. *)
+let unsupported_type t =
+	raise (PreError (fun out ->
+		output_string out "unsupported type: ";
+		Irg.output_type_expr out t))
 
 
 (** Generate an error exception with the given message
@@ -141,7 +149,7 @@ let rec convert_type t =
 	| Irg.ENUM _ -> UINT32
 	| Irg.RANGE (_, m) ->
 		convert_type (Irg.INT (int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))))
-	| _ -> raise (UnsupportedType t)
+	| _ -> unsupported_type t
 
 
 (** Convert a C type to a string.
@@ -211,7 +219,7 @@ let rec type_to_int t =
 	| Irg.BOOL -> 8
 	| Irg.INT n -> n
 	| Irg.CARD n -> n
-	| _ -> raise (UnsupportedType t)
+	| _ -> unsupported_type t
 
 
 (** Get the name of a state macro.
@@ -592,7 +600,7 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
 	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
-	| Irg.CONST (_, Irg.STRING_CONST _) -> failwith "string constant"
+	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v  
 	
 	| Irg.REF name ->

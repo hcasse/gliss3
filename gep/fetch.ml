@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.8 2009/03/06 12:46:17 barre Exp $
+ * $Id: fetch.ml,v 1.9 2009/03/07 13:02:15 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -385,10 +385,8 @@ let build_dec_nodes m =
 		| _ ->
 			[]
 	in
-	let node_cond t =
-		match t with
-		DecTree(_, sl, _, _, _) ->
-			((List.length sl)<=1)
+	let node_cond (DecTree(_, sl, lmask, gmask, _)) =
+		((List.length sl)<=1)
 	in
 	let rec stop_cond l =
 		match l with
@@ -416,7 +414,9 @@ let build_dec_nodes m =
 	in
 	match m with
 	0 ->
-		aux [DecTree([], list_of_all_op_specs 0, calcul_mask (list_of_all_op_specs 0) Int32.zero, calcul_mask (list_of_all_op_specs 0) Int32.zero, [])]
+		let specs = list_of_all_op_specs 0 in
+		let mask = calcul_mask specs Int32.zero in
+		aux [DecTree([], specs, mask, mask, [])]
 	| _ ->
 		[]
 		
@@ -741,9 +741,9 @@ let output_all_table_C_decl out num_bits =
 		else
 			if List.exists (fun x -> x=n) isize then
 				Iter.iter
-				(fun a x -> if (get_instruction_length x) <> n then
-					failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
-				true
+					(fun a x -> if (get_instruction_length x) <> n then
+						failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
+					true 
 			else
 				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, no instruction of this size.")
 	in
@@ -751,9 +751,11 @@ let output_all_table_C_decl out num_bits =
 		output_table_C_decl out dt dl
 	in
 	if test num_bits then
-		let dl  = sort_dectree_list (build_dec_nodes 0)
-		in
-		List.iter (aux dl) dl
+		begin
+			let dl  = sort_dectree_list (build_dec_nodes 0)
+			in
+			List.iter (aux dl) dl
+		end
 	else
 		()
 		
