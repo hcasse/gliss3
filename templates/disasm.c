@@ -15,7 +15,7 @@ static void disasm_unknown(char *buffer, $(proc)_inst_t *inst) {
 }
 
 $(foreach instructions)
-static void disasm_$(IDENT)(char *buffer, $(proc)_inst_t *inst) {
+static void disasm_$(IDENT)(char *__buffer, $(proc)_inst_t *inst) {
 	$(disassemble)
 }
 $(end)
