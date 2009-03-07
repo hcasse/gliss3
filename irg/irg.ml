@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.19 2009/03/06 10:22:08 barre Exp $
+ * $Id: irg.ml,v 1.20 2009/03/07 14:04:39 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -99,13 +99,24 @@ type location =
 	  LOC_REF of type_expr * string * expr * expr * expr
 	| LOC_CONCAT of type_expr * location * location
 
-type mem_attr =
-	  VOLATILE of int
-	| PORTS of int * int
-	| ALIAS of location
-	| INIT of const
-	| USES (*of uses*)
 
+(** argument of attributes *)
+type attr_arg =
+	| ATTR_ID of string * attr_arg list
+	| ATTR_VAL of const
+
+
+(** A memory or register attribute. *)
+type mem_attr =
+	| VOLATILE of int					(** volatile attribute *)
+	| PORTS of int * int				(** ports attribute *)
+	| ALIAS of location					(** alias attribute *)
+	| INIT of const						(** init attribute *)
+	| USES (*of uses*)					(** use attribute (unsupported) *)
+	| ATTR of string * attr_arg list	(** generic memory attribute *)
+
+
+(** A statement in an action. *)
 type stat =
 	  NOP
 	| SEQ of stat * stat
@@ -119,6 +130,7 @@ type stat =
 	| SETSPE of location * expr	(* Used for allowing assigment of parameters (for exemple in predecode attribute). 
 					   This is NOT in the nML standard and is only present for compatibility *) 
 	| LINE of string * int * stat	(* Used to memorise the position of a statement *)
+
 
 (** attribute specifications *)
 type attr =
@@ -602,6 +614,22 @@ let rec print_statement stat= output_statement stdout stat
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
 let print_mem_attr attr =
+	let rec print_call id args =
+		print_string id;
+		if args <> [] then
+			begin
+				ignore(List.fold_left (fun sep arg ->
+						print_string sep;
+						print_arg arg;
+						", "
+					) "(" args);
+				print_string ")"
+			end
+	and print_arg arg =
+		match arg with
+		| ATTR_ID (id, args) -> print_call id args
+		| ATTR_VAL cst -> print_const cst in
+
 	match attr with
 	  VOLATILE n ->
 		Printf.printf "volatile(%d)" n
@@ -614,6 +642,8 @@ let print_mem_attr attr =
 		print_const v
 	| USES ->
 		print_string "uses"
+	| ATTR (id, args) ->
+		print_call id args
 
 
 (** Print a list of memory attributes.

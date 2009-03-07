@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.12 2009/03/04 21:59:32 casse Exp $
+ * $Id: parser.mly,v 1.13 2009/03/07 14:04:39 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -64,6 +64,7 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 %token    EQ EXCLAM PIPE CIRC AMPERS GT LT SHARP
 %token    PLUS MINUS STAR SLASH PERCENT TILD COLON
 %token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
+%token	  ATTR
 
 %right	EQ
 %left	DOUBLE_COLON
@@ -85,6 +86,7 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 
 
 %type <unit> top
+
 %start top
 
 %%
@@ -280,6 +282,29 @@ MemAttrDef:
 		{ Irg.INIT (Sem.eval_const $3) }
 |	USES EQ UsesDef
 		{ Irg.USES }
+|	ATTR LPAREN ID OptionalAttrArgs RPAREN
+		{ Irg.ATTR ($3, List.rev $4) }
+;
+
+OptionalAttrArgs:
+	/* empty */
+		{ [] }
+|	LPAREN AttrArgs RPAREN
+		{ $2 }
+;
+
+AttrArgs:
+	AttrArg
+		{ [$1] }
+|	AttrArgs AttrArg
+		{ $2::$1 }
+;
+
+AttrArg:
+	ID OptionalAttrArgs
+		{ Irg.ATTR_ID ($1, $2) }
+|	Constant
+		{ Irg.ATTR_VAL (snd $1) }
 ;
 
 MemLocation:
@@ -838,26 +863,6 @@ Expr :
 		}
 |	LPAREN Expr RPAREN
 		{ $2 }
-|	FIXED_CONST
-		{ 
-			let m =24
-			and e=8
-			in
-			eline (Irg.CONST (Irg.FLOAT(m,e),Irg.FIXED_CONST  $1)) }	/* changed for convenience. Avoid typing problem between immediates values and const */
-|	CARD_CONST
-		{
-			let c=32
-			in 
-			eline (Irg.CONST (Irg.CARD c,Irg.CARD_CONST $1)) 
-		}
-
-|	CARD_CONST_64
-		{ eline (Irg.CONST (Irg.CARD 64,Irg.CARD_CONST_64 $1)) }
-
-|	STRING_CONST
-		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
-|	STRING_VALUE
-		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 /*|	DOLLAR { }
 |	BINARY_CONST { }
 |	HEX_CONST { }*/
@@ -887,6 +892,23 @@ Expr :
 		{	
 			eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6))
 		}	
+|	Constant
+		{ eline (Irg.CONST (fst $1, snd $1)) }
+;
+
+
+Constant :
+	FIXED_CONST
+		{ (Irg.FLOAT(24, 8), Irg.FIXED_CONST  $1) }
+		/* changed for convenience. Avoid typing problem between immediates values and const */
+|	CARD_CONST
+		{ (Irg.CARD 32, Irg.CARD_CONST $1) }
+|	CARD_CONST_64
+		{ (Irg.CARD 64, Irg.CARD_CONST_64 $1) }
+|	STRING_CONST
+		{ (Irg.STRING, Irg.STRING_CONST $1) }
+|	STRING_VALUE
+		{ (Irg.STRING, Irg.STRING_CONST $1) }
 ;	
 
 Bit_Expr :
