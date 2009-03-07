@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.14 2009/03/07 14:23:08 casse Exp $
+ * $Id: parser.mly,v 1.15 2009/03/07 14:24:06 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -713,7 +713,7 @@ Expr :
 				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
 				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
 				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
-				eline (Irg.BITFIELD (Irg.CARD (v2 - v1), Irg.REF $1, $3, $5))
+				eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), Irg.REF $1, $3, $5))
 			with Sem.SemError _ ->
 				eline (Irg.BITFIELD (Sem.get_type_ident $1, Irg.REF $1, $3, $5))
 		}
