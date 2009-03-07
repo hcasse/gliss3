@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.13 2009/03/07 14:04:39 casse Exp $
+ * $Id: parser.mly,v 1.14 2009/03/07 14:23:08 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -704,33 +704,20 @@ Expr :
 	 	}
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT			
 		{ 
-
-		if Irg.is_defined $1 then
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1) || (Sem.is_loc_mode $1)
-			then
-
-				 try( 
-
-					let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3))
-					and v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5))
-					in
-					if v1<=v2
-					then
-						eline (Irg.BITFIELD (Irg.CARD (v2-v1),Irg.REF $1,$3, $5))
-					else
-						eline (Irg.BITFIELD (Irg.CARD (v1-v2),Irg.REF $1,$3, $5))
-
-				 )with Sem.SemError _ -> eline (Irg.BITFIELD (Irg.UNKNOW_TYPE,Irg.REF $1,$3, $5))
-		
-			else
-				let dsp = fun _->(
-							print_string "Type : ";
-							Irg.print_spec (Irg.get_symbol $1)
-						)
-				in
+			if not (Irg.is_defined $1) then
+				raise (Sem.SemError (Printf.sprintf "\"%s\" is undefined\n" $1))
+			else if not (Sem.is_location $1) && not (Sem.is_loc_spe $1) && not (Sem.is_loc_mode $1) then
+				let dsp = fun _-> (print_string "Type : "; Irg.print_spec (Irg.get_symbol $1)) in
 				raise (Sem.SemErrorWithFun ((Printf.sprintf "Can't apply bitfield on %s" $1),dsp))	
-		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+			else try 
+				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
+				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
+				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
+				eline (Irg.BITFIELD (Irg.CARD (v2 - v1), Irg.REF $1, $3, $5))
+			with Sem.SemError _ ->
+				eline (Irg.BITFIELD (Sem.get_type_ident $1, Irg.REF $1, $3, $5))
 		}
+
 |	ID LBRACK Expr RBRACK
 		{ 
 		if Irg.is_defined $1 then
