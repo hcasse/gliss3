@@ -109,7 +109,7 @@ op vea_icbi ( ra: REG_IND_ZERO, rb: REG_IND )
 op vea_dcba ( ra: REG_IND_ZERO, rb: REG_IND )
 
 	syntax = format ( "dcba %s,%s", ra.syntax, rb.syntax )
-	image  = format ( "01111100000%s%s0010101100", ra.image, rb.image )
+	image  = format ( "0111 1100 000 %s %s 001 0101 1000", ra.image, rb.image )
 	action = {
 		TMP_EA = ra + rb;
 		}
