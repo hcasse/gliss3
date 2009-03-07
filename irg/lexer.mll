@@ -1,5 +1,5 @@
 (*
- * $Id: lexer.mll,v 1.9 2009/03/04 21:59:32 casse Exp $
+ * $Id: lexer.mll,v 1.10 2009/03/07 14:05:05 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Lexer of OGEP.
@@ -36,6 +36,7 @@ let keyword id =
 	with Not_found -> (ID id)
 
 let keywords = [ 
+	("__attr",		ATTR);
 	("action",      ACTION);
 	("alias",       ALIAS);
 	("ports",       PORTS);
