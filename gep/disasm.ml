@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.7 2009/02/25 17:30:24 casse Exp $
+ * $Id: disasm.ml,v 1.8 2009/03/07 13:01:30 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -62,16 +62,31 @@ let _ =
 	@param expr	Syntax expression.
 	@raise Error	If there is an unsupported syntax expression. *)
 let rec gen_disasm info inst expr =
-	let out = output_string info.Toc.out in
+	
+	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST text) in
+	
+	let format fmt args s i =
+		if s >= i then
+			Irg.NOP
+		else
+			let fmt = String.sub fmt s i in
+			Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args) in
+	
+	let rec scan fmt args s used i =
+		match args with
+		| [] -> format fmt used s (String.length fmt)
+		| hd::tl ->
+			if i >= (String.length fmt) then format fmt used s i else
+			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
+			if i + 1 >= String.length fmt then format fmt used s i else
+			if fmt.[i + 1] != 's' then scan fmt tl s (hd::used) (i + 2) else
+			Irg.SEQ (format fmt used s i, scan fmt args (i + 2) [] (i + 2)) in
+	
 	match expr with
-	  Irg.FORMAT (fmt, args) ->
-		Printf.fprintf info.Toc.out "buffer += sprintf(buffer, \"%s\"" fmt;
-		List.iter
-			(fun arg -> out ", "; Toc.gen_expr info arg)
-			args;
-		out ");\n"
-	| Irg.CONST (_, Irg.STRING_CONST str) ->
-		Printf.fprintf info.Toc.out "buffer += sprintf(buffer,  \"%%s\", \"%s\");\n" (Toc.cstring str)
+	| Irg.FORMAT (fmt, args) ->
+		scan fmt args 0 [] 0
+	| Irg.CONST (_, Irg.STRING_CONST s) ->
+		format "%s" [str s] 0 2
 	| Irg.NONE
 	| Irg.CANON_EXPR _
 	| Irg.REF _
@@ -106,9 +121,9 @@ let disassemble inst out info =
 	(* disassemble *)
 	let params = Iter.get_params inst in
 	Irg.param_stack params;
-	let (stats, syntax) = Toc.prepare_expr info Irg.NOP syntax in
+	let stats = Toc.prepare_stat info (gen_disasm info inst syntax) in
 	Toc.declare_temps info;
-	gen_disasm info inst syntax;
+	Toc.gen_stat info stats;
 	Toc.cleanup_temps info;	
 	Irg.param_unstack params
 
@@ -118,6 +133,7 @@ let _ =
 	try
 		App.process !nmp
 			(fun info ->
+				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE));
 			
 				(* generate disassemble source *)
 				let maker = App.maker () in
