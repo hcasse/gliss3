@@ -28,7 +28,7 @@ The sequence supports also grouping between parenthesis. Symbols or group of sym
 
 To represent lexical items, we also use some regular expression syntax:
 - ``[abc]``, brackets represents a set of possible character whose equivalent EBNF is ``"a' | "b" | "c"```,
-- ``[a-z]``, range represents all character between ``a`` and ``z`` (in EBNF, ``"a" | "b" | ... | "z"),
+- ``[a-z]``, range represents all character between ``a`` and ``z`` (in EBNF, "a" | "b" | ... | "z"),
 - ``[^abc]``, circumflex accent represents a set complement, that is, all characters exception ``a``, ``b`` and ``c``. 
 
 
