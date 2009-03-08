@@ -4,5 +4,5 @@
 #	htmldoc  $< --book -t htmlsep -d NMP
 
 NMP.html: NMP.t2t
-	txt2tags -t xhtml -i $< -o $@
+	./txt2tags -t xhtml -i $< -o $@
 
