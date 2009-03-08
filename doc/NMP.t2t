@@ -1,0 +1,154 @@
+NMP Specification
+J. Barre, H. Cassé
+{casse, barre}@irit.fr
+
+%!Encoding: utf-8
+%!Options: --toc --enum-title --css-sugar
+%!Style: greenred/default.css
+%!postproc(xhtml): EXAMPLE:(.*) <div class="header"><b>EXAMPLE:</b>\1</div>
+%!postproc(xhtml): !!TODO!!		<img src="pix/todo.png"/>
+
+This document describes the NMP language used in the GLISS tool. This language is freely derivated from the Sim-NML language and extended with useful features.
+
+= NMP Syntax =
+
+This sections described the lexical conventions used as a base of the syntactic representation of the NMP language.
+
+== Notation ==
+
+All along this document, the NMP syntax is described using EBNF (Extended Backus-Naur Form):
+
+```
+Item ::= Form1 | Form2 | ...
+```
+
+The expression above describes the syntactic ``Item`` as having several alternative forms ``Form1``, ``Form2``, etc. Each form is a sequence of symbols that may be constant string between quotes or other syntactic items.
+
+The sequence supports also grouping between parenthesis. Symbols or group of symbols may be suffixed by ``*`` (repetition 0 of more times), ``+`` (repetition once or more time) and ``?`` (optional item). The group may also encode alternatives by separating them with pipes ``|``.
+
+To represent lexical items, we also use some regular expression syntax:
+- ``[abc]``, brackets represents a set of possible character whose equivalent EBNF is ``"a' | "b" | "c"```,
+- ``[a-z]``, range represents all character between ``a`` and ``z`` (in EBNF, ``"a" | "b" | ... | "z"),
+- ``[^abc]``, circumflex accent represents a set complement, that is, all characters exception ``a``, ``b`` and ``c``. 
+
+
+== Basic Lexical Items ==
+
+An NMP code is composed of ASCII characters (no support is provided for other text encoding for now). Blanks are usually ignored except in strings and new line character is not meaningful except in comments:
+
+```
+blanks ::= " " | "\t" | "\n"
+```
+
+So are the comments that starts with double ``/`` and end at the end of the current line:
+
+```
+comment ::= "/" "/" [^\n]* "\n"
+```
+
+== Identifiers and Keywords ==
+
+NMP uses the same identifier form as C. The identifiers are used to name most of all elements of NMP: constants, types, memories, operations, modes and attributes.
+
+```
+Identifier ::= [a-zA-Z_] [a-zA-Z_0-9]*
+```
+ 
+Some identifier are reserved and known as keywords. They must **not** be used to name NMP elements. The list is given below.
+
+```
+_attr, action, alias, bool, card, case, coerce, default, else, endif, enum, error,
+exception, false, fix, float, format, if, image, initial, int, let, macro, mode, not,
+op, ports, reg, resource, switch, syntax, then, true, type, uses, var, volatile
+```
+
+== Litteral Values ==
+
+The litterals values represents constants used in the specification fo NMP elements and in computation expressions. There are basically 4 kind of litteral values: boolean, integer, float and string.
+```
+Litteral ::= Boolean | Integer | Real | String
+```
+
+A boolean is simply the value ``true`` or ``false``.
+```
+Boolean ::= "true" | "false"
+```
+
+An integer litteral accepts several forms according the encoding base. Without prefix, decimal base is used. ``0x`` prefix is used for prefixing hexadecimal integer and ``0b`` for binary integer.
+```
+Integer ::= [1-9] [0-9]+
+          | "0" ("x" | "X") [0-9a-fA-F]+
+          | "0" ("b" | "B") [01]+
+```
+
+A real number is composed by an integer part followed, possibly followed by a fractional part and an exponent part.
+```
+Real ::= [0-9]+ "." [0-9]+
+        | [0-9]+ ("e" | "E") ("+" | "-")? [0-9]+
+        | [0-9]+ "." [0-9]+ ("e" | "E") ("+" | "-")? [0-9]+
+```
+
+Finally, a string starts with a quote, contains a sequence of character and ends with a quote. Special character or embedding of a quote is performed by prefixing them with anti-slash ``\``.
+```
+String ::= "\"" ([^\] | "\" [^])* "\""
+```
+
+== Preprocessing ==
+
+Before parsing of the NMP code, a phase of preprocessing is performed. This preprocessing may be used to include external file in the main one or to reduce typing effort using macro expressions.
+
+The macro command has the following syntax:
+```
+Macro ::= "macro" "(" (Identifier ("," Identifier)*)? ")" ([^\n] | "\\" "\n") "\n"
+```
+The macro is remplaced through the code by the body text following its parameters. This text ends at the first encountered new line but may spans over several line if newline are prefixed with ``\``. The macro may accept several parameters separated by commas. When the macro is invoked, one argument must be given for each parameter that will be replaced by the actual value in the body.
+
+There are two forms of inclusion. The first one replaces the include command by the file given in the string:
+```
+Include ::= "include" String
+```
+
+The second one delays the inclusion to the end of the current file.
+```
+DelayedInclude ::= "include" ("-" | "_")? "op" String
+```
+
+!!TODO!! what's about "-" or "_" ?
+
+The given path given in the inclusion command may be absolute or relative to the current directory.
+
+
+= Types =
+
+= Operation, Modes and Attributes =
+
+== Image attribute ==
+
+The image attribute allows to describe the binary code of an instruction. The code is represented by a string containing basically "0" and "1" matching the actual bits of the instruction code. To make it easier to read and write, GLISS V2 extends this encoding with spaces or tabulations, to make pack of bits and with "X", to represent a bit whose value is ignored to encode the instruction.
+
+From a syntactic point of view, this attribute is represented either by a simple string or using the ``format`` special function as in the example below:
+
+EXAMPLE: format usage
+```
+op AddImm(ra: card(4), rb: ZeroReg, imm: int(16))
+	image = format("1111 XX00 %4b %s %16b", ra, rb, imm)
+```
+
+This example shows also the use of percent "%" expressions working like the ``printf`` C function. Currently, there are only two forms:
+- ``%nb`` represents //n// bits whose value is taken from the matching argument in the ``format`` argument list,
+- ``%s`` is used to insert the image provided by an argument of type **mode**: the actual number of bits depends on the argument mode.
+
+
+The example above creates the following code:
+|| bits | description |
+| 31-28 | four bits at ``1111`` |
+| 27-26 | two ignored bits |
+| 25-24 | two bits at ``00`` |
+| 23-20 | four bits replaced by value of ``ra`` parameter |
+| 19-16 | bits replaced by the image provided by ``rb`` |
+| 15-0 | 16 bits provided by the ``imm`` parameter |
+
+
+= Expressions =
+
+= Statements =
