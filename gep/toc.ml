@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.11 2009/03/07 13:02:16 casse Exp $
+ * $Id: toc.ml,v 1.12 2009/03/10 21:05:14 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -431,11 +431,35 @@ let rec prepare_expr info stats expr =
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 
+	let rec get_alias attrs =
+		match attrs with
+		| [] -> None
+		| (Irg.ALIAS loc)::_ -> Some loc
+		| _::tl -> get_alias tl in
+
+	let apply_alias loc type_a f =
+		match loc with
+		| Irg.LOC_REF (_, n, i, Irg.NONE, Irg.NONE) ->
+			let type_o = (Sem.get_type_ident n) in
+			Irg.ITEMOF (type_o, Irg.REF n, f i)
+		| Irg.LOC_REF (t, n, i, l, u) ->
+			let type_o = (Sem.get_type_ident n) in
+			Irg.BITFIELD (type_a, Irg.ITEMOF (type_o, Irg.REF n, f i), l, u)
+		| Irg.LOC_CONCAT _ ->
+			failwith "concat in alias unsupported" in
+
 	match expr with
+	| Irg.REF name ->
+		(match Irg.get_symbol name with
+		| Irg.REG (_, size, t, attrs)
+		| Irg.MEM (_, size, t, attrs) ->
+			(match get_alias attrs with
+			| None -> (stats, expr)
+			| Some loc -> prepare_expr info stats (apply_alias loc t) (fun i -> i))
+		| _ ->
+			(stats, expr))
 	| Irg.NONE
-	| Irg.CONST _
-	| Irg.REF _ ->
-		(stats, expr)
+	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		(stats, Irg.COERCE (typ, expr))
