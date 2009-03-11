@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.12 2009/03/10 21:05:14 casse Exp $
+ * $Id: toc.ml,v 1.13 2009/03/11 13:33:03 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*exception UnsupportedType of Irg.type_expr*)
+exception UnsupportedType of Irg.type_expr
 exception UnsupportedExpression of Irg.expr
 exception Error of string
 exception PreError of (out_channel -> unit)
@@ -149,7 +149,11 @@ let rec convert_type t =
 	| Irg.ENUM _ -> UINT32
 	| Irg.RANGE (_, m) ->
 		convert_type (Irg.INT (int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))))
-	| _ -> unsupported_type t
+	| Irg.UNKNOW_TYPE ->
+		(* we have some of this type in bitfield expr, we can't determine the real type and mem size
+		so let's patch it up for the moment, uint32 should be the least worst choice *)
+		UINT32
+	| _ -> raise (UnsupportedType t)
 
 
 (** Convert a C type to a string.
@@ -220,6 +224,7 @@ let rec type_to_int t =
 	| Irg.INT n -> n
 	| Irg.CARD n -> n
 	| _ -> unsupported_type t
+
 
 
 (** Get the name of a state macro.
@@ -455,7 +460,7 @@ let rec prepare_expr info stats expr =
 		| Irg.MEM (_, size, t, attrs) ->
 			(match get_alias attrs with
 			| None -> (stats, expr)
-			| Some loc -> prepare_expr info stats (apply_alias loc t) (fun i -> i))
+			| Some loc -> prepare_expr info stats (apply_alias loc t (fun i -> i)))
 		| _ ->
 			(stats, expr))
 	| Irg.NONE
@@ -480,6 +485,15 @@ let rec prepare_expr info stats expr =
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
 		let (stats, up) = prepare_expr info stats up in
+(*		print_string "P_E[";
+		Irg.print_type_expr typ;
+		print_char ',';
+		Irg.print_expr expr;
+		print_char ',';
+		Irg.print_expr lo;
+		print_char ',';
+		Irg.print_expr up;
+		print_char ']';*)
 		(stats, Irg.BITFIELD (typ, expr, lo, up))
 	| Irg.UNOP (typ, op, arg) ->
 		let (stats, arg) = prepare_expr info stats arg in
@@ -601,6 +615,9 @@ let rec prepare_stat info stat =
 	| Irg.EVAL _
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
+		print_char '[';
+		Irg.print_statement stat;
+		print_char ']';
 		failwith "must have been removed !"
 
 
@@ -658,6 +675,16 @@ let rec gen_expr info (expr: Irg.expr) =
 
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		out "gliss_field";
+(*		print_char '[';
+		Irg.print_type_expr typ;
+		print_char ',';
+		Irg.print_expr expr;
+		print_char ',';
+		Irg.print_expr lo;
+		print_char ',';
+		Irg.print_expr up;
+		print_char ']';
+*)		
 		out (type_to_mem (convert_type typ));
 		out "(";
 		gen_expr info expr;
@@ -858,7 +885,7 @@ let rec gen_stat info stat =
 		if def <> Irg.NOP then
 			begin
 				out "\tdefault:\n";
-				gen_stat info stat;
+				gen_stat info def; (*stat;*)
 			end;
 		out "\t}\n"
 
