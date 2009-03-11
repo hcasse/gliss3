@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.15 2009/03/07 14:24:06 casse Exp $
+ * $Id: parser.mly,v 1.16 2009/03/11 12:09:15 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -723,7 +723,7 @@ Expr :
 		if Irg.is_defined $1 then
 			if (Sem.is_location $1) || (Sem.is_loc_spe $1)  || (Sem.is_loc_mode $1)
 				then
-					eline (Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3))
+					eline (Irg.ITEMOF ((Sem.get_type_ident $1), $1, $3))
 				else 
 					let dsp = fun _->(
 							print_string "Type : ";
@@ -739,7 +739,7 @@ Expr :
 			then
 				if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
 					then
-						eline (Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),Irg.REF $1, $3), $6, $8)) (* A changer *)
+						eline (Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8)) (* A changer *)
 					else 
 						let dsp = fun _->(
 								print_string "Type : ";

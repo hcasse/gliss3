@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.20 2009/03/07 14:04:39 casse Exp $
+ * $Id: irg.ml,v 1.21 2009/03/11 12:09:14 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -85,7 +85,7 @@ type expr =
 	| CANON_EXPR of type_expr * string * expr list
 	| REF of string
 	| FIELDOF of type_expr * expr * string
-	| ITEMOF of type_expr * expr * expr
+	| ITEMOF of type_expr * string * expr
 	| BITFIELD of type_expr * expr * expr * expr
 	| UNOP of type_expr * unop * expr
 	| BINOP of type_expr * binop * expr * expr
@@ -96,8 +96,9 @@ type expr =
 	
 (** Statements *)
 type location =
-	  LOC_REF of type_expr * string * expr * expr * expr
-	| LOC_CONCAT of type_expr * location * location
+	| LOC_NONE												(** null location *)
+	| LOC_REF of type_expr * string * expr * expr * expr	(** (type, memory name, index, lower bit, upper bit) *)
+	| LOC_CONCAT of type_expr * location * location			(** concatenation of locations *)
 
 
 (** argument of attributes *)
@@ -449,8 +450,8 @@ let rec output_expr out e =
 		output_string out n
 	| REF id ->
 		output_string out id
-	| ITEMOF (_, e, idx) ->
-		output_expr out e;
+	| ITEMOF (_, name, idx) ->
+		output_string out name;
 		output_string out "[";
 		output_expr out idx;
 		output_string out "]"
@@ -521,7 +522,9 @@ let rec print_expr e = output_expr stdout e
 	@param loc	Location to print. *)
 let rec output_location out loc =
 	match loc with
-	  LOC_REF (_, id, idx, lo, up) ->
+	| LOC_NONE ->
+		output_string out "<none>"
+	| LOC_REF (_, id, idx, lo, up) ->
 	  	output_string out id;
 		if idx <> NONE then
 			begin
@@ -917,7 +920,7 @@ let rec substitute_in_expr name op ex =
 		else
 			FIELDOF(te, substitute_in_expr name op e, s)
 	| ITEMOF(te, e1, e2) ->
-		ITEMOF(te, substitute_in_expr name op e1, substitute_in_expr name op e2)
+		ITEMOF(te, e1, substitute_in_expr name op e2)
 	| BITFIELD(te, e1, e2, e3) ->
 		BITFIELD(te, substitute_in_expr name op e1, substitute_in_expr name op e2, substitute_in_expr name op e3)
 	| UNOP(te, un_op, e) ->
@@ -985,7 +988,7 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	| FIELDOF(t_e, e, s) ->
 		FIELDOF(t_e, change_name_of_var_in_expr e var_name new_name, s)
 	| ITEMOF(t_e, e1, e2) ->
-		ITEMOF(t_e, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name)
+		ITEMOF(t_e, e1, change_name_of_var_in_expr e2 var_name new_name)
 	| BITFIELD(t_e, e1, e2, e3) ->
 		BITFIELD(t_e, change_name_of_var_in_expr e1 var_name new_name, change_name_of_var_in_expr e2 var_name new_name, change_name_of_var_in_expr e3 var_name new_name)
 	| UNOP(t_e, u, e) ->
@@ -1004,7 +1007,8 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 
 let rec change_name_of_var_in_location loc var_name new_name =
 	match loc with
-	LOC_REF(t, s, i, l, u) ->
+	| LOC_NONE -> loc
+	| LOC_REF(t, s, i, l, u) ->
 		LOC_REF (
 			t,
 			(if s = var_name then new_name else s),

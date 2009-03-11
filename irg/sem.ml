@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.14 2009/03/04 21:59:33 casse Exp $
+ * $Id: sem.ml,v 1.15 2009/03/11 12:09:15 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1238,6 +1238,7 @@ let build_canonical_stat name param=
 	@return		Type of the location. *)
 let get_loc_type loc =
 	match loc with
+	| LOC_NONE -> NO_TYPE
 	| LOC_REF (t, _, _, _, _) -> t
 	| LOC_CONCAT (t, _, _) -> t
 
