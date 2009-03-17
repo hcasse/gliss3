@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.21 2009/03/11 12:09:14 casse Exp $
+ * $Id: irg.ml,v 1.22 2009/03/17 16:23:53 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -456,16 +456,6 @@ let rec output_expr out e =
 		output_expr out idx;
 		output_string out "]"
 	| BITFIELD (t, e, l, u) ->
-		output_string out "IRG[";
-		output_type_expr out t;
-		output_char out ',';
-		output_expr out e;
-		output_char out ',';
-		output_expr out l;
-		output_char out ',';
-		output_expr out u;
-		output_char out ']';
-		
 		output_expr out e;
 		output_string out "<";
 		output_expr out l;
@@ -778,6 +768,7 @@ let get_isize _ =
 	let s = get_symbol "gliss_isize"
 	in
 	match s with
+	(* if gliss_isize not defined, we assume we have a cisc isa *)
 	UNDEF ->
 		[]
 	| LET(st, cst) ->
@@ -1185,13 +1176,10 @@ let rec search_spec_of_name name param_list =
 				spec_from_type t
 			else
 				search_spec_of_name name q
-		| [] -> failwith (String.concat "" ["internal error: search_spec_of_name : "; name])
+		| [] -> print_string "params : "; print_param_list param_list; failwith (String.concat "" ["internal error: search_spec_of_name : "; name])
 	in
-	begin
-	(*Printf.printf "Search_spec_of name=%s, params= " name;
-	print_param_list param_list;*)
 	rec_aux name param_list
-	end
+
 
 
 
@@ -1206,13 +1194,7 @@ let get_spec_from_expr e spec_params =
 		| ELINE (_, _, e) -> rec_aux e p_l
 		| _ -> UNDEF
 	in
-	begin
-	(*print_string "get_spec_from_expr expr = ";
-	print_expr e;
-	print_string ", params = ";
-	print_param_list spec_params;*)
 	rec_aux e spec_params
-	end
 
 
 let rec regexp_list_to_str_list l =
@@ -1283,25 +1265,17 @@ let transform_str_list reg_list expr_list spec_params =
 				(match a with
 				Str.Text(txt) ->
 				begin
-				(*Printf.printf "a (txt) = %s\n" txt;*)
 				txt::(rec_aux t e_l p_l)
 				end
 				(* we suppose everything is well formed, each format has one param, params are given in format's order *)
 				| Str.Delim(txt) -> 
 				begin
-				(*Printf.printf "a (Delim) = %s\n" txt;
-				Printf.printf "b = "; print_expr b; print_string "\n" ;*)
 				(replace_format_by_attr a b (get_spec_from_expr b p_l))::(rec_aux t u p_l)
 				end
 				)
 			)
-	in 
-	begin
-	(*print_string "Trsfrm_str_list\nreg_l = "; print_reg_list reg_list;
-	print_string "exp_l = "; print_expr_list expr_list;
-	print_string "\nprm_l = "; print_param_list spec_params;*)
+	in
 	rec_aux reg_list expr_list spec_params
-	end
 
 
 (* instantiate all var in expr_frmt (of type format(ch, p1, p2, ..., pn) )
@@ -1347,18 +1321,8 @@ let change_format_attr expr_frmt param_list =
 			)
 		| _ -> f
 	in
-	begin
-	(*print_string "Chg_frmt_attr\nfrmt_expr = ";
-	print_expr expr_frmt;
-	print_string "\nparams = ";
-	print_param_list param_list;
-	*)
-	let res = reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
-	in
-	(*print_expr res;
-	flush stdout;*)
-	res
-	end
+	reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
+	
 
 (* replace the type by the spec if the param refers to an op or mode,
 the param is dropped if it is of a simple type *)
@@ -1396,11 +1360,6 @@ let rec instantiate_in_expr ex param_list =
 	in
 	match ex with
 	FORMAT(_, _) ->
-		(*Printf.printf "inst_in_exp, expr : ";
-		print_expr ex;
-		Printf.printf "\napres :";
-		print_expr (change_format_attr ex param_list);
-		print_string "\n\n";*)
 		change_format_attr ex param_list
 	| ELINE(a, b, e) ->
 		ELINE(a, b, instantiate_in_expr e param_list)
@@ -1544,7 +1503,7 @@ let add_attr sp param =
 	let attr_param =
 		match param with
 		(name, TYPE_ID(s)) ->
-			get_attrs (get_symbol s)
+			get_attrs (prefix_name_of_params_in_spec (get_symbol s) name)
 		| (name, TYPE_EXPR(t)) ->
 			[]
 	in
