@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.13 2009/03/11 13:33:03 barre Exp $
+ * $Id: toc.ml,v 1.14 2009/03/18 13:05:19 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -126,6 +126,14 @@ let info _ =
 	}
 
 
+(** Compute the power of two whose exponent is the lowest
+	value greater or equal to n.
+	@param n	N to compute with.
+	@return		Lowest power of 2. *)
+let ceil_log2 n =
+	int_of_float (ceil ((log (Int32.to_float n)) /. (log 2.)))
+
+
 (** Convert an NML type to C type.
 	@param t	Type to convert.
 	@return		Matching C type.
@@ -153,7 +161,7 @@ let rec convert_type t =
 		(* we have some of this type in bitfield expr, we can't determine the real type and mem size
 		so let's patch it up for the moment, uint32 should be the least worst choice *)
 		UINT32
-	| _ -> raise (UnsupportedType t)
+	| _ -> unsupported_type t
 
 
 (** Convert a C type to a string.
@@ -426,6 +434,60 @@ let cstring str =
 	aux str 0 ""
 
 
+(** Decompose an alias.
+	@param type_a	Type of the alias.
+	@param name_o	Original register name.
+	@param idx		Index of the access (may be none).
+	@param off		Offset in the original register array (may be NONE).
+	@param get		Function to get the register.
+	@param item		Function to get from an array.
+	@param concat	Function to perform the concatenation.
+	@return			Expression realizing the alias. *)
+let rec make_alias type_a name_o idx off get item concat =
+	let size_a = Sem.get_type_length type_a in
+	let type_o = Sem.get_type_ident name_o in
+	let size_o = Sem.get_type_length type_o in
+	let type_i =
+		match Irg.get_symbol name_o with
+		| Irg.REG (_, size, _, _) -> Irg.CARD(ceil_log2 (Int32.of_int size))
+		| _ -> failwith "bad alias" in
+
+	let cst i = Irg.CONST (type_i, Irg.CARD_CONST (Int32.of_int i)) in
+	let fact e n =
+		if e = Irg.NONE then e else
+		Irg.BINOP(type_i, Irg.MUL, e, (cst n)) in
+	let add e1 e2 =
+		if e1 = Irg.NONE then e2 else
+		if e2 = Irg.NONE then e1 else
+		Irg.BINOP (type_i, Irg.ADD, e1, e2) in
+	let itemof t a e1 e2 =
+		let idx = add e1 e2 in
+		if idx = Irg.NONE then get a else item t a idx in
+
+	(* name_o[idx + off] *)
+	if size_a = size_o then
+		itemof type_o name_o idx off
+	
+	(* name_o[idx * size_a / size_o + off] *)
+	else if size_a >= size_o then
+		let base = add (fact idx (size_a / size_o)) off in
+		let base = if base = Irg.NONE then cst 0 else base in
+		let rec list_alias n =
+			let access = item type_o name_o (add base (cst n)) in
+			if n = 0 then [access] else access::(list_alias (n - 1)) in
+		let lst = list_alias (size_a / size_o - 1) in	(* !!TODO!! invert according endianness *)
+		let rec flatten lst size =
+			match lst with
+			| [] -> Irg.NONE
+			| [access] -> access
+			| hd::tl -> concat (Irg.CARD (size)) hd (flatten tl (size - size_o)) in
+		flatten lst size_a		
+			
+	(* unsupported *)
+	else
+		failwith "unsupported"
+
+
 (** Prepare expression for generation.
 	@param info		Generation information.
 	@param stats	Prefix statements.	
@@ -435,34 +497,30 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+	let get r = Irg.REF r in
+	let item t r i = Irg.ITEMOF(t, r, i) in
+	let concat t e1 e2 = Irg.BINOP(t, Irg.CONCAT, e1, e2) in
 
 	let rec get_alias attrs =
 		match attrs with
-		| [] -> None
-		| (Irg.ALIAS loc)::_ -> Some loc
+		| [] -> Irg.LOC_NONE
+		| (Irg.ALIAS loc)::_ -> loc
 		| _::tl -> get_alias tl in
-
-	let apply_alias loc type_a f =
-		match loc with
-		| Irg.LOC_REF (_, n, i, Irg.NONE, Irg.NONE) ->
-			let type_o = (Sem.get_type_ident n) in
-			Irg.ITEMOF (type_o, Irg.REF n, f i)
-		| Irg.LOC_REF (t, n, i, l, u) ->
-			let type_o = (Sem.get_type_ident n) in
-			Irg.BITFIELD (type_a, Irg.ITEMOF (type_o, Irg.REF n, f i), l, u)
-		| Irg.LOC_CONCAT _ ->
-			failwith "concat in alias unsupported" in
 
 	match expr with
 	| Irg.REF name ->
 		(match Irg.get_symbol name with
-		| Irg.REG (_, size, t, attrs)
-		| Irg.MEM (_, size, t, attrs) ->
+		| Irg.REG (_, size, t, attrs) ->
 			(match get_alias attrs with
-			| None -> (stats, expr)
-			| Some loc -> prepare_expr info stats (apply_alias loc t (fun i -> i)))
-		| _ ->
-			(stats, expr))
+			| Irg.LOC_NONE -> (stats, expr)
+			| Irg.LOC_REF (t, n, i, l, u) ->
+				let con = (make_alias t n Irg.NONE i get item concat) in
+				let res = if l = Irg.NONE then con
+					else Irg.BITFIELD (t, con, l, u) in
+				prepare_expr info stats res
+			| Irg.LOC_CONCAT _ ->
+				failwith "concat in alias unsupported")
+		| _ -> (stats, expr))
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -478,9 +536,19 @@ let rec prepare_expr info stats expr =
 		let (stats, base) = prepare_expr info stats base in
 		(stats, Irg.FIELDOF (typ, base, id))
 	| Irg.ITEMOF (typ, tab, idx) ->
-		let (stats, tab) = prepare_expr info stats tab in
 		let (stats, idx) = prepare_expr info stats idx in
-		(stats, Irg.ITEMOF (typ, tab, idx))	
+		(match Irg.get_symbol tab with
+		| Irg.REG (_, size, t, attrs) ->
+			(match get_alias attrs with
+			| Irg.LOC_NONE -> (stats, Irg.ITEMOF (typ, tab, idx))
+			| Irg.LOC_REF (t, n, off, l, u) ->
+				let con = (make_alias t n idx off get item concat) in
+				let res = if l = Irg.NONE then con
+					else Irg.BITFIELD (t, con, l, u) in
+				prepare_expr info stats res
+			| Irg.LOC_CONCAT _ ->
+				failwith "concat in alias unsupported")
+		| _ -> (stats, Irg.ITEMOF (typ, tab, idx)))
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -556,6 +624,7 @@ let rec prepare_stat info stat =
 	
 	let rec get_shift loc =
 		match loc with
+		| Irg.LOC_NONE -> failwith "no location to set"
 		| Irg.LOC_REF (typ, _, _, Irg.NONE, Irg.NONE) ->
 	  		card (Sem.get_type_length typ)
 		| Irg.LOC_REF (typ, _, _, lo, up) ->
@@ -565,6 +634,7 @@ let rec prepare_stat info stat =
 	
 	let rec set loc expr shift =
 		match loc with
+		| Irg.LOC_NONE -> failwith "no location to set (2)"
 		| Irg.LOC_REF _ ->
 			if shift = Irg.NONE then Irg.SET (loc, expr)
 			else Irg.SET (loc, rshift (Sem.get_loc_type loc) expr shift)
@@ -576,6 +646,7 @@ let rec prepare_stat info stat =
 	
 	let prepare_set loc expr =
 		match loc with
+		| Irg.LOC_NONE -> failwith "no location to set (3)"
 		| Irg.LOC_REF _ -> Irg.SET (loc, expr)
 		| Irg.LOC_CONCAT _ ->
 			let tmp = new_temp info (Sem.get_loc_type loc) in
@@ -653,7 +724,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
 		| _ -> failwith "expression form must have been removed")
 
-	| Irg.ITEMOF (_, Irg.REF name, idx) ->
+	| Irg.ITEMOF (_, name, idx) ->
 		(match Irg.get_symbol name with
 		| Irg.VAR _ ->
 			out name;
@@ -671,7 +742,6 @@ let rec gen_expr info (expr: Irg.expr) =
 			gen_expr info idx;
 			out ")"
 		| _ -> failwith "invalid itemof")
-	| Irg.ITEMOF _ -> failwith "invalid itemof"
 
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		out "gliss_field";
@@ -803,7 +873,7 @@ let rec gen_stat info stat =
 					info.proc (type_to_mem (convert_type typ)),
 				[
 					if idx = Irg.NONE then Irg.REF id
-					else Irg.ITEMOF (typ, Irg.REF id, idx);
+					else Irg.ITEMOF (typ, id, idx);
 					expr;
 					lo;
 					up
