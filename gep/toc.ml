@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.14 2009/03/18 13:05:19 casse Exp $
+ * $Id: toc.ml,v 1.15 2009/03/24 12:41:27 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -434,58 +434,114 @@ let cstring str =
 	aux str 0 ""
 
 
-(** Decompose an alias.
-	@param type_a	Type of the alias.
-	@param name_o	Original register name.
-	@param idx		Index of the access (may be none).
-	@param off		Offset in the original register array (may be NONE).
-	@param get		Function to get the register.
-	@param item		Function to get from an array.
-	@param concat	Function to perform the concatenation.
-	@return			Expression realizing the alias. *)
-let rec make_alias type_a name_o idx off get item concat =
-	let size_a = Sem.get_type_length type_a in
-	let type_o = Sem.get_type_ident name_o in
-	let size_o = Sem.get_type_length type_o in
-	let type_i =
-		match Irg.get_symbol name_o with
-		| Irg.REG (_, size, _, _) -> Irg.CARD(ceil_log2 (Int32.of_int size))
-		| _ -> failwith "bad alias" in
+(** Get the alias from the list of attributes.
+	@param attrs	Attributes to get alias from.
+	@return			Alias relocation expression found
+					(LOC_NONE if there is no alias) *)
+let rec get_alias attrs =
+	match attrs with
+	| [] -> Irg.LOC_NONE
+	| (Irg.ALIAS loc)::_ -> loc
+	| _::tl -> get_alias tl
 
-	let cst i = Irg.CONST (type_i, Irg.CARD_CONST (Int32.of_int i)) in
-	let fact e n =
-		if e = Irg.NONE then e else
-		Irg.BINOP(type_i, Irg.MUL, e, (cst n)) in
+
+
+(** Perform alias resolution, that is, translate a state read/write into
+	a tuple of unaliased states.
+	@param name		Name of the accessed state resource.
+	@param idx		Index of the accessed state resource.
+	@param ub		Upper bit.
+	@param lb		Lower bit.
+	@return			(unaliased state name, first state index, 
+					state resource count, upper bit, lower bit,
+					resource type) *)
+let resolve_alias name idx ub lb =
+
+	let t = Irg.CARD(32) in
+	let const c =
+		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
 	let add e1 e2 =
 		if e1 = Irg.NONE then e2 else
-		if e2 = Irg.NONE then e1 else
-		Irg.BINOP (type_i, Irg.ADD, e1, e2) in
-	let itemof t a e1 e2 =
-		let idx = add e1 e2 in
-		if idx = Irg.NONE then get a else item t a idx in
+		Irg.BINOP (t, Irg.ADD, e1, e2) in
+	let mul e1 e2 =
+		if e1 = Irg.NONE then Irg.NONE else
+		Irg.BINOP (t, Irg.MUL, e1, e2) in
+	let div e1 e2 =
+		if e1 = Irg.NONE then Irg.NONE else
+		Irg.BINOP (t, Irg.DIV, e1, e2) in
+	let rem e1 e2 =
+		if e1 = Irg.NONE then Irg.NONE else
+		Irg.BINOP (t, Irg.MOD, e1, e2) in
 
-	(* name_o[idx + off] *)
-	if size_a = size_o then
-		itemof type_o name_o idx off
+	let convert tr v =
+		let (r, i, il, ub, lb, ta) = v in
+		if ta = Irg.NO_TYPE then v else
+		let sa = Sem.get_type_length ta in
+		let sr = Sem.get_type_length tr in
+		if sa = sr then v else
+		if sa < sr then
+			let f = const (sr / sa) in
+			(r, div i f, 1, add ub (rem i f), add lb (rem i f), t) 
+		else
+			let f = sa / sr in
+			(r, mul i (const f), il * f, ub, lb, t) in
+
+	let shift s v =
+		let (r, i, il, ub, lb, t) = v in
+		(r, add i s, il, ub, lb, t) in
 	
-	(* name_o[idx * size_a / size_o + off] *)
-	else if size_a >= size_o then
-		let base = add (fact idx (size_a / size_o)) off in
-		let base = if base = Irg.NONE then cst 0 else base in
-		let rec list_alias n =
-			let access = item type_o name_o (add base (cst n)) in
-			if n = 0 then [access] else access::(list_alias (n - 1)) in
-		let lst = list_alias (size_a / size_o - 1) in	(* !!TODO!! invert according endianness *)
-		let rec flatten lst size =
-			match lst with
-			| [] -> Irg.NONE
-			| [access] -> access
-			| hd::tl -> concat (Irg.CARD (size)) hd (flatten tl (size - size_o)) in
-		flatten lst size_a		
-			
-	(* unsupported *)
-	else
-		failwith "unsupported"
+	let field u l v =
+		let (r, i, il, ub, lb, t) = v in
+		(r, i, il, add lb u, add lb l, t) in
+
+	let rec process v =
+		let (r, i, il, ub, lb, t) = v in
+		match Irg.get_symbol r with
+		| Irg.REG (_, _, tr, attrs) ->
+			let v = convert tr v in
+			(match get_alias attrs with
+			| Irg.LOC_NONE -> (name, idx, 1, ub, lb, tr)
+			| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
+			| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
+				let v = if idx = Irg.NONE then v else shift idx v in
+				let v = if ub = Irg.NONE then v else field ub lb v in
+				process v) 
+		| _ ->
+			failwith "bad alias" in
+	
+	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
+
+
+(** Unalias an expression.
+	@param name		Name of the accessed state resource.
+	@param idx		Index (may be NONE)
+	@param ub		Upper bit number (may be NONE)
+	@patam lb		Lower bit number (may be NONE)
+	@return			Unaliased expression. *)
+let unalias_expr name idx ub lb =
+	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
+	let t = Irg.CARD(32) in
+	let const c =
+		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
+	let add e1 e2 =
+		if e1 = Irg.NONE then e2 else
+		Irg.BINOP (t, Irg.ADD, e1, e2) in
+	let rec concat l tt =
+		if l = 0 then Irg.ITEMOF (t, r, i) else
+		Irg.BINOP(tt, Irg.CONCAT,
+			Irg.ITEMOF (t, r, add i (const l)),
+			concat (l - 1) tt) in
+	let field e ub lb tt =
+		if ub = Irg.NONE then e
+		else Irg.BITFIELD(tt, e, ub, lb) in
+	match Irg.get_symbol name with
+	| Irg.REG (_, _, tt, _) ->
+		field (concat (il - 1) tt) ubp lbp tt
+	| Irg.VAR (_, _, tt) ->
+		field (concat (il - 1) tt) ubp lbp tt
+	| Irg.MEM (_, _, tt, _) ->
+		field (concat 0 tt) ub lb tt
+	| _ -> failwith "unalias_expr"
 
 
 (** Prepare expression for generation.
@@ -497,30 +553,10 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
-	let get r = Irg.REF r in
-	let item t r i = Irg.ITEMOF(t, r, i) in
-	let concat t e1 e2 = Irg.BINOP(t, Irg.CONCAT, e1, e2) in
-
-	let rec get_alias attrs =
-		match attrs with
-		| [] -> Irg.LOC_NONE
-		| (Irg.ALIAS loc)::_ -> loc
-		| _::tl -> get_alias tl in
 
 	match expr with
 	| Irg.REF name ->
-		(match Irg.get_symbol name with
-		| Irg.REG (_, size, t, attrs) ->
-			(match get_alias attrs with
-			| Irg.LOC_NONE -> (stats, expr)
-			| Irg.LOC_REF (t, n, i, l, u) ->
-				let con = (make_alias t n Irg.NONE i get item concat) in
-				let res = if l = Irg.NONE then con
-					else Irg.BITFIELD (t, con, l, u) in
-				prepare_expr info stats res
-			| Irg.LOC_CONCAT _ ->
-				failwith "concat in alias unsupported")
-		| _ -> (stats, expr))
+		(stats, unalias_expr name Irg.NONE Irg.NONE Irg.NONE)
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -537,18 +573,7 @@ let rec prepare_expr info stats expr =
 		(stats, Irg.FIELDOF (typ, base, id))
 	| Irg.ITEMOF (typ, tab, idx) ->
 		let (stats, idx) = prepare_expr info stats idx in
-		(match Irg.get_symbol tab with
-		| Irg.REG (_, size, t, attrs) ->
-			(match get_alias attrs with
-			| Irg.LOC_NONE -> (stats, Irg.ITEMOF (typ, tab, idx))
-			| Irg.LOC_REF (t, n, off, l, u) ->
-				let con = (make_alias t n idx off get item concat) in
-				let res = if l = Irg.NONE then con
-					else Irg.BITFIELD (t, con, l, u) in
-				prepare_expr info stats res
-			| Irg.LOC_CONCAT _ ->
-				failwith "concat in alias unsupported")
-		| _ -> (stats, Irg.ITEMOF (typ, tab, idx)))
+		(stats, unalias_expr tab idx Irg.NONE Irg.NONE)
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -605,6 +630,95 @@ and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 		args
 
 
+(** Build a sequence, optimizing the result if one is a nop.
+	@param s1	First statement.
+	@param s2	Second statement.
+	@return		Sequenced statements. *)
+let seq s1 s2 =
+		if s1 = Irg.NOP then s2 else
+		if s2 = Irg.NOP then s1 else
+		Irg.SEQ (s1, s2)
+
+
+(** Build a sequence from a list of statements.
+	@param list		List of statements.
+	@return			Sequence of statements. *)
+let rec seq_list list =
+	match list with
+	| [] -> Irg.NOP
+	| [s] -> s
+	| s::t -> seq s (seq_list t)
+
+
+(** Unalias an assignement.
+	@param info		Generation information.
+	@param stats	Side-effect statements.
+	@param name		Name of the accessed state resource.
+	@param idx		Index (may be NONE)
+	@param ub		Upper bit number (may be NONE)
+	@param lb		Lower bit number (may be NONE)
+	@param			Expression to assign.
+	@return			statements *)
+let unalias_set info stats name idx ub lb expr =
+	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
+
+	(*let addn e1 e2 =
+		if e1 = Irg.NONE then e2 else addi e1 e2  in*)
+	let index_t = Irg.CARD(32) in
+	let index c = Irg.CONST (index_t, Irg.CARD_CONST (Int32.of_int c)) in
+	let addi e1 e2 = Irg.BINOP (index_t, Irg.ADD, e1, e2) in
+	let subi e1 e2 = Irg.BINOP (index_t, Irg.SUB, e1, e2) in
+	let shr e1 e2 = Irg.BINOP (index_t, Irg.RSHIFT, e1, e2) in
+	let field e ub lb  = Irg.BITFIELD (t, e, ub, lb) in
+
+	let set_full i ub lb e =
+		Irg.SET (Irg.LOC_REF (t, r, i, ub, lb), e) in
+	(*let set _ = set_full Irg.NONE Irg.NONE Irg.NONE in*)
+	let set_field ub lb e = set_full Irg.NONE ub lb e in
+	let set_item i e = set_full i Irg.NONE Irg.NONE e in
+	let sett t n e =
+		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
+
+	let rec set_concat l s =
+		if l = 0 then set_item i expr else
+		seq (set_item
+				(addi i (index l))
+				(field expr
+					(index (l * s + s - 1))
+					(index (l * s))))
+			(set_concat (l - 1) s) in
+
+	let rec set_concat_field l s =
+		if l = 0 then set_field ub lb expr else
+		seq
+			(set_full
+				(addi i (index l))
+				(subi ub (index (l * s)))
+				(subi lb (index (l * s)))
+				(shr expr (index (l * s))))
+			(set_concat_field (l - 1) s) in
+
+	let process tt =
+		if ub = Irg.NONE then
+			if il = 1 then seq stats (set_item i expr) else
+			let name = new_temp info tt in
+			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t))
+		else
+			if il = 1 then seq stats (set_full i ubp lbp expr) else
+			let name = new_temp info tt in
+			seq (seq stats (sett tt name expr)) (set_concat_field (il - 1) (Sem.get_type_length t)) in
+
+	match Irg.get_symbol name with
+	| Irg.REG (_, _, tt, _) -> process tt
+	| Irg.VAR (_, _, tt) -> process tt
+	| Irg.MEM (_, _, tt, _) -> seq stats (set_full i ub lb expr)
+	| _ -> failwith "unalias_expr"
+
+
+(* !!TODO!! move to Sem *)
+let get_loc_size l =
+	Sem.get_type_length (Sem.get_loc_type l)	
+
 (** Prepare a statement before generation. It includes:
 	- preparation of expressions,
 	- split of concatenation location in assignment.
@@ -612,47 +726,24 @@ and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
-
-	let card v =
-		Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int v)) in
-	let add e1 e2 =
-		Irg.BINOP (Irg.CARD(32), Irg.ADD, e1, e2) in
-	let sub e1 e2 =
-		Irg.BINOP (Irg.CARD(32), Irg.SUB, e1, e2) in
-	let rshift typ e1 e2 =
-		Irg.BINOP (typ, Irg.RSHIFT, e1, e2) in
+	let set t n e =
+		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
+	let refto n = Irg.REF n in
+	let rshift t v s = Irg.BINOP (t, Irg.RSHIFT, v, s) in
+	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 	
-	let rec get_shift loc =
+	let rec prepare_set stats loc expr =
 		match loc with
-		| Irg.LOC_NONE -> failwith "no location to set"
-		| Irg.LOC_REF (typ, _, _, Irg.NONE, Irg.NONE) ->
-	  		card (Sem.get_type_length typ)
-		| Irg.LOC_REF (typ, _, _, lo, up) ->
-			add (card 1) (sub up lo)
-		| Irg.LOC_CONCAT (_, loc1, loc2) ->
-			add (get_shift loc1) (get_shift loc2) in
-	
-	let rec set loc expr shift =
-		match loc with
-		| Irg.LOC_NONE -> failwith "no location to set (2)"
-		| Irg.LOC_REF _ ->
-			if shift = Irg.NONE then Irg.SET (loc, expr)
-			else Irg.SET (loc, rshift (Sem.get_loc_type loc) expr shift)
-		| Irg.LOC_CONCAT (typ, loc1, loc2) ->
-			Irg.SEQ(
-				set loc1 expr shift,
-				set loc2 expr (add shift (get_shift loc1))
-			) in
-	
-	let prepare_set loc expr =
-		match loc with
-		| Irg.LOC_NONE -> failwith "no location to set (3)"
-		| Irg.LOC_REF _ -> Irg.SET (loc, expr)
-		| Irg.LOC_CONCAT _ ->
-			let tmp = new_temp info (Sem.get_loc_type loc) in
-			Irg.SEQ(
-				Irg.SET (Irg.LOC_REF (Sem.get_loc_type loc, tmp, Irg.NONE, Irg.NONE, Irg.NONE), expr),
-				set loc (Irg.REF tmp) (card 0)) in
+		| Irg.LOC_NONE ->
+			failwith "no location to set (3)"
+		| Irg.LOC_REF (_, r, i, u, l) ->
+			unalias_set info stats r i u l expr
+		| Irg.LOC_CONCAT (t, l1, l2) ->
+			let tmp = new_temp info t in
+			let stats = seq stats (set t tmp expr) in
+			let stats = prepare_set stats l1
+				(rshift t (refto tmp) (index (get_loc_size l2))) in
+			prepare_set stats l2 (refto tmp) in
 	
 	match stat with
 	| Irg.NOP
@@ -662,7 +753,7 @@ let rec prepare_stat info stat =
 		Irg.SEQ (prepare_stat info s1, prepare_stat info s2)
 	| Irg.SET (loc, expr) ->
 		let (stats, expr) = prepare_expr info Irg.NOP expr in
-		Irg.SEQ (stats, prepare_set loc expr)
+		prepare_set stats loc expr
 	| Irg.CANON_STAT (name, args) ->
 		let (stats, args) = prepare_exprs info Irg.NOP args in
 		Irg.CANON_STAT (name, List.rev args)
