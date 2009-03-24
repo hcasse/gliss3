@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.15 2009/03/24 12:41:27 casse Exp $
+ * $Id: toc.ml,v 1.16 2009/03/24 12:44:55 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -254,77 +254,6 @@ let param_macro info name =
 	@return		Temporary name. *)
 let temp_name i =
 	Printf.sprintf "_gtmp%d" i
-
-
-(** Generate code for reading an unindexed data parameter,
-	register or memory.
-	@param info		Information about generation.
-	@param name		Name of the accessed data. *)
-let get_unindexed info name =
-	match Irg.get_symbol name with
-	  Irg.MEM _
-	| Irg.REG _
-	| Irg.VAR _ -> output_string info.out (state_macro info name)
-	| Irg.PARAM _ -> output_string info.out (param_macro info name)
-	| _ -> failwith "get_unindexed"
-
-
-(** Generate code for writing an unindexed register or variable.
-	@param info		Information about generation.
-	@param i		Current instruction.
-	@param name		Name of the accessed data.
-	@param expr		Function to generate the assigned value. *)
-let set_unindexed info i name value =
-	Printf.fprintf info.out "%s(%s) = " (state_macro info name) info.state;
-	value info i;
-	Printf.fprintf info.out ";"
-
-
-(** Generate start of code for accessing an indexed register or memory.
-	@param info		Generation information
-	@param i		Current instruction.
-	@param name		Name of the data.
-	@param index	Function to generate the index value. *)
-let get_indexed info i name index =
-	match Irg.get_symbol name with
-	
-	  Irg.REG _ | Irg.VAR _ ->
-		Printf.fprintf info.out "%s(%s)[" (state_macro info name) info.state;
-		index info i;
-		Printf.fprintf info.out "]"
-		
-	| Irg.MEM (_, _, t, _) ->
-		Printf.fprintf info.out "gliss_mem_read%s(%s, " (type_to_mem (convert_type t)) (state_macro info name);
-		index info i;
-		Printf.fprintf info.out ")"
-
-	| _ -> assert false
-
-
-(** Generate start of code for setting an indexed register or memory.
-	@param info		Generation information
-	@param i		Current instruction.
-	@param name		Name of the data.
-	@param index	Function to generate the index value.
-	@param expr		Function to generate the set value. *)
-let get_indexed info i name index expr =
-	match Irg.get_symbol name with
-	
-	  Irg.REG _ | Irg.VAR _ ->
-		Printf.fprintf info.out "%s(%s)[" (state_macro info name) info.state;
-		index info i;
-		Printf.fprintf info.out "] = ";
-		expr info i;
-		Printf.fprintf info.out ";"
-		
-	| Irg.MEM (_, _, t, _) ->
-		Printf.fprintf info.out "gliss_mem_write%s(%s, " (type_to_mem (convert_type t)) (state_macro info name);
-		index info i;
-		Printf.fprintf info.out ", ";
-		expr info i;
-		Printf.fprintf info.out ")";
-
-	| _ -> assert false
 
 
 (** Build a new temporary.
