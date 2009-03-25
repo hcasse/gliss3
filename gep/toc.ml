@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.17 2009/03/25 09:44:36 casse Exp $
+ * $Id: toc.ml,v 1.18 2009/03/25 10:26:08 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -411,6 +411,11 @@ let rec get_alias attrs =
 					resource type) *)
 let resolve_alias name idx ub lb =
 
+Printf.printf "res_al, name=%s" name;
+print_string ", idx="; Irg.print_expr idx;
+print_string ", ub="; Irg.print_expr ub;
+print_string ", lb="; Irg.print_expr lb;print_char '\n';
+
 	let t = Irg.CARD(32) in
 	let const c =
 		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
@@ -459,8 +464,9 @@ let resolve_alias name idx ub lb =
 			| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
 				let v = if idx = Irg.NONE then v else shift idx v in
 				let v = if ub = Irg.NONE then v else field ub lb v in
-				process v) 
+				process v)
 		| _ ->
+			Irg.print_spec (Irg.get_symbol r);
 			failwith "bad alias" in
 	
 	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
@@ -507,6 +513,17 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+
+	let apply_alias loc type_a f =
+		match loc with
+		| Irg.LOC_REF (_, n, i, Irg.NONE, Irg.NONE) ->
+			let type_o = (Sem.get_type_ident n) in
+			Irg.ITEMOF (type_o, n, f i)
+		| Irg.LOC_REF (t, n, i, l, u) ->
+			let type_o = (Sem.get_type_ident n) in
+			Irg.BITFIELD (type_a, Irg.ITEMOF (type_o, n, f i), l, u)
+		| Irg.LOC_CONCAT _ ->
+			failwith "concat in alias unsupported" in
 
 	match expr with
 	| Irg.REF name ->
@@ -731,10 +748,11 @@ let rec prepare_stat info stat =
 	| Irg.EVAL _
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
-		print_char '[';
+		print_string "SETSPE[";
 		Irg.print_statement stat;
 		print_char ']';
-		failwith "must have been removed !"
+		Irg.NOP(*
+		failwith "must have been removed !"*)
 
 
 (** Generate a prepared expression.
@@ -767,7 +785,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.REG _ -> out (state_macro info name)
 		| Irg.PARAM _ -> out (param_macro info name)
 		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
-		| _ -> failwith "expression form must have been removed")
+		| _ -> out name (*failwith "expression form must have been removed")*) )
 
 	| Irg.ITEMOF (_, name, idx) ->
 		(match Irg.get_symbol name with
@@ -1003,7 +1021,7 @@ let rec gen_stat info stat =
 	| Irg.SETSPE _
 	| Irg.EVALIND _ ->
 		failwith "must have been removed"
-
+		
 and gen_call info name =
 	
 	(* recursive call ? *)
