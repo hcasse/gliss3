@@ -40,6 +40,8 @@ let proc = "ppc"
 let bit_order = "uppermost" // Be careful ; this is not the convention used in PPC manuals.
 let M_is_little = "MSR & (0x01<<MSR_LE)" // MSR should be correctly initialized in the init rule below
 
+let gliss_isize = "32"
+
 // ------------------------------------------------------------------------- //
 // 1.1 Constants                                                             //
 // ------------------------------------------------------------------------- //
