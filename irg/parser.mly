@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.17 2009/03/25 14:55:38 barre Exp $
+ * $Id: parser.mly,v 1.18 2009/03/25 15:14:07 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -375,7 +375,7 @@ ParaType:
 
 AttrDefList:	
 	/* empty */		{ [] }
-|	AttrDef			{ Irg.add_attr $1 $1; [$1] }
+|	AttrDef			{ Irg.add_attr $1; [$1] }
 |	AttrDefList AttrDef	{ Irg.add_attr $2; $2::$1 }
 ; 
 
