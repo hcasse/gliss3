@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.22 2009/03/17 16:23:53 barre Exp $
+ * $Id: irg.ml,v 1.23 2009/03/25 14:54:30 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -114,7 +114,7 @@ type mem_attr =
 	| ALIAS of location					(** alias attribute *)
 	| INIT of const						(** init attribute *)
 	| USES (*of uses*)					(** use attribute (unsupported) *)
-	| ATTR of string * attr_arg list	(** generic memory attribute *)
+	| NMP_ATTR of string * attr_arg list	(** generic memory attribute *)
 
 
 (** A statement in an action. *)
@@ -155,6 +155,7 @@ type spec =
 	| RES of string
 	| EXN of string
 	| PARAM of string * typ
+	| ATTR of attr
 	| ENUM_POSS of string*string*Int32.t*bool	(*	Fields of ENUM_POSS :
 								the first parameter is the symbol of the enum_poss, 
 								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
@@ -177,6 +178,14 @@ let name_of spec =
 	| EXN (name) -> name
 	| PARAM (name, _) -> name
 	| ENUM_POSS (name, _, _, _) -> name
+	| ATTR(a) ->
+		match a with
+		ATTR_EXPR(name, _) ->
+			name
+		| ATTR_STAT(name, _) ->
+			name
+		| ATTR_USES ->
+			"<ATTR_USES>"
 	
 
 
@@ -204,6 +213,8 @@ let get_symbol n =
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym = 
+(*!!DEBUG!!*)
+Printf.printf "symbol added: %s\n" name;
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
@@ -233,6 +244,22 @@ let param_stack l= List.iter add_param l
 (**	Remove a list of parameters from the namespace.
 		@param l	The list of parameters to remove.	*)
 let param_unstack l= List.iter (StringHashtbl.remove syms) (List.map fst l)
+
+
+(**	Add a attribute in the namespace.
+		This function don't raise RedefinedSymbol if the name already exits.
+		It is used to temporary overwrite existing symbols with the same name than an attribute
+		@param name	name of the attribute
+		@param attr	attribute to add.	*)
+let add_attr attr = StringHashtbl.add syms (name_of (ATTR(attr))) (ATTR(attr))
+
+(**	Add a list of attributes to the namespace.
+		@param l	The list of attributes to add.	*)
+let attr_stack l= List.iter add_attr l
+
+(**	Remove a list of attributes from the namespace.
+		@param l	The list of attributes to remove.	*)
+let attr_unstack l= List.iter (StringHashtbl.remove syms) (List.map (fun x -> name_of (ATTR(x))) l)
 
 (**	This function is used to make the link between an ENUM_POSS and the corresponding ENUM.
 		It must be used because when the parser encounter an ENUM_POSS, it doesn't have reduce	(* a changer : stderr ? *)d the ENUM already.
@@ -635,7 +662,7 @@ let print_mem_attr attr =
 		print_const v
 	| USES ->
 		print_string "uses"
-	| ATTR (id, args) ->
+	| NMP_ATTR (id, args) ->
 		print_call id args
 
 
@@ -749,8 +776,11 @@ let print_spec spec =
 		()
 
 	| PARAM (name,t)->Printf.printf "param %s (" name;print_type t;print_string ")\n";
-
 		()
+
+	| ATTR (a)->print_attr a;
+		()
+
 	| ENUM_POSS (name,s,_,_)->Printf.printf "possibility %s of enum %s\n" name s;
 		()
 
@@ -851,7 +881,7 @@ let get_stat_from_attr_from_spec sp name_attr =
 			(*let sp_name = name_of sp in
 			raise (IrgError ("access to " ^ sp_name ^ "." ^ name_attr
 				^ " while " ^ sp_name ^ " is neither an OP or a MODE"))*)
-	
+
 
 (* symbol substitution is needed *)
 
@@ -904,6 +934,7 @@ let rec substitute_in_expr name op ex =
 		if (name=s)&&(is_and_mode op) then
 			get_mode_value op
 		else
+			(* change also if s refers to an ATTR_EXPR of the same spec, does it have this form ? *)
 			REF(s)
 	| FIELDOF(te, e, s) ->
 		if e = REF(name) then
@@ -959,7 +990,7 @@ let rec substitute_in_stat name op statement =
 		SETSPE(l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
 		LINE(s, i, substitute_in_stat name op st)
-		
+
 
 let rec change_name_of_var_in_expr ex var_name new_name =
 	match ex with
