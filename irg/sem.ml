@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.15 2009/03/11 12:09:15 casse Exp $
+ * $Id: sem.ml,v 1.16 2009/03/25 16:54:54 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -442,8 +442,10 @@ let rec get_type_ident id=
 			in
 			add_param (n,t);
 			type_res)
-	|ENUM_POSS (_,i,_,_)->get_type_ident i
-	|_->NO_TYPE
+	| ENUM_POSS (_,i,_,_)->get_type_ident i
+	| ATTR (ATTR_EXPR (_, expr)) -> get_type_expr expr
+	| ATTR _ -> NO_TYPE
+	| _ ->NO_TYPE
 
 (** Get the type of an expression
 	@param exp 	Expression  to evaluate

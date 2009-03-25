@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.18 2009/03/25 15:14:07 barre Exp $
+ * $Id: parser.mly,v 1.19 2009/03/25 16:54:53 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -105,35 +105,9 @@ MachineSpec :
 |   TypeSpec 		{ Irg.add_symbol (fst $1) (snd $1) }
 |   MemorySpec		{ Irg.add_symbol (fst $1) (snd $1) }
 |   RegisterSpec	{ Irg.add_symbol (fst $1) (snd $1) }
-|   VarSpec		{ Irg.add_symbol (fst $1) (snd $1) }
-|   ModeSpec		{ (Irg.add_symbol (fst $1) (snd $1);
-
-			(* Remove parameters from the symbol table *)
-			match (snd $1) with
-				Irg.AND_MODE (_,l,_,al)->
-					Irg.param_unstack l;
-					Irg.attr_unstack al
-				|_-> ());
-
-			(**)
-			(*Irg.print_spec (snd $1);
-			()*)
-			(**)
-			}
-|   OpSpec		{ Irg.add_symbol (fst $1) (snd $1);
-
-			(* Remove parameters from the symbol table *)
-			(match (snd $1) with
-				Irg.AND_OP (_,l,al)->
-					Irg.param_unstack l;
-					Irg.attr_unstack al
-				|_-> ());
-
-			(**)
-			(*Irg.print_spec (snd $1);
-			()*)
-			(**)
-			}
+|   VarSpec			{ Irg.add_symbol (fst $1) (snd $1) }
+|   ModeSpec		{ Irg.add_symbol (fst $1) (snd $1); }
+|   OpSpec			{ Irg.add_symbol (fst $1) (snd $1); }
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 
@@ -329,7 +303,9 @@ ModeSpec:
 	MODE ID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
-			$2, Irg.AND_MODE ($2, $4, $6, $7) 
+			Irg.param_unstack $4;
+			Irg.attr_unstack $7;
+			($2, Irg.AND_MODE ($2, $4, $6, $7))
 		}
 |	MODE ID EQ Identifier_Or_List
 		{ 
@@ -347,7 +323,11 @@ OptionalModeExpr :
 
 OpSpec: 
 	OP ID LPAREN ParamList RPAREN AttrDefList
-		{ $2, Irg.AND_OP ($2, $4, $6) }
+		{
+			Irg.param_unstack $4;
+			Irg.attr_unstack $6;
+			($2, Irg.AND_OP ($2, $4, $6))
+		}
 |	OP ID EQ Identifier_Or_List
 		{ $2, Irg.OR_OP ($2, $4) }
 		
@@ -359,8 +339,8 @@ Identifier_Or_List:
 ;
 
 ParamList:
-	/* empty */			{ [] }
-|	ParamListPart			{ Irg.add_param $1; [$1] }
+	/* empty */						{ [] }
+|	ParamListPart					{ Irg.add_param $1; [$1] }
 |	ParamList COMMA ParamListPart	{ Irg.add_param $3; $3::$1 }
 ;
 
@@ -374,8 +354,8 @@ ParaType:
 ;
 
 AttrDefList:	
-	/* empty */		{ [] }
-|	AttrDef			{ Irg.add_attr $1; [$1] }
+	/* empty */			{ [] }
+|	AttrDef				{ Irg.add_attr $1; [$1] }
 |	AttrDefList AttrDef	{ Irg.add_attr $2; $2::$1 }
 ; 
 
