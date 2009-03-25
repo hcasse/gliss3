@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.23 2009/03/25 14:54:30 barre Exp $
+ * $Id: irg.ml,v 1.24 2009/03/25 15:32:18 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1485,7 +1485,7 @@ let instantiate_attr a params=
 
 (* when instantiating the given param in the given spec
 we must add to the spec the attribute of the param which are not in the given spec *)
-let add_attr sp param =
+let add_attr_to_spec sp param =
 	let get_attrs s =
 		match s with
 		AND_OP(_, _, a_l) -> a_l
@@ -1552,7 +1552,7 @@ let rec add_new_attrs sp param_list =
 	[] ->
 		sp
 	| a::b ->
-		add_new_attrs (add_attr sp a) b
+		add_new_attrs (add_attr_to_spec sp a) b
 
 
 let instantiate_spec sp param_list =
