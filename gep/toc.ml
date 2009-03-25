@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.18 2009/03/25 10:26:08 barre Exp $
+ * $Id: toc.ml,v 1.19 2009/03/25 12:19:44 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -453,18 +453,27 @@ print_string ", lb="; Irg.print_expr lb;print_char '\n';
 		let (r, i, il, ub, lb, t) = v in
 		(r, i, il, add lb u, add lb l, t) in
 
-	let rec process v =
+	let rec process_alias tr attrs v =
+		let v = convert tr v in
+		match get_alias attrs with
+		| Irg.LOC_NONE -> (name, idx, 1, ub, lb, tr)
+		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
+		| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
+			let v = if idx = Irg.NONE then v else shift idx v in
+			let v = if ub = Irg.NONE then v else field ub lb v in
+			process v
+
+	and process v =
 		let (r, i, il, ub, lb, t) = v in
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
-			let v = convert tr v in
-			(match get_alias attrs with
-			| Irg.LOC_NONE -> (name, idx, 1, ub, lb, tr)
-			| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
-			| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
-				let v = if idx = Irg.NONE then v else shift idx v in
-				let v = if ub = Irg.NONE then v else field ub lb v in
-				process v)
+			process_alias tr attrs v
+		| Irg.VAR (_, _, tr) ->
+			process_alias tr [] v
+		| Irg.LET _ ->
+			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
+		| Irg.MEM (_, _, tr, attrs) ->
+			process_alias tr attrs v
 		| _ ->
 			Irg.print_spec (Irg.get_symbol r);
 			failwith "bad alias" in
@@ -487,10 +496,13 @@ let unalias_expr name idx ub lb =
 		if e1 = Irg.NONE then e2 else
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
 	let rec concat l tt =
-		if l = 0 then Irg.ITEMOF (t, r, i) else
-		Irg.BINOP(tt, Irg.CONCAT,
-			Irg.ITEMOF (t, r, add i (const l)),
-			concat (l - 1) tt) in
+		if l = 0 then
+			if i = Irg.NONE then Irg.REF r
+			else Irg.ITEMOF (t, r, i)
+		else
+			Irg.BINOP(tt, Irg.CONCAT,
+				Irg.ITEMOF (t, r, add i (const l)),
+				concat (l - 1) tt) in
 	let field e ub lb tt =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
@@ -513,17 +525,6 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
-
-	let apply_alias loc type_a f =
-		match loc with
-		| Irg.LOC_REF (_, n, i, Irg.NONE, Irg.NONE) ->
-			let type_o = (Sem.get_type_ident n) in
-			Irg.ITEMOF (type_o, n, f i)
-		| Irg.LOC_REF (t, n, i, l, u) ->
-			let type_o = (Sem.get_type_ident n) in
-			Irg.BITFIELD (type_a, Irg.ITEMOF (type_o, n, f i), l, u)
-		| Irg.LOC_CONCAT _ ->
-			failwith "concat in alias unsupported" in
 
 	match expr with
 	| Irg.REF name ->
@@ -549,15 +550,6 @@ let rec prepare_expr info stats expr =
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
 		let (stats, up) = prepare_expr info stats up in
-(*		print_string "P_E[";
-		Irg.print_type_expr typ;
-		print_char ',';
-		Irg.print_expr expr;
-		print_char ',';
-		Irg.print_expr lo;
-		print_char ',';
-		Irg.print_expr up;
-		print_char ']';*)
 		(stats, Irg.BITFIELD (typ, expr, lo, up))
 	| Irg.UNOP (typ, op, arg) ->
 		let (stats, arg) = prepare_expr info stats arg in
