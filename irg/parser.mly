@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.16 2009/03/11 12:09:15 casse Exp $
+ * $Id: parser.mly,v 1.17 2009/03/25 14:55:38 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -110,7 +110,9 @@ MachineSpec :
 
 			(* Remove parameters from the symbol table *)
 			match (snd $1) with
-				Irg.AND_MODE (_,l,_,_)->Irg.param_unstack l
+				Irg.AND_MODE (_,l,_,al)->
+					Irg.param_unstack l;
+					Irg.attr_unstack al
 				|_-> ());
 
 			(**)
@@ -122,7 +124,9 @@ MachineSpec :
 
 			(* Remove parameters from the symbol table *)
 			(match (snd $1) with
-				Irg.AND_OP (_,l,_)->Irg.param_unstack l
+				Irg.AND_OP (_,l,al)->
+					Irg.param_unstack l;
+					Irg.attr_unstack al
 				|_-> ());
 
 			(**)
@@ -283,7 +287,7 @@ MemAttrDef:
 |	USES EQ UsesDef
 		{ Irg.USES }
 |	ATTR LPAREN ID OptionalAttrArgs RPAREN
-		{ Irg.ATTR ($3, List.rev $4) }
+		{ Irg.NMP_ATTR ($3, List.rev $4) }
 ;
 
 OptionalAttrArgs:
@@ -371,7 +375,8 @@ ParaType:
 
 AttrDefList:	
 	/* empty */		{ [] }
-|	AttrDefList AttrDef	{ $2::$1 }
+|	AttrDef			{ Irg.add_attr $1 $1; [$1] }
+|	AttrDefList AttrDef	{ Irg.add_attr $2; $2::$1 }
 ; 
 
 AttrDef :/* It is not possible to check if the ID and the attributes exits because this is used for op, in wich they can be defined later. 
