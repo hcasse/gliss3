@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.16 2009/03/24 12:44:55 casse Exp $
+ * $Id: toc.ml,v 1.17 2009/03/25 09:44:36 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -90,10 +90,14 @@ type info_t = {
 	mutable ipath: string;			(** include path *)
 	mutable spath: string;			(** source path *)
 	mutable bito: bit_order;		(** define bit order for bit fields *)
-	mutable inst: string;			(** current  integrated instruction name *)
+	mutable iname: string;			(** current  integrated instruction name *)
+	mutable inst: Iter.inst;		(** current instruction *)
 	mutable temp: int;				(** index for a new temporary *)
 	mutable temps: (string * Irg.type_expr) list;		(** list of temporaries *)
-	mutable vars: (string * (int * Irg.type_expr)) list	(** list of used variables *)
+	mutable vars: (string * (int * Irg.type_expr)) list;(** list of used variables *)
+	mutable calls: (string * string) list;				(** list of performed attributes call *)
+	mutable recs: string list;		(** list of recursive actions *)
+	mutable lab: int;				(** index of a new label *)
 }
 
 
@@ -116,14 +120,35 @@ let info _ =
 		out = stdout;
 		proc = p;
 		state = "state";
-		inst = "";
+		iname = "";
+		inst = Iter.null;
 		ipath = "include/" ^ p;
 		spath = "src";
 		bito = b;
 		temp = 0;
 		temps = [];
-		vars = []
+		vars = [];
+		calls = [];
+		recs = [];
+		lab = 0;
 	}
+
+
+(** Set the current instruction.
+	@param info		Current generation information.
+	@param inst		Current instruction. *)
+let set_inst info inst =
+	info.inst <- inst;
+	info.iname <- Iter.get_name inst
+
+
+(** Generate a new label name.
+	@param info	Current generation information.
+	@return		New label name. *)
+let new_label info =
+	let res = Printf.sprintf "__gliss_lab_%d" info.lab in
+	info.lab <- info.lab + 1;
+	res
 
 
 (** Compute the power of two whose exponent is the lowest
@@ -246,7 +271,7 @@ let state_macro info name =
 	@param info	Generation information.
 	@param name	Parameter name. *)
 let param_macro info name =
-	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) info.inst name
+	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) info.iname name
 
 
 (** Generate the name of a temporary of index i.
@@ -765,16 +790,6 @@ let rec gen_expr info (expr: Irg.expr) =
 
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		out "gliss_field";
-(*		print_char '[';
-		Irg.print_type_expr typ;
-		print_char ',';
-		Irg.print_expr expr;
-		print_char ',';
-		Irg.print_expr lo;
-		print_char ',';
-		Irg.print_expr up;
-		print_char ']';
-*)		
 		out (type_to_mem (convert_type typ));
 		out "(";
 		gen_expr info expr;
@@ -982,8 +997,86 @@ let rec gen_stat info stat =
 	| Irg.LINE (_, _, stat) -> 
 		gen_stat info stat
 
+	| Irg.EVAL name ->
+		gen_call info name
+
 	| Irg.SETSPE _
-	| Irg.EVAL _
 	| Irg.EVALIND _ ->
 		failwith "must have been removed"
+
+and gen_call info name =
+	
+	(* recursive call ? *)
+	if 	List.mem_assoc name info.calls then
+		Printf.fprintf info.out "\tgoto %s;\n" (List.assoc name info.calls)
+	
+	(* normal call *)
+	else
+		begin
+
+			(* push the call *)
+			if List.mem name info.recs then
+				begin
+					let lab = new_label info in 
+					Printf.fprintf info.out "\t%s:\n" lab;
+					info.calls <- (name, lab)::info.calls
+				end;
+
+			(* generate the code *)
+			let stat =
+				match Iter.get_attr info.inst name with
+				| Iter.STAT stat -> stat
+				| _ -> failwith "find_recursives" in
+			gen_stat info (prepare_stat info stat);
+			
+			(* return from call *)
+			info.calls <- List.tl info.calls
+
+		end
+
+
+(** Get the list if recursives attribute starting from the given one.
+	@param info		Generation information.
+	@param name		Name of the first attribute.
+	@return			List of recursive attributes. *)
+let find_recursives info name =
+	
+	let rec look_attr name stack recs =
+		let stack = name::stack in
+
+		let rec look_stat stat recs =
+			match stat with
+			| Irg.NOP -> recs
+			| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
+			| Irg.EVAL name -> look_attr name stack recs
+			| Irg.EVALIND _ -> failwith "find_recursives: EVALIND"
+			| Irg.SET _ -> recs
+			| Irg.CANON_STAT _ -> recs
+			| Irg.ERROR _ -> recs
+			| Irg.IF_STAT (_, s1, s2) -> look_stat s1 (look_stat s2 recs)
+			| Irg.SWITCH_STAT (_, cases, def) ->
+				look_stat def (List.fold_left
+					(fun recs (_, s) -> look_stat s recs)
+					recs
+					cases)
+			| Irg.SETSPE _ -> failwith "find_recursives: SETSPE"
+			| Irg.LINE (_, _, s) -> look_stat s recs in
+	
+		if List.mem name stack then
+			if List.mem name recs then recs
+			else name::recs
+		else
+			match Iter.get_attr info.inst name with
+			| Iter.STAT stat -> look_stat stat recs
+			| _ -> failwith "find_recursives" in
+	
+	info.recs <- look_attr name [] []
+
+
+(** Generate an action.
+	@param info		Generation information.
+	@param name		Name of the attribute. *)
+let gen_action info name =
+	find_recursives info name;
+	gen_call info name
 

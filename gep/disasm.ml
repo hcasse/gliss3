@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.8 2009/03/07 13:01:30 casse Exp $
+ * $Id: disasm.ml,v 1.9 2009/03/25 09:44:35 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -108,7 +108,7 @@ let rec gen_disasm info inst expr =
 	@param out		Output to use. *)
 let disassemble inst out info =
 	info.Toc.out <- out;
-	info.Toc.inst <- Iter.get_name inst;
+	Toc.set_inst info inst;
 	
 	(* get syntax *)
 	let syntax =
