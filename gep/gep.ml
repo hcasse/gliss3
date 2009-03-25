@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.25 2009/02/25 21:32:16 casse Exp $
+ * $Id: gep.ml,v 1.26 2009/03/25 12:13:47 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -97,6 +97,13 @@ let make_env info =
 		dict in
 	let add_size_to_inst inst dict =
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
+		("gen_code", Templater.TEXT (fun out -> 
+			let info = Toc.info ()
+			in
+			(* je sais pas comment retrouver le nom d'un module de façon intelligente... *)
+			info.Toc.out <- open_out_gen [Open_append] 0o740 (info.Toc.spath ^ "code_table.h");
+			info.Toc.inst <- inst;
+			Toc.gen_action info "action")) ::
 		dict in
 
 	let maker = App.maker() in
@@ -147,6 +154,8 @@ let _ =
 			let dict = make_env info in
 			
 			(* include generation *)
+
+			
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "include";
 			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.ipath;
@@ -156,27 +165,68 @@ let _ =
 			make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 			
 			(* source generation *)
+
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "src";
+
 			link
 				((Unix.getcwd ()) ^ "/" ^ info.Toc.ipath)
 				(info.Toc.spath ^ "/target");
 			make_template "Makefile" "src/Makefile" dict;
-			(* fetch (determining the ID of a given instruction) *)
-			(*make_template "fetch.c" "src/fetch.c" dict;
-			make_template "fetch.h" "src/fetch.h" dict;*)
 			make_template "api.c" "src/api.c" dict;
 			make_template "platform.h" "src/platform.h" dict;
 			make_template "fetch_table32.h" "src/fetch_table.h" dict;
 			make_template "decode_table32.h" "src/decode_table.h" dict;
 			make_template "inst_size_table.h" "src/inst_size_table.h" dict;
+			make_template "code_table.h" "src/code_table.h" dict;
 			
 			(* module linkig *)
 			process_module info "gliss" "gliss";
 			List.iter (fun (id, impl) -> process_module info impl id) !modules;
 			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h");
 			
-			(* decode test *)
-			(*Iter.iter (fun accu sp -> begin print_string ("mask_params "^(Iter.get_name sp)^"\n");
-					List.iter (fun x -> Printf.printf "%s\n" (Decode.get_string_mask_for_param_from_op sp x)) [0; 1; 2; 3; 4; 5; 6] end) ()*)
+			
+			(*Iter.iter
+			(fun a sp ->
+				Printf.printf "#%d %s (%d bits):\n\t%s\n\t%s\n\t%s\n"
+				(Iter.get_id sp)
+				(Iter.get_name sp)
+				(Fetch.get_instruction_length sp)
+				(Fetch.get_string_mask_from_op sp)
+				(Fetch.get_string_value_on_mask_from_op sp)
+				(Fetch.get_value_on_mask sp))
+			()*)
+			
+
+			(* toc test *)
+			(*let iter_func accu sp =
+				let action =
+					match Iter.get_attr sp "action" with
+					Iter.STAT(s) ->
+						s
+					| _ ->
+						failwith ("no action stat attribute for the spec "^(Iter.get_name sp))
+				in
+				let info = Toc.info ()
+				in		
+				let params = Iter.get_params sp
+				in
+				begin
+				print_string ("\naction of "^(Iter.get_name sp)^"\n");
+				Irg.print_spec sp;
+				print_string "prep+gen\n";
+				
+				Irg.param_stack params;
+				let a1 = Toc.prepare_stat info action
+				in
+				Toc.declare_temps info;
+				Toc.gen_stat info a1;
+				Toc.cleanup_temps info;	
+				Irg.param_unstack params;
+				end
+			in
+			Iter.iter iter_func ()
+	*)
+	
+	
 		)
