@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.26 2009/03/25 12:13:47 barre Exp $
+ * $Id: gep.ml,v 1.27 2009/03/25 12:20:05 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -102,7 +102,7 @@ let make_env info =
 			in
 			(* je sais pas comment retrouver le nom d'un module de façon intelligente... *)
 			info.Toc.out <- open_out_gen [Open_append] 0o740 (info.Toc.spath ^ "code_table.h");
-			info.Toc.inst <- inst;
+			set_inst info inst;
 			Toc.gen_action info "action")) ::
 		dict in
 
