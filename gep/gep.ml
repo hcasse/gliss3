@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.27 2009/03/25 12:20:05 barre Exp $
+ * $Id: gep.ml,v 1.28 2009/03/25 13:31:10 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -98,11 +98,9 @@ let make_env info =
 	let add_size_to_inst inst dict =
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
 		("gen_code", Templater.TEXT (fun out -> 
-			let info = Toc.info ()
-			in
-			(* je sais pas comment retrouver le nom d'un module de façon intelligente... *)
-			info.Toc.out <- open_out_gen [Open_append] 0o740 (info.Toc.spath ^ "code_table.h");
-			set_inst info inst;
+			let info = Toc.info () in
+			info.Toc.out <- out;
+			Toc.set_inst info inst;
 			Toc.gen_action info "action")) ::
 		dict in
 

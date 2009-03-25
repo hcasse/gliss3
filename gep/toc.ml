@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.19 2009/03/25 12:19:44 casse Exp $
+ * $Id: toc.ml,v 1.20 2009/03/25 13:31:10 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -475,7 +475,9 @@ print_string ", lb="; Irg.print_expr lb;print_char '\n';
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
 		| _ ->
-			Irg.print_spec (Irg.get_symbol r);
+			Printf.printf "BAD_ALIAS: %s\n" r;	(* !!DEBUG!! *)
+			Irg.print_spec (Irg.get_symbol r);	(* !!DEBUG!! *)
+			print_char '\n';					(* !!DEBUG!! *)
 			failwith "bad alias" in
 	
 	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
@@ -513,7 +515,11 @@ let unalias_expr name idx ub lb =
 		field (concat (il - 1) tt) ubp lbp tt
 	| Irg.MEM (_, _, tt, _) ->
 		field (concat 0 tt) ub lb tt
-	| _ -> failwith "unalias_expr"
+	| Irg.LET _ ->
+		Irg.REF name
+	| s ->
+		Irg.print_spec s;			(* !!DEBUG!! *)
+		failwith "unalias_expr"
 
 
 (** Prepare expression for generation.
