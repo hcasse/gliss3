@@ -30,8 +30,16 @@ struct gliss_decoder_t
 /* Variables & Fonctions */
 
 /* decoding */
-ppc_inst_t *ppc_decode(ppc_decoder_t *decoder, ppc_address_t address);
-void ppc_free_inst(ppc_inst_t *inst);
+gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address);
+
+
+/* free a dynamically allocated instruction, we try not to free an already freed or NULL pointer */
+void gliss_free_inst(gliss_inst_t *inst)
+{
+	if (inst)
+		free(inst);
+	inst = 0;
+}
 
 
 /* initialization and destruction of gliss_decode_t object */
