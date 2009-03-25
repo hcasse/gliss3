@@ -31,16 +31,27 @@ let iter fun_to_iterate init_val =
 		else
 			()
 	in
-	let rec rec_iter f init instrs =
+	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
 		match instrs with
 		[] ->
 			init
 		| a::b ->
-			rec_iter f (f init a) b
+			match a with
+			Irg.AND_OP(_, param_l, attr_l) ->
+			
+				Irg.param_unstack params_to_unstack;
+				Irg.attr_unstack attrs_to_unstack;
+			
+				Irg.param_stack param_l;
+				Irg.attr_stack attr_l;
+				
+				rec_iter f (f init a) b param_l attr_l;
+			| _ ->
+				failwith "we should have only AND OP spec at this point (Iter)"	
 	in
 	begin
 	initialise_instrs;
-	rec_iter fun_to_iterate init_val !instr_set
+	rec_iter fun_to_iterate init_val !instr_set [] []
 	end
 
 (** return an attr from an instruction specification
