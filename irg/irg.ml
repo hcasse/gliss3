@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.24 2009/03/25 15:32:18 barre Exp $
+ * $Id: irg.ml,v 1.25 2009/03/26 12:37:50 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -214,7 +214,7 @@ let get_symbol n =
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym = 
 (*!!DEBUG!!*)
-Printf.printf "symbol added: %s\n" name;
+(*Printf.printf "symbol added: %s\n" name;*)
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
@@ -958,39 +958,6 @@ let rec substitute_in_expr name op ex =
 	| ELINE (file, line, e) -> ELINE (file, line, substitute_in_expr name op e)
 
 
-(** search the symbol name in the given statement,
-the symbol is supposed to stand for a variable of type given by op,
-all occurrences of names are translated to refer to the op *)
-let rec substitute_in_stat name op statement =
-	match statement with
-	NOP ->
-		NOP
-	| SEQ(s1, s2) ->
-		SEQ(substitute_in_stat name op s1, substitute_in_stat name op s2)
-	| EVAL(s) ->
-		EVAL(s)
-	| EVALIND(n, attr) ->
-		if n = name then
-			get_stat_from_attr_from_spec op attr
-		else
-			EVALIND(n, attr)
-	| SET(l, e) ->
-		SET(l, substitute_in_expr name op e)
-	| CANON_STAT(n, el) ->
-		CANON_STAT(n, el)
-	| ERROR(s) ->
-		ERROR(s)
-	| IF_STAT(e, s1, s2) ->
-		IF_STAT(substitute_in_expr name op e, substitute_in_stat name op s1, substitute_in_stat name op s2)
-	| SWITCH_STAT(e, es_l, s) ->
-		(* is it really useful ? *)
-		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
-	| SETSPE(l, e) ->
-		(* don't know what it is exactly, cannot find an example *)
-		SETSPE(l, substitute_in_expr name op e)
-	| LINE(s, i, st) ->
-		LINE(s, i, substitute_in_stat name op st)
-
 
 let rec change_name_of_var_in_expr ex var_name new_name =
 	match ex with
@@ -1026,7 +993,6 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	| ELINE(file, line, e) -> ELINE(file, line, change_name_of_var_in_expr e var_name new_name)
 
 
-
 let rec change_name_of_var_in_location loc var_name new_name =
 	match loc with
 	| LOC_NONE -> loc
@@ -1039,6 +1005,50 @@ let rec change_name_of_var_in_location loc var_name new_name =
 			change_name_of_var_in_expr u var_name new_name)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
+
+let rec substitute_in_location name op loc =
+	match loc with
+	LOC_NONE ->
+		loc
+	| LOC_REF(t, s, i, l, u) ->
+		LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
+	| LOC_CONCAT(t, l1, l2) ->
+		LOC_CONCAT(t, substitute_in_location name op l1, substitute_in_location name op l2)
+		
+		
+(** search the symbol name in the given statement,
+the symbol is supposed to stand for a variable of type given by op,
+all occurrences of names are translated to refer to the op *)
+let rec substitute_in_stat name op statement =
+	match statement with
+	NOP ->
+		NOP
+	| SEQ(s1, s2) ->
+		SEQ(substitute_in_stat name op s1, substitute_in_stat name op s2)
+	| EVAL(s) ->
+		EVAL(s)
+	| EVALIND(n, attr) ->
+		if n = name then
+			get_stat_from_attr_from_spec op attr
+		else
+			EVALIND(n, attr)
+	| SET(l, e) ->
+		SET(substitute_in_location name op l, substitute_in_expr name op e)
+	| CANON_STAT(n, el) ->
+		CANON_STAT(n, el)
+	| ERROR(s) ->
+		ERROR(s)
+	| IF_STAT(e, s1, s2) ->
+		IF_STAT(substitute_in_expr name op e, substitute_in_stat name op s1, substitute_in_stat name op s2)
+	| SWITCH_STAT(e, es_l, s) ->
+		(* is it really useful ? *)
+		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
+	| SETSPE(l, e) ->
+		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
+	| LINE(s, i, st) ->
+		LINE(s, i, substitute_in_stat name op st)
+
+
 
 let rec change_name_of_var_in_stat sta var_name new_name =
 	match sta with
