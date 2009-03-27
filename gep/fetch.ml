@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.9 2009/03/07 13:02:15 casse Exp $
+ * $Id: fetch.ml,v 1.10 2009/03/27 14:14:06 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -45,7 +45,7 @@ let get_length_from_format f =
 	let new_f =
 		if l<=2 then
 		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-			"0"
+			failwith "we shouldn't have something like " ^ f ^ " (fetch.ml::get_length_from_format)"
 		else
 			String.sub f 1 (l-2)
 	in
@@ -99,7 +99,8 @@ let get_string_mask_from_op sp =
 		match v with
 		Iter.EXPR(e) ->
 			e
-		| _ -> Irg.NONE
+		| _ ->
+			failwith "shouldn't happen (fetch.ml::get_string_mask_from_op::get_expr_from_iter_value)"
 	in
 	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
@@ -121,7 +122,8 @@ let get_instruction_length sp =
 		match v with
 		Iter.EXPR(e) ->
 			e
-		| _ -> Irg.NONE
+		| _ ->
+			failwith "shouldn't happen (fetch.ml::get_instruction_length::get_expr_from_iter_value)"
 	in
 	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
@@ -148,7 +150,8 @@ let get_string_value_on_mask_from_op sp =
 		match v with
 		Iter.EXPR(e) ->
 			e
-		| _ -> Irg.NONE
+		| _ ->
+			failwith "shouldn't happen (fetch.ml::get_string_value_on_mask_from_op::get_expr_from_iter_value)"
 	in
 	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
@@ -192,8 +195,8 @@ let get_value_on_mask sp =
 	char_list_to_str (clear_X (str_to_char_list v))
 
 
-(* convert the 1st 32 chars of a string to an int32
-the string is supposed to represent a binary number (only 0 and 1) *)
+(** convert the 1st 32 chars of a string to an int32
+the string is supposed to represent a binary number (only 0 and 1) of less than 32 bits *)
 let str01_to_int32 s =
 	let size = String.length s
 	in
@@ -204,8 +207,7 @@ let str01_to_int32 s =
 		| '1' ->
 			Int32.one
 		| _ ->
-			(* shouldn't happen *)
-			Int32.zero
+			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int32)")
 	in
 	let rec aux s n accu =
 		if n = size then
@@ -213,7 +215,10 @@ let str01_to_int32 s =
 		else
 			aux s (n+1) (Int32.add (Int32.shift_left accu 1) (char01_to_int32 s.[n]))
 	in
-	aux s 0 Int32.zero
+	if size > 32 then
+		failwith "string too long, 32 chars max allowed (fetch.ml::str01_to_int32)"
+	else
+		aux s 0 Int32.zero
 
 (* convert the 1st 64 chars of a string to an int64
 the string is supposed to represent a binary number (only 0 and 1) *)
@@ -227,8 +232,7 @@ let str01_to_int64 s =
 		| '1' ->
 			Int64.one
 		| _ ->
-			(* shouldn't happen *)
-			Int64.zero
+			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int64)")
 	in
 	let rec aux s n accu =
 		if n = size then
@@ -236,7 +240,10 @@ let str01_to_int64 s =
 		else
 			aux s (n+1) (Int64.add (Int64.shift_left accu 1) (char01_to_int64 s.[n]))
 	in
-	aux s 0 Int64.zero
+	if size > 64 then
+		failwith "string too long, 64 chars max allowed (fetch.ml::str01_to_int64)"
+	else
+		aux s 0 Int64.zero
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -253,7 +260,10 @@ let get_int32_mask sp =
 		else
 			build_mask str (pos+1) (Int32.add (Int32.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
 	in
-	build_mask mask 0 Int32.zero
+	if String.length mask > 32 then
+		failwith "instruction too long, 32 bits max allowed (fetch.ml::get_int32_mask)"
+	else
+		build_mask mask 0 Int32.zero
 
 (* returns the 32 bit value of a 32 bit instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0 *)
 let get_int32_value sp =
@@ -265,7 +275,10 @@ let get_int32_value sp =
 		else
 			build_mask str (pos+1) (Int32.add (Int32.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
 	in
-	build_mask v 0 Int32.zero
+	if String.length v > 32 then
+		failwith "instruction too long, 32 bits max allowed (fetch.ml::get_int32_value)"
+	else
+		build_mask v 0 Int32.zero
 
 
 (* perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
@@ -293,7 +306,6 @@ let keep_value_on_mask num mask =
 	aux num mask Int32.zero 0 0
 
 let calcul_value_on_mask sp mask =
-	(* !!! il faut compacter les bits !! => autant de bits que les 1 du mask *)
 	keep_value_on_mask (Int32.logand (get_int32_value sp) mask) mask
 
 (* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
@@ -745,7 +757,7 @@ let output_all_table_C_decl out num_bits =
 						failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
 					true 
 			else
-				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, no instruction of this size.")
+				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, not in gliss_isize.")
 	in
 	let aux dl dt =
 		output_table_C_decl out dt dl
