@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.25 2009/03/26 12:37:50 barre Exp $
+ * $Id: irg.ml,v 1.26 2009/03/27 14:12:56 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -616,7 +616,7 @@ let rec output_statement out stat =
 		output_statement out stat;
 		output_string out "\t\t }; \n"
 	| SETSPE (loc, exp) ->
-		output_string out "\t\tSETSPE:";
+		output_string out "\t\t";
 		output_location out loc;
 		output_string out "=";
 		output_expr out exp;
@@ -855,6 +855,67 @@ begin
 end
 
 
+(**
+check if a statement attribute of a given instruction is recursive,
+ie, if it calls itself
+	@param	sp	the spec of the instruction
+	@param	name	the name of the statement attribute to check
+	@return		true if the attribute is recursive,
+			false otherwise
+*)
+let is_attr_recursive sp name =
+	let get_attr sp n =
+		let rec aux al =
+			match al with
+			[] ->
+				failwith ("attribute " ^ name ^ " not found or not a statement (irg.ml::is_attr_recursive)")
+			| ATTR_STAT(nm, s)::t ->
+				if nm = n then
+					s
+				else
+					aux t
+			| _::t -> aux t
+		in
+		match sp with
+		AND_OP(_, _, attrs) ->
+			aux attrs
+		| AND_MODE(_, _, _, a_l) ->
+			aux a_l
+		| _ ->
+			failwith "shouldn't happen (irg.ml::is_attr_recursive::get_attr)"
+	in
+	(* return true if there is a call to a stat attr whose name is str in the st stat,
+	we look for things like 'EVAL(str)' *)
+	let rec find_occurence str st =
+		match st with
+		NOP ->
+			false
+		| SEQ(s1, s2) ->
+			(find_occurence str s1) || (find_occurence str s2)
+		| EVAL(s) ->
+			(s = str)
+		| EVALIND(n, attr) ->
+			(* recursivity occurs only when we refer to oneself, 'EVALIND' always refers to another spec *)
+			false
+		| SET(l, e) ->
+			false
+		| CANON_STAT(n, el) ->
+			false
+		| ERROR(s) ->
+			false
+		| IF_STAT(e, s1, s2) ->
+			(find_occurence str s1) || (find_occurence str s2)
+		| SWITCH_STAT(e, es_l, s) ->
+			(find_occurence str s) || (List.exists (fun (ex, st) -> find_occurence str st) es_l)
+		| SETSPE(l, e) ->
+			false
+		| LINE(s, i, st) ->
+			find_occurence str st
+	in
+	let a = get_attr sp name
+	in
+	find_occurence name a
+
 
 (** get the statement associated with attribute name_attr of the spec sp *)
 let get_stat_from_attr_from_spec sp name_attr =
@@ -876,11 +937,7 @@ let get_stat_from_attr_from_spec sp name_attr =
 		| AND_MODE(_, _, _, attrs) ->
 			get_attr name_attr attrs
 		| _ ->
-			NOP
-			
-			(*let sp_name = name_of sp in
-			raise (IrgError ("access to " ^ sp_name ^ "." ^ name_attr
-				^ " while " ^ sp_name ^ " is neither an OP or a MODE"))*)
+			failwith ("trying to access attribute " ^ name_attr ^ " of spec " ^ (name_of sp) ^ " which is neither an OP or a MODE (irg.ml::get_stat_from_attr_from_spec)")
 
 
 (* symbol substitution is needed *)
@@ -905,8 +962,8 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 		| AND_MODE(_, _, _, a_l) ->
 			get_attr name_attr a_l
 		| _ ->
-			NONE
-			(*failwith "cannot get an expr attribute from not an AND OP or an AND MODE"*)
+			failwith "cannot get an expr attribute from not an AND OP or an AND MODE (irg.ml::get_expr_from_attr_from_op_or_mode)"
+
 
 let rec substitute_in_expr name op ex =
 	let is_and_mode sp =
@@ -1029,7 +1086,13 @@ let rec substitute_in_stat name op statement =
 		EVAL(s)
 	| EVALIND(n, attr) ->
 		if n = name then
-			get_stat_from_attr_from_spec op attr
+		begin
+			if is_attr_recursive op attr then
+				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
+				EVAL(n ^ "_" ^ attr)
+			else
+				get_stat_from_attr_from_spec op attr
+		end
 		else
 			EVALIND(n, attr)
 	| SET(l, e) ->
@@ -1041,7 +1104,6 @@ let rec substitute_in_stat name op statement =
 	| IF_STAT(e, s1, s2) ->
 		IF_STAT(substitute_in_expr name op e, substitute_in_stat name op s1, substitute_in_stat name op s2)
 	| SWITCH_STAT(e, es_l, s) ->
-		(* is it really useful ? *)
 		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
 	| SETSPE(l, e) ->
 		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
@@ -1076,7 +1138,7 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 	| SETSPE(l, e) ->
 		SETSPE(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
 	| LINE(str, n, s) ->
-		LINE(str, n, change_name_of_var_in_stat s var_name new_name) (* ??? *)
+		LINE(str, n, change_name_of_var_in_stat s var_name new_name)
 
 
 let change_name_of_var_in_attr a var_name new_name =
@@ -1141,11 +1203,11 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 		| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
-			| _ -> "[err1008]"
+			| _ -> failwith "cannot get a string from not a string constant (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
 			)
 		| REF(s) -> s
 		| ELINE (_, _, e) -> get_str_from_format_expr e
-		| _ -> "[err1012]"
+		| _ -> failwith "expression not suitable to get a string from it (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
 	in
 	match str_format with
 	Str.Text(t) -> t
@@ -1179,7 +1241,7 @@ let rec replace_field_expr_by_param_list expr_field spec_type =
 	FIELDOF(_, _, s) ->
 		get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
 	| ELINE (_, _, e) -> replace_field_expr_by_param_list e spec_type
-	| q -> q::[]
+	| _ -> [expr_field]
 
 let get_param_of_spec s =
 	match s with
@@ -1217,10 +1279,9 @@ let rec search_spec_of_name name param_list =
 				spec_from_type t
 			else
 				search_spec_of_name name q
-		| [] -> print_string "params : "; print_param_list param_list; failwith (String.concat "" ["internal error: search_spec_of_name : "; name])
+		| [] -> failwith ("in the given param list, no param was found with name " ^ name ^ " (irg.ml::search_spec_of_name::rec_aux)")
 	in
 	rec_aux name param_list
-
 
 
 
@@ -1233,7 +1294,7 @@ let get_spec_from_expr e spec_params =
 		FIELDOF(_, expre, _) -> rec_aux expre spec_params
 		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| ELINE (_, _, e) -> rec_aux e p_l
-		| _ -> UNDEF
+		| _ -> failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
 	in
 	rec_aux e spec_params
 
@@ -1483,13 +1544,12 @@ let instantiate_param_list p_l =
 	in
 	list_prod a
 
-let instantiate_attr a params=
+let instantiate_attr sp a params=
 	match a with
 	ATTR_EXPR(n, e) ->
 		ATTR_EXPR(n, instantiate_in_expr e params)
 	| ATTR_STAT(n, s) ->
 		ATTR_STAT(n, instantiate_in_stat s params)
-	(* useless until now *)
 	| ATTR_USES ->
 		ATTR_USES
 
@@ -1501,6 +1561,58 @@ let add_attr_to_spec sp param =
 		AND_OP(_, _, a_l) -> a_l
 		| AND_MODE(_, _, _, a_l) -> a_l
 		| _ -> []
+	in
+	let name_of_param p =
+		match p with
+		(name, TYPE_ID(s)) ->
+			name
+		| (_, TYPE_EXPR(_)) ->
+			failwith "shouldn't happen (irg.ml::add_attr_to_spec::name_of_param)"
+	in
+	let spec_of_param p =
+		match p with
+		(name, TYPE_ID(s)) ->
+			get_symbol s
+		| (_, TYPE_EXPR(_)) ->
+			failwith "shouldn't happen (irg.ml::add_attr_to_spec::spec_of_param)"
+	in
+	(* prefix the name of the attr and all the recursive calls to itself (EVAL(name) => EVAL(pfx ^ name) *)
+	let prefix_recursive_attr a pfx =
+		let rec aux st name =
+			match st with
+			NOP ->
+				NOP
+			| SEQ(s1, s2) ->
+				SEQ(aux s1 name, aux s2 name)
+			| EVAL(str) ->
+				if str = name then
+					EVAL(pfx ^ "_" ^ name)
+				else
+					EVAL(str)
+			| EVALIND(v, attr_name) ->
+				EVALIND(v, attr_name)
+			| SET(l, e) ->
+				SET(l, e)
+			| CANON_STAT(str, e_l) ->
+				CANON_STAT(str, e_l)
+			| ERROR(str) ->
+				ERROR(str)
+			| IF_STAT(e, s1, s2) ->
+				IF_STAT(e, aux s1 name, aux s2 name)
+			| SWITCH_STAT(e, es_l, s) ->
+				SWITCH_STAT(e, List.map (fun (x,y) -> (x, aux s name)) es_l, aux s name)
+			| SETSPE(l, e) ->
+				SETSPE(l, e)
+			| LINE(str, n, s) ->
+				LINE(str, n, aux s name)
+		in
+		match a with
+		ATTR_EXPR(n, at) ->
+			failwith "shouldn't happen (irg.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_EXPR)"
+		| ATTR_STAT(n, at) ->
+			ATTR_STAT(pfx ^ "_" ^ n, aux at n)
+		| ATTR_USES ->
+			failwith "shouldn't happen (irg.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_USES)"
 	in
 	let compare_attrs a1 a2 =
 		match a1 with
@@ -1528,13 +1640,22 @@ let add_attr_to_spec sp param =
 			else
 				false
 	in
-	(* returns the attr in param not present in sp *)
+	(* returns the attr in param not present in sp (or present but recursive in param and not in sp, a new fully renamed attr must be produced for sp) *)
 	let rec search_in_attrs a_l a_l_param =
 		match a_l_param with
 		[] -> []
 		| a::b ->
 			if List.exists (fun x -> compare_attrs a x) a_l then
-				search_in_attrs a_l b
+				match a with 
+				ATTR_STAT(n, _) ->
+					begin
+					if is_attr_recursive (spec_of_param param) n then
+						(prefix_recursive_attr a (name_of_param param))::(search_in_attrs a_l b)
+					else
+						search_in_attrs a_l b
+					end
+				| _ ->
+					search_in_attrs a_l b
 			else
 				a::(search_in_attrs a_l b)
 	in
@@ -1598,7 +1719,7 @@ let instantiate_spec sp param_list =
 	in
 	match sp with
 	AND_OP(name, params, attrs) ->
-		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
+		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr sp x new_param_list) attrs)) new_param_list
 	| _ ->
 		UNDEF
 
