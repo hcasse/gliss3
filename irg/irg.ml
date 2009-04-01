@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.26 2009/03/27 14:12:56 barre Exp $
+ * $Id: irg.ml,v 1.27 2009/04/01 13:11:42 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1294,6 +1294,7 @@ let get_spec_from_expr e spec_params =
 		FIELDOF(_, expre, _) -> rec_aux expre spec_params
 		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| ELINE (_, _, e) -> rec_aux e p_l
+		| CONST(t_e, c) -> UNDEF
 		| _ -> failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
 	in
 	rec_aux e spec_params
@@ -1336,27 +1337,6 @@ the format is supposed to be an attribute of a spec
 whose params are given in spec_params 
 returns a string list where each format has been replaced by the correct image or syntax (or else) *)
 let transform_str_list reg_list expr_list spec_params =
-	let rec print_reg_list rl =
-		match rl with
-		[] ->
-			print_string "\n"
-		| h::q ->
-			(match h with
-			Str.Text(t) ->
-				begin
-				Printf.printf "(T)%s#" t;
-				print_reg_list q
-				end
-			| Str.Delim(t) ->
-				begin
-				Printf.printf "(D)%s#" t;
-				print_reg_list q
-				end
-			)
-	in
-	(*let print_expr_list el =
-		List.iter (fun x -> begin print_expr x; print_string ", " end) el
-	in*)
 	let rec rec_aux r_l e_l p_l =
 		match r_l with
 		[] -> []
@@ -1366,18 +1346,185 @@ let transform_str_list reg_list expr_list spec_params =
 			| b::u ->
 				(match a with
 				Str.Text(txt) ->
-				begin
-				txt::(rec_aux t e_l p_l)
-				end
+					txt::(rec_aux t e_l p_l)
 				(* we suppose everything is well formed, each format has one param, params are given in format's order *)
-				| Str.Delim(txt) -> 
-				begin
-				(replace_format_by_attr a b (get_spec_from_expr b p_l))::(rec_aux t u p_l)
-				end
+				| Str.Delim(txt) ->
+						(replace_format_by_attr a b (get_spec_from_expr b p_l))::(rec_aux t u p_l)
 				)
 			)
 	in
 	rec_aux reg_list expr_list spec_params
+
+
+let rec remove_const_param_from_format f =
+	let get_length_from_format regexp =
+		let f =
+			match regexp with
+			Str.Delim(t) -> t
+			| _ -> failwith "shouldn't happen (irg.ml::remove_const_param_from_format::get_length_from_format::f)"
+		in
+		let l = String.length f in
+		let new_f =
+			if l<=2 then
+			(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
+				"0"
+			else
+				String.sub f 1 (l-2)
+		in
+		Scanf.sscanf new_f "%d" (fun x->x)
+	in
+	let rec int32_to_string01 i32 size accu =
+		let bit = Int32.logand i32 Int32.one
+		in
+		let res = (Int32.to_string bit) ^ accu
+		in
+		if size > 0 then
+			int32_to_string01 (Int32.shift_right_logical i32 1) (size - 1) res
+		else
+			accu
+	in
+	let rec int64_to_string01 i64 size accu =
+		let bit = Int64.logand i64 Int64.one
+		in
+		let res = (Int64.to_string bit) ^ accu
+		in
+		if size > 0 then
+			int64_to_string01 (Int64.shift_right_logical i64 1) (size - 1) res
+		else
+			accu
+	in
+	let is_string_format regexp =
+		match regexp with
+		Str.Delim(t) ->
+			t = "%s"
+		| _ ->
+			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_string_format)"
+	in
+	let is_integer_format regexp =
+		match regexp with
+		Str.Delim(t) ->
+			t = "%d"
+		| _ ->
+			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_integer_format)"
+	in
+	let is_binary_format regexp =
+		match regexp with
+		Str.Delim(t) ->
+			if (String.length t) <= 2 then
+				false
+			else
+				t.[(String.length t) - 1] = 'b'
+		| _ ->
+			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_binary_format)"
+	in
+	let is_float_format regexp =
+		match regexp with
+		Str.Delim(t) ->
+			t = "%f"
+		| _ ->
+			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_float_format)"
+	in
+	let replace_const_param_in_format_string regexp param =
+		match param with
+		CONST(t, c) ->
+			(match c with
+			CARD_CONST(i) ->
+				if is_integer_format regexp then
+					Str.Text(Int32.to_string i)
+				else
+					if is_binary_format regexp then
+						Str.Text(int32_to_string01 i (get_length_from_format regexp) "")
+					else
+						failwith "bad format, a 32 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+			| CARD_CONST_64(i) ->
+				if is_integer_format regexp then
+					Str.Text(Int64.to_string i)
+				else
+					if is_binary_format regexp then
+						Str.Text(int64_to_string01 i (get_length_from_format regexp) "")
+					else
+						failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+			| STRING_CONST(s) ->
+				if is_string_format regexp then
+					Str.Text(s)
+				else
+					failwith "bad format, a string constant can be displayed only with \"%s\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+			| FIXED_CONST(f) ->
+				if is_float_format regexp then
+					(* TODO: check if the output is compatible with C representation of floats *)
+					Str.Text(string_of_float f)
+				else
+					failwith "bad format, a float constant can be displayed only with \"%f\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+			| NULL ->
+				(* wtf!? isn't that supposed to be an error ? in the doubt... let it through *)
+				regexp
+			)
+		| _ ->
+			regexp
+	in
+	let replace_const_param_in_param regexp param =
+		match param with
+		CONST(t, c) ->
+			[]
+		| _ ->
+			[param]
+	in
+	(* simplify the regexp list *)
+	let rec r_aux r_l p_l =
+		match r_l with
+		[] ->
+			[]
+		| a::b ->
+			(match a with
+			Str.Text(t) ->
+				a::(r_aux b p_l)
+			| Str.Delim(d) ->
+				(match p_l with
+				[] ->
+					(* not enough params ! *)
+					failwith "shouldn't happen (irg.ml::remove_const_param_from_format::r_aux)"
+				| t::u ->
+					(replace_const_param_in_format_string a t)::(r_aux b u)
+				)
+			)
+	in
+	(* simplify the param list *)
+	let rec p_aux r_l p_l =
+		match r_l with
+		[] ->
+			if p_l = [] then
+				[]
+			else
+				(* not enough formats ! *)
+				failwith "shouldn't happen (irg.ml::remove_const_param_from_format::p_aux)"
+		| a::b ->
+			(match a with
+			Str.Text(t) ->
+				p_aux b p_l
+			| Str.Delim(d) ->
+				(match p_l with
+				[] ->
+					(* not enough params ! *)
+					failwith "shouldn't happen (irg.ml::remove_const_param_from_format::p_aux)"
+				| t::u ->
+					(replace_const_param_in_param a t) @ (p_aux b u)
+				)
+			)
+	in
+	match f with
+	FORMAT(s, p) ->
+		let r_l = string_to_regexp_list s
+		in
+		FORMAT(str_list_to_str (regexp_list_to_str_list (r_aux r_l p)), p_aux r_l p)
+	| ELINE (file, line, e) ->
+			(match e with
+			ELINE(_, _, _) ->
+				remove_const_param_from_format e
+			| _ ->
+				ELINE(file, line, remove_const_param_from_format e)
+			)
+	| _ ->
+		failwith "function can be called only for format expressions (irg.ml::remove_const_param_from_format)"
 
 
 (* instantiate all var in expr_frmt (of type format(ch, p1, p2, ..., pn) )
@@ -1423,7 +1570,7 @@ let change_format_attr expr_frmt param_list =
 			)
 		| _ -> f
 	in
-	reduce_frmt (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)))
+	reduce_frmt (remove_const_param_from_format (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt))))
 	
 
 (* replace the type by the spec if the param refers to an op or mode,
