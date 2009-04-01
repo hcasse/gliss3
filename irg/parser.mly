@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.19 2009/03/25 16:54:53 casse Exp $
+ * $Id: parser.mly,v 1.20 2009/04/01 13:10:10 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -435,6 +435,10 @@ FormatId:
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
+	/* we should autorise constant parameters in a format expression 
+	correct type will be checked in Sem */
+|	Constant
+		{ eline (Irg.CONST (fst $1, snd $1)) }
 			
 /*|	DOLLAR PLUS ID
 		{ }*/
