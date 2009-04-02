@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.20 2009/04/01 13:10:10 barre Exp $
+ * $Id: parser.mly,v 1.21 2009/04/02 07:12:29 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -92,7 +92,7 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 %%
 
 top:
-	specs EOF		{ print_string "Start Symbol reduced, end of recognition\n########################\n" }
+	specs EOF		{ (*print_string "Start Symbol reduced, end of recognition\n########################\n"*) }
 ;
 
 specs :

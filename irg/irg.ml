@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.27 2009/04/01 13:11:42 barre Exp $
+ * $Id: irg.ml,v 1.28 2009/04/02 07:12:29 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -213,8 +213,6 @@ let get_symbol n =
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym = 
-(*!!DEBUG!!*)
-(*Printf.printf "symbol added: %s\n" name;*)
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
@@ -231,7 +229,8 @@ let is_defined name = StringHashtbl.mem syms name
 
 		@param name	Name of the parameter to add.
 		@param t	Type of the parameter to add.	*)
-let add_param (name,t) =StringHashtbl.add syms name (PARAM (name,t))
+let add_param (name,t) =
+	StringHashtbl.add syms name (PARAM (name,t))
 
 (**	Remove a symbol from the namespace.
 		@param name	The name of the symbol to remove. *)
@@ -621,7 +620,8 @@ let rec output_statement out stat =
 		output_string out "=";
 		output_expr out exp;
 		output_string out ";\n"
-	| LINE (_,_,s) ->
+	| LINE (file, line, s) ->
+		Printf.fprintf out "#line \"%s\" %d\n" file line;
 		output_statement out s
 
 
@@ -630,16 +630,15 @@ let rec output_statement out stat =
 let rec print_statement stat= output_statement stdout stat
 
 
-
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
-let print_mem_attr attr =
+let output_mem_attr out attr =
 	let rec print_call id args =
 		print_string id;
 		if args <> [] then
 			begin
 				ignore(List.fold_left (fun sep arg ->
-						print_string sep;
+						output_string out sep;
 						print_arg arg;
 						", "
 					) "(" args);
@@ -648,88 +647,106 @@ let print_mem_attr attr =
 	and print_arg arg =
 		match arg with
 		| ATTR_ID (id, args) -> print_call id args
-		| ATTR_VAL cst -> print_const cst in
+		| ATTR_VAL cst -> output_const out cst in
 
 	match attr with
 	  VOLATILE n ->
-		Printf.printf "volatile(%d)" n
+		Printf.fprintf out "volatile(%d)" n
 	| PORTS (l, u) ->
-		Printf.printf "ports(%d, %d)" l u
+		Printf.fprintf out "ports(%d, %d)" l u
 	| ALIAS l ->
-		print_string "alias "; print_location l
+		output_string out "alias "; output_location out l
 	| INIT v ->
-		print_string "init = ";
-		print_const v
+		output_string out "init = ";
+		output_const out v
 	| USES ->
-		print_string "uses"
+		output_string out "uses"
 	| NMP_ATTR (id, args) ->
 		print_call id args
 
+(** Print a memory attibute.
+	@param attr	Memory attribute to print. *)
+let print_mem_attr attr =
+	output_mem_attr stdout attr
+
+(** Print a list of memory attributes.
+	@param attrs	List of attributes. *)
+let output_mem_attrs out attrs =
+	List.iter (fun attr -> output_string out " "; output_mem_attr out attr) attrs
 
 (** Print a list of memory attributes.
 	@param attrs	List of attributes. *)
 let print_mem_attrs attrs =
-	List.iter (fun attr -> print_string " "; print_mem_attr attr) attrs
+	output_mem_attrs stdout attrs
 
+(** Print a type.
+	@param typ	Type to print. *)
+let output_type out typ =
+	match typ with
+	  TYPE_ID id -> output_string out id
+	| TYPE_EXPR te -> output_type_expr out te
 
 (** Print a type.
 	@param typ	Type to print. *)
 let print_type typ =
-	match typ with
-	  TYPE_ID id -> print_string id
-	| TYPE_EXPR te -> print_type_expr te
-
+	output_type stdout typ
 
 (** Print an attribute.
 	@param attr	Attribute to print. *)
-let print_attr attr =
+let output_attr out attr =
 	match attr with
 	  ATTR_EXPR (id, expr) ->
-	  	Printf.printf "\t%s = " id;
-		print_expr expr;
-		print_newline ()
+	  	Printf.fprintf out "\t%s = " id;
+		output_expr out expr;
+		output_char out '\n'
 
 	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
-				  print_statement stat;
-				  Printf.printf "\t}\n";
+				  output_statement out stat;
+				  Printf.fprintf out "\t}\n";
 		() 
 	| ATTR_USES ->
 		()
 
-
+(** Print an attribute.
+	@param attr	Attribute to print. *)
+let print_attr attr =
+	output_attr stdout attr
 
 (** Print a specification item.
+	@param out	Stream to output to.
 	@param spec	Specification item to print. *)
-let print_spec spec =
+let output_spec out spec =
+	let print_newline _ = output_char out '\n' in
+	let print_string = output_string out in
 	match spec with
 	  LET (name, cst) ->
-	  	Printf.printf "let %s = " name;
-		print_const cst;
+	  	Printf.fprintf out "let %s = " name;
+		output_const out cst;
 		print_newline ()
 	| TYPE (name, t) ->
-		Printf.printf "type %s = " name;
-		print_type_expr t;
+		Printf.fprintf out "type %s = " name;
+		output_type_expr out t;
 		print_newline ()
 	| MEM (name, size, typ, attrs) ->
-		Printf.printf "mem %s [%d, " name size;
-		print_type_expr typ;
+		Printf.fprintf out "mem %s [%d, " name size;
+		output_type_expr out typ;
 		print_string "]";
-		print_mem_attrs attrs;
+		output_mem_attrs out attrs;
 		print_newline ()
 	| REG (name, size, typ, attrs) ->
-		Printf.printf "reg %s [%d, " name size;
-		print_type_expr typ;
+		Printf.fprintf out "reg %s [%d, " name size;
+		output_type_expr out typ;
 		print_string "]";
-		print_mem_attrs attrs;
+		output_mem_attrs out attrs;
 		print_newline ()
 	| VAR (name, size, typ) ->
-		Printf.printf "var %s [%d, " name size;
-		print_type_expr typ;
+		Printf.fprintf out "var %s [%d, " name size;
+		output_type_expr out typ;
 		print_string "]\n";
 	| RES name ->
-		Printf.printf "resource %s\n" name
+		Printf.fprintf out "resource %s\n" name
 	| EXN name ->
-		Printf.printf "exception %s\n" name
+		Printf.fprintf out "exception %s\n" name
 	| AND_MODE (name, pars, res, attrs) ->
 		print_string "mode ";
 		print_string name;
@@ -739,54 +756,60 @@ let print_spec spec =
 				if not fst then print_string ", ";
 				print_string id;
 				print_string ": ";
-				print_type typ;
+				output_type out typ;
 				false
 			)
 			true pars in
 		print_string ")";
 		if res <> NONE then begin
 			print_string " = ";
-			print_expr res
+			output_expr out res
 		end;
 		print_string "\n";
-		List.iter print_attr (List.rev attrs) ;
+		List.iter (output_attr out) (List.rev attrs) ;
 		print_newline ();
 	| OR_MODE (name, modes) -> Printf.printf "mode %s = " name ;
-				   List.iter (fun a -> Printf.printf " %s | " a) (List.rev (List.tl modes)) ;
-				   Printf.printf "%s" (List.hd (modes));
-				   Printf.printf "\n";
+				   List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes)) ;
+				   Printf.fprintf out "%s" (List.hd (modes));
+				   Printf.fprintf out "\n";
 		()
-	| AND_OP (name, pars, attrs) -> Printf.printf "op %s (" name ;
+	| AND_OP (name, pars, attrs) -> Printf.fprintf out "op %s (" name ;
 					if (List.length pars)>0
 					then begin
-						List.iter (fun a -> begin 	Printf.printf "%s : " (fst a) ; 
-										print_type (snd a); 
-										Printf.printf ", ";
+						List.iter (fun a -> begin 	Printf.fprintf out "%s : " (fst a) ; 
+										output_type out (snd a); 
+										Printf.fprintf out ", ";
 								   end) (List.rev (List.tl pars));
-						Printf.printf "%s : " (fst (List.hd pars)); 
-						print_type (snd (List.hd pars));
+						Printf.fprintf out "%s : " (fst (List.hd pars)); 
+						output_type out (snd (List.hd pars));
 					end;
-					Printf.printf ")\n";
-					List.iter print_attr (List.rev attrs) ;
+					Printf.fprintf out ")\n";
+					List.iter (output_attr out) (List.rev attrs) ;
 		()
-	| OR_OP (name, modes) -> Printf.printf "op %s = " name ;		 
-				 List.iter (fun a -> Printf.printf " %s | " a) (List.rev (List.tl modes));
-				 Printf.printf "%s" (List.hd modes);
-				 Printf.printf "\n";
-		()
-
-	| PARAM (name,t)->Printf.printf "param %s (" name;print_type t;print_string ")\n";
+	| OR_OP (name, modes) -> Printf.fprintf out "op %s = " name ;		 
+				 List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes));
+				 Printf.fprintf out "%s" (List.hd modes);
+				 Printf.fprintf out "\n";
 		()
 
-	| ATTR (a)->print_attr a;
+	| PARAM (name,t)->
+		Printf.fprintf out "param %s (" name;
+		output_type out t;
+		output_string out ")\n";
+
+	| ATTR (a) -> print_attr a;
 		()
 
-	| ENUM_POSS (name,s,_,_)->Printf.printf "possibility %s of enum %s\n" name s;
-		()
+	| ENUM_POSS (name,s,_,_)->
+		Printf.fprintf out "possibility %s of enum %s\n" name s;
 
 	| UNDEF ->
-		print_string "<UNDEF>";
-		()
+		output_string out "<UNDEF>"
+
+(** Print a specification item.
+	@param spec	Specification item to print. *)
+let print_spec spec =
+	output_spec stdout spec
 
 
 (* now let's try to obtain all the real OPs from a given OP by "unrolling" all MODES *)

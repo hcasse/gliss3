@@ -4,10 +4,10 @@
 
 /* state access macros */
 $(foreach registers)$(if !aliased)
-#define $(PROC)_$(NAME) ((state)->$(NAME)))
+#define $(PROC)_$(NAME) ((state)->$(NAME))
 $(end)$(end)
 $(foreach memories)
-#define $(PROC)_$(NAME) ((state)->$(NAME)))
+#define $(PROC)_$(NAME) ((state)->$(NAME))
 $(end)
 
 

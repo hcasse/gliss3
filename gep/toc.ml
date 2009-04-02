@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.20 2009/03/25 13:31:10 casse Exp $
+ * $Id: toc.ml,v 1.21 2009/04/02 07:12:28 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -25,6 +25,7 @@ exception Error of string
 exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
 
+let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)	(* !!DEBUG!! *)
 
 (** Execute the function f, capturing PreError exception and
 	adding error location to re-raise them as LocError.
@@ -281,6 +282,15 @@ let temp_name i =
 	Printf.sprintf "_gtmp%d" i
 
 
+(** Test if the given statement is a nop.
+	@param stat		Statement to test.
+	@return			True if it is a nop, false else. *)
+let rec is_nop stat =
+	match stat with
+	| Irg.NOP -> true
+	| Irg.LINE (_, _, s) -> is_nop s
+	| _ -> false
+
 (** Build a new temporary.
 	@param info	Current generation information.
 	@param t	Type of the temporary.
@@ -308,14 +318,14 @@ let declare_temps info =
 	List.iter
 		(fun (name, typ) ->
 			Irg.add_symbol name (Irg.VAR (name, 1, typ));
-			Printf.fprintf info.out "\t%s %s; "
+			Printf.fprintf info.out "\t%s %s;\n"
 				(type_to_string (convert_type typ))
 				name
 		)
 		info.temps;
 	List.iter
 		(fun (name, (cnt, typ)) ->
-			Printf.fprintf info.out "\t%s %s%s; "
+			Printf.fprintf info.out "\t%s %s%s;\n"
 				(type_to_string (convert_type typ))
 				name
 				(if cnt = 1 then "" else Printf.sprintf "[%d]" cnt)
@@ -410,11 +420,7 @@ let rec get_alias attrs =
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
-
-Printf.printf "res_al, name=%s" name;
-print_string ", idx="; Irg.print_expr idx;
-print_string ", ub="; Irg.print_expr ub;
-print_string ", lb="; Irg.print_expr lb;print_char '\n';
+	trace "resolve_alias 1";
 
 	let t = Irg.CARD(32) in
 	let const c =
@@ -453,12 +459,17 @@ print_string ", lb="; Irg.print_expr lb;print_char '\n';
 		let (r, i, il, ub, lb, t) = v in
 		(r, i, il, add lb u, add lb l, t) in
 
+	let set_name name v =
+		let (_, i, il, ub, lb, t) = v in
+		(name, i, il, ub, lb, t) in
+
 	let rec process_alias tr attrs v =
 		let v = convert tr v in
 		match get_alias attrs with
 		| Irg.LOC_NONE -> (name, idx, 1, ub, lb, tr)
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
 		| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
+			let v = set_name name v in
 			let v = if idx = Irg.NONE then v else shift idx v in
 			let v = if ub = Irg.NONE then v else field ub lb v in
 			process v
@@ -508,15 +519,12 @@ let unalias_expr name idx ub lb =
 	let field e ub lb tt =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
+
 	match Irg.get_symbol name with
 	| Irg.REG (_, _, tt, _) ->
 		field (concat (il - 1) tt) ubp lbp tt
-	| Irg.VAR (_, _, tt) ->
-		field (concat (il - 1) tt) ubp lbp tt
 	| Irg.MEM (_, _, tt, _) ->
 		field (concat 0 tt) ub lb tt
-	| Irg.LET _ ->
-		Irg.REF name
 	| s ->
 		Irg.print_spec s;			(* !!DEBUG!! *)
 		failwith "unalias_expr"
@@ -532,9 +540,18 @@ let rec prepare_expr info stats expr =
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 
+	let unalias name idx =
+		match Irg.get_symbol name with
+		| Irg.REG _ | Irg.MEM _ ->
+			unalias_expr name idx Irg.NONE Irg.NONE
+		| Irg.VAR (_, cnt, t) ->
+			add_var info name cnt t; expr
+		| _ ->
+			expr in
+
 	match expr with
 	| Irg.REF name ->
-		(stats, unalias_expr name Irg.NONE Irg.NONE Irg.NONE)
+		(stats, unalias name Irg.NONE)
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -551,7 +568,7 @@ let rec prepare_expr info stats expr =
 		(stats, Irg.FIELDOF (typ, base, id))
 	| Irg.ITEMOF (typ, tab, idx) ->
 		let (stats, idx) = prepare_expr info stats idx in
-		(stats, unalias_expr tab idx Irg.NONE Irg.NONE)
+		(stats, unalias tab idx)
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -629,7 +646,9 @@ let rec seq_list list =
 	@param			Expression to assign.
 	@return			statements *)
 let unalias_set info stats name idx ub lb expr =
+	trace "unalias_set 1";
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
+	trace "unalias_set 2";
 
 	(*let addn e1 e2 =
 		if e1 = Irg.NONE then e2 else addi e1 e2  in*)
@@ -678,9 +697,13 @@ let unalias_set info stats name idx ub lb expr =
 			seq (seq stats (sett tt name expr)) (set_concat_field (il - 1) (Sem.get_type_length t)) in
 
 	match Irg.get_symbol name with
-	| Irg.REG (_, _, tt, _) -> process tt
-	| Irg.VAR (_, _, tt) -> process tt
-	| Irg.MEM (_, _, tt, _) -> seq stats (set_full i ub lb expr)
+	| Irg.REG (_, _, tt, _) ->
+		process tt
+	| Irg.MEM (_, _, tt, _) ->
+		seq stats (set_full i ub lb expr)
+	| Irg.VAR (_, cnt, tt) ->
+		add_var info name cnt tt;
+		seq stats (set_full i ub lb expr)
 	| _ -> failwith "unalias_expr"
 
 
@@ -695,6 +718,7 @@ let get_loc_size l =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
+	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
 	let refto n = Irg.REF n in
@@ -702,6 +726,7 @@ let rec prepare_stat info stat =
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 	
 	let rec prepare_set stats loc expr =
+		trace "prepare_set 1";
 		match loc with
 		| Irg.LOC_NONE ->
 			failwith "no location to set (3)"
@@ -743,14 +768,13 @@ let rec prepare_stat info stat =
 	| Irg.LINE (file, line, stat) ->
 		Irg.LINE (file, line, prepare_stat info stat)
 
+	| Irg.SETSPE (l, e) ->
+		(* !!TODO!! fix type here *)
+		prepare_stat info (Irg.SET (l, e))
+
 	| Irg.EVAL _
-	| Irg.EVALIND _
-	| Irg.SETSPE _ ->
-		print_string "SETSPE[";
-		Irg.print_statement stat;
-		print_char ']';
-		Irg.NOP(*
-		failwith "must have been removed !"*)
+	| Irg.EVALIND _ ->
+		failwith "must have been removed !"
 
 
 (** Generate a prepared expression.
@@ -783,7 +807,8 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.REG _ -> out (state_macro info name)
 		| Irg.PARAM _ -> out (param_macro info name)
 		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
-		| _ -> out name (*failwith "expression form must have been removed")*) )
+		| s ->
+			out name (*failwith "expression form must have been removed")*) )
 
 	| Irg.ITEMOF (_, name, idx) ->
 		(match Irg.get_symbol name with
@@ -905,6 +930,7 @@ let rec gen_expr info (expr: Irg.expr) =
 	@param info		Generation information.
 	@param stat		Statement to generate. *)
 let rec gen_stat info stat =
+	trace "gen_stat 1";
 	let out = output_string info.out in
 
 	let iter_args args =
@@ -920,7 +946,7 @@ let rec gen_stat info stat =
 		else
 			Irg.CANON_EXPR (
 				typ,
-				Printf.sprintf "%s_set_field%s("
+				Printf.sprintf "%s_set_field%s"
 					info.proc (type_to_mem (convert_type typ)),
 				[
 					if idx = Irg.NONE then Irg.REF id
@@ -963,7 +989,10 @@ let rec gen_stat info stat =
 			out ", ";
 			gen_expr info (set_field typ id Irg.NONE lo up expr);
 			out ");\n"
-		| _ -> failwith "should be data identifier")
+		| s ->
+			Printf.printf "==> %s\n" id;
+			Irg.print_spec s;
+			failwith "gen stat 1")
 	| Irg.SET _ ->
 		failwith "should have been removed"
 
@@ -985,7 +1014,7 @@ let rec gen_stat info stat =
 		out ") {\n";
 		gen_stat info tpart;
 		out "\t}\n";
-		if epart <> Irg.NOP then
+		if not (is_nop epart) then
 			begin
 				out "\telse {\n";
 				gen_stat info epart;
@@ -1016,11 +1045,12 @@ let rec gen_stat info stat =
 	| Irg.EVAL name ->
 		gen_call info name
 
-	| Irg.SETSPE _
-	| Irg.EVALIND _ ->
+	| Irg.EVALIND _
+	| Irg.SETSPE _ ->
 		failwith "must have been removed"
 		
 and gen_call info name =
+	trace ("gen_call 1" ^ name);
 	
 	(* recursive call ? *)
 	if 	List.mem_assoc name info.calls then
@@ -1029,25 +1059,34 @@ and gen_call info name =
 	(* normal call *)
 	else
 		begin
+			trace "gen_call 2";
 
-			(* push the call *)
+			(* prepare the code *)
+			trace "gen_call 3";
+			let stat =
+				match Irg.get_symbol name with
+				| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> stat
+				| _ -> failwith "find_recursives" in
+			trace "gen_call 4";
+			let stat = prepare_stat info stat in
+			declare_temps info;
+			
+			(* put label if any *)
+			let before = info.calls in
 			if List.mem name info.recs then
 				begin
 					let lab = new_label info in 
 					Printf.fprintf info.out "\t%s:\n" lab;
 					info.calls <- (name, lab)::info.calls
 				end;
-
-			(* generate the code *)
-			let stat =
-				match Iter.get_attr info.inst name with
-				| Iter.STAT stat -> stat
-				| _ -> failwith "find_recursives" in
-			gen_stat info (prepare_stat info stat);
+			
+			(* generate the statements *)
+			gen_stat info stat;
+			cleanup_temps info;
 			
 			(* return from call *)
-			info.calls <- List.tl info.calls
-
+			trace "gen_call 59";
+			info.calls <- before
 		end
 
 
@@ -1058,30 +1097,33 @@ and gen_call info name =
 let find_recursives info name =
 	
 	let rec look_attr name stack recs =
-		let stack = name::stack in
-
-		let rec look_stat stat recs =
-			match stat with
-			| Irg.NOP -> recs
-			| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
-			| Irg.EVAL name -> look_attr name stack recs
-			| Irg.EVALIND _ -> failwith "find_recursives: EVALIND"
-			| Irg.SET _ -> recs
-			| Irg.CANON_STAT _ -> recs
-			| Irg.ERROR _ -> recs
-			| Irg.IF_STAT (_, s1, s2) -> look_stat s1 (look_stat s2 recs)
-			| Irg.SWITCH_STAT (_, cases, def) ->
-				look_stat def (List.fold_left
-					(fun recs (_, s) -> look_stat s recs)
-					recs
-					cases)
-			| Irg.SETSPE _ -> failwith "find_recursives: SETSPE"
-			| Irg.LINE (_, _, s) -> look_stat s recs in
-	
 		if List.mem name stack then
 			if List.mem name recs then recs
 			else name::recs
 		else
+			let stack = name::stack in
+
+			let rec look_stat stat recs =
+				match stat with
+				| Irg.NOP -> recs
+				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
+				| Irg.EVAL name -> look_attr name stack recs
+				| Irg.EVALIND _ -> failwith "find_recursives: EVALIND"
+				| Irg.SET _ -> recs
+				| Irg.CANON_STAT _ -> recs
+				| Irg.ERROR _ -> recs
+				| Irg.IF_STAT (_, s1, s2) -> look_stat s1 (look_stat s2 recs)
+				| Irg.SWITCH_STAT (_, cases, def) ->
+					look_stat def (List.fold_left
+						(fun recs (_, s) -> look_stat s recs)
+						recs
+						cases)
+				| Irg.SETSPE (loc, expr) ->
+					(* !!TODO!! must no occurs next *)
+					(*failwith "find_recursives: SETSPE"*)
+					recs
+				| Irg.LINE (_, _, s) -> look_stat s recs in
+
 			match Iter.get_attr info.inst name with
 			| Iter.STAT stat -> look_stat stat recs
 			| _ -> failwith "find_recursives" in
@@ -1093,6 +1135,9 @@ let find_recursives info name =
 	@param info		Generation information.
 	@param name		Name of the attribute. *)
 let gen_action info name =
+	trace "gen_action 1";
 	find_recursives info name;
-	gen_call info name
+	trace "gen_action 2";
+	gen_call info name;
+	trace "gen_action 3"
 
