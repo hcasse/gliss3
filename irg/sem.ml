@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.16 2009/03/25 16:54:54 casse Exp $
+ * $Id: sem.ml,v 1.17 2009/04/03 14:27:22 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1114,21 +1114,21 @@ let build_format str exp_list=
 
 
 (** This function is used to modify parameters of a format called into a syntax attribute to add the .syntaxe attribute at all reference parameters *)
-let change_string_dependences_syntax str e_list=
+let change_string_dependences_syntax str e_list =
 
-let r_list=get_all_ref str
+let r_list =get_all_ref str
 in
-	let rec can_have_attribute e = match e with
-			 REF _->true
-			| ELINE (_, _, e) -> can_have_attribute e
-			|_->false
+	let rec add_syntax e = match e with
+			 REF name-> FIELDOF (STRING, name, "syntax")
+			| ELINE (_, _, e) -> add_syntax e
+			|_ -> e
 	in
-	let rec temp r_l e_l=
+	let rec temp r_l e_l =
 		match r_l with
 		[]->[]
-		|r::l->if (Str.last_chars r 1="s") && (can_have_attribute (List.hd e_l))
+		|r::l->if (Str.last_chars r 1="s") (*&& (can_have_attribute (List.hd e_l))*)
 				then
-					(FIELDOF (STRING ,(List.hd e_l), "syntax"))::(temp l (List.tl e_l))
+					(add_syntax (List.hd e_l))::(temp l (List.tl e_l))
 				else
 					(List.hd e_l)::(temp l (List.tl e_l))
 
@@ -1141,17 +1141,17 @@ let change_string_dependences_image str e_list=
 
 let r_list=get_all_ref str
 in
-	let rec can_have_attribute e = match e with
-			 REF _->true
-			| ELINE (_, _, e) -> can_have_attribute e
-			|_->false
+	let rec add_image e = match e with
+			 REF name -> FIELDOF (STRING, name, "image")
+			| ELINE (_, _, e) -> add_image e
+			| _ -> e
 	in
 	let rec temp r_l e_l=
 		match r_l with
 		[]->[]
-		|r::l->if (Str.last_chars r 1="s") && (can_have_attribute (List.hd e_l))
+		|r::l->if Str.last_chars r 1="s"
 				then
-					(FIELDOF (STRING ,(List.hd e_l), "image"))::(temp l (List.tl e_l))
+					(add_image (List.hd e_l))::(temp l (List.tl e_l))
 				else
 					(List.hd e_l)::(temp l (List.tl e_l))	
 	in

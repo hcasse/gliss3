@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.28 2009/04/02 07:12:29 casse Exp $
+ * $Id: irg.ml,v 1.29 2009/04/03 14:27:21 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -84,7 +84,7 @@ type expr =
 	| FORMAT of string * expr list 
 	| CANON_EXPR of type_expr * string * expr list
 	| REF of string
-	| FIELDOF of type_expr * expr * string
+	| FIELDOF of type_expr * string * string
 	| ITEMOF of type_expr * string * expr
 	| BITFIELD of type_expr * expr * expr * expr
 	| UNOP of type_expr * unop * expr
@@ -471,7 +471,8 @@ let rec output_expr out e =
 		let _ = List.fold_left print_arg true args in
 		output_string out ")"
 	| FIELDOF(t, e, n) ->
-		output_expr out e;
+		(*output_expr out e;*)
+		output_string out e;
 		output_string out ".";
 		output_string out n
 	| REF id ->
@@ -1017,10 +1018,10 @@ let rec substitute_in_expr name op ex =
 			(* change also if s refers to an ATTR_EXPR of the same spec, does it have this form ? *)
 			REF(s)
 	| FIELDOF(te, e, s) ->
-		if e = REF(name) then
+		(*if e = REF(name) then*)
 			get_expr_from_attr_from_op_or_mode op s
-		else
-			FIELDOF(te, substitute_in_expr name op e, s)
+		(*else
+			FIELDOF(te, substitute_in_expr name op e, s)*)
 	| ITEMOF(te, e1, e2) ->
 		ITEMOF(te, e1, substitute_in_expr name op e2)
 	| BITFIELD(te, e1, e2, e3) ->
@@ -1040,6 +1041,12 @@ let rec substitute_in_expr name op ex =
 
 
 let rec change_name_of_var_in_expr ex var_name new_name =
+	let get_name s =
+		if s = var_name then
+			new_name
+		else
+			s in
+		
 	match ex with
 	NONE ->
 		NONE
@@ -1050,12 +1057,9 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	| CANON_EXPR(t_e, s, e_l) ->
 		CANON_EXPR(t_e, s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
 	| REF(s) ->
-		if s = var_name then
-			REF(new_name)
-		else
-			REF(s)
+		REF (get_name s)
 	| FIELDOF(t_e, e, s) ->
-		FIELDOF(t_e, change_name_of_var_in_expr e var_name new_name, s)
+		FIELDOF(t_e, (*change_name_of_var_in_expr*) get_name e (*var_name new_name*), s)
 	| ITEMOF(t_e, e1, e2) ->
 		ITEMOF(t_e, e1, change_name_of_var_in_expr e2 var_name new_name)
 	| BITFIELD(t_e, e1, e2, e3) ->
@@ -1314,7 +1318,8 @@ avoid same name for different vars if instantiating several params of same type 
 let get_spec_from_expr e spec_params =
 	let rec rec_aux ex p_l =
 		match ex with
-		FIELDOF(_, expre, _) -> rec_aux expre spec_params
+		FIELDOF(_, expre, _) -> (*rec_aux expre spec_params*)
+			prefix_name_of_params_in_spec (search_spec_of_name expre spec_params) expre
 		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| ELINE (_, _, e) -> rec_aux e p_l
 		| CONST(t_e, c) -> UNDEF
@@ -2089,7 +2094,7 @@ let test_format name =
 let test_replace_param name =
 	let sp = get_symbol name
 	in
-	let expre = FIELDOF(STRING, REF("x"), "image")
+	let expre = FIELDOF(STRING, (*REF( *) "x" (**), "image")
 	in
 	let rec print_expr_list e_l =
 		List.map (fun x -> begin Printf.printf ":"; print_expr x; print_string ";\n" end) e_l

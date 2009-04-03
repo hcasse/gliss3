@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.21 2009/04/02 07:12:28 casse Exp $
+ * $Id: toc.ml,v 1.22 2009/04/03 14:27:21 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -564,7 +564,6 @@ let rec prepare_expr info stats expr =
 		let (stats, args) = prepare_exprs info stats args in
 		(stats, Irg.CANON_EXPR (typ, name, List.rev args))
 	| Irg.FIELDOF (typ, base, id) ->
-		let (stats, base) = prepare_expr info stats base in
 		(stats, Irg.FIELDOF (typ, base, id))
 	| Irg.ITEMOF (typ, tab, idx) ->
 		let (stats, idx) = prepare_expr info stats idx in

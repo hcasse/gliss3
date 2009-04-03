@@ -65,7 +65,7 @@ let get_string_mask_for_param_from_op sp n =
 	let rec get_name_of_param e =
 		match e with
 		Irg.FIELDOF(_, ee, _) ->
-			get_name_of_param ee
+			ee
 		| Irg.REF(name) ->
 			name
 		| Irg.ELINE (_, _, ee) ->

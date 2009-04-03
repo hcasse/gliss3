@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.21 2009/04/02 07:12:29 casse Exp $
+ * $Id: parser.mly,v 1.22 2009/04/03 14:27:21 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -385,9 +385,9 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 
 AttrExpr :
 	ID DOT SYNTAX
-		{ eline (Irg.FIELDOF (Irg.STRING, Irg.REF $1, "syntax")) }
+		{ eline (Irg.FIELDOF (Irg.STRING, $1, "syntax")) }
 |	ID DOT IMAGE
-		{ eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1, "image")) }
+		{ eline (Irg.FIELDOF (Irg.STRING, $1, "image")) }
 |	STRING_CONST
 		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 |	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
@@ -412,7 +412,7 @@ FormatId:
 		{ 
 		if Irg.is_defined $1 
 		then
-			 Irg.FIELDOF (Irg.STRING ,Irg.REF $1, "image")
+			 Irg.FIELDOF (Irg.STRING , $1, "image")
 		else
 			raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
@@ -421,7 +421,7 @@ FormatId:
 		{ 
 		if Irg.is_defined $1 
 			then
-				Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, Irg.REF $1, "image"), 	
+				Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, $1, "image"), 	
 					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $5)),
 					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $7)))
 			else
@@ -431,7 +431,7 @@ FormatId:
 		{ 
 		if Irg.is_defined $1 
 			then
-				Irg.FIELDOF (Irg.STRING,Irg.REF $1, "syntax")
+				Irg.FIELDOF (Irg.STRING, $1, "syntax")
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
@@ -642,7 +642,7 @@ Expr :
 		{ 
 		if Irg.is_defined $1
 			then
-				eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1,"syntax"))
+				eline (Irg.FIELDOF (Irg.STRING, $1,"syntax"))
 
 				(*if Sem.have_attribute $1 "syntax"
 					then
@@ -656,7 +656,7 @@ Expr :
 		{ 
 		if Irg.is_defined $1
 			then
-				eline (Irg.FIELDOF (Irg.STRING,Irg.REF $1,"image"))
+				eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
 
 				(*if Sem.have_attribute $1 "image"
 					then
@@ -670,7 +670,7 @@ Expr :
 		{ 	
 		if Irg.is_defined $1
 			then
-				eline (Irg.FIELDOF (Irg.UNKNOW_TYPE,Irg.REF $1,$3))
+				eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1,$3))
 
 				(*if Sem.have_attribute $1 $3
 					then
