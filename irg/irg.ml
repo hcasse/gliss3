@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.29 2009/04/03 14:27:21 casse Exp $
+ * $Id: irg.ml,v 1.30 2009/04/05 13:21:07 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -622,7 +622,7 @@ let rec output_statement out stat =
 		output_expr out exp;
 		output_string out ";\n"
 	| LINE (file, line, s) ->
-		Printf.fprintf out "#line \"%s\" %d\n" file line;
+		(*Printf.fprintf out "#line \"%s\" %d\n" file line;*)
 		output_statement out s
 
 
@@ -1091,11 +1091,63 @@ let rec change_name_of_var_in_location loc var_name new_name =
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
 
 let rec substitute_in_location name op loc =
+(*print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
+print_string "\n\tloc="; print_location loc;		(* !!DEBUG!! *)
+print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
+*)	let get_mode_value sp =
+		match sp with
+		AND_MODE(_, _, v, _) -> v
+		| _-> NONE
+	in
+	let is_and_mode sp =
+		match sp with
+		AND_MODE(_, _, _, _) -> true
+		| _ -> false
+	in
 	match loc with
 	LOC_NONE ->
 		loc
 	| LOC_REF(t, s, i, l, u) ->
-		LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
+		let rec subst_mode_value mv =
+			match mv with
+			REF(n) ->
+				LOC_REF(t, n, i, l, u)
+			| ITEMOF(typ, n, idx) ->
+				(* can replace only if loc is "simple" (ie u, l, i = NONE) *)
+				if u=NONE && i=NONE && l=NONE then
+					LOC_REF(typ, n, idx, NONE, NONE)
+				else
+					failwith "cannot substitute a var here (ITEMOF) (irg.ml::substitute_in_location)"
+			| BITFIELD(typ, n, lb, ub) ->
+				(* do not know how to substitute bitfield of bitfield or itemof *)
+				if u=NONE && l=NONE && i=NONE then
+					(* n should also be a REF so we can transform it into a string *)
+					begin
+					match n with
+					REF(nn) ->
+						LOC_REF(typ, nn, NONE, lb, ub)
+					| _ ->
+						failwith "cannot substitute a var here (BITFIELD, not REF) (irg.ml::substitute_in_location)"
+					end
+				else
+					failwith "cannot substitute a var here (BITFIELD) (irg.ml::substitute_in_location)"
+			| ELINE(str, lin, e) ->
+				subst_mode_value e
+			| _ ->
+				begin
+				print_string "!!!ARG!!!\n";
+				print_location loc; print_char '\n';
+				print_expr (get_mode_value op); print_char '\n';
+				failwith "\nincorrect type of expr for a mode value (irg.ml::substitute_in_location)"
+				end
+		
+		in
+		(* change if op is a AND_MODE and s refers to it *)
+		(* as mode values, we will accept only those "similar" to a LOC_REF (REF, ITEMOF, BITFIELD, (FIELDOF)) *)
+		if (name=s)&&(is_and_mode op) then
+			subst_mode_value (get_mode_value op)
+		else
+			LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, substitute_in_location name op l1, substitute_in_location name op l2)
 		
@@ -1104,7 +1156,10 @@ let rec substitute_in_location name op loc =
 the symbol is supposed to stand for a variable of type given by op,
 all occurrences of names are translated to refer to the op *)
 let rec substitute_in_stat name op statement =
-	match statement with
+(*print_string ("subst_stat name=" ^ name);		(* !!DEBUG!! *)
+print_string "\n\tstat="; print_statement statement;	(* !!DEBUG!! *)
+print_string "spec ="; print_spec op;			(* !!DEBUG!! *)
+*)	match statement with
 	NOP ->
 		NOP
 	| SEQ(s1, s2) ->
