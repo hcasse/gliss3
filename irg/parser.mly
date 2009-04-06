@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.22 2009/04/03 14:27:21 casse Exp $
+ * $Id: parser.mly,v 1.23 2009/04/06 14:39:03 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -502,7 +502,7 @@ Statement:
 |	ConditionalStatement
 		{ $1 }
 |	STRING_CONST LPAREN ArgList RPAREN
-		{ Sem.build_canonical_stat $1 $3 }
+		{ Sem.build_canonical_stat $1 (List.rev $3) }
 |	ERROR LPAREN STRING_CONST RPAREN
 		{ Irg.ERROR $3 }
 ;
@@ -636,7 +636,7 @@ Expr :
 |	STRING_CONST LPAREN ArgList RPAREN
 		{
 			Sem.test_canonical $1;
-			eline (Sem.build_canonical_expr $1 $3)
+			eline (Sem.build_canonical_expr $1 (List.rev $3))
 		}
 |	ID DOT SYNTAX
 		{ 
