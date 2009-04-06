@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.22 2009/04/03 14:27:21 casse Exp $
+ * $Id: toc.ml,v 1.23 2009/04/06 14:39:39 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -26,6 +26,28 @@ exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
 
 let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)	(* !!DEBUG!! *)
+
+
+(* KNOWN BUGS
+	reg r[1, t] alias rp[i]	is not rightly generated
+ *)
+
+(* StringHash module *)
+module HashedString = struct
+	type t = string
+	let equal s1 s2 = s1 = s2
+	let hash s = Hashtbl.hash s
+end
+module StringHashtbl = Hashtbl.Make(HashedString)
+
+
+(** Get a statement attribute.
+	@param name		Name of the attribute. *)
+let get_stat_attr name =
+	match Irg.get_symbol name with
+	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> stat
+	| _ -> failwith "Not a statement attribute !"
+
 
 (** Execute the function f, capturing PreError exception and
 	adding error location to re-raise them as LocError.
@@ -99,6 +121,7 @@ type info_t = {
 	mutable calls: (string * string) list;				(** list of performed attributes call *)
 	mutable recs: string list;		(** list of recursive actions *)
 	mutable lab: int;				(** index of a new label *)
+	mutable attrs: Irg.stat StringHashtbl.t;			(** list of prepared attributes *)
 }
 
 
@@ -132,6 +155,7 @@ let info _ =
 		calls = [];
 		recs = [];
 		lab = 0;
+		attrs = StringHashtbl.create 211
 	}
 
 
@@ -440,7 +464,7 @@ let resolve_alias name idx ub lb =
 
 	let convert tr v =
 		let (r, i, il, ub, lb, ta) = v in
-		if ta = Irg.NO_TYPE then v else
+		if ta = Irg.NO_TYPE then (r, i, il, ub, lb, tr) else
 		let sa = Sem.get_type_length ta in
 		let sr = Sem.get_type_length tr in
 		if sa = sr then v else
@@ -466,10 +490,10 @@ let resolve_alias name idx ub lb =
 	let rec process_alias tr attrs v =
 		let v = convert tr v in
 		match get_alias attrs with
-		| Irg.LOC_NONE -> (name, idx, 1, ub, lb, tr)
+		| Irg.LOC_NONE -> v
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
-		| Irg.LOC_REF (tr, name, idxp, ubp, lbp) ->
-			let v = set_name name v in
+		| Irg.LOC_REF (tr, r, idxp, ubp, lbp) ->
+			let v = set_name r v in
 			let v = if idx = Irg.NONE then v else shift idx v in
 			let v = if ub = Irg.NONE then v else field ub lb v in
 			process v
@@ -486,9 +510,6 @@ let resolve_alias name idx ub lb =
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
 		| _ ->
-			Printf.printf "BAD_ALIAS: %s\n" r;	(* !!DEBUG!! *)
-			Irg.print_spec (Irg.get_symbol r);	(* !!DEBUG!! *)
-			print_char '\n';					(* !!DEBUG!! *)
 			failwith "bad alias" in
 	
 	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
@@ -526,7 +547,6 @@ let unalias_expr name idx ub lb =
 	| Irg.MEM (_, _, tt, _) ->
 		field (concat 0 tt) ub lb tt
 	| s ->
-		Irg.print_spec s;			(* !!DEBUG!! *)
 		failwith "unalias_expr"
 
 
@@ -771,9 +791,19 @@ let rec prepare_stat info stat =
 		(* !!TODO!! fix type here *)
 		prepare_stat info (Irg.SET (l, e))
 
-	| Irg.EVAL _
+	| Irg.EVAL name ->
+		prepare_call info name;
+		stat
+		
 	| Irg.EVALIND _ ->
-		failwith "must have been removed !"
+		failwith "prepare_stat: must have been removed !"
+
+and prepare_call info name =
+	if not (StringHashtbl.mem info.attrs name) then
+		begin
+			StringHashtbl.add info.attrs name Irg.NOP;
+			StringHashtbl.replace info.attrs name (prepare_stat info (get_stat_attr name))
+		end
 
 
 (** Generate a prepared expression.
@@ -804,6 +834,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) 
 		| Irg.VAR _ -> out name
 		| Irg.REG _ -> out (state_macro info name)
+		| Irg.MEM _ -> out (state_macro info name)
 		| Irg.PARAM _ -> out (param_macro info name)
 		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
 		| s ->
@@ -1049,7 +1080,6 @@ let rec gen_stat info stat =
 		failwith "must have been removed"
 		
 and gen_call info name =
-	trace ("gen_call 1" ^ name);
 	
 	(* recursive call ? *)
 	if 	List.mem_assoc name info.calls then
@@ -1058,19 +1088,7 @@ and gen_call info name =
 	(* normal call *)
 	else
 		begin
-			trace "gen_call 2";
-
-			(* prepare the code *)
-			trace "gen_call 3";
-			let stat =
-				match Irg.get_symbol name with
-				| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> stat
-				| _ -> failwith "find_recursives" in
-			trace "gen_call 4";
-			let stat = prepare_stat info stat in
-			declare_temps info;
-			
-			(* put label if any *)
+			let stat = StringHashtbl.find info.attrs name in
 			let before = info.calls in
 			if List.mem name info.recs then
 				begin
@@ -1078,15 +1096,10 @@ and gen_call info name =
 					Printf.fprintf info.out "\t%s:\n" lab;
 					info.calls <- (name, lab)::info.calls
 				end;
-			
-			(* generate the statements *)
 			gen_stat info stat;
-			cleanup_temps info;
-			
-			(* return from call *)
-			trace "gen_call 59";
 			info.calls <- before
 		end
+
 
 
 (** Get the list if recursives attribute starting from the given one.
@@ -1134,9 +1147,14 @@ let find_recursives info name =
 	@param info		Generation information.
 	@param name		Name of the attribute. *)
 let gen_action info name =
-	trace "gen_action 1";
+
+	(* prepare statements *)
 	find_recursives info name;
-	trace "gen_action 2";
-	gen_call info name;
-	trace "gen_action 3"
+	prepare_call info name;
+	
+	(* generate the code *)
+	declare_temps info;
+	gen_call info name;	
+	cleanup_temps info;
+	StringHashtbl.clear info.attrs
 
