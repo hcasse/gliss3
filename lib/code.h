@@ -10,9 +10,6 @@ extern  "C"
 #endif
 
 
-#include "code_table.h"
-
-
 #define GLISS_CODE_STATE
 #define GLISS_CODE_INIT(s)
 #define GLISS_CODE_DESTROY(s)
