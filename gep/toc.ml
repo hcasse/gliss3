@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.23 2009/04/06 14:39:39 casse Exp $
+ * $Id: toc.ml,v 1.24 2009/04/06 15:16:37 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -564,6 +564,8 @@ let rec prepare_expr info stats expr =
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
 			unalias_expr name idx Irg.NONE Irg.NONE
+		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
+			expr
 		| Irg.VAR (_, cnt, t) ->
 			add_var info name cnt t; expr
 		| _ ->
@@ -814,11 +816,11 @@ let rec gen_expr info (expr: Irg.expr) =
 
 	let get_function op t =
 		match op with
-		| Irg.LROTATE -> Printf.sprintf "gliss_rotate_left%s" (type_to_mem(convert_type t))
-		| Irg.RROTATE -> Printf.sprintf "gliss_rotate_right%s" (type_to_mem(convert_type t))
-		| Irg.EXP -> Printf.sprintf "gliss_exp%s" (type_to_mem(convert_type t))
-		| Irg.CONCAT -> Printf.sprintf "gliss_concat%s" (type_to_mem(convert_type t))
-		| _ -> "" in
+		| Irg.LROTATE -> (true, Printf.sprintf "%s_rotate_left%s" info.proc (type_to_mem(convert_type t)))
+		| Irg.RROTATE -> (true, Printf.sprintf "%s_rotate_right%s" info.proc (type_to_mem(convert_type t)))
+		| Irg.EXP -> (false, Printf.sprintf "%s_exp%s" info.proc (type_to_mem(convert_type t)))
+		| Irg.CONCAT -> (false, Printf.sprintf "%s_concat%s" info.proc (type_to_mem(convert_type t)))
+		| _ -> (false, "") in
 
 	match expr with
 	| Irg.NONE -> ()
@@ -860,7 +862,8 @@ let rec gen_expr info (expr: Irg.expr) =
 		| _ -> failwith "invalid itemof")
 
 	| Irg.BITFIELD (typ, expr, lo, up) ->
-		out "gliss_field";
+		out info.proc;
+		out "_field";
 		out (type_to_mem (convert_type typ));
 		out "(";
 		gen_expr info expr;
@@ -875,7 +878,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		gen_expr info e
 
 	| Irg.BINOP (t, op, e1, e2) ->
-		let fname = get_function op t in
+		let size, fname = get_function op t in
 		if fname = "" then
 			begin
 				out "(";
@@ -893,6 +896,10 @@ let rec gen_expr info (expr: Irg.expr) =
 				gen_expr info e1;
 				out ", ";
 				gen_expr info e2;
+				if size then begin
+					out ", ";
+					Printf.fprintf info.out "%d" (Sem.get_type_length t);
+				end;
 				out ")"
 			end
 
