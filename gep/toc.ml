@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.25 2009/04/07 09:25:19 barre Exp $
+ * $Id: toc.ml,v 1.26 2009/04/07 14:41:28 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -160,13 +160,16 @@ let info _ =
 				)
 		in
 		let aux key sp accu =
-			match sp with
-			Irg.REG(name, _, _, m_a_l) ->
-				if search_in_mem_attr_list m_a_l then
-					name
-				else
-					accu
-			| _ ->
+			if accu = "" then
+				(match sp with
+				Irg.REG(name, _, _, m_a_l) ->
+					if search_in_mem_attr_list m_a_l then
+						name
+					else
+						accu
+				| _ ->
+					accu)
+			else
 				accu
 		in
 		Irg.StringHashtbl.fold aux Irg.syms ""
@@ -1211,6 +1214,59 @@ let find_recursives info name =
 	
 	info.recs <- look_attr name [] []
 
+(** generate the instruction responsibe for the incrementation of PCs,
+we return an Irg.STAT which has to be transformed, useful to resolve alias
+	@param	info		Generation information (PCs name)
+	@return			an Irg.STAT object representing the sequence of the desired instructions *)
+let gen_pc_increment info =
+	let ppc_stat =
+		if info.ppc_name = "" then
+			Irg.NOP
+		else
+		(* cannot retrieve the type easily, not needed for generation *)
+			(* PPC = PC *)
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.pc_name))
+	in
+	let npc_stat =
+		if info.npc_name = "" then
+			Irg.NOP
+		else
+		(* cannot retrieve the type easily, not needed for generation *)
+			(* NPC = NPC + (size of current instruction) *)
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD,
+					Irg.REF(info.npc_name),
+					(* it is not easy to convert C code into nML *)
+					Irg.REF(info.proc ^ "_inst_size_table[inst->ident]")))
+					(*Irg.ITEMOF(Irg.NO_TYPE,
+						info.proc ^ "_inst_size_table",
+						Irg.REF("instr->ident")
+						)))*)
+					(*Irg.CONST(Irg.STRING,
+					(* it is not easy to convert C code into nML *)
+						Irg.STRING_CONST(info.proc ^ "_inst_size_table[inst->ident]"))
+						))*)
+	in
+	let pc_stat =
+		if info.npc_name = "" then
+			(* PC = PC + (size of current instruction) *)
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD,
+					Irg.REF(info.pc_name),
+					Irg.CONST(Irg.STRING,
+					(* it is not easy to convert C code into nML *)
+						Irg.STRING_CONST(info.proc ^ "_inst_size_table[inst->ident]"))
+						))
+		else
+			(* PC = NPC *)
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.npc_name))
+	in
+	if info.pc_name = "" then
+		failwith "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )"
+	else
+		Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
+
+
 
 (** Generate an action.
 	@param info		Generation information.
@@ -1223,6 +1279,11 @@ let gen_action info name =
 	
 	(* generate the code *)
 	declare_temps info;
+	
+	(* PCs incrementation *)
+	gen_stat info (gen_pc_increment info);
+	
+	(* generate the code *)
 	gen_call info name;	
 	cleanup_temps info;
 	StringHashtbl.clear info.attrs

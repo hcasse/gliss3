@@ -14,6 +14,7 @@ extern  "C"
 #include "../include/$(proc)/api.h"
 #include "../include/$(proc)/macros.h"
 #include "gliss.h"
+#include "inst_size.h"
 
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))
@@ -24,6 +25,7 @@ extern  "C"
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst)
 {
 	/* do nothing */
+	$(gen_pc_incr)
 }
 
 $(foreach instructions)

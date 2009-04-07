@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.29 2009/04/07 13:09:59 casse Exp $
+ * $Id: gep.ml,v 1.30 2009/04/07 14:41:28 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -115,6 +115,10 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
+	("gen_pc_incr", Templater.TEXT (fun out -> 
+			let info = Toc.info () in
+			info.Toc.out <- out;
+			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
 	(App.make_env info maker)
 
 
@@ -152,7 +156,8 @@ let _ =
 	App.process !nmp
 		(fun info ->
 			let dict = make_env info in
-			
+
+			Printf.printf "PC=%s, NPC=%s, PPC=%s\n" info.Toc.pc_name info.Toc.npc_name info.Toc.ppc_name;	(* !!DEBUG!! *)
 			(* include generation *)
 
 			
