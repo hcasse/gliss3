@@ -87,7 +87,7 @@ void $(proc)_lock_platform($(proc)_platform_t *platform) {
 
 /**
  * Unlock the platform. If it the last lock on the platform,
- * the platform is fried.
+ * the platform is freed.
  * @param platform	Platform to unlock.
  */
 void $(proc)_unlock_platform($(proc)_platform_t *platform) {
@@ -96,7 +96,7 @@ void $(proc)_unlock_platform($(proc)_platform_t *platform) {
 	if(--platform->usage != 0)
 		return;
 	
-	/* desotry the modules */
+	/* destroy the modules */
 $(foreach modules)
 	$(PROC)_$(NAME)_DESTROY(platform);
 $(end)
@@ -176,7 +176,19 @@ $(gen_init_code)
 	return state;
 }
 
-void $(proc)_delete_state($(proc)_state_t *state);
+
+/**
+ * Delete a state
+ * @param	the state to delete
+ */
+void $(proc)_delete_state($(proc)_state_t *state)
+{
+	/* unlock the platform */
+	$(proc)_unlock_platform(state->platform);
+	/* free the state */
+	free(state);
+}
+
 $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
 $(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state);
 $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
