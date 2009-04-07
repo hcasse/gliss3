@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.28 2009/03/25 13:31:10 casse Exp $
+ * $Id: gep.ml,v 1.29 2009/04/07 13:09:59 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -47,6 +47,7 @@ let paths = [
 	Sys.getcwd ()]
 let quiet = ref false
 let verbose = ref false
+let sim = ref false
 let memory = ref "fast_mem"
 let size = ref 0
 let sources : string list ref = ref []
@@ -55,7 +56,8 @@ let options = [
 	("-q", Arg.Set quiet, "quiet mode");
 	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
 	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
-	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation")
+	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
+	("-S", Arg.Set sim, "generate the simulator application")
 ]
 
 let free_arg arg =
@@ -178,11 +180,25 @@ let _ =
 			make_template "inst_size_table.h" "src/inst_size_table.h" dict;
 			make_template "code_table.h" "src/code_table.h" dict;
 			
-			(* module linkig *)
+			(* module linking *)
 			process_module info "gliss" "gliss";
 			List.iter (fun (id, impl) -> process_module info impl id) !modules;
 			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h");
 			
+			(* generate application *)
+			if !sim then
+				try
+					let path = App.find_lib "sim/sim.c" paths in
+					App.makedir "sim";
+					App.replace_gliss info
+						(path ^ "/" ^ "sim/sim.c")
+						("sim/" ^ info.Toc.proc ^ "-sim.c" );
+					Templater.generate_path
+						[ ("proc", Templater.TEXT (fun out -> output_string out info.Toc.proc)) ]
+						(path ^ "/sim/Makefile")
+						"sim/Makefile"
+				with Not_found ->
+					raise (Sys_error "no template to make sim program")
 			
 			(*Iter.iter
 			(fun a sp ->

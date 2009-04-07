@@ -9,29 +9,29 @@ GFLAGS=-m \
 	-m code:code \
 	-a disasm.c
 
-all: ppc.nml src/config.h gep src/disasm.c lib ppc-disasm simu
+all: ppc.nml src/config.h gep src/disasm.c lib ppc-disasm ppc-sim
 
 ppc.nml: ppc.nmp oea_instr.nmp uisa_fp_instr.nmp  vea_instr.nmp
 	../../gep/gliss-nmp2nml.pl $< $@
 
 gep:
-	../../gep/gep $(GFLAGS) ppc.nml
+	../../gep/gep $(GFLAGS) ppc.nml -S
 
 lib:
 	(cd src; make)
 
-simu: simu.c
-	$(CC) $(CFLAGS) $< -Iinclude -o $@ -L src -lppc
-
 ppc-disasm:
 	cd disasm; make
+
+ppc-sim:
+	cd sim; make
 
 src/config.h: config.tpl
 	test -d src || mkdir src
 	cp config.tpl src/config.h
 
 src/disasm.c:
-	../../gep/gliss_disasm ppc.nml -o $@ -c
+	../../gep/gliss-disasm ppc.nml -o $@ -c
 
 clean:
 	rm -rf $(CLEAN)
