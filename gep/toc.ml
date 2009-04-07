@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.26 2009/04/07 14:41:28 barre Exp $
+ * $Id: toc.ml,v 1.27 2009/04/07 16:34:07 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -481,11 +481,11 @@ let rec get_alias attrs =
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
-print_string ("resolve_alias name=" ^ name);	(* !!DEBUG!! *)
+(*print_string ("resolve_alias name=" ^ name);	(* !!DEBUG!! *)
 print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
 print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
 print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
-print_char '\n';				(* !!DEBUG!! *)
+print_char '\n';				(* !!DEBUG!! *)*)
 	trace "resolve_alias 1";
 
 	let t = Irg.CARD(32) in
@@ -722,12 +722,12 @@ let rec seq_list list =
 	@param			Expression to assign.
 	@return			statements *)
 let unalias_set info stats name idx ub lb expr =
-print_string ("unalias_set name=" ^ name);	(* !!DEBUG!! *)
+(*print_string ("unalias_set name=" ^ name);	(* !!DEBUG!! *)
 print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
 print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
 print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
 print_string ", expr="; Irg.print_expr expr;	(* !!DEBUG!! *)
-print_char '\n';				(* !!DEBUG!! *)
+print_char '\n';				(* !!DEBUG!! *)*)
 	trace "unalias_set 1";
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	trace "unalias_set 2";
@@ -800,7 +800,7 @@ let get_loc_size l =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
-print_string "prepare_stat stat="; Irg.print_statement stat;	(* !!DEBUG!! *)
+(*print_string "prepare_stat stat="; Irg.print_statement stat;	(* !!DEBUG!! *)*)
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
@@ -809,9 +809,9 @@ print_string "prepare_stat stat="; Irg.print_statement stat;	(* !!DEBUG!! *)
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 	
 	let rec prepare_set stats loc expr =
-		print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
+		(*print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
 		print_string ", expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
-		print_string "stat="; Irg.print_statement stats;			(* !!DEBUG!! *)
+		print_string "stat="; Irg.print_statement stats;			(* !!DEBUG!! *)*)
 		trace "prepare_set 1";
 		match loc with
 		| Irg.LOC_NONE ->
@@ -1288,3 +1288,19 @@ let gen_action info name =
 	cleanup_temps info;
 	StringHashtbl.clear info.attrs
 
+
+(** Return the code corresponding to what is found in the op init.
+	@param info		Generation information.*)
+let get_init_code _ =
+	let init_sp = Irg.get_symbol "init"
+	in
+	match init_sp with
+	Irg.AND_OP(n, p, al) ->
+		(match Iter.get_attr init_sp "action" with
+		Iter.STAT(s) ->
+			s
+		| _ ->
+			failwith "shouldn't happen ! (toc.ml::get_init_code::init_action)"
+		)
+	| _ ->
+		failwith "bad init, nML symbol init must be an AND OP only"

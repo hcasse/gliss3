@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.1 2009/04/07 15:07:31 casse Exp $
+ * $Id: sim.c,v 1.2 2009/04/07 16:34:08 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -67,16 +67,3 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-
-/**
- * Build a copy of the given state. Both states will now share the
- * same platform.
- * @param state		State to copy.
- * @return			New state or null if there is no more memory.
- */
-ppc_state_t *ppc_copy_state(ppc_state_t *state) {
-	/* !!TODO!! */
-	return NULL;
-}
-
-ppc_state_t *ppc_fork_state(ppc_state_t *state);

@@ -1,5 +1,5 @@
 (*
- * $Id: fetch.ml,v 1.10 2009/03/27 14:14:06 barre Exp $
+ * $Id: fetch.ml,v 1.11 2009/04/07 16:34:07 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -220,30 +220,6 @@ let str01_to_int32 s =
 	else
 		aux s 0 Int32.zero
 
-(* convert the 1st 64 chars of a string to an int64
-the string is supposed to represent a binary number (only 0 and 1) *)
-let str01_to_int64 s =
-	let size = String.length s
-	in
-	let char01_to_int64 c =
-		match c with
-		'0' ->
-			Int64.zero
-		| '1' ->
-			Int64.one
-		| _ ->
-			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int64)")
-	in
-	let rec aux s n accu =
-		if n = size then
-			accu
-		else
-			aux s (n+1) (Int64.add (Int64.shift_left accu 1) (char01_to_int64 s.[n]))
-	in
-	if size > 64 then
-		failwith "string too long, 64 chars max allowed (fetch.ml::str01_to_int64)"
-	else
-		aux s 0 Int64.zero
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -760,6 +736,7 @@ let output_all_table_C_decl out num_bits =
 				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, not in gliss_isize.")
 	in
 	let aux dl dt =
+		(* TODO: parametrize with num_bits *)
 		output_table_C_decl out dt dl
 	in
 	if test num_bits then

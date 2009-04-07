@@ -20,12 +20,14 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
 
 
 /**
- * @typedef $(proc)_platform
+ * @typedef $(proc)_platform_t
  * This opaque type allows to represent an hardware and software platform.
  * It includes information about:
  * @li the hardware memories,
  * @li the module data (including system calls and interruption support).
  */
+/* typedef struct $(proc)_platform_t $(proc)_platform_t;*/
+ 
 
 /**
  * Build a new platform for the platform $(proc).
@@ -137,3 +139,44 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 }
 
 
+
+/* state management function */
+
+/**
+ * Create a new initialized state
+ * @return	a new initialized state
+ */
+$(proc)_state_t *$(proc)_new_state(void)
+{
+	$(proc)_state_t *state;
+	
+	/* allocation */
+	state = ($(proc)_state_t *)malloc(sizeof($(proc)_state_t));
+	if(state == NULL)
+	{
+		errno = ENOMEM;
+		return NULL;
+	}
+	
+	/* creating platform */
+	state->platform = $(proc)_new_platform();
+	if(state == NULL)
+	{
+		return NULL;
+	}
+	
+	/* memory initialization */
+$(foreach memories)
+	state->$(NAME) = state->platform->mems.named.$(name);
+$(end)
+
+	/* proper state initialization (from the op init) */
+$(gen_init_code)
+
+	return state;
+}
+
+void $(proc)_delete_state($(proc)_state_t *state);
+$(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
+$(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state);
+$(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);

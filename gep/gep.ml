@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.30 2009/04/07 14:41:28 barre Exp $
+ * $Id: gep.ml,v 1.31 2009/04/07 16:34:07 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -119,6 +119,10 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
+	("gen_init_code", Templater.TEXT (fun out -> 
+			let info = Toc.info () in
+			info.Toc.out <- out;
+			Toc.gen_stat info (Toc.get_init_code () ))) ::
 	(App.make_env info maker)
 
 
@@ -204,48 +208,4 @@ let _ =
 						"sim/Makefile"
 				with Not_found ->
 					raise (Sys_error "no template to make sim program")
-			
-			(*Iter.iter
-			(fun a sp ->
-				Printf.printf "#%d %s (%d bits):\n\t%s\n\t%s\n\t%s\n"
-				(Iter.get_id sp)
-				(Iter.get_name sp)
-				(Fetch.get_instruction_length sp)
-				(Fetch.get_string_mask_from_op sp)
-				(Fetch.get_string_value_on_mask_from_op sp)
-				(Fetch.get_value_on_mask sp))
-			()*)
-			
-
-			(* toc test *)
-			(*let iter_func accu sp =
-				let action =
-					match Iter.get_attr sp "action" with
-					Iter.STAT(s) ->
-						s
-					| _ ->
-						failwith ("no action stat attribute for the spec "^(Iter.get_name sp))
-				in
-				let info = Toc.info ()
-				in		
-				let params = Iter.get_params sp
-				in
-				begin
-				print_string ("\naction of "^(Iter.get_name sp)^"\n");
-				Irg.print_spec sp;
-				print_string "prep+gen\n";
-				
-				Irg.param_stack params;
-				let a1 = Toc.prepare_stat info action
-				in
-				Toc.declare_temps info;
-				Toc.gen_stat info a1;
-				Toc.cleanup_temps info;	
-				Irg.param_unstack params;
-				end
-			in
-			Iter.iter iter_func ()
-	*)
-	
-	
 		)
