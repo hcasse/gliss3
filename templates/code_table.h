@@ -24,16 +24,12 @@ extern  "C"
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst)
 {
 	/* do nothing */
-	
-	/* increment PCs, HOW ARE THESE ACCESSED? */
 }
 
 $(foreach instructions)
 static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst)
 {	
 	$(gen_code)
-
-	/* increment PCs, HOW ARE THESE ACCESSED? */
 }
 
 $(end)
