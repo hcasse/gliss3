@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.24 2009/04/06 15:16:37 casse Exp $
+ * $Id: toc.ml,v 1.25 2009/04/07 09:25:19 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -122,6 +122,9 @@ type info_t = {
 	mutable recs: string list;		(** list of recursive actions *)
 	mutable lab: int;				(** index of a new label *)
 	mutable attrs: Irg.stat StringHashtbl.t;			(** list of prepared attributes *)
+	mutable pc_name: string;			(** name of the register used as PC (marked as __attr(pc)) *)
+	mutable ppc_name: string;		(** name of the register used as previous instruction PC (marked as __attr(ppc)) *)
+	mutable npc_name: string;		(** name of the register used as next instruction PC (marked as __attr(npc)) *)
 }
 
 
@@ -139,7 +142,35 @@ let info _ =
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
-		| _ -> raise (Error "'bit_order' must be defined as a string let") in 
+		| _ -> raise (Error "'bit_order' must be defined as a string let") in
+	let get_attr_regs name_attr =
+		let rec search_in_mem_attr_list ma_l =
+			match ma_l with
+			[] -> false
+			| a::b ->
+				(match a with
+				Irg.NMP_ATTR(n_a, args) ->
+					if n_a = name_attr && args = [] then
+					(* we suppose this function will be called only to retrieve pc like attrs, so no args needed *)
+						true
+					else
+						search_in_mem_attr_list b
+				| _ ->
+					search_in_mem_attr_list b
+				)
+		in
+		let aux key sp accu =
+			match sp with
+			Irg.REG(name, _, _, m_a_l) ->
+				if search_in_mem_attr_list m_a_l then
+					name
+				else
+					accu
+			| _ ->
+				accu
+		in
+		Irg.StringHashtbl.fold aux Irg.syms ""
+	in
 	{
 		out = stdout;
 		proc = p;
@@ -155,7 +186,10 @@ let info _ =
 		calls = [];
 		recs = [];
 		lab = 0;
-		attrs = StringHashtbl.create 211
+		attrs = StringHashtbl.create 211;
+		pc_name = get_attr_regs "pc";
+		npc_name = get_attr_regs "npc";
+		ppc_name = get_attr_regs "ppc"
 	}
 
 
@@ -444,6 +478,11 @@ let rec get_alias attrs =
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
+print_string ("resolve_alias name=" ^ name);	(* !!DEBUG!! *)
+print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
+print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
+print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
+print_char '\n';				(* !!DEBUG!! *)
 	trace "resolve_alias 1";
 
 	let t = Irg.CARD(32) in
@@ -510,6 +549,11 @@ let resolve_alias name idx ub lb =
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
 		| _ ->
+(*
+			Printf.printf "BAD_ALIAS: %s\n" r;	(* !!DEBUG!! *)
+			Irg.print_spec (Irg.get_symbol r);	(* !!DEBUG!! *)
+			print_char '\n';			(* !!DEBUG!! *)
+*)
 			failwith "bad alias" in
 	
 	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
@@ -522,6 +566,11 @@ let resolve_alias name idx ub lb =
 	@patam lb		Lower bit number (may be NONE)
 	@return			Unaliased expression. *)
 let unalias_expr name idx ub lb =
+(*print_string ("unalias_expr name=" ^ name);	(* !!DEBUG!! *)
+print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
+print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
+print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
+print_char '\n';				(* !!DEBUG!! *)*)
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	let t = Irg.CARD(32) in
 	let const c =
@@ -559,8 +608,11 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
-
 	let unalias name idx =
+	(*print_string ("prepare_expr::unalias name=" ^ name);	(* !!DEBUG!! *)
+	print_string ", idx=";			(* !!DEBUG!! *)
+	Irg.print_expr idx;			(* !!DEBUG!! *)
+	print_char '\n';			(* !!DEBUG!! *)*)
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
 			unalias_expr name idx Irg.NONE Irg.NONE
@@ -667,6 +719,12 @@ let rec seq_list list =
 	@param			Expression to assign.
 	@return			statements *)
 let unalias_set info stats name idx ub lb expr =
+print_string ("unalias_set name=" ^ name);	(* !!DEBUG!! *)
+print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
+print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
+print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
+print_string ", expr="; Irg.print_expr expr;	(* !!DEBUG!! *)
+print_char '\n';				(* !!DEBUG!! *)
 	trace "unalias_set 1";
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	trace "unalias_set 2";
@@ -739,6 +797,7 @@ let get_loc_size l =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
+print_string "prepare_stat stat="; Irg.print_statement stat;	(* !!DEBUG!! *)
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
@@ -747,6 +806,9 @@ let rec prepare_stat info stat =
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 	
 	let rec prepare_set stats loc expr =
+		print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
+		print_string ", expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
+		print_string "stat="; Irg.print_statement stats;			(* !!DEBUG!! *)
 		trace "prepare_set 1";
 		match loc with
 		| Irg.LOC_NONE ->
