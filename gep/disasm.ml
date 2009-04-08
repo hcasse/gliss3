@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.9 2009/03/25 09:44:35 casse Exp $
+ * $Id: disasm.ml,v 1.10 2009/04/08 08:27:46 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -98,7 +98,9 @@ let rec gen_disasm info inst expr =
 	| Irg.IF_EXPR _
 	| Irg.SWITCH_EXPR _
 	| Irg.CONST _
-	| Irg.COERCE _  -> Toc.error_on_expr "bad syntax expression" expr
+	| Irg.COERCE _
+	| Irg.EINLINE _ ->
+		Toc.error_on_expr "bad syntax expression" expr
 	| Irg.ELINE (file, line, e) ->
 		Toc.locate_error file line (gen_disasm info inst) e
 

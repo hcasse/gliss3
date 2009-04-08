@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.17 2009/04/03 14:27:22 casse Exp $
+ * $Id: sem.ml,v 1.18 2009/04/08 08:27:47 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -471,6 +471,7 @@ and get_type_expr exp=
 		|SWITCH_EXPR (t,_,_,_)->t
 		|CONST (t,_)->t
 		|ELINE (_, _, e) -> get_type_expr e
+		|EINLINE _ -> NO_TYPE
 
 
 (** Give the bit length of a type expression

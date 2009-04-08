@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.30 2009/04/05 13:21:07 barre Exp $
+ * $Id: irg.ml,v 1.31 2009/04/08 08:27:47 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -93,6 +93,7 @@ type expr =
 	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr
 	| CONST of type_expr*const
 	| ELINE of string * int * expr
+	| EINLINE of string				(** inline source in expression (for internal use only) *)
 	
 (** Statements *)
 type location =
@@ -128,9 +129,10 @@ type stat =
 	| ERROR of string	(* a changer : stderr ? *)
 	| IF_STAT of expr * stat * stat
 	| SWITCH_STAT of expr * (expr * stat) list * stat
-	| SETSPE of location * expr	(* Used for allowing assigment of parameters (for exemple in predecode attribute). 
-					   This is NOT in the nML standard and is only present for compatibility *) 
-	| LINE of string * int * stat	(* Used to memorise the position of a statement *)
+	| SETSPE of location * expr		(** Used for allowing assigment of parameters (for exemple in predecode attribute). 
+					   				This is NOT in the nML standard and is only present for compatibility *) 
+	| LINE of string * int * stat	(** Used to memorise the position of a statement *)
+	| INLINE of string				(** inline source in statement (for internal use only) *)
 
 
 (** attribute specifications *)
@@ -527,6 +529,8 @@ let rec output_expr out e =
 		output_expr out e
 	| CONST (_,c) ->
 		output_const out c
+	| EINLINE s ->
+		Printf.fprintf out "inline(%s)" s
 
 
 (** Print an expression.
@@ -624,6 +628,8 @@ let rec output_statement out stat =
 	| LINE (file, line, s) ->
 		(*Printf.fprintf out "#line \"%s\" %d\n" file line;*)
 		output_statement out s
+	| INLINE s ->
+		Printf.fprintf out "inline(%s)\n" s
 
 
 (** Print a statement
@@ -935,6 +941,8 @@ let is_attr_recursive sp name =
 			false
 		| LINE(s, i, st) ->
 			find_occurence str st
+		| INLINE _ ->
+			false
 	in
 	let a = get_attr sp name
 	in
@@ -1036,7 +1044,10 @@ let rec substitute_in_expr name op ex =
 		SWITCH_EXPR(te, substitute_in_expr name op e1, List.map (fun (x,y) -> (substitute_in_expr name op x, substitute_in_expr name op y)) ee_l, substitute_in_expr name op e2)
 	| CONST(te, c)
 		-> CONST(te, c)
-	| ELINE (file, line, e) -> ELINE (file, line, substitute_in_expr name op e)
+	| ELINE (file, line, e) ->
+		ELINE (file, line, substitute_in_expr name op e)
+	| EINLINE _ ->
+		ex
 
 
 
@@ -1074,7 +1085,10 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		SWITCH_EXPR(te, change_name_of_var_in_expr e1 var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_expr y var_name new_name)) ee_l, change_name_of_var_in_expr e2 var_name new_name)
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
-	| ELINE(file, line, e) -> ELINE(file, line, change_name_of_var_in_expr e var_name new_name)
+	| ELINE(file, line, e) ->
+		ELINE(file, line, change_name_of_var_in_expr e var_name new_name)
+	| EINLINE _ ->
+		ex
 
 
 let rec change_name_of_var_in_location loc var_name new_name =
@@ -1191,6 +1205,8 @@ print_string "spec ="; print_spec op;			(* !!DEBUG!! *)
 		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
 		LINE(s, i, substitute_in_stat name op st)
+	| INLINE _ ->
+		statement
 
 
 
@@ -1221,6 +1237,8 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 		SETSPE(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
 	| LINE(str, n, s) ->
 		LINE(str, n, change_name_of_var_in_stat s var_name new_name)
+	| INLINE _ ->
+		sta
 
 
 let change_name_of_var_in_attr a var_name new_name =
@@ -1835,6 +1853,8 @@ let add_attr_to_spec sp param =
 				SETSPE(l, e)
 			| LINE(str, n, s) ->
 				LINE(str, n, aux s name)
+			| INLINE _ ->
+				st
 		in
 		match a with
 		ATTR_EXPR(n, at) ->

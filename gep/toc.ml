@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.27 2009/04/07 16:34:07 barre Exp $
+ * $Id: toc.ml,v 1.28 2009/04/08 08:27:46 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -682,6 +682,9 @@ let rec prepare_expr info stats expr =
 	| Irg.ELINE (file, line, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		(stats, Irg.ELINE (file, line, expr))
+	
+	| Irg.EINLINE _ ->
+		(stats, expr)
 
 and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	List.fold_left
@@ -864,6 +867,9 @@ let rec prepare_stat info stat =
 		
 	| Irg.EVALIND _ ->
 		failwith "prepare_stat: must have been removed !"
+	
+	| Irg.INLINE _ ->
+		stat
 
 and prepare_call info name =
 	if not (StringHashtbl.mem info.attrs name) then
@@ -1020,6 +1026,8 @@ let rec gen_expr info (expr: Irg.expr) =
 			(fun com arg -> if com then out ", "; gen_expr info arg; true)
 			false args);
 		out ")"
+	| Irg.EINLINE s ->
+		out s
 	
 	| Irg.ELINE (file, line, expr) -> gen_expr info expr
 	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
@@ -1147,6 +1155,11 @@ let rec gen_stat info stat =
 	| Irg.EVAL name ->
 		gen_call info name
 
+	| Irg.INLINE s ->
+		out "\t";
+		out s;
+		out "\n"
+
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
 		failwith "must have been removed"
@@ -1206,7 +1219,8 @@ let find_recursives info name =
 					(* !!TODO!! must no occurs next *)
 					(*failwith "find_recursives: SETSPE"*)
 					recs
-				| Irg.LINE (_, _, s) -> look_stat s recs in
+				| Irg.LINE (_, _, s) -> look_stat s recs
+				| Irg.INLINE _ -> recs in
 
 			match Iter.get_attr info.inst name with
 			| Iter.STAT stat -> look_stat stat recs
