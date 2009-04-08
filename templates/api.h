@@ -14,7 +14,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id);
 typedef struct $(proc)_platform_t $(proc)_platform_t;
 typedef struct $(proc)_fetch_t $(proc)_fetch_t;
 typedef struct $(proc)_decoder_t $(proc)_decoder_t;
-typedef struct $(proc)_sim_t $(proc)_sim_t;
+/*typedef struct $(proc)_sim_t $(proc)_sim_t;*/
 
 /* $(proc)_state_t type */
 typedef struct $(proc)_state_t {
@@ -28,6 +28,13 @@ $(foreach memories)$(if !aliased)
 	$(proc)_memory_t *$(NAME);
 $(end)$(end)
 } $(proc)_state_t;
+
+/* $(proc)_sim_t type */
+typedef struct $(proc)_sim_t {
+	$(proc)_state_t *state;
+	$(proc)_decoder_t *decoder;
+	/* anything else? */
+} $(proc)_sim_t;
 
 /* $(proc)_value_t type */
 typedef union $(proc)_value_t {
@@ -71,9 +78,12 @@ int $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address);
 
 /* decoding */
 $(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *state);
-void $(proc)_delete_decoder($(proc)_decoder_t *fetch);
+void $(proc)_delete_decoder($(proc)_decoder_t *decoder);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);
+
+/* code execution */
+void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);
 
 /* state management function */
 $(proc)_state_t *$(proc)_new_state(void);
@@ -86,6 +96,7 @@ $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state);
 $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
+int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_API_H */

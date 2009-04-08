@@ -13,6 +13,7 @@
 
 #include "code_table.h"
 
+
 /**
  * Execute the given instruction in the given state.
  * @param state		Current execution state.

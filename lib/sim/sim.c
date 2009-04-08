@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.2 2009/04/07 16:34:08 barre Exp $
+ * $Id: sim.c,v 1.3 2009/04/08 15:05:19 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -59,7 +59,11 @@ int main(int argc, char **argv) {
 
 	/* perform the simulation */
 	while(1)
+	{
+		if (gliss_is_sim_ended(sim))
+			break;
 		gliss_step(sim);
+	}
 	
 	/* cleanup */
 	gliss_delete_sim(sim);

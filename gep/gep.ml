@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.31 2009/04/07 16:34:07 barre Exp $
+ * $Id: gep.ml,v 1.32 2009/04/08 15:05:19 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -123,6 +123,7 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.get_init_code () ))) ::
+	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	(App.make_env info maker)
 
 
