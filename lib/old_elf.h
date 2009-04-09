@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.h,v 1.7 2009/02/12 12:28:09 barre Exp $
+ *	$Id: old_elf.h,v 1.8 2009/04/09 08:17:24 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -22,7 +22,7 @@
 #ifndef GLISS_OLD_ELF_H
 #define GLISS_OLD_ELF_H
 
-#include "gliss.h"
+#include "grt.h"
 #include "../include/gliss/mem.h"
 
 #if defined(__cplusplus)

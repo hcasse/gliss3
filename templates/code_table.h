@@ -13,8 +13,14 @@ extern  "C"
 
 #include "../include/$(proc)/api.h"
 #include "../include/$(proc)/macros.h"
-#include "gliss.h"
 #include "inst_size.h"
+
+$(foreach modules)$(if is_mem)
+#include "../include/$(proc)/$(name).h"
+$(else)
+#include "$(name).h"
+$(end)
+$(end)
 
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))

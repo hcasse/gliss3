@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.28 2009/04/08 08:27:46 casse Exp $
+ * $Id: toc.ml,v 1.29 2009/04/09 08:17:22 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -110,7 +110,9 @@ type info_t = {
 	mutable out: out_channel;		(** out channel *)
 	mutable proc: string;			(** processor name *)
 	mutable state: string;			(** state variable name *)
+	mutable bpath: string;			(** build path *)
 	mutable ipath: string;			(** include path *)
+	mutable hpath: string;			(** header path include/proc *)
 	mutable spath: string;			(** source path *)
 	mutable bito: bit_order;		(** define bit order for bit fields *)
 	mutable iname: string;			(** current  integrated instruction name *)
@@ -172,16 +174,18 @@ let info _ =
 			else
 				accu
 		in
-		Irg.StringHashtbl.fold aux Irg.syms ""
-	in
+		Irg.StringHashtbl.fold aux Irg.syms "" in
+	let path = Sys.getcwd () in
 	{
 		out = stdout;
 		proc = p;
 		state = "state";
 		iname = "";
 		inst = Iter.null;
-		ipath = "include/" ^ p;
-		spath = "src";
+		bpath = path;
+		ipath = path ^ "/include";
+		hpath = path ^ "/include/" ^ p;
+		spath = path ^ "/src";
 		bito = b;
 		temp = 0;
 		temps = [];

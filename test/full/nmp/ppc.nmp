@@ -28,9 +28,9 @@
 
 
 
-include op "uisa_fp_instr.nmp"
-include op "vea_instr.nmp"
-include op "oea_instr.nmp"
+include op "nmp/uisa_fp_instr.nmp"
+include op "nmp/vea_instr.nmp"
+include op "nmp/oea_instr.nmp"
 
 // ========================================================================= //
 // 1. Definitions                                                            //

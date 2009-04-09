@@ -9,8 +9,6 @@
 #include "config.h" /* for memory endiannesses */
 #include "code.h"
 
-#define gliss_error(e) fprintf(stderr, (e))
-
 #include "code_table.h"
 
 

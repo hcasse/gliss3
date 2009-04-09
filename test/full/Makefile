@@ -7,17 +7,26 @@ GFLAGS=-m \
 	-m decode:decode32 \
 	-m inst_size:inst_size \
 	-m code:code \
+	-m exception:extern/exception \
+	-m fpi:extern/fpi \
 	-a disasm.c
 
-all: ppc.nml src/config.h gep src/disasm.c lib ppc-disasm ppc-sim
+NMP =\
+	nmp/ppc.nmp \
+	nmp/oea_instr.nmp \
+	nmp/uisa_fp_instr.nmp  \
+	nmp/vea_instr.nmp
 
-ppc.nml: ppc.nmp oea_instr.nmp uisa_fp_instr.nmp  vea_instr.nmp
+
+all: lib ppc-disasm ppc-sim
+
+ppc.nml: $(NMP)
 	../../gep/gliss-nmp2nml.pl $< $@
 
-gep:
+src include: ppc.nml
 	../../gep/gep $(GFLAGS) ppc.nml	 -S
 
-lib:
+lib: src src/config.h src/disasm.c
 	(cd src; make)
 
 ppc-disasm:

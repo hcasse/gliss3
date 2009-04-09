@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.32 2009/04/08 15:05:19 barre Exp $
+ * $Id: gep.ml,v 1.33 2009/04/09 08:17:22 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -20,22 +20,51 @@
  *)
 open Lexing
 
-(* module management *)
-let modules = ref [("mem", "fast_mem")]
+
+(** module structure *)
+type gmod = {
+	mutable iname: string;		(** interface name *)
+	mutable aname: string;		(** actual name *)
+	mutable path: string;		(** path to the module *)
+	mutable libadd: string;		(** linkage options *)
+}
+
+
+(** Build a new module.
+	@param _iname	Interface name.
+	@param _aname	Actual name. *)
+let new_mod _iname _aname = {
+		iname = _iname;
+		aname = _aname;
+		path = "";
+		libadd = "";
+	}
+
+(** list of modules *)
+let modules = ref [
+	new_mod "mem" "fast_mem";
+	new_mod "grt" "grt";
+	new_mod "error" "error"
+]
+
+
+(** Add a module to the list of module from arguments.
+	@param text		Text of the ragument. *)
 let add_module text =
-	let (new_id, new_imp) =
+	let new_mod =
 		try
 			let idx = String.index text ':' in
-			(String.sub text 0 idx,
-			String.sub text (idx + 1) ((String.length text) - idx - 1))
+			new_mod
+				(String.sub text 0 idx)
+				(String.sub text (idx + 1) ((String.length text) - idx - 1))
 		with Not_found ->
-			(text, text) in
+			new_mod text text in
 	let rec set lst =
 		match lst with
-		  (id, imp)::tl ->
-			if id = new_id then (id, new_imp)::tl
-			else (id, imp)::(set tl)
-		| _ -> [(new_id, new_imp)] in
+		  m::tl ->
+			if m.iname = new_mod.iname then new_mod::tl
+			else m::(set tl)
+		| _ -> [new_mod] in
 	modules := set !modules
 
 
@@ -74,18 +103,27 @@ let _ =
 	end
 
 
-(* Universal environment building *)
-let get_module f dict (name, _) =
+(** Build an environment for a module.
+	@param f	Function to apply to the environment.
+	@param dict	Embedding environment.
+	@param m	Module to process. *)
+let get_module f dict m =
 	f (
-		("name", App.out (fun _ -> name)) ::
-		("NAME", App.out (fun _ -> String.uppercase name)) ::
-		("is_mem", Templater.BOOL (fun _ -> name = "mem")) ::
+		("name", App.out (fun _ -> m.iname)) ::
+		("NAME", App.out (fun _ -> String.uppercase m.iname)) ::
+		("is_mem", Templater.BOOL (fun _ -> m.iname = "mem")) ::
+		("PATH", App.out (fun _ -> m.path)) ::
+		("LIBADD", App.out (fun _ -> m.libadd)) ::
 		dict
 	)
 
 let get_source f dict source =
 	f (("path", App.out (fun _ -> source)) :: dict)
 
+
+(** Build a template environment.
+	@param info		Information for generation.
+	@return			Default template environement. *)
 let make_env info =
 
 	let min_size =
@@ -135,21 +173,47 @@ let link src dst =
 	Unix.symlink src dst
 
 
+(** Regular expression for LIBADD *)
+let libadd_re = Str.regexp "^LIBADD=\\(.*\\)"
+
+
+(** Find a module and set the path.
+	@param m	Module to find. *)
+let find_mod m =
+
+	let rec find_lib paths = 
+		match paths with
+		| [] ->  raise (Sys_error ("cannot find module " ^ m.aname))
+		| path::tail ->
+			let source_path = path ^ "/" ^ m.aname ^ ".c" in
+			if Sys.file_exists source_path then m.path <- path
+		else find_lib tail in
+
+	let rec read_lines input =
+		let line = input_line input in
+		if Str.string_match libadd_re line 0 then
+			m.libadd <- Str.matched_group 1 line;
+		read_lines input in
+
+	find_lib paths;
+	let info_path = m.path ^ "/" ^ m.aname ^ ".info" in
+	if Sys.file_exists info_path then
+		try
+			read_lines (open_in info_path)
+		with End_of_file ->
+			()
+
+
 (** Link a module for building.
 	@param info	Generation information.
-	@param m	Original module name.
-	@param name	Final name of the module. *)
-let process_module info m name =
-	try
-		let source = info.Toc.spath ^ "/" ^ name ^ ".c" in
-		let header = info.Toc.spath ^ "/" ^ name ^ ".h" in
-		let path = App.find_lib (m ^ ".c") paths in
-		if not !quiet then Printf.printf "creating \"%s\"\n" source;
-		App.replace_gliss info (path ^ "/" ^ m ^ ".c") source;
-		if not !quiet then Printf.printf "creating \"%s\"\n" header;
-		App.replace_gliss info (path ^ "/" ^ m ^ ".h") header
-	with Not_found ->
-		raise (Sys_error ("cannot find module " ^ m))
+	@param m	Module to process. *)
+let process_module info m =
+	let source = info.Toc.spath ^ "/" ^ m.iname ^ ".c" in
+	let header = info.Toc.spath ^ "/" ^ m.iname ^ ".h" in
+	if not !quiet then Printf.printf "creating \"%s\"\n" source;
+	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".c") source;
+	if not !quiet then Printf.printf "creating \"%s\"\n" header;
+	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".h") header
 
 
 let make_template template file dict =
@@ -165,11 +229,12 @@ let _ =
 			Printf.printf "PC=%s, NPC=%s, PPC=%s\n" info.Toc.pc_name info.Toc.npc_name info.Toc.ppc_name;	(* !!DEBUG!! *)
 			(* include generation *)
 
+			List.iter find_mod !modules;
 			
 			if not !quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "include";
-			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.ipath;
-			App.makedir info.Toc.ipath;
+			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
+			App.makedir info.Toc.hpath;
 			make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 			make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
 			make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
@@ -180,9 +245,10 @@ let _ =
 			App.makedir "src";
 
 			link
-				((Unix.getcwd ()) ^ "/" ^ info.Toc.ipath)
+				(info.Toc.hpath)
 				(info.Toc.spath ^ "/target");
 			make_template "Makefile" "src/Makefile" dict;
+			make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
 			make_template "api.c" "src/api.c" dict;
 			make_template "platform.h" "src/platform.h" dict;
 			make_template "fetch_table32.h" "src/fetch_table.h" dict;
@@ -191,9 +257,8 @@ let _ =
 			make_template "code_table.h" "src/code_table.h" dict;
 			
 			(* module linking *)
-			process_module info "gliss" "gliss";
-			List.iter (fun (id, impl) -> process_module info impl id) !modules;
-			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.ipath ^ "/mem.h");
+			List.iter (process_module info) !modules;
+			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.hpath ^ "/mem.h");
 			
 			(* generate application *)
 			if !sim then

@@ -1,5 +1,5 @@
 /*
- *	$Id: gliss.c,v 1.4 2009/02/23 00:07:34 casse Exp $
+ *	$Id: grt.c,v 1.1 2009/04/09 08:17:23 casse Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -20,9 +20,8 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "gliss.h"
-
-extern void gliss_error(const char *message);
+#include "error.h"
+#include "grt.h"
 
 int32_t gliss_exp32(int32_t v1, int32_t v2) {
 	if(v1 >= 0)
@@ -77,25 +76,42 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2) {
 }
 
 
-uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t l, int32_t u) {
+uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
 	uint32_t mask = ((1 << (u - l) ) - 1) << l;
 	return (v & ~mask) | ((s << l) & mask);
 }
 
 
-uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t l, int32_t u) {
+uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = ((1 << (u - l) ) - 1) << l;
 	return (v & ~mask) | ((s << l) & mask);
 }
 
-uint32_t gliss_field32u(uint32_t v, uint32_t l, uint32_t u) {
+double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
+	union {
+		double d;
+		uint64_t w;
+	} t;
+	t.d = v;
+	t.w = gliss_set_field64u(t.w, s, u, l);
+	return t.d;
+}
+
+
+uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l) {
 	return (v & ((1 << (u - l)) - 1)) >> l;
 }
 
 
-uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u) {
+uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l) {
 	return (v & ((1 << (u - l)) - 1)) >> l;
 }
+
+
+uint64_t gliss_fieldd(double v, uint32_t u, uint32_t l) {
+	return gliss_field64u(*(uint64_t *)&v, u, l);
+}
+
 
 
 /**
@@ -107,7 +123,7 @@ uint64_t gliss_field64u(uint64_t v, uint32_t l, uint32_t u) {
  */
 int gliss_enumerate(int val, int max) {
 	if(val >= max)
-		gliss_error("coercition to enumeration out of bounds");
+		gliss_panic("coercition to enumeration out of bounds");
 	else
 		return val;
 }

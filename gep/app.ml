@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.9 2009/03/07 13:02:15 casse Exp $
+ * $Id: app.ml,v 1.10 2009/04/09 08:17:22 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -201,6 +201,8 @@ let make_env info maker =
 	("proc", out (fun _ -> info.Toc.proc)) ::
 	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
+	("SOURCE_PATH", out (fun _ -> info.Toc.spath)) ::
+	("INCLUDE_PATH", out (fun _ -> info.Toc.ipath)) ::
 	[]
 
 
