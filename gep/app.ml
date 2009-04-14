@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.10 2009/04/09 08:17:22 casse Exp $
+ * $Id: app.ml,v 1.11 2009/04/14 11:04:56 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -260,3 +260,34 @@ let rec find_lib source paths =
 		if Sys.file_exists source_path then path
 		else find_lib source tail
 	
+
+(* options *)
+let nmp: string ref = ref ""
+let quiet = ref false
+let verbose = ref false
+let options = [
+	("-v", Arg.Set verbose, "verbose mode");
+	("-q", Arg.Set quiet, "quiet mode");
+]
+
+
+(** Run a standard command using IRG.
+	@param f		Function to run once the IRG is load.
+	@param args		Added arguments.
+	@param help		Help text about the command. *)
+let run args help f =
+	let free_arg arg =
+		if !nmp = ""
+		then nmp := arg
+		else Printf.fprintf stderr "WARNING: only one NML file required, %s ignored" arg in
+	Arg.parse (options @ args) free_arg help;
+	if !nmp = "" then
+		begin
+			prerr_string "ERROR: one NML file must be given !\n";
+			Arg.usage options help;
+			exit 1
+		end
+	else
+		process !nmp f
+
+

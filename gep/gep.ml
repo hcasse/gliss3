@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.33 2009/04/09 08:17:22 casse Exp $
+ * $Id: gep.ml,v 1.34 2009/04/14 11:04:57 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -69,38 +69,20 @@ let add_module text =
 
 
 (* options *)
-let nmp: string ref = ref ""
 let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
-let quiet = ref false
-let verbose = ref false
 let sim = ref false
 let memory = ref "fast_mem"
 let size = ref 0
 let sources : string list ref = ref []
 let options = [
-	("-v", Arg.Set verbose, "verbose mode");
-	("-q", Arg.Set quiet, "quiet mode");
 	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
 	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
 	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
 	("-S", Arg.Set sim, "generate the simulator application")
 ]
-
-let free_arg arg =
-	if !nmp = ""
-	then nmp := arg
-	else raise (Arg.Bad "only one NML file required") 
-let usage_msg = "SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
-let _ =
-	Arg.parse options free_arg usage_msg;
-	if !nmp = "" then begin
-		prerr_string "ERROR: one NML file must be given !\n";
-		Arg.usage options usage_msg;
-		exit 1
-	end
 
 
 (** Build an environment for a module.
@@ -210,19 +192,21 @@ let find_mod m =
 let process_module info m =
 	let source = info.Toc.spath ^ "/" ^ m.iname ^ ".c" in
 	let header = info.Toc.spath ^ "/" ^ m.iname ^ ".h" in
-	if not !quiet then Printf.printf "creating \"%s\"\n" source;
+	if not !App.quiet then Printf.printf "creating \"%s\"\n" source;
 	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".c") source;
-	if not !quiet then Printf.printf "creating \"%s\"\n" header;
+	if not !App.quiet then Printf.printf "creating \"%s\"\n" header;
 	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".h") header
 
 
 let make_template template file dict =
-	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
+	if not !App.quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
 	Templater.generate dict template file
 
 (* main program *)
 let _ =
-	App.process !nmp
+	App.run
+		options
+		"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 		(fun info ->
 			let dict = make_env info in
 
@@ -231,9 +215,9 @@ let _ =
 
 			List.iter find_mod !modules;
 			
-			if not !quiet then Printf.printf "creating \"include/\"\n";
+			if not !App.quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "include";
-			if not !quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
+			if not !App.quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
 			App.makedir info.Toc.hpath;
 			make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 			make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
@@ -241,7 +225,7 @@ let _ =
 			
 			(* source generation *)
 
-			if not !quiet then Printf.printf "creating \"include/\"\n";
+			if not !App.quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "src";
 
 			link

@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.10 2009/04/08 08:27:46 casse Exp $
+ * $Id: disasm.ml,v 1.11 2009/04/14 11:04:57 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -29,31 +29,12 @@ let paths = [
 
 
 (* argument list *)
-let nmp: string ref = ref ""
-let quiet = ref false
-let verbose = ref false
 let out = ref "disasm.c"
 let command = ref false
 let options = [
-	("-v", Arg.Set verbose, "verbose mode");
-	("-q", Arg.Set quiet, "quiet mode");
 	("-o", Arg.Set_string out, "output file");
 	("-c", Arg.Set command, "generate also the command")
 ]
-
-(* argument decoding *)
-let free_arg arg =
-	if !nmp = ""
-	then nmp := arg
-	else raise (Arg.Bad "only one NML file required") 
-let usage_msg = "SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
-let _ =
-	Arg.parse options free_arg usage_msg;
-	if !nmp = "" then begin
-		prerr_string "ERROR: one NML file must be given !\n";
-		Arg.usage options usage_msg;
-		exit 1
-	end
 
 
 (** Generate code to perform disassembly.
@@ -133,7 +114,9 @@ let disassemble inst out info =
 let _ =
 	let display_error msg = Printf.fprintf stderr "ERROR: %s\n" msg in
 	try
-		App.process !nmp
+		App.run
+			options
+			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 			(fun info ->
 				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE));
 			
@@ -142,7 +125,7 @@ let _ =
 				maker.App.get_instruction <- (fun inst dict ->
 					("disassemble", Templater.TEXT (fun out -> disassemble inst out info)) :: dict);
 				let dict = App.make_env info maker in			
-				if not !quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
+				if not !App.quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
 				Templater.generate dict "disasm.c" !out;
 				
 				(* generate the command *)

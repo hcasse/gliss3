@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 2009/04/07 13:09:59 casse Exp $
+# $Id: Makefile,v 1.12 2009/04/14 11:04:56 casse Exp $
 include ../Makefile.head
 
 OCAML_FLAGS=-I ../irg
@@ -7,29 +7,30 @@ OCAML_FLAGS+=-g
 OCAML_LDFLAGS+=-g
 endif
 
-# GEP build
-GEP_SOURCES = \
+# libgep build
+LIBGEP_SOURCES=\
 	config.ml \
 	toc.ml \
 	templater.mll \
+	app.ml
+$(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
+
+# GEP build
+GEP_SOURCES = \
 	fetch.ml \
 	decode.ml \
-	app.ml \
 	gep.ml
-gep_LIBS = str unix ../irg/irg
+gep_LIBS = str unix  ../irg/irg libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
 
 gep: ../irg/irg.cma
 
 # gliss-disasm build
 DISASM_SOURCES = \
-	config.ml \
-	toc.ml \
-	templater.mll \
 	app.ml \
 	disasm.ml
 
-gliss-disasm_LIBS = str unix ../irg/irg
+gliss-disasm_LIBS = str unix ../irg/irg libgep
 $(eval $(call ocaml_prog,gliss-disasm,$(DISASM_SOURCES)))
 gliss-disasm: ../irg/irg.cma
 
