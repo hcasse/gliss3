@@ -3,6 +3,8 @@
 #NMP: NMP.html
 #	htmldoc  $< --book -t htmlsep -d NMP
 
-NMP.html: NMP.t2t
+all: NMP.html manual.html
+
+%.html: %.t2t
 	./txt2tags -t xhtml -i $< -o $@
 

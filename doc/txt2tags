@@ -1409,9 +1409,9 @@ def getRegexes():
 	
 	bank = {
 	'blockVerbOpen':
-		re.compile(r'^```\s*$'),
+		re.compile(r'^\'\'\'\s*$'),
 	'blockVerbClose':
-		re.compile(r'^```\s*$'),
+		re.compile(r'^\'\'\'\s*$'),
 	'blockRawOpen':
 		re.compile(r'^"""\s*$'),
 	'blockRawClose':
@@ -1423,14 +1423,14 @@ def getRegexes():
 	'quote':
 		re.compile(r'^\t+'),
 	'1lineVerb':
-		re.compile(r'^``` (?=.)'),
+		re.compile(r'^\'\'\' (?=.)'),
 	'1lineRaw':
 		re.compile(r'^""" (?=.)'),
 	# mono, raw, bold, italic, underline:
 	# - marks must be glued with the contents, no boundary spaces
 	# - they are greedy, so in ****bold****, turns to <b>**bold**</b>
 	'fontMono':
-		re.compile(  r'``([^\s](|.*?[^\s])`*)``'),
+		re.compile(  r'\'\'([^\s](|.*?[^\s])\'*)\'\''),
 	'raw':
 		re.compile(  r'""([^\s](|.*?[^\s])"*)""'),
 	'fontBold':

@@ -11,6 +11,12 @@ $(foreach memories)
 $(end)
 
 
+/* instruction size macros */
+$(foreach instructions)
+#define $(PROC)_$(IDENT)_SIZE	$(size)
+$(end)
+
+
 /* parameter access macros */
 $(foreach instructions)$(foreach params)
 #define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX)].val.$(param_type))

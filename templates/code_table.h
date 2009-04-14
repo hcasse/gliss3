@@ -27,7 +27,7 @@ $(end)
 
 
 
-
+#define $(PROC)__SIZE	$(min_instruction_size)
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst)
 {
 	/* do nothing */

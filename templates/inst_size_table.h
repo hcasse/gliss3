@@ -18,8 +18,8 @@ extern  "C"
 
 static int $(proc)_inst_size_table[] =
 {
-	$(min_instruction_size) /* $(PROC)_UNKNOWN */$(foreach instructions),
-	$(size) /* $(PROC)_$(IDENT) */$(end)
+	$(min_instruction_size)$(foreach instructions),
+	$(size)$(end)
 };
 
 

@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.29 2009/04/09 08:17:22 casse Exp $
+ * $Id: toc.ml,v 1.30 2009/04/14 08:47:49 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -175,29 +175,32 @@ let info _ =
 				accu
 		in
 		Irg.StringHashtbl.fold aux Irg.syms "" in
-	let path = Sys.getcwd () in
-	{
-		out = stdout;
-		proc = p;
-		state = "state";
-		iname = "";
-		inst = Iter.null;
-		bpath = path;
-		ipath = path ^ "/include";
-		hpath = path ^ "/include/" ^ p;
-		spath = path ^ "/src";
-		bito = b;
-		temp = 0;
-		temps = [];
-		vars = [];
-		calls = [];
-		recs = [];
-		lab = 0;
-		attrs = StringHashtbl.create 211;
-		pc_name = get_attr_regs "pc";
-		npc_name = get_attr_regs "npc";
-		ppc_name = get_attr_regs "ppc"
-	}
+	let pc = get_attr_regs "pc" in
+	if pc = "" then
+		failwith "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )"
+	else
+		let path = Sys.getcwd () in {
+			out = stdout;
+			proc = p;
+			state = "state";
+			iname = "";
+			inst = Iter.null;
+			bpath = path;
+			ipath = path ^ "/include";
+			hpath = path ^ "/include/" ^ p;
+			spath = path ^ "/src";
+			bito = b;
+			temp = 0;
+			temps = [];
+			vars = [];
+			calls = [];
+			recs = [];
+			lab = 0;
+			attrs = StringHashtbl.create 211;
+			pc_name = pc;
+			npc_name = get_attr_regs "npc";
+			ppc_name = get_attr_regs "ppc"
+		}
 
 
 (** Set the current instruction.
@@ -1237,52 +1240,35 @@ we return an Irg.STAT which has to be transformed, useful to resolve alias
 	@param	info		Generation information (PCs name)
 	@return			an Irg.STAT object representing the sequence of the desired instructions *)
 let gen_pc_increment info =
+	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
+	let size = Irg.EINLINE (Printf.sprintf "((%s_%s_SIZE + 7) >> 3)" (String.uppercase info.proc) (String.uppercase info.iname)) in
 	let ppc_stat =
 		if info.ppc_name = "" then
 			Irg.NOP
 		else
-		(* cannot retrieve the type easily, not needed for generation *)
 			(* PPC = PC *)
+			(* cannot retrieve the type easily, not needed for generation *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.pc_name))
 	in
 	let npc_stat =
 		if info.npc_name = "" then
 			Irg.NOP
 		else
-		(* cannot retrieve the type easily, not needed for generation *)
 			(* NPC = NPC + (size of current instruction) *)
+			(* cannot retrieve the type easily, not needed for generation *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD,
-					Irg.REF(info.npc_name),
-					(* it is not easy to convert C code into nML *)
-					Irg.REF(info.proc ^ "_inst_size_table[inst->ident]")))
-					(*Irg.ITEMOF(Irg.NO_TYPE,
-						info.proc ^ "_inst_size_table",
-						Irg.REF("instr->ident")
-						)))*)
-					(*Irg.CONST(Irg.STRING,
-					(* it is not easy to convert C code into nML *)
-						Irg.STRING_CONST(info.proc ^ "_inst_size_table[inst->ident]"))
-						))*)
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(info.npc_name), size))
 	in
 	let pc_stat =
 		if info.npc_name = "" then
 			(* PC = PC + (size of current instruction) *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD,
-					Irg.REF(info.pc_name),
-					Irg.CONST(Irg.STRING,
-					(* it is not easy to convert C code into nML *)
-						Irg.STRING_CONST(info.proc ^ "_inst_size_table[inst->ident]"))
-						))
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(info.pc_name), size))
 		else
 			(* PC = NPC *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.npc_name))
 	in
-	if info.pc_name = "" then
-		failwith "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )"
-	else
-		Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
+	Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
 
 
 
@@ -1313,7 +1299,9 @@ let get_init_code _ =
 	let init_sp = Irg.get_symbol "init"
 	in
 	match init_sp with
-	Irg.AND_OP(n, p, al) ->
+	| Irg.UNDEF ->
+		Irg.NOP
+	| Irg.AND_OP(n, p, al) ->
 		(match Iter.get_attr init_sp "action" with
 		Iter.STAT(s) ->
 			s
