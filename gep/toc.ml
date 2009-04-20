@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.30 2009/04/14 08:47:49 casse Exp $
+ * $Id: toc.ml,v 1.31 2009/04/20 13:17:43 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -275,6 +275,24 @@ let rec type_to_string t =
 	| DOUBLE -> "double"
 	| LONG_DOUBLE -> "long double"
 	| CHAR_PTR -> "char *"
+
+(** return the printf-like format associated with a C type, integer numbers are supposedly output in hexadecimal format
+	@param t	C type to convert.
+	@return		the printf format matching the given type *)
+let rec type_to_printf_format t =
+	match t with
+	  INT8 -> "%02X"
+	| UINT8 -> "%02X"
+	| INT16 -> "%04X"
+	| UINT16 -> "%04X"
+	| INT32 -> "%08X"
+	| UINT32 -> "%08X"
+	| INT64 -> "%016X"
+	| UINT64 -> "%016X"
+	| FLOAT -> "%f"
+	| DOUBLE -> "%f"
+	| LONG_DOUBLE -> "%f"
+	| CHAR_PTR -> "%s"
 
 
 (** Convert a C type to a parameter name.

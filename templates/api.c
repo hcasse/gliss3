@@ -71,6 +71,9 @@ $(end)
  * @return			Requested memory.
  */
 $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index) {
+	if (platform == NULL)
+		return NULL;
+
 	return platform->mems.array[index];
 }
 
@@ -81,6 +84,9 @@ $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index) {
  * @param platform	Platform to lock.
  */
 void $(proc)_lock_platform($(proc)_platform_t *platform) {
+	if (platform == NULL)
+		return;
+
 	platform->usage++;
 }
 
@@ -91,6 +97,8 @@ void $(proc)_lock_platform($(proc)_platform_t *platform) {
  * @param platform	Platform to unlock.
  */
 void $(proc)_unlock_platform($(proc)_platform_t *platform) {
+	if (platform == NULL)
+		return;
 
 	/* unlock */
 	if(--platform->usage != 0)
@@ -108,6 +116,7 @@ $(end)
 
 	/* free the platform */
 	free(platform);
+	platform = NULL;
 }
 
 
@@ -119,6 +128,8 @@ $(end)
  */
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	$(proc)_loader_t *loader;
+	if (platform == NULL)
+		return;
 
 	/* open the file */
 	loader = $(proc)_loader_open(path);
@@ -185,11 +196,15 @@ $(gen_init_code)
  */
 void $(proc)_delete_state($(proc)_state_t *state)
 {
+	if (state == NULL)
+		return;
+	
 	/* unlock the platform */
 	$(proc)_unlock_platform(state->platform);
 
 	/* free the state */
 	free(state);
+	state = NULL;
 }
 
 
@@ -280,6 +295,28 @@ $(end)$(end)$(end)
 $(foreach memories)$(if !aliased)
 	new_state->$(NAME) = state->$(NAME);
 $(end)$(end)
+}
+
+
+/**
+ * Dump all register values of a given state to the given output
+ *
+ * @param	state	the state whose registers we wish to dump
+ * @param	out	the file to dump within, typically stderr or stdout
+ */
+void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
+{	
+	int i;
+
+	/* dump all the registers */
+$(foreach registers)$(if !aliased)$(if array)
+	fprintf(out, "$(name)\n");
+	for (i = 0; i < $(size); i++)
+		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
+$(else)
+	fprintf(out, "$(name) = $(printf_format)\n", i, state->$(name));
+$(end)$(end)$(end)
+
 }
 
 
@@ -389,7 +426,12 @@ void $(proc)_step($(proc)_sim_t *sim)
 int $(proc)_is_sim_ended($(proc)_sim_t *sim)
 {
 	/* TODO */
-	return 1;
+	static int nb = 1000;
+	
+	if (--nb <= 0)
+		return 1;
+	
+	return 0;
 }
 
 

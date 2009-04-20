@@ -3,6 +3,7 @@
 #define GLISS_$(PROC)_INCLUDE_$(PROC)_API_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include "id.h"
 #include "mem.h"
 
@@ -90,6 +91,7 @@ $(proc)_state_t *$(proc)_new_state(void);
 void $(proc)_delete_state($(proc)_state_t *state);
 $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
 $(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state);
+void $(proc)_dump_state($(proc)_state_t *state, FILE *out);
 $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
 
 /* simulation functions */

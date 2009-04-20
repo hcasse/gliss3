@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.11 2009/04/14 11:04:56 casse Exp $
+ * $Id: app.ml,v 1.12 2009/04/20 13:17:43 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -144,6 +144,7 @@ let get_register f dict _ sym =
 		("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
 		("array", Templater.BOOL (fun _ -> size > 1)) ::
 		("size", out (fun _ -> string_of_int size)) ::
+		("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
 		dict)	(* make_array size*)
 	| _ -> ()
 
