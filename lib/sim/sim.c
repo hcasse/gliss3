@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.3 2009/04/08 15:05:19 barre Exp $
+ * $Id: sim.c,v 1.4 2009/04/20 13:18:24 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -56,6 +56,9 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[1]);
 		return 2;
 	}
+	
+	printf("state before simulation\n");
+	gliss_dump_state(state, stdout);
 
 	/* perform the simulation */
 	while(1)
@@ -65,9 +68,13 @@ int main(int argc, char **argv) {
 		gliss_step(sim);
 	}
 	
+	printf("\nstate after simulation\n");
+	gliss_dump_state(state, stdout);
+	
 	/* cleanup */
+	/* this will also delete the associated state */
 	gliss_delete_sim(sim);
-	gliss_delete_state(state);
+	/*gliss_delete_state(state);*/
 	return 0;
 }
 
