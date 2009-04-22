@@ -155,10 +155,11 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 
 
 /**
- * Create a new initialized state
- * @return	a new initialized state
+ * Create a new initialized state depending on a given platform
+ * @param	platform	the platform helping the simulation on the created state
+ * @return			a new initialized state suitable for the given platform
  */
-$(proc)_state_t *$(proc)_new_state(void)
+$(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform)
 {
 	$(proc)_state_t *state;
 	
@@ -171,13 +172,18 @@ $(proc)_state_t *$(proc)_new_state(void)
 	}
 	
 	/* creating platform */
-	state->platform = $(proc)_new_platform();
-	if(state == NULL)
+	if(platform == NULL)
 	{
+		free(state);
 		return NULL;
 	}
+	state->platform = platform;
+
 	/* locking it */
 	$(proc)_lock_platform(state->platform);
+	
+	//!!DEBUG!!
+	printf("new_state, before init code, NIA=%08X\n", state->NIA);
 	
 	/* memory initialization */
 $(foreach memories)
@@ -185,6 +191,9 @@ $(foreach memories)
 $(end)
 	/* proper state initialization (from the op init) */
 $(gen_init_code)
+
+	/* Pcs initialization */
+	state->$(NPC_NAME) = platform->entry;
 
 	return state;
 }
@@ -309,13 +318,14 @@ void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
 	int i;
 
 	/* dump all the registers */
-$(foreach registers)$(if !aliased)$(if array)
+/*$(foreach registers)$(if !aliased)$(if array)
 	fprintf(out, "$(name)\n");
 	for (i = 0; i < $(size); i++)
 		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
 $(else)
-	fprintf(out, "$(name) = $(printf_format)\n", i, state->$(name));
-$(end)$(end)$(end)
+	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
+$(end)$(end)$(end)*/
+	fprintf(out, "NIA = %08X\n", state->NIA);
 
 }
 
@@ -381,7 +391,7 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state)
  */
 $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 {
-	$(proc)_state_t *state;
+	/*$(proc)_state_t *state;*/
 	$(proc)_address_t addr_next_inst;
 	
 	if (sim == NULL)
@@ -389,8 +399,9 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 
 	/* retrieving address of the next instruction */
 	/* the macros allowing register access refer always to a state called "state" */
-	state = sim->state;
-	addr_next_inst = $(PROC)_$(NPC_NAME);
+	/*state = sim->state;*/
+	// !!DEBUG!!
+	addr_next_inst = sim->state->$(NPC_NAME);
 	
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
@@ -412,6 +423,13 @@ void $(proc)_step($(proc)_sim_t *sim)
 
 	/* retrieving next instruction */
 	inst = $(proc)_next(sim);
+	
+			// !!BEGIN DEBUG!!
+			char buff[100];
+			$(proc)_disasm(buff, inst);
+			uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
+			printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
+			// !!END DEBUG!!
 
 	/* execute it */
 	$(proc)_execute(sim->state, inst);

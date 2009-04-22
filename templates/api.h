@@ -87,7 +87,7 @@ void $(proc)_free_inst($(proc)_inst_t *inst);
 void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);
 
 /* state management function */
-$(proc)_state_t *$(proc)_new_state(void);
+$(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform);
 void $(proc)_delete_state($(proc)_state_t *state);
 $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state);
 $(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state);
