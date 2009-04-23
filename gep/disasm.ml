@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.12 2009/04/22 14:21:18 barre Exp $
+ * $Id: disasm.ml,v 1.13 2009/04/23 13:20:27 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -55,7 +55,7 @@ let rec gen_disasm info inst expr =
 	
 	let rec scan fmt args s used i =
 		match args with
-		| [] -> format fmt used s (String.length fmt)
+		| [] -> format fmt (List.rev used) s (String.length fmt)
 		| hd::tl ->
 			if i >= (String.length fmt) then format fmt used s i else
 			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else

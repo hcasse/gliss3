@@ -792,6 +792,7 @@ op sys_call ( )
    image  = "01000100000000000000000000000010"
    action = { "sc_impl"("instr","state",M);}
    category = SYSTEM
+   is_branch = 1
 
 // 2.2.2 Load and Store Instructions
 
