@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.5 2009/02/19 11:16:58 barre Exp $
+ *	$Id: old_elf.c,v 1.6 2009/04/24 15:48:08 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -104,7 +104,7 @@ struct data_info{
 
 
 /* Global data */
-Elf_Tables Tables = {
+static Elf_Tables Initial_Tables = {
 	0,
 	NULL,
 	-1,
@@ -121,6 +121,7 @@ Elf_Tables Tables = {
 	0,
 	NULL
 };
+Elf_Tables Tables;
 static struct text_info Text;
 static struct data_info Data;
 static Elf32_Ehdr Ehdr;
@@ -600,7 +601,7 @@ static void ElfCleanup(void) {
 }
 
 static void ElfReset(void) {
-	memset(&Tables, 0, sizeof(Tables));
+	memcpy(&Tables, &Initial_Tables, sizeof(Tables));
 	memset(&Text, 0, sizeof(Text));
 	memset(&Data, 0, sizeof(Data));
 	memset(&Ehdr, 0, sizeof(Ehdr));
@@ -648,6 +649,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	
 	/* load the ELF */
 	TRACE;
+	ElfReset();
 	res = ElfRead(elf);
 	assert(Text.secs != NULL);
 	close(elf);
@@ -664,7 +666,6 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	loader->Data = Data;
 	loader->Ehdr = Ehdr;
 	loader->Is_Elf_Little = Is_Elf_Little;
-	ElfReset();
 	return loader;
 }
 
