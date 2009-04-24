@@ -1,23 +1,28 @@
 (*
- * $Id: irg.ml,v 1.31 2009/04/08 08:27:47 casse Exp $
- * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
+ * $Id: irg.ml,v 1.32 2009/04/24 16:28:29 casse Exp $
+ * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  * 
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with OGliss; if not, write to the Free Software
+ * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
+
+(*	State of the analysis includes:
+		- syms
+		- pos_table *)
+		
 
 exception RedefinedSymbol of string
 exception IrgError of string
@@ -164,6 +169,9 @@ type spec =
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
 
+(** Get the name from a specification.
+	@param spec		Specification to get name of.
+	@return			Name of the specification. *)
 let name_of spec =
 	match spec with
 	  UNDEF -> "<undef>"
@@ -199,6 +207,9 @@ struct
 	let hash (s : t) = Hashtbl.hash s
 end
 module StringHashtbl = Hashtbl.Make(HashString)
+
+
+(** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 
 
@@ -2180,3 +2191,22 @@ let test_replace_param name =
 	end
 	
 
+(**	Save the current IRG definition to a file.
+	@param path			Path of the file to save to.
+	@raise	Sys_error	If there is an error during the write. *)
+let save path =
+	let out = open_out path in
+	Marshal.to_channel out (syms, pos_table) []
+
+
+(** Load an IRG description from a file.
+	@param 	path		Path of the file to read from.
+	@raise	Sys_error	If there is an error during the read. *)
+let load path =
+	let input = open_in path in
+	let (new_syms, new_pt) =
+		(Marshal.from_channel input :  spec StringHashtbl.t * pos_type StringHashtbl.t) in
+	StringHashtbl.clear syms;
+	StringHashtbl.clear pos_table;
+	StringHashtbl.iter (fun key spec -> StringHashtbl.add syms key spec) new_syms;
+	StringHashtbl.iter (fun key pos -> StringHashtbl.add pos_table key pos) new_pt

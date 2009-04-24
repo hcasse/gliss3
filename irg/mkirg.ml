@@ -1,5 +1,5 @@
 (*
- * $Id: print_irg.ml,v 1.4 2009/04/24 16:28:30 casse Exp $
+ * $Id: mkirg.ml,v 1.1 2009/04/24 16:28:30 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -19,54 +19,45 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-
 (* argument list *)
-let input = ref ""
+let nmp = ref ""
+let out = ref "" 
 let insts = ref false
-let options = [ ("-i", Arg.Set insts, "display list of generated instructions") ]
+let options = [ ]
 
 (* argument decoding *)
 let free_arg arg =
-	if !input = "" then input := arg else
-	raise (Arg.Bad "only one NML/IRG file required") 
-let usage_msg = "SYNTAX: gep [options] NML/IRG_FILE\n\tOutput the content of an NML or IRG file."
-let _ =
-	Arg.parse options free_arg usage_msg;
-	if !input = "" then begin
-		prerr_string "ERROR: one NML or IRG file must be given !\n";
+	if !nmp = "" then nmp := arg else
+	if !out = "" then out := arg else
+	raise (Arg.Bad "only NML and out files required") 
+let usage_msg = "SYNTAX: gep [options] NML_FILE IRG_FILE\n\tGenerate code for a simulator"
+
+let arg_error msg =
+		Printf.fprintf stderr "ERROR: %s\n" msg;
 		Arg.usage options usage_msg;
 		exit 1
-	end
 
+let _ =
+	Arg.parse options free_arg usage_msg;
+	if !nmp = "" then arg_error "one NML file must be given !\n";
+	if !out = "" then arg_error "one IRG file must be given !\n"
 
 let _ =
 	try	
 		begin
-		
-			(* opent the file *)
-			(if Filename.check_suffix !input ".irg" then
-				Irg.load !input
-			else
-				let lexbuf = Lexing.from_channel (open_in !input) in
-				Parser.top Lexer.main lexbuf);
-			
-			(* display output *)
-			if !insts then
-				Iter.iter
-					(fun _ spec -> Printf.printf "%d:%s -> \n" (Iter.get_id spec) (Iter.get_name spec); Irg.print_spec spec)
-					()
-			else
-				Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;
+			let lexbuf = Lexing.from_channel (open_in !nmp) in
+			Parser.top Lexer.main lexbuf;
+			Irg.save !out
 		end
 	with
 	  Parsing.Parse_error ->
 		Lexer.display_error "syntax error"; exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	(*| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2*)
+	| Sem.SemError msg ->
+		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
 	| Irg.IrgError msg ->
 		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-(*	| Sem.SemErrorWithFun (msg, fn) ->
+	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;*)
+		fn (); exit 2

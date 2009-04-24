@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 2009/01/29 10:25:26 casse Exp $
+# $Id: Makefile,v 1.11 2009/04/24 16:28:29 casse Exp $
 include ../Makefile.head
 
 ifndef NDEBUG
@@ -18,6 +18,9 @@ $(eval $(call ocaml_byte_code_lib,irg,$(LIB_SOURCES)))
 
 print_irg_LIBS=str irg
 $(eval $(call ocaml_prog,print_irg,print_irg.ml))
+
+mkirg_LIBS=str irg
+$(eval $(call ocaml_prog,mkirg,mkirg.ml))
 
 include ../Makefile.tail
 
