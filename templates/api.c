@@ -318,13 +318,13 @@ void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
 	int i;
 
 	/* dump all the registers */
-/*$(foreach registers)$(if !aliased)$(if array)
+$(foreach registers)$(if !aliased)$(if array)
 	fprintf(out, "$(name)\n");
 	for (i = 0; i < $(size); i++)
 		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
 $(else)
 	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
-$(end)$(end)$(end)*/
+$(end)$(end)$(end)
 	fprintf(out, "NIA = %08X\n", state->NIA);
 
 }
