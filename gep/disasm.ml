@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.13 2009/04/23 13:20:27 casse Exp $
+ * $Id: disasm.ml,v 1.14 2009/04/28 12:39:20 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -64,14 +64,13 @@ let rec gen_disasm info inst expr =
 			Irg.SEQ (format fmt used s i, scan fmt args (i + 2) [] (i + 2)) in
 	
 	(* !!DEBUG!! *)
-	print_string "gen_disasm:";
+	(*print_string "gen_disasm:";
 	Irg.print_expr expr;
-	print_char '\n';
+	print_char '\n';*)
 	
 	match expr with
 	| Irg.FORMAT (fmt, args) ->
-	(* List.rev : !!DEBUG!! *)
-		scan fmt (List.rev args) 0 [] 0
+		scan fmt args 0 [] 0
 	| Irg.CONST (_, Irg.STRING_CONST s) ->
 		format "%s" [str s] 0 2
 	| Irg.NONE

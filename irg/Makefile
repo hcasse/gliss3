@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 2009/04/24 16:28:29 casse Exp $
+# $Id: Makefile,v 1.12 2009/04/28 12:39:19 barre Exp $
 include ../Makefile.head
 
 ifndef NDEBUG
@@ -9,10 +9,10 @@ endif
 LIB_SOURCES = \
 	IdMaker.ml \
 	irg.ml \
-	iter.ml \
 	lexer.mll \
 	sem.ml \
 	parser.mly \
+	iter.ml \
 	main.ml
 $(eval $(call ocaml_byte_code_lib,irg,$(LIB_SOURCES)))
 

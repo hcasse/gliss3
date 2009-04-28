@@ -15,6 +15,46 @@ let print_value v =
 	| EXPR(e) ->
 		Irg.print_expr e
 
+(** Check if all SET or SETSPE statements in a spec are coerced if needed,
+it happens when location and rvalue have different scalar types (card or int)
+*)
+let check_coerce spec =
+	let rec check_stat sta =
+		match sta with
+		| Irg.SEQ(s1, s2) ->
+			Irg.SEQ(check_stat s1, check_stat s2)
+		| Irg.SET(l, e) ->
+			Irg.SET(l, Sem.check_set_stat l e)
+		| Irg.IF_STAT(e, s1, s2) ->
+			Irg.IF_STAT(e, check_stat s1, check_stat s2)
+		| Irg.SWITCH_STAT(e, es_l, s) ->
+			Irg.SWITCH_STAT(e, List.map (fun (ex, st) -> (ex, check_stat st)) es_l, check_stat s)
+		| Irg.SETSPE(l, e) ->
+			Irg.SETSPE(l, Sem.check_set_stat l e)
+		| Irg.LINE(s, i, st) ->
+			Irg.LINE(s, i, check_stat st)
+		| _ ->
+			sta
+
+	in
+	let check_attr a =
+		match a with
+		Irg.ATTR_STAT(s, st) ->
+			Irg.ATTR_STAT(s, check_stat st)
+		| _ ->
+			a
+	in
+	match spec with
+	Irg.AND_OP(s, st_l, a_l) ->
+		Irg.param_stack st_l;
+		let res = Irg.AND_OP(s, st_l, List.map check_attr a_l)
+		in
+			Irg.param_unstack st_l;
+			res
+	| _ ->
+		(* shouldn't happen *)
+		spec
+
 
 (* structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
@@ -27,7 +67,7 @@ let instr_set = ref [Irg.UNDEF]
 let iter fun_to_iterate init_val =
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
-			instr_set := Irg.instantiate_instructions "instruction"
+			instr_set :=  List.map check_coerce (Irg.instantiate_instructions "instruction")
 		else
 			()
 	in

@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.32 2009/04/24 16:28:29 casse Exp $
+ * $Id: irg.ml,v 1.33 2009/04/28 12:39:19 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -196,7 +196,6 @@ let name_of spec =
 			name
 		| ATTR_USES ->
 			"<ATTR_USES>"
-	
 
 
 (* Symbol table *)

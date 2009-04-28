@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.18 2009/04/08 08:27:47 casse Exp $
+ * $Id: sem.ml,v 1.19 2009/04/28 12:39:20 barre Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -628,7 +628,6 @@ let check_binop_type t1 t2 bop =
 
 
 
-
 (** Create an add/sub with a correct type in function of its operands.
 	This function is used in get_binop.
 	@param e1	First operand.
@@ -645,12 +644,12 @@ let get_add_sub e1 e2 bop=
 	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
 	|(FLOAT (m,n),FLOAT (m2,n2)) when m2=m && n2=n-> BINOP (FLOAT (m,n), bop,e1,e2)
 	|(FIX (m,n),FIX (m2,n2)) when m2=m && n2=n->BINOP (FIX (m,n), bop,e1,e2)
-	|(INT n, INT n2) when n2=n-> BINOP (INT (n+1),bop, e1,e2)
-	|(CARD n,CARD n2) when n2=n->BINOP(CARD (n+1),bop,e1,e2)
-	|(INT m, CARD n)->BINOP(INT ((max m n)+1),bop,e1,e2)
-	|(CARD m,INT n)-> BINOP (INT ((max m n)+1),bop, e1, e2)
-	|(INT m, INT n)->BINOP (INT ((max m n)+1), bop, e1,e2)
-	|(CARD m, CARD n)->BINOP (INT ((max m n)+1), bop, e1,e2)
+	|(INT n, INT n2) when n2=n-> BINOP (INT (n),bop, e1,e2)
+	|(CARD n,CARD n2) when n2=n->BINOP(CARD (n),bop,e1,e2)
+	|(INT m, CARD n)->BINOP(INT ((max m n)),bop,e1,e2)
+	|(CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
+	|(INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
+	|(CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
 	|_->failwith "internal error : get_add_sub"
 
 (** Create a mult/div/mod with a correct type in function of its operands.
@@ -669,12 +668,12 @@ let get_mult_div_mod e1 e2 bop=
 	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
 	|(FLOAT (m,n),FLOAT (m2,n2)) when m=m2 && n=n2-> BINOP (FLOAT (m,n), bop,e1,e2)
 	|(FIX (m,n),FIX (m2,n2))when m=m2 && n=n2->BINOP (FIX (m,n), bop,e1,e2)
-	|(INT n, INT n2) when n=n2-> BINOP (INT (n*2),bop, e1,e2)
-	|(CARD n,CARD n2) when n=n2->BINOP (CARD (n*2),bop,e1,e2)
-	|(INT m, CARD n)->BINOP (INT ((max m n)*2),bop,e1,e2)
-	|(CARD m,INT n)-> BINOP (INT ((max m n)*2),bop, e1, e2)
-	|(INT m, INT n)->BINOP (INT ((max m n)*2), bop, e1,e2)
-	|(CARD m, CARD n)->BINOP (INT ((max m n)*2), bop, e1,e2)
+	|(INT n, INT n2) when n=n2-> BINOP (INT (n),bop, e1,e2)
+	|(CARD n,CARD n2) when n=n2->BINOP (CARD (n),bop,e1,e2)
+	|(INT m, CARD n)->BINOP (INT ((max m n)),bop,e1,e2)
+	|(CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
+	|(INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
+	|(CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
 	|((FLOAT (m,n),INT _)|(INT _,FLOAT (m,n))|(FLOAT(m,n),CARD _)|(CARD _,FLOAT(m,n)))->BINOP (FLOAT(m,n), bop,e1,e2)
 	|((FIX (m,n),INT _)|(INT _,FIX (m,n))|(FIX(m,n),CARD _)|(CARD _,FIX(m,n)))->BINOP (FIX(m,n), bop,e1,e2)
 	|_->failwith "internal error : get_mult_div_mod"
@@ -718,9 +717,72 @@ let rec get_concat e1 e2=
 	@raise SemErrorWithFun	Raised when the type of the operands is not compatible with the operation
 *)
 let rec get_binop e1 e2 bop=
-
 	let t1=get_type_expr e1 
 	and t2=get_type_expr e2
+	in
+	(* add coerce when needed, typically when one operand is int and the other one card or int *)
+	let add_auto_coerce binop_expr =
+		let check_type_expr_for_binop e1 e2 =
+			let t1 = get_type_expr e1
+			in
+			let t2 = get_type_expr e2
+			in
+			(* !!DEBUG!! *)
+			(*print_string "add_auto_coerce\n";
+			print_string "\t"; print_type_expr t1; print_string " : "; print_expr e1; print_char '\n';
+			print_string "\t"; print_type_expr t2; print_string " : "; print_expr e2; print_char '\n';*)
+			match t1 with
+			INT(n1) ->
+				(match t2 with
+				INT(n2) ->
+					if n1 > n2 then
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e2 -> INT(%d)\n" n1;*)
+						(e1, COERCE(INT(n1), e2))
+						end
+					else
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e1 -> INT(%d)\n" n2;*)
+						(COERCE(INT(n2), e1), e2)
+						end
+					
+				| CARD(n2) ->
+					if n1 < n2 then
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e1 -> INT(%d)\n" n2;*)
+						(COERCE(INT(n2), e1), e2)
+						end
+					else
+						(e1, e2)
+				| _ ->
+					(e1, e2)
+				)
+			| CARD(n1) ->
+				(match t2 with
+				INT(n2) ->
+					if n1 > n2 then
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e2 -> INT(%d)\n" n1;*)
+						(e1, COERCE(INT(n1), e2))
+						end
+					else
+						(e1, e2)
+				| _ ->
+					(e1, e2)
+				)
+			| _ ->
+				(e1, e2)
+		in
+		match binop_expr with
+			BINOP(t, b, e1, e2) ->
+				let (ne1, ne2) = check_type_expr_for_binop e1 e2
+				in
+				BINOP(t, b, ne1, e2)
+			| _ -> binop_expr
 	in
 
 	if( not (check_binop_type t1 t2 bop))
@@ -747,14 +809,70 @@ let rec get_binop e1 e2 bop=
 	else
 		Irg.ELINE (!(Lexer.file),!(Lexer.line),
 			match bop with
-	 		(ADD|SUB)->get_add_sub e1 e2 bop
-			|(MUL|DIV|MOD)->get_mult_div_mod  e1 e2 bop
-			|EXP->BINOP (t1,bop,e1,e2)	(* A changer (le type)  *)
-			|(LSHIFT|RSHIFT|LROTATE|RROTATE)->BINOP(t1,bop,e1,e2)
-			|(LT|GT|LE|GE|EQ|NE)->BINOP(BOOL,bop,e1,e2)
-			|(AND|OR)-> BINOP(BOOL,bop,e1,e2)
-			|(BIN_AND|BIN_OR|BIN_XOR)->BINOP(t1, bop, e1,e2)
-			|CONCAT->get_concat e1 e2)
+	 		(ADD|SUB)-> add_auto_coerce (get_add_sub e1 e2 bop)
+			|(MUL|DIV|MOD)-> add_auto_coerce (get_mult_div_mod  e1 e2 bop)
+			|EXP-> add_auto_coerce (BINOP (t1,bop,e1,e2))	(* A changer (le type)  *)
+			|(LSHIFT|RSHIFT|LROTATE|RROTATE)-> add_auto_coerce (BINOP(t1,bop,e1,e2))
+			|(LT|GT|LE|GE|EQ|NE)-> add_auto_coerce (BINOP(BOOL,bop,e1,e2))
+			|(AND|OR)-> add_auto_coerce (BINOP(BOOL,bop,e1,e2))
+			|(BIN_AND|BIN_OR|BIN_XOR)-> add_auto_coerce (BINOP(t1, bop, e1,e2))
+			|CONCAT-> add_auto_coerce (get_concat e1 e2))
+
+
+(** coerce, eventually, the rvalue in a SET or SETSPE statement if needed,
+    we deal with int and card
+    @param	l	the location of the SET(SPE)
+    @param	e	the rvalue expression to be coerced if needed
+    @param		the rvalue expression coerced or not
+*)
+let check_set_stat l e =
+	let t2 = get_type_expr e
+	in
+	let t1 =
+		match l with
+		LOC_NONE ->
+			NO_TYPE
+		| LOC_REF(t, _, _, _, _) ->
+			t
+		| LOC_CONCAT(t, _, _) ->
+			t
+	in
+			(* !!DEBUG!! *)
+			(*print_string "check_set_stat\n";
+			print_string "\t(loc) "; print_type_expr t1; print_string " : "; print_location l; print_char '\n';
+			print_string "\t(exp) "; print_type_expr t2; print_string " : "; print_expr e; print_char '\n';*)
+			match t1 with
+			INT(n1) ->
+				(match t2 with
+				INT(n2) ->
+					if n1 > n2 then
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e -> INT(%d)\n" n1;*)
+						COERCE(INT(n1), e)
+						end
+					else
+						(* unlike with binops, we can't coerce here *)
+						e
+				| _ ->
+					e
+				)
+			| CARD(n1) ->
+				(match t2 with
+				INT(n2) ->
+					if n1 > n2 then
+						begin
+						(* !!DEBUG!! *)
+						(*Printf.printf "\tcoerce e -> INT(%d)\n" n1;*)
+						COERCE(INT(n1), e)
+						end
+					else
+						e
+				| _ ->
+					e
+				)
+			| _ ->
+				e
 
 
 (** Check if the possible expressions of the conditionnal branchs of an if-then-else expression give a valid if-then-else expression.
