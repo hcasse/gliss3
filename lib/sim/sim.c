@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.4 2009/04/20 13:18:24 barre Exp $
+ * $Id: sim.c,v 1.5 2009/04/28 12:40:43 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -28,6 +28,7 @@
 int main(int argc, char **argv) {
 	gliss_sim_t *sim;
 	gliss_state_t *state;
+	gliss_platform_t *platform;
 	int i;
 
 	
@@ -37,8 +38,21 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	
-	/* make the state */
-	state = gliss_new_state();
+	/* make the platform */
+	platform = gliss_new_platform();
+	if(platform == NULL)  {
+		fprintf(stderr, "ERROR: no more resources\n");
+		return 2;
+	}
+	
+	/* load the image in the platform */
+	if(gliss_load_platform(platform, argv[1]) == -1) {
+		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[1]);
+		return 2;
+	}
+	
+	/* make the state depending on the platform */
+	state = gliss_new_state(platform);
 	if(state == NULL)  {
 		fprintf(stderr, "ERROR: no more resources\n");
 		return 2;
@@ -51,14 +65,10 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 	
-	/* load the image */
-	if(gliss_load_platform(gliss_platform(state), argv[1]) == -1) {
-		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[1]);
-		return 2;
-	}
-	
 	printf("state before simulation\n");
-	gliss_dump_state(state, stdout);
+	gliss_dump_state(sim->state, stdout);
+
+int cpt=0;
 
 	/* perform the simulation */
 	while(1)
@@ -66,13 +76,17 @@ int main(int argc, char **argv) {
 		if (gliss_is_sim_ended(sim))
 			break;
 		gliss_step(sim);
+	
+	cpt++;
+	printf("\nstate after instr %d\n", cpt);
+	gliss_dump_state(sim->state, stdout);
 	}
 	
 	printf("\nstate after simulation\n");
-	gliss_dump_state(state, stdout);
+	gliss_dump_state(sim->state, stdout);
 	
 	/* cleanup */
-	/* this will also delete the associated state */
+	/* this will also delete the associated state and the platform (if no one is locked on it) */
 	gliss_delete_sim(sim);
 	/*gliss_delete_state(state);*/
 	return 0;
