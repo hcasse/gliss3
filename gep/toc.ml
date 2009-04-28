@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.32 2009/04/28 12:39:20 barre Exp $
+ * $Id: toc.ml,v 1.33 2009/04/28 12:53:48 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1004,12 +1004,10 @@ let rec gen_expr info (expr: Irg.expr) =
 			gen_expr info expr;
 			out "& 0x";
 			Printf.fprintf info.out "%LX" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
-		let extend_sign size_expr new_size =
-			let dec = new_size-size_expr
-			in
+		let extend_sign new_size shift_size =
 			Printf.fprintf info.out "(((int%d_t)(" new_size;
 			gen_expr info expr;
-			Printf.fprintf info.out ")) << %d) >> %d" dec dec;
+			Printf.fprintf info.out ")) << %d) >> %d" shift_size shift_size;
 		in
 		let apply pref suff = out pref; gen_expr info expr; out suff in
 		let trans _ = gen_expr info expr in
@@ -1028,7 +1026,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
 		| Irg.INT n, Irg.INT m when n > m ->
-			extend_sign m n
+			extend_sign n (n-m)
 		| Irg.INT _, Irg.BOOL		
 		| Irg.INT _, Irg.INT _ ->
 				trans ()
