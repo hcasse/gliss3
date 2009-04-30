@@ -34,6 +34,8 @@ $(end)$(end)
 typedef struct $(proc)_sim_t {
 	$(proc)_state_t *state;
 	$(proc)_decoder_t *decoder;
+	/* on libc stripped programs it is difficult to find the exit point, so we specify it */
+	$(proc)_address_t addr_exit;
 	/* anything else? */
 } $(proc)_sim_t;
 
@@ -95,7 +97,7 @@ void $(proc)_dump_state($(proc)_state_t *state, FILE *out);
 $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
 
 /* simulation functions */
-$(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state);
+$(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_addr, $(proc)_address_t exit_addr);
 $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
 int $(proc)_is_sim_ended($(proc)_sim_t *sim);

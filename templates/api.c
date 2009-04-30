@@ -352,8 +352,11 @@ $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state)
 /**
  * Create a new simulator structure with the given state
  * @param	state	the state on which we intend to simulate
+ * @param	start_addr	the beginning of the execution (useful for executables compiled with no _start symbol),
+ *				if null we leave the NPC in its previous state given by the loader
+ * @param	exit_addr	the explicitly given last instruction address to simulate, if null we will stop running in another way
  */
-$(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state)
+$(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_addr, $(proc)_address_t exit_addr)
 {
 	$(proc)_sim_t *sim;
 	
@@ -375,6 +378,12 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state)
 	sim->decoder = $(proc)_new_decoder($(proc)_platform(state));
 	if (sim->decoder == NULL)
 		return NULL;
+
+	if (exit_addr)
+		sim->addr_exit = exit_addr;
+	if (start_addr)
+		sim->state->$(NPC_NAME) = start_addr;
+
 	
 	return sim;
 }
@@ -410,7 +419,9 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 
 
 /**
- * Execute the next instruction in the given simulator
+ * Execute the next instruction in the given simulator.
+ * It doesn't check if we reached the last instruction, so it should be done
+ * separately using the function $(proc)_is_sim_ended
  * @param	sim	the simulator which we simulate within
  */
 void $(proc)_step($(proc)_sim_t *sim)
@@ -443,13 +454,8 @@ void $(proc)_step($(proc)_sim_t *sim)
  */
 int $(proc)_is_sim_ended($(proc)_sim_t *sim)
 {
-	/* TODO */
-	static int nb = 1000;
-	
-	if (--nb <= 0)
-		return 1;
-	
-	return 0;
+	/* we want to stop right before the exit address */
+	return (sim->addr_exit == sim->state->$(NPC_NAME));
 }
 
 
