@@ -444,6 +444,9 @@ void $(proc)_step($(proc)_sim_t *sim)
 
 	/* execute it */
 	$(proc)_execute(sim->state, inst);
+	
+	/* finally free it */
+	free(inst);
 }
 
 
