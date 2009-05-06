@@ -30,5 +30,5 @@ clean:
 	rm -f *.o interface_code_*.c interface_code.h
 
 
-#interface_code_create_vars.c : generate_interface_code.py $(GLISS_ARCH)/validator.cfg
-#	python generate_interface_code.py -i $(GLISS_ARCH)/validator.cfg
+interface_code_create_vars.c : generate_interface_code.py $(GLISS_ARCH)/validator.cfg
+	python generate_interface_code.py -i $(GLISS_ARCH)/validator.cfg
