@@ -233,10 +233,12 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-i", "--input-file", dest="ifilename",
                   help="filename to read the configuration from", default="validator.cfg")
+parser.add_option("-p", "--proc-name", dest="proc_name",
+			help="name of the processor in the nmp description", default="ppc")
 
 (options, args) = parser.parse_args()
 
-
+proc_name = options.proc_name
 
 infile = open(options.ifilename, 'r')
 cfile1 = open('interface_code_create_vars.c', 'w')
@@ -273,7 +275,7 @@ cfile3.write('''/*** This file was generated automatically by generate_interface
 #include "all_inc.h" 
 #include "interface_code.h"
 	
-void compare_regs_this_instruction(char * drive_gdb_reply_buffer, state_t * real_state, instruction_t * instr, int instr_count)
+void compare_regs_this_instruction(char * drive_gdb_reply_buffer, '''+proc_name+'''_state_t * real_state, '''+proc_name+'''_inst_t * instr, int instr_count)
 	{
 
 ''')
@@ -301,7 +303,7 @@ hfile.write('''/*** This file was generated automatically by generate_interface_
 
 	void create_gdb_vars(char *);
 	void read_vars_this_instruction(char *);
-	void compare_regs_this_instruction(char *, state_t *, instruction_t *, int);	
+	void compare_regs_this_instruction(char *, '''+proc_name+'''_state_t *, '''+proc_name+'''_inst_t *, int);	
 	void dump_regs();
 	void init_gdb_regs(char *);
 ''')

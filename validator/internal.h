@@ -4,7 +4,6 @@ internal.h : internal definitions
 **********************/
 
 
-
 //main.c
 #undef EXTERN
 #ifdef MAIN_C
@@ -12,6 +11,8 @@ internal.h : internal definitions
 #else
 #define EXTERN extern
 #endif
+
+
 
 EXTERN int to_gdb_pipe[2]; //les descripteurs du tube d'interface avec le process qui s'occupe de gdb
 EXTERN int from_gdb_pipe[2];
@@ -23,9 +24,11 @@ EXTERN int gliss_pc;
 EXTERN int display_values;
 EXTERN int display_replies;
 EXTERN int display_full_dumps;
-EXTERN state_t * real_state;
-EXTERN code_t buff_instr[20];
-EXTERN instruction_t * curinstr;
+EXTERN PROC(_state_t) * real_state;
+/*EXTERN code_t buff_instr[20];*/
+EXTERN PROC(_inst_t) *curinstr;
+EXTERN PROC(_platform_t) *platform;
+EXTERN PROC(_sim_t) *sim;
 
 #undef EXTERN
 

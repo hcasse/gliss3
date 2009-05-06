@@ -18,5 +18,5 @@ all_inc.h: common headers
 #include <sys/stat.h>
 #include <getopt.h>
 #include <signal.h>
-#include "iss_include.h"
+#include GLISS_API_H
 #include "internal.h"

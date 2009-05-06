@@ -95,7 +95,7 @@ void parse_commandline(int argc, char ** argv)
 		}
 	}
 	
-void disasm_error_report(char * drive_gdb_reply_buffer, state_t * real_state, instruction_t * instr)
+void disasm_error_report(char * drive_gdb_reply_buffer, PROC(_state_t) * real_state, PROC(_inst_t) * instr)
 	{
 	char * reptr;
 	while ( (reptr = strstr(drive_gdb_reply_buffer, "},{")) )
@@ -119,7 +119,7 @@ void disasm_error_report(char * drive_gdb_reply_buffer, state_t * real_state, in
 	char dis[200];
 	if ( instr ) 
 		{
-		iss_disasm(dis,instr);
+		PROC(_disasm)(dis, instr);
 		printf("GLISS disasm: \"%s\"\n", dis);
 		}
 	if ( exit_on_errors ) exit(1);		
@@ -127,60 +127,96 @@ void disasm_error_report(char * drive_gdb_reply_buffer, state_t * real_state, in
 	
 int init_gliss(char * drive_gdb_reply_buffer)
 	{
-	void *system_list[3];
-	void *loader_list[7];
-	void *mem_list[3];
-	int page_size_system;
-	FILE *verbose_system;
-	int nb_bits=0; /* 0 => par defaut */
-	int nb_mem=0;  /* 0 => par defaut */	
-		
-	page_size_system=4096;
-	verbose_system=NULL;
-		
-	system_list[0]=&page_size_system;
-	system_list[1]=verbose_system;
-	system_list[2]=NULL;
-		
-	char * libs_path[] =
-		{
-		NULL
-		};
-	extern char ** environ;
-		
-	char * gargv = gpname;
+	
+	/* make the platform */
+	platform = PROC(_new_platform)();
+	if(platform == NULL)  {
+		fprintf(stderr, "ERROR: no more resources\n");
+		exit(2);
+	}
+	
+	/* load the image in the platform */
+	if (PROC(_load_platform)(platform, gpname) == -1) {
+		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", gpname);
+		exit(2);
+	}
 
-	loader_list[0]=NULL; /*denotes the use of the extended parameter list */
-	loader_list[1]=&(gargv);
-	loader_list[2]=environ;            /* environnement */
-	loader_list[3]="../../gel/src"; /* gel plugin path */
-	loader_list[4]=libs_path;
-	loader_list[5]=NULL;
-	loader_list[6]=NULL;
+	/* make the state depending on the platform */
+	real_state = PROC(_new_state)(platform);
+	if (real_state == NULL)  {
+		fprintf(stderr, "ERROR: no more resources\n");
+		exit(2);
+	}
+	
+	/* make the simulator */
+	sim = PROC(_new_sim)(real_state, 0, 0);
+	if (sim == NULL) {
+		fprintf(stderr, "ERROR: no more resources\n");
+		exit(2);
+	}
 
-	mem_list[0]=&nb_mem;
-	mem_list[1]=&nb_bits;
-	mem_list[2]=NULL;
+//	void *system_list[3];
+//	void *loader_list[7];
+//	void *mem_list[3];
+//	int page_size_system;
+//	FILE *verbose_system;
+//	int nb_bits=0; /* 0 => par defaut */
+//	int nb_mem=0;  /* 0 => par defaut */	
+//		
+//	page_size_system=4096;
+//	verbose_system=NULL;
+//		
+//	system_list[0]=&page_size_system;
+//	system_list[1]=verbose_system;
+//	system_list[2]=NULL;
+//		
+//	char * libs_path[] =
+//		{
+//		NULL
+//		};
+//	extern char ** environ;
+//		
+//	char * gargv = gpname;
+//
+//	loader_list[0]=NULL; /*denotes the use of the extended parameter list */
+//	loader_list[1]=&(gargv);
+//	loader_list[2]=environ;            /* environnement */
+//	loader_list[3]="../../gel/src"; /* gel plugin path */
+//	loader_list[4]=libs_path;
+//	loader_list[5]=NULL;
+//	loader_list[6]=NULL;
+//
+//	mem_list[0]=&nb_mem;
+//	mem_list[1]=&nb_bits;
+//	mem_list[2]=NULL;
 		
 	send_gdb_cmd("-data-evaluate-expression $sp\n", drive_gdb_reply_buffer, display_replies);
-	read_gdb_output_pc(drive_gdb_reply_buffer, &loader_list[6]); //on demande à gliss de charger la pile au même endroit que GDB
+	int *sp;
+	read_gdb_output_pc(drive_gdb_reply_buffer, &sp);
+//	read_gdb_output_pc(drive_gdb_reply_buffer, &loader_list[6]); //on demande à gliss de charger la pile au même endroit que GDB
 	
-	real_state=iss_init(mem_list,loader_list,system_list,NULL,NULL);
+//	real_state=iss_init(mem_list,loader_list,system_list,NULL,NULL);
 
 	//gliss est stoppé au tout début (_start), gdb est quelques instructions plus loin, donc il faut avancer gliss
 	send_gdb_cmd("-data-evaluate-expression $pc\n", drive_gdb_reply_buffer, display_replies);
 	read_gdb_output_pc(drive_gdb_reply_buffer, &gdb_pc);
-	gliss_pc = NIA(real_state);
+	/* here we assume the next instruction PC is always called NIA */
+	gliss_pc = real_state->NIA;
+	
+	/* set gliss stack pointer with same value as gdb */
+	real_state->GPR[1] = sp;
 	
 	printf("Now stepping GLISS till it is in sync with GDB...");
 	int a = 0;
 	while ( gliss_pc != gdb_pc )
 		{
-		iss_fetch(NIA(real_state),buff_instr);
+/*		iss_fetch(NIA(real_state),buff_instr);
                 curinstr=iss_decode(real_state,NIA(real_state),buff_instr);
                 iss_complete(curinstr,real_state);
                 iss_free(curinstr);
-		gliss_pc = NIA(real_state);
+		gliss_pc = NIA(real_state);*/
+		PROC(_step)(sim);
+		gliss_pc = real_state->NIA;
 		a++;
 		}
 	printf("%d steps done\n", a);
@@ -303,12 +339,13 @@ int main(int argc, char ** argv)
 	init_gliss(drive_gdb_reply_buffer);
 	instr_count = 0;		
 		
-	iss_fetch(NIA(real_state),buff_instr);
-	curinstr=iss_decode(real_state,NIA(real_state),buff_instr);
+	/*iss_fetch(NIA(real_state),buff_instr);
+	curinstr=iss_decode(real_state,NIA(real_state),buff_instr);*/
+	curinstr = PROC(_decode)(sim->decoder, real_state->NIA);
 		
 	read_vars_this_instruction(drive_gdb_reply_buffer);
 	compare_regs_this_instruction(drive_gdb_reply_buffer, real_state, curinstr, instr_count);
-	iss_free(curinstr);
+	free(curinstr);
 		
 	printf("\n\033[1mREADY\033[0m - starting step by step execution\n");
 	while ( 1 ) 
@@ -334,7 +371,7 @@ int main(int argc, char ** argv)
 		match_gdb_output(drive_gdb_reply_buffer, "^done,", IS_FATAL, "When updating register variables, ");
 				
 		/* GLISS step */
-		gliss_pc = NIA(real_state);
+		gliss_pc = real_state->NIA;
 		if (display_values) printf("PC gdb %d gliss %d\n", gdb_pc, gliss_pc);
 		if (gliss_pc != gdb_pc)
 			{
@@ -344,14 +381,16 @@ int main(int argc, char ** argv)
 			disasm_error_report(drive_gdb_reply_buffer, NULL, NULL);
 			exit(1);
 			}
-		iss_fetch(NIA(real_state),buff_instr);
+		/*iss_fetch(NIA(real_state),buff_instr);
                 curinstr=iss_decode(real_state,NIA(real_state),buff_instr);
-                iss_complete(curinstr,real_state);
+                iss_complete(curinstr,real_state);*/
+		curinstr = PROC(_decode)(sim->decoder, real_state->NIA);
+		PROC(_step)(sim);
 		
 		read_vars_this_instruction(drive_gdb_reply_buffer);
 		compare_regs_this_instruction(drive_gdb_reply_buffer, real_state, curinstr, instr_count);
 			
-                iss_free(curinstr);	
+                free(curinstr);	
 			
 		
 		}
@@ -414,12 +453,12 @@ void drive_gdb()
 
 
 	/*Maintenant on peut lancer GDB en mode MI */
-	if ( execvp(GNU_TARGET"-gdb", gdb_argv) ) //si execvp retourne alors ouch
+	printf("execvp(%s)", GDB_NAME);
+	if ( execvp(GDB_NAME, gdb_argv) ) //si execvp retourne alors ouch
 		{
 		perror("GDB execvp()");
 		exit(-1);
 		}
-
 	}
 
 
