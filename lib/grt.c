@@ -1,5 +1,5 @@
 /*
- *	$Id: grt.c,v 1.1 2009/04/09 08:17:23 casse Exp $
+ *	$Id: grt.c,v 1.2 2009/05/19 08:59:49 barre Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -77,13 +77,16 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2) {
 
 
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
-	uint32_t mask = ((1 << (u - l) ) - 1) << l;
+printf("gliss_set_field_32u, args. v=%08X, s=%08X, u=%08X, l=%08X.", v, s, u, l);
+	uint32_t mask = ((1 << (u - l + 1) ) - 1) << l;
+printf(" (mask init=%08X)", mask);
+printf(" => %08X\n", (v & ~mask) | ((s << l) & mask));
 	return (v & ~mask) | ((s << l) & mask);
 }
 
 
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
-	uint64_t mask = ((1 << (u - l) ) - 1) << l;
+	uint64_t mask = ((1 << (u - l + 1) ) - 1) << l;
 	return (v & ~mask) | ((s << l) & mask);
 }
 
