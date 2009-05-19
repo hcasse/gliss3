@@ -1,5 +1,5 @@
 /*
- *	$Id: grt.c,v 1.3 2009/05/19 09:16:04 barre Exp $
+ *	$Id: grt.c,v 1.4 2009/05/19 12:07:39 barre Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -99,12 +99,12 @@ double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
 
 
 uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l) {
-	return (v & ((1 << (u - l)) - 1)) >> l;
+	return (v & ((1 << (u - l + 1)) - 1)) >> l;
 }
 
 
 uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l) {
-	return (v & ((1 << (u - l)) - 1)) >> l;
+	return (v & ((1 << (u - l + 1)) - 1)) >> l;
 }
 
 
