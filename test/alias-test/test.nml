@@ -61,7 +61,6 @@ type u16	= card(16)
 type u32	= card ( 32 )
 type u64	= card ( 64 )
 
-type s1		= int ( 1 )
 type s2		= int(2)
 type s4		= int ( 4 )
 type s8		= int ( 8 )
@@ -300,6 +299,8 @@ op opA(x: card(5), y : card(5), z : card(5))
 		v32_2 = 0xCC;
 		v32_3 = 0xDD;
 		R32s[9] = v32;
+		R32_01 = 0x1234567890ABCDEF;
+		R4_0123 = 0xABCD;
 	}
 
 op opB()
@@ -309,61 +310,10 @@ op opB()
 	}
 
 
-// pour tester
-//op toto(a:tata)
-//	syntax = format("toto.%s", a.syntax)
-//	image = format("0110%s", a.image)
-//	action = {
-//		GPR[0] = 3;
-//		a.action;
-//	}
-//
-//op tata = tata1 | tata2
-//	
-//op tata1(d : _D)
-//	syntax = format("tata1 %s", d.syntax)
-//	image = format("00011100011100011100%s", d.image)
-//	action = {
-//		GPR[1] = 7;
-//	}	
-//op tata2(d2 : _D)
-//	syntax = format("tata2 %s", d2.syntax)
-//	image = format("11011100011100011100%s", d2.image)
-//	action = {
-//		GPR[7] = 27;
-//	}
-
-//op tutu = tutu1
-
-//op tutu1(z : tutu2)
-//	syntax = format("tutu %s", z.syntax)
-////	image = format("000111000111000111001111%s", z.image)
-//	image = format("000111000111000111%8b%s", 0x0f, z.image)
-//	action = {
-//		GPR[0] = 1;
-//		z.action;
-//		GPR[1] = 2;
-//	}
-//
-//op tutu2(x : card(4), a : card(8))
-//	syntax = format("tutu2 %d(%d)", x, a)
-//	image = format("1100%4b%8b", x, a)
-//	action = {
-//		x = x - 1;
-//		if x >= 0 then
-//			action;
-//		endif;
-//	}
 
 
 
 op init ()
    action = {
-//FPR[0]=0; FPR[1]=0; FPR[2]=0; FPR[3]=0; FPR[4]=0; FPR[5]=0; FPR[6]=0; FPR[7]=0; FPR[8]=0; FPR[9]=0;
-//FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
-//FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
-//FPR[30]=0; FPR[31]=0;
-//CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
-R32[0] = 0x12345678;
+	R32[0] = 0x12345678;
            }
-
