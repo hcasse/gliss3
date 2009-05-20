@@ -298,13 +298,10 @@ op opA(x: card(5), y : card(5), z : card(5))
 		v32_1 = 0xBB;
 		v32_2 = 0xCC;
 		v32_3 = 0xDD;
-<<<<<<< test.nml
+		
 //		R32s[9] = v32;
-=======
-		R32s[9] = v32;
-		R32_01 = 0x1234567890ABCDEF;
-		R4_0123 = 0xABCD;
->>>>>>> 1.4
+//		R32_01 = 0x1234567890ABCDEF;
+//		R4_0123 = 0xABCD;
 	}
 
 op opB()

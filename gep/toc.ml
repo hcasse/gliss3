@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.34 2009/05/20 14:03:18 casse Exp $
+ * $Id: toc.ml,v 1.35 2009/05/20 14:23:34 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -506,14 +506,8 @@ let rec get_alias attrs =
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
-(*print_string ("resolve_alias name=" ^ name);	(* !!DEBUG!! *)
-print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
-print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
-print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
-print_char '\n';				(* !!DEBUG!! *)*)
-	trace "resolve_alias 1";
 
-	let printv msg (r, i, il, ub, lb, t) =
+	(*let printv msg (r, i, il, ub, lb, t) =
 		Printf.printf "\t%s(%s [" msg r;
 		Irg.print_expr i;
 		Printf.printf ":%d] < " il;
@@ -522,7 +516,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		Irg.print_expr lb;
 		print_string " > : ";
 		Irg.print_type_expr t;
-		print_string ")\n" in
+		print_string ")\n" in*)
 
 	let t = Irg.CARD(32) in
 	let const c =
@@ -541,9 +535,9 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		Irg.BINOP (t, Irg.MOD, e1, e2) in
 
 	let convert tr v =
-		print_string "\t";
+		(*print_string "\t";
 		Irg.print_type_expr tr;
-		printv " convert" v;
+		printv " convert" v;*)
 		let (r, i, il, ub, lb, ta) = v in
 		if ta = Irg.NO_TYPE then (r, i, il, ub, lb, tr) else
 		let sa = Sem.get_type_length ta in
@@ -571,7 +565,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		(name, i, il, ub, lb, t) in
 
 	let rec process_alias tr attrs v =
-		printv "process_alias" v;
+		(*printv "process_alias" v;*)
 		let v = convert tr v in
 		match get_alias attrs with
 		| Irg.LOC_NONE -> v
@@ -583,7 +577,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 			process v
 
 	and process v =
-		printv "process" v;
+		(*printv "process" v;*)
 		let (r, i, il, ub, lb, t) = v in
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
@@ -598,7 +592,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 			failwith "bad alias" in
 	
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
-	printv "return" res;
+	(*printv "return" res;*)
 	res
 
 
@@ -609,11 +603,6 @@ print_char '\n';				(* !!DEBUG!! *)*)
 	@patam lb		Lower bit number (may be NONE)
 	@return			Unaliased expression. *)
 let unalias_expr name idx ub lb =
-(*print_string ("unalias_expr name=" ^ name);	(* !!DEBUG!! *)
-print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
-print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
-print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
-print_char '\n';				(* !!DEBUG!! *)*)
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	let t = Irg.CARD(32) in
 	let const c =
@@ -652,13 +641,9 @@ let rec prepare_expr info stats expr =
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 	let unalias name idx =
-	(*print_string ("prepare_expr::unalias name=" ^ name);	(* !!DEBUG!! *)
-	print_string ", idx=";			(* !!DEBUG!! *)
-	Irg.print_expr idx;			(* !!DEBUG!! *)
-	print_char '\n';			(* !!DEBUG!! *)*)
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
-			Printf.printf "unalias(%s)\n" name;
+			(*Printf.printf "unalias(%s)\n" name;*)
 			unalias_expr name idx Irg.NONE Irg.NONE
 		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
 			expr
@@ -766,19 +751,9 @@ let rec seq_list list =
 	@param			Expression to assign.
 	@return			statements *)
 let unalias_set info stats name idx ub lb expr =
-(*print_string ("unalias_set name=" ^ name);	(* !!DEBUG!! *)
-print_string ", idx="; Irg.print_expr idx;	(* !!DEBUG!! *)
-print_string ", ub="; Irg.print_expr ub;	(* !!DEBUG!! *)
-print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
-print_string ", expr="; Irg.print_expr expr;	(* !!DEBUG!! *)
-print_char '\n';				(* !!DEBUG!! *)*)
-	trace "unalias_set 1";
-	Printf.printf "unalias_set(%s)\n" name;
+	(*Printf.printf "unalias_set(%s)\n" name;*)
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
-	trace "unalias_set 2";
 
-	(*let addn e1 e2 =
-		if e1 = Irg.NONE then e2 else addi e1 e2  in*)
 	let index_t = Irg.CARD(32) in
 	let index c = Irg.CONST (index_t, Irg.CARD_CONST (Int32.of_int c)) in
 	let addi e1 e2 = Irg.BINOP (index_t, Irg.ADD, e1, e2) in
@@ -814,7 +789,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 			(set_concat_field (l - 1) s) in
 
 	let process tt =
-		if ub = Irg.NONE then
+		if ubp = Irg.NONE then
 			if il = 1 then seq stats (set_item i expr) else
 			let name = new_temp info tt in
 			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t))
