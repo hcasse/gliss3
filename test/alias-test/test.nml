@@ -274,8 +274,15 @@ op instruction ( x : allinstr)
   image = x.image
   action = { x.action ; }
 
-op allinstr = opA | opB
+op allinstr = opA | opB | tmp_test
 
+op tmp_test(p: card(8))
+	syntax = format("test %d", p)
+	image = format("10010001 %5b xxxxxxxx xxxxxxxx", p)
+// !!BUG!! format("10010001 %5b", p) -> p : card(32)
+	action = {
+		v32 = if p < 8 then p else 0 endif ;
+	}
 
 op opA(x: card(5), y : card(5), z : card(5))
 	syntax = format("opA %d,%d,%d", x, y, z)
