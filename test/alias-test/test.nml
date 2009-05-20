@@ -98,24 +98,24 @@ reg R32s	[ 2 ** REGS , s32 ]
 reg R32		[ 2 ** REGS , u32 ]
 reg FPR		[ 2 ** REGS , flot ]
 
-// some 64 bit aliases
+// some "bigger" aliases
 reg R32_01 [1, u64]	alias = R32[0]
-reg R32_s01 [1, s64]	alias = R32[0]
-reg R32s_01 [1, u64]	alias = R32s[0]
-reg R32s_s01 [1, s64]	alias = R32s[0]
 reg R32_23 [1, u64]	alias = R32[2]
+reg R32_s01 [1, s64]	alias = R32[0]
 reg R32_s23 [1, s64]	alias = R32[2]
+reg R32s_01 [1, u64]	alias = R32s[0]
 reg R32s_23 [1, u64]	alias = R32s[2]
+reg R32s_s01 [1, s64]	alias = R32s[0]
 reg R32s_s23 [1, s64]	alias = R32s[2]
 
 reg R16_0123 [1, u64]	alias = R16[0]
-reg R16_s0123 [1, s64]	alias = R16[0]
-reg R4s_0123 [1, u64]	alias = R16s[0]
-reg R4s_s0123 [1, s64]	alias = R16s[0]
 reg R16_4567 [1, u64]	alias = R16[4]
-reg R16_s4567 [1, s64]	alias = R16[4]
-reg R4s_4567 [1, u64]	alias = R16s[4]
-reg R4s_s4567 [1, s64]	alias = R16s[4]
+reg R16s_0123 [1, s64]	alias = R16s[0]
+reg R16s_4567 [1, s64]	alias = R16s[4]
+reg R4_0123 [1, u16]	alias = R4[0]
+reg R4_4567 [1, u16]	alias = R4[4]
+reg R4s_0123 [1, s16]	alias = R4s[0]
+reg R4s_4567 [1, s16]	alias = R4s[4]
 
 
 // ------------------------------------------------------------------------- //
@@ -166,6 +166,7 @@ reg v16_1_a	[ 1, u8]	alias = v16_1[0]
 reg v16_1_b	[ 1, u8]	alias = v16_1[8]
 reg vs16_1_a	[ 1, s8]	alias = vs16_1[0]
 reg vs16_1_b	[ 1, s8]	alias = vs16_1[8]
+
 
 var v32      [ 1 , u32 ]
 var vs32     [ 1 , s32 ]
@@ -221,54 +222,6 @@ reg vs64_6	[1, s8]		alias = vs64[48]
 reg vs64_7	[1, s8]		alias = vs64[56]
 
 
-
-
-// 1.4.2 Aliases for Integer Temps
-
-reg TMP_WORD_B1 [ 1 , card ( 16 ) ]
-	alias = TMP_WORD [ 31 ]
-reg TMP_WORD_B0 [ 1 , card ( 16 ) ]
-	alias = TMP_WORD [ 15 ]
-reg TMP_M_OP1_H1 [ 1 , int ( 32 ) ]
-	alias = TMP_M_OP1 [ 63 ]
-reg TMP_M_OP1_H0 [ 1 , int ( 32 ) ]
-	alias = TMP_M_OP1 [ 31 ]
-reg TMP_M_OP2_H1 [ 1 , int ( 32 ) ]
-	alias = TMP_M_OP2 [ 63 ]
-reg TMP_M_OP2_H0 [ 1 , int ( 32 ) ]
-	alias = TMP_M_OP2 [ 31 ]
-reg TMP_M_RES_H1 [ 1 , int ( 32 ) ]
-	alias = TMP_M_RES [ 63 ]
-reg TMP_M_RES_H0 [ 1 , int ( 32 ) ]
-	alias = TMP_M_RES [ 31 ]
-	
-// 1.4.3 HalfWord Integer
-
-reg TMP_SHWORD_A1 [ 1 , int ( 8 ) ]
-    alias = TMP_SHWORD [ 15 ]
-
-reg TMP_SHWORD_A0 [ 1 , int ( 8 ) ]
-    alias = TMP_SHWORD [ 7 ]
-
-// 1.4.4 Word Integers
-
-reg TMP_SWORD_A3 [ 1 , int ( 8 ) ]
-    alias = TMP_SWORD [ 31 ]	
-reg TMP_SWORD_A2 [ 1 , int ( 8 ) ]
-    alias = TMP_SWORD [ 23 ]
-reg TMP_SWORD_A1 [ 1 , int ( 8 ) ]
-    alias = TMP_SWORD [ 15 ]
-reg TMP_SWORD_A0 [ 1 , int ( 8 ) ]
-    alias = TMP_SWORD [ 7 ]
-    
-reg TMP_WORD_A3 [ 1 , card ( 8 ) ]
-    alias = TMP_WORD [ 31 ]	
-reg TMP_WORD_A2 [ 1 , card ( 8 ) ]
-    alias = TMP_WORD [ 23 ]
-reg TMP_WORD_A1 [ 1 , card ( 8 ) ]
-    alias = TMP_WORD [ 15 ]
-reg TMP_WORD_A0 [ 1 , card ( 8 ) ]
-    alias = TMP_WORD [ 7 ]
 
 
 
@@ -330,16 +283,16 @@ op opA(x: card(5), y : card(5), z : card(5))
 	action = {
 	
 	// test 1, aliased registers refering to parts of a bigger register
-		TMP_WORD = 0x12345678;
-		GPR[5] = TMP_WORD_A0;
-		GPR[6] = TMP_WORD_A1;
-		GPR[7] = TMP_WORD_A2;
-		GPR[8] = TMP_WORD_A3;
-		TMP_WORD_A0 = 0xAA;
-		TMP_WORD_A1 = 0xBB;
-		TMP_WORD_A2 = 0xCC;
-		TMP_WORD_A3 = 0xDD;
-		GPR[9] = TMP_WORD;
+		v32 = 0x12345678;
+		R32s[5] = v32_0;
+		R32s[6] = v32_1;
+		R32s[7] = v32_2;
+		R32s[8] = v32_3;
+		v32_0 = 0xAA;
+		v32_1 = 0xBB;
+		v32_2 = 0xCC;
+		v32_3 = 0xDD;
+		R32s[9] = v32;
 	}
 
 op opB()
@@ -399,10 +352,11 @@ op opB()
 
 op init ()
    action = {
-FPR[0]=0; FPR[1]=0; FPR[2]=0; FPR[3]=0; FPR[4]=0; FPR[5]=0; FPR[6]=0; FPR[7]=0; FPR[8]=0; FPR[9]=0;
-FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
-FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
-FPR[30]=0; FPR[31]=0;
-CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
+//FPR[0]=0; FPR[1]=0; FPR[2]=0; FPR[3]=0; FPR[4]=0; FPR[5]=0; FPR[6]=0; FPR[7]=0; FPR[8]=0; FPR[9]=0;
+//FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
+//FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
+//FPR[30]=0; FPR[31]=0;
+//CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
+R32[0] = 0x12345678;
            }
 
