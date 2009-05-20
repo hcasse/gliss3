@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.33 2009/04/28 12:53:48 barre Exp $
+ * $Id: toc.ml,v 1.34 2009/05/20 14:03:18 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -513,6 +513,17 @@ print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
 print_char '\n';				(* !!DEBUG!! *)*)
 	trace "resolve_alias 1";
 
+	let printv msg (r, i, il, ub, lb, t) =
+		Printf.printf "\t%s(%s [" msg r;
+		Irg.print_expr i;
+		Printf.printf ":%d] < " il;
+		Irg.print_expr ub;
+		print_string " .. ";
+		Irg.print_expr lb;
+		print_string " > : ";
+		Irg.print_type_expr t;
+		print_string ")\n" in
+
 	let t = Irg.CARD(32) in
 	let const c =
 		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
@@ -530,6 +541,9 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		Irg.BINOP (t, Irg.MOD, e1, e2) in
 
 	let convert tr v =
+		print_string "\t";
+		Irg.print_type_expr tr;
+		printv " convert" v;
 		let (r, i, il, ub, lb, ta) = v in
 		if ta = Irg.NO_TYPE then (r, i, il, ub, lb, tr) else
 		let sa = Sem.get_type_length ta in
@@ -537,7 +551,7 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		if sa = sr then v else
 		if sa < sr then
 			let f = const (sr / sa) in
-			(r, div i f, 1, add ub (rem i f), add lb (rem i f), t) 
+			(r, div i f, 1, add (rem i f) ub, add (rem i f) lb, t) 
 		else
 			let f = sa / sr in
 			(r, mul i (const f), il * f, ub, lb, t) in
@@ -548,24 +562,28 @@ print_char '\n';				(* !!DEBUG!! *)*)
 	
 	let field u l v =
 		let (r, i, il, ub, lb, t) = v in
-		(r, i, il, add lb u, add lb l, t) in
+		if ub = Irg.NONE
+		then (r, i, il, u, l, t)
+		else (r, i, il, add ub l, add lb l, t) in
 
 	let set_name name v =
 		let (_, i, il, ub, lb, t) = v in
 		(name, i, il, ub, lb, t) in
 
 	let rec process_alias tr attrs v =
+		printv "process_alias" v;
 		let v = convert tr v in
 		match get_alias attrs with
 		| Irg.LOC_NONE -> v
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
 		| Irg.LOC_REF (tr, r, idxp, ubp, lbp) ->
 			let v = set_name r v in
-			let v = if idx = Irg.NONE then v else shift idx v in
-			let v = if ub = Irg.NONE then v else field ub lb v in
+			let v = if idxp = Irg.NONE then v else shift idxp v in
+			let v = if ubp = Irg.NONE then v else field ubp lbp v in
 			process v
 
 	and process v =
+		printv "process" v;
 		let (r, i, il, ub, lb, t) = v in
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
@@ -577,14 +595,11 @@ print_char '\n';				(* !!DEBUG!! *)*)
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
 		| _ ->
-(*
-			Printf.printf "BAD_ALIAS: %s\n" r;	(* !!DEBUG!! *)
-			Irg.print_spec (Irg.get_symbol r);	(* !!DEBUG!! *)
-			print_char '\n';			(* !!DEBUG!! *)
-*)
 			failwith "bad alias" in
 	
-	process (name, idx, 1, ub, lb, Irg.NO_TYPE)
+	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
+	printv "return" res;
+	res
 
 
 (** Unalias an expression.
@@ -643,6 +658,7 @@ let rec prepare_expr info stats expr =
 	print_char '\n';			(* !!DEBUG!! *)*)
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
+			Printf.printf "unalias(%s)\n" name;
 			unalias_expr name idx Irg.NONE Irg.NONE
 		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
 			expr
@@ -757,6 +773,7 @@ print_string ", lb="; Irg.print_expr lb;	(* !!DEBUG!! *)
 print_string ", expr="; Irg.print_expr expr;	(* !!DEBUG!! *)
 print_char '\n';				(* !!DEBUG!! *)*)
 	trace "unalias_set 1";
+	Printf.printf "unalias_set(%s)\n" name;
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	trace "unalias_set 2";
 
@@ -1004,11 +1021,6 @@ let rec gen_expr info (expr: Irg.expr) =
 			gen_expr info expr;
 			out "& 0x";
 			Printf.fprintf info.out "%LX" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
-		let extend_sign new_size shift_size =
-			Printf.fprintf info.out "(((int%d_t)(" new_size;
-			gen_expr info expr;
-			Printf.fprintf info.out ")) << %d) >> %d" shift_size shift_size;
-		in
 		let apply pref suff = out pref; gen_expr info expr; out suff in
 		let trans _ = gen_expr info expr in
 		let otyp = Sem.get_type_expr expr in
@@ -1025,11 +1037,8 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.BOOL, Irg.FLOAT _
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
-		| Irg.INT n, Irg.INT m when n > m ->
-			extend_sign n (n-m)
 		| Irg.INT _, Irg.BOOL		
-		| Irg.INT _, Irg.INT _ ->
-				trans ()
+		| Irg.INT _, Irg.INT _ -> trans ()
 		| Irg.INT n, Irg.CARD m when n > m -> mask m
 		| Irg.INT _, Irg.CARD _ -> trans ()
 		| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"

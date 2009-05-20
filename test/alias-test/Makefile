@@ -8,14 +8,13 @@ GFLAGS=	-m loader:old_elf \
 GEP_DIR=../../gep
 
 
-all: lib test-disasm test-sim
+all: lib
 
 
 src include: test.nml
 	$(GEP_DIR)/gep $(GFLAGS) test.nml -S
 
-lib: src src/config.h src/disasm.c
-	(cd src; make)
+lib: src src/config.h
 
 toto-disasm:
 	cd disasm; make

@@ -174,10 +174,10 @@ reg v32_a	[ 1, u16]	alias = v32[0]
 reg v32_b	[ 1, u16]	alias = v32[16]
 reg vs32_a	[ 1, s16]	alias = vs32[0]
 reg vs32_b	[ 1, s16]	alias = vs32[16]
-reg v32_0	[1, u8]		alias = v32[0]
-reg v32_1	[1, u8]		alias = v32[8]
-reg v32_2	[1, u8]		alias = v32[16]
-reg v32_3	[1, u8]		alias = v32[24]
+reg v32_0	[1, u8]		alias = v32<7..0>
+reg v32_1	[1, u8]		alias = v32<15..8>
+reg v32_2	[1, u8]		alias = v32<23..16>
+reg v32_3	[1, u8]		alias = v32<31..24>
 reg vs32_0	[1, s8]		alias = vs32[0]
 reg vs32_1	[1, s8]		alias = vs32[8]
 reg vs32_2	[1, s8]		alias = vs32[16]
@@ -298,9 +298,13 @@ op opA(x: card(5), y : card(5), z : card(5))
 		v32_1 = 0xBB;
 		v32_2 = 0xCC;
 		v32_3 = 0xDD;
+<<<<<<< test.nml
+//		R32s[9] = v32;
+=======
 		R32s[9] = v32;
 		R32_01 = 0x1234567890ABCDEF;
 		R4_0123 = 0xABCD;
+>>>>>>> 1.4
 	}
 
 op opB()
