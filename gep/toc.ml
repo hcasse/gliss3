@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.35 2009/05/20 14:23:34 casse Exp $
+ * $Id: toc.ml,v 1.36 2009/05/29 13:32:38 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -567,6 +567,10 @@ let resolve_alias name idx ub lb =
 	let rec process_alias tr attrs v =
 		(*printv "process_alias" v;*)
 		let v = convert tr v in
+		(*!!DEBUG!!*)
+		(*print_string "get_alias=>";
+		Irg.print_location (get_alias attrs);
+		print_char '\n';*)
 		match get_alias attrs with
 		| Irg.LOC_NONE -> v
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias"
@@ -579,6 +583,8 @@ let resolve_alias name idx ub lb =
 	and process v =
 		(*printv "process" v;*)
 		let (r, i, il, ub, lb, t) = v in
+		(*!!DEBUG!!*)
+		(*print_string ("processing alias for:" ^ r ^ "\n");*)
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
 			process_alias tr attrs v
@@ -643,7 +649,6 @@ let rec prepare_expr info stats expr =
 	let unalias name idx =
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
-			(*Printf.printf "unalias(%s)\n" name;*)
 			unalias_expr name idx Irg.NONE Irg.NONE
 		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
 			expr
@@ -994,8 +999,21 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.COERCE (typ, expr) ->
 		let mask m =
 			gen_expr info expr;
-			out "& 0x";
-			Printf.fprintf info.out "%LX" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
+			out " & 0x";
+			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
+		let approx_C_type t =
+			type_to_string (convert_type t)
+		in
+		let explicit_cast t n =
+			out "(((";
+			out (approx_C_type t);
+			out ")(";
+			gen_expr info expr;
+			out "))";
+			out " & 0x";
+			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one n) Int64.one);
+			out ")"
+		in
 		let apply pref suff = out pref; gen_expr info expr; out suff in
 		let trans _ = gen_expr info expr in
 		let otyp = Sem.get_type_expr expr in
@@ -1005,6 +1023,16 @@ let rec gen_expr info (expr: Irg.expr) =
 			apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
 		let coerce fn =
 			apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
+			
+		(* !!DEBUG!! *)
+		print_string "toc.gen_expr(coerce( ";
+		Irg.print_type_expr typ;
+		print_string " , ";
+		Irg.print_expr expr;
+		print_string " : ";
+		Irg.print_type_expr otyp;
+		print_string " )\n";
+		
 		if typ = otyp then gen_expr info expr else
 		(match (typ, otyp) with
 		| Irg.BOOL, Irg.INT _
@@ -1012,17 +1040,23 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.BOOL, Irg.FLOAT _
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
-		| Irg.INT _, Irg.BOOL		
+		| Irg.INT _, Irg.BOOL -> trans ()
+		| Irg.INT n, Irg.INT m when n > m -> explicit_cast typ n (* set the added bits also ? output a C cast statement ? *)
+		| Irg.INT n, Irg.INT m when m > n -> (* truncate *) mask n
 		| Irg.INT _, Irg.INT _ -> trans ()
 		| Irg.INT n, Irg.CARD m when n > m -> mask m
+		| Irg.INT n, Irg.CARD m when n < m -> mask n
 		| Irg.INT _, Irg.CARD _ -> trans ()
 		| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"
 		| Irg.INT 64, Irg.FLOAT (52, 12) -> coerce "dtoi"
 		| Irg.INT _, Irg.RANGE _
  		| Irg.INT _, Irg.ENUM _ -> trans ()
 		| Irg.CARD _, Irg.BOOL -> trans ()
-		| Irg.CARD n, Irg.INT m when n > m -> mask m
-		| Irg.CARD _, Irg.INT _ 
+		| Irg.CARD n, Irg.INT m when n > m -> explicit_cast typ n
+		| Irg.CARD n, Irg.INT m when m > n -> mask n
+		| Irg.CARD _, Irg.INT _ -> trans ()
+		| Irg.CARD n, Irg.CARD m when n < m -> mask n
+		| Irg.CARD n, Irg.CARD m when n > m -> mask m
 		| Irg.CARD _, Irg.CARD _ -> trans ()
 		| Irg.CARD 32, Irg.FLOAT (23, 9) -> coerce "ftou"
 		| Irg.CARD 64, Irg.FLOAT (52, 12) -> coerce "dtou"
@@ -1157,7 +1191,8 @@ let rec gen_stat info stat =
 				out "\t case ";
 				gen_expr info case;
 				out ":\n";
-				gen_stat info stat)
+				gen_stat info stat;
+				out "\tbreak;\n")
 			cases;
 		if def <> Irg.NOP then
 			begin
