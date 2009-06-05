@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.36 2009/05/29 13:32:38 barre Exp $
+ * $Id: toc.ml,v 1.37 2009/06/05 11:33:00 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -610,7 +610,7 @@ let resolve_alias name idx ub lb =
 	@return			Unaliased expression. *)
 let unalias_expr name idx ub lb =
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
-	let t = Irg.CARD(32) in
+	(*let t = Irg.CARD(32) in*)
 	let const c =
 		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
 	let add e1 e2 =
@@ -649,6 +649,14 @@ let rec prepare_expr info stats expr =
 	let unalias name idx =
 		match Irg.get_symbol name with
 		| Irg.REG _ | Irg.MEM _ ->
+			(*!!DEBUG!!*)
+			(*print_string "---prepare_expr(unalias), name=";
+			print_string name;
+			print_string ", idx=";
+			Irg.print_expr idx;
+			print_string " | res=";
+			Irg.print_expr (unalias_expr name idx Irg.NONE Irg.NONE);
+			print_char '\n';*)
 			unalias_expr name idx Irg.NONE Irg.NONE
 		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
 			expr
@@ -656,7 +664,11 @@ let rec prepare_expr info stats expr =
 			add_var info name cnt t; expr
 		| _ ->
 			expr in
-
+	(* !!DEBUG!! *)
+	(*print_string "--prepare_expr, ";
+	Irg.print_expr expr;
+	print_char '\n';
+	flush stdout;*)
 	match expr with
 	| Irg.REF name ->
 		(stats, unalias name Irg.NONE)
@@ -664,6 +676,12 @@ let rec prepare_expr info stats expr =
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
+		(*!!DEBUG!!*)
+		(*print_string "----prepare_expr, coerce, typ = ";
+		Irg.print_type_expr typ;
+		print_string ", expr = ";
+		Irg.print_expr expr;
+		print_string "\n";*)
 		(stats, Irg.COERCE (typ, expr))
 	| Irg.FORMAT (fmt, args) ->
 		let (stats, args) = prepare_exprs info stats args in
@@ -914,7 +932,11 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.EXP -> (false, Printf.sprintf "%s_exp%s" info.proc (type_to_mem(convert_type t)))
 		| Irg.CONCAT -> (false, Printf.sprintf "%s_concat%s" info.proc (type_to_mem(convert_type t)))
 		| _ -> (false, "") in
-
+		(*!!DEBUG!!*)
+	(*print_string "--gen_expr, ";
+	Irg.print_expr expr;
+	print_char '\n';
+	flush stdout;*)
 	match expr with
 	| Irg.NONE -> ()
 
@@ -1000,7 +1022,11 @@ let rec gen_expr info (expr: Irg.expr) =
 		let mask m =
 			gen_expr info expr;
 			out " & 0x";
-			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
+			if m=64 then
+			(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
+				output_string info.out "FFFFFFFFFFFFFFFFULL"
+			else
+				Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
 		let approx_C_type t =
 			type_to_string (convert_type t)
 		in
@@ -1011,7 +1037,11 @@ let rec gen_expr info (expr: Irg.expr) =
 			gen_expr info expr;
 			out "))";
 			out " & 0x";
-			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one n) Int64.one);
+			if n=64 then
+			(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
+				output_string info.out "FFFFFFFFFFFFFFFFULL"
+			else
+				Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one n) Int64.one);
 			out ")"
 		in
 		let apply pref suff = out pref; gen_expr info expr; out suff in
@@ -1025,13 +1055,13 @@ let rec gen_expr info (expr: Irg.expr) =
 			apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
 			
 		(* !!DEBUG!! *)
-		print_string "toc.gen_expr(coerce( ";
+		(*print_string "toc.gen_expr(coerce( ";
 		Irg.print_type_expr typ;
 		print_string " , ";
 		Irg.print_expr expr;
 		print_string " : ";
 		Irg.print_type_expr otyp;
-		print_string " )\n";
+		print_string " )\n";*)
 		
 		if typ = otyp then gen_expr info expr else
 		(match (typ, otyp) with
