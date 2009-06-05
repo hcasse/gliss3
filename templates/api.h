@@ -103,4 +103,7 @@ void $(proc)_step($(proc)_sim_t *sim);
 int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
 
+/* disassemble function */
+void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
+
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_API_H */
