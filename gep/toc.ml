@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.37 2009/06/05 11:33:00 barre Exp $
+ * $Id: toc.ml,v 1.38 2009/06/05 12:08:52 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -610,9 +610,9 @@ let resolve_alias name idx ub lb =
 	@return			Unaliased expression. *)
 let unalias_expr name idx ub lb =
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
-	(*let t = Irg.CARD(32) in*)
+	let t32 = Irg.CARD(32) in
 	let const c =
-		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
+		Irg.CONST (t32, Irg.CARD_CONST (Int32.of_int c)) in 
 	let add e1 e2 =
 		if e1 = Irg.NONE then e2 else
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
