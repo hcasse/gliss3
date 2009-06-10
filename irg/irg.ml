@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.33 2009/04/28 12:39:19 barre Exp $
+ * $Id: irg.ml,v 1.34 2009/06/10 16:04:16 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -225,11 +225,82 @@ let get_symbol n =
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym = 
+	(*
+	transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
+	into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
+	before inserting the definition in the table
+	*)
+	let translate_old_style_aliases s =
+		let is_array nm =
+			match get_symbol nm with
+			MEM(_, i, _, _)
+			| REG(_, i, _, _)
+			| VAR(_, i, _) ->
+				i > 1
+			| _ ->
+				false
+		in
+		let get_type_length t =
+			match t with
+			| BOOL -> 1
+			| INT n -> n
+			| CARD n -> n
+			| FIX (n,m) -> n + m
+			| FLOAT (n,m) -> n + m
+			| ENUM l ->
+				let i = List.length l in
+				int_of_float (ceil ((log (float i)) /. (log 2.)))
+			| RANGE (_, m) ->
+				int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
+			| NO_TYPE
+			| STRING
+			| UNKNOW_TYPE -> 
+				failwith "length unknown"
+		in
+		let rec change_alias_attr mem_attr_l n =
+			let t = CARD(32)
+			in
+			let const c =
+				CONST (t, CARD_CONST (Int32.of_int c))
+			in 
+			let sub e1 e2 =
+				BINOP (t, SUB, e1, e2)
+			in
+			match mem_attr_l with
+			[] ->
+				[]
+			| a::b ->
+				(match a with
+				ALIAS l ->
+					(match l with
+					LOC_REF(typ, name, i, l, u) ->
+						if is_array name then
+							a::(change_alias_attr b n)
+						else
+							if l=NONE && u=NONE then
+								(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
+							else
+								a::(change_alias_attr b n)
+					| _ ->
+						a::(change_alias_attr b n)
+					)
+				| _ ->
+					a::(change_alias_attr b n)
+				)
+		in
+		match s with
+		MEM(name, size, typ, m_a_l) ->
+			MEM(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
+		| REG(name, size, typ, m_a_l) ->
+			REG(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
+		| _ ->
+			s			
+	in
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
 	(* add the symbol to the hashtable *)
-	else StringHashtbl.add syms name sym
+	else StringHashtbl.add syms name (translate_old_style_aliases sym)
 
 (**	Check if a given name is defined in the namespace
 		@param name	The name to check *)
@@ -489,11 +560,15 @@ let rec output_expr out e =
 		output_string out n
 	| REF id ->
 		output_string out id
-	| ITEMOF (_, name, idx) ->
+	| ITEMOF (t, name, idx) ->
 		output_string out name;
 		output_string out "[";
 		output_expr out idx;
-		output_string out "]"
+		output_string out "]";
+		(* !!DEBUG!! *)
+		output_string out "(typ=";
+		output_type_expr out t;
+		output_string out ")"
 	| BITFIELD (t, e, l, u) ->
 		output_expr out e;
 		output_string out "<";
