@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.38 2009/06/05 12:08:52 barre Exp $
+ * $Id: toc.ml,v 1.39 2009/06/19 12:06:40 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -507,8 +507,8 @@ let rec get_alias attrs =
 					resource type) *)
 let resolve_alias name idx ub lb =
 
-	(*let printv msg (r, i, il, ub, lb, t) =
-		Printf.printf "\t%s(%s [" msg r;
+	let printv msg (r, i, il, ub, lb, t) =
+		(*Printf.printf "\t%s(%s [" msg r;
 		Irg.print_expr i;
 		Printf.printf ":%d] < " il;
 		Irg.print_expr ub;
@@ -516,7 +516,8 @@ let resolve_alias name idx ub lb =
 		Irg.print_expr lb;
 		print_string " > : ";
 		Irg.print_type_expr t;
-		print_string ")\n" in*)
+		print_string ")\n"*)
+		() in
 
 	let t = Irg.CARD(32) in
 	let const c =
@@ -581,7 +582,7 @@ let resolve_alias name idx ub lb =
 			process v
 
 	and process v =
-		(*printv "process" v;*)
+		printv "process" v;
 		let (r, i, il, ub, lb, t) = v in
 		(*!!DEBUG!!*)
 		(*print_string ("processing alias for:" ^ r ^ "\n");*)
@@ -598,7 +599,7 @@ let resolve_alias name idx ub lb =
 			failwith "bad alias" in
 	
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
-	(*printv "return" res;*)
+	printv "return" res;
 	res
 
 
@@ -942,7 +943,7 @@ let rec gen_expr info (expr: Irg.expr) =
 
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
-	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
+	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
 	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v  
 	
@@ -1019,6 +1020,33 @@ let rec gen_expr info (expr: Irg.expr) =
 			end
 
 	| Irg.COERCE (typ, expr) ->
+		let type_C_length t =
+			let tc = convert_type t
+			in
+			match tc with
+			  INT8 -> 8
+			| UINT8 -> 8
+			| INT16 -> 16
+			| UINT16 -> 16
+			| INT32 -> 32
+			| UINT32 -> 32
+			| INT64 -> 64
+			| UINT64 -> 64
+			| FLOAT -> 32
+			| DOUBLE -> 64
+			| LONG_DOUBLE -> 80
+			| CHAR_PTR -> assert false
+		in
+		let sign_ext shift_val =
+			if shift_val = 0 then
+				gen_expr info expr
+			else
+				begin
+				out "((";
+				gen_expr info expr;
+				Printf.fprintf info.out " << (%d)) >> (%d))" shift_val shift_val
+				end
+		in
 		let mask m =
 			gen_expr info expr;
 			out " & 0x";
@@ -1071,7 +1099,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
 		| Irg.INT _, Irg.BOOL -> trans ()
-		| Irg.INT n, Irg.INT m when n > m -> explicit_cast typ n (* set the added bits also ? output a C cast statement ? *)
+		| Irg.INT n, Irg.INT m when n > m -> sign_ext ((type_C_length (Irg.INT m)) - m)
 		| Irg.INT n, Irg.INT m when m > n -> (* truncate *) mask n
 		| Irg.INT _, Irg.INT _ -> trans ()
 		| Irg.INT n, Irg.CARD m when n > m -> mask m
