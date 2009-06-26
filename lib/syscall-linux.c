@@ -1,5 +1,5 @@
 /*
- *	$Id: syscall-linux.c,v 1.2 2009/01/21 07:30:54 casse Exp $
+ *	$Id: syscall-linux.c,v 1.3 2009/06/26 14:47:55 barre Exp $
  *	syscall-linux module implementation
  *
  *	This file is part of OTAWA
@@ -373,7 +373,7 @@ static int my_strlen(gliss_state_t *state, gliss_address_t addr)
 }
 
 
-static char *ppc_get_syscall_name(int num)
+static char *gliss_get_syscall_name(int num)
 {
 	switch(num)
 	{
@@ -607,7 +607,7 @@ static char *ppc_get_syscall_name(int num)
 //	exit(code);
 //}
 
-BOOL ppc_syscall_exit(gliss_state_t *state) {
+BOOL gliss_syscall_exit(gliss_state_t *state) {
 	if(verbose)
 		fprintf(verbose, "exit()\n");
 	if(running)
@@ -615,9 +615,9 @@ BOOL ppc_syscall_exit(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_fork(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fork(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall_read(gliss_state_t *state) {
+BOOL gliss_syscall_read(gliss_state_t *state) {
 	int fd;
 	size_t count;
 	gliss_address_t buf_addr;
@@ -645,7 +645,7 @@ BOOL ppc_syscall_read(gliss_state_t *state) {
 }
 
 
-BOOL ppc_syscall_write(gliss_state_t *state)
+BOOL gliss_syscall_write(gliss_state_t *state)
 {
 	int fd;
 	size_t count;
@@ -675,7 +675,7 @@ BOOL ppc_syscall_write(gliss_state_t *state)
 	return (ret != (size_t) -1)?TRUE:FALSE;
 }
 
-BOOL ppc_syscall_open(gliss_state_t *state) {
+BOOL gliss_syscall_open(gliss_state_t *state) {
 	gliss_address_t addr;
 	int pathnamelen;
 	char *pathname;
@@ -699,7 +699,7 @@ BOOL ppc_syscall_open(gliss_state_t *state) {
 	return ret != -1;
 }
 
-BOOL ppc_syscall_close(gliss_state_t *state)
+BOOL gliss_syscall_close(gliss_state_t *state)
 {
 	int fd;
 	int ret;
@@ -714,20 +714,20 @@ BOOL ppc_syscall_close(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL ppc_syscall_waitpid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_creat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_link(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_unlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_execve(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_chdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_time(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mknod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_chmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_lchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_break(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_oldstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_waitpid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_creat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_link(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_unlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_execve(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_chdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_time(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mknod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_chmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_lchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_break(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_oldstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall_lseek(gliss_state_t *state)
+BOOL gliss_syscall_lseek(gliss_state_t *state)
 {
 	int fildes;
 	off_t offset;
@@ -746,7 +746,7 @@ BOOL ppc_syscall_lseek(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL ppc_syscall_getpid(gliss_state_t *state) {
+BOOL gliss_syscall_getpid(gliss_state_t *state) {
 	pid_t pid;
 	
 	if(verbose)
@@ -756,11 +756,11 @@ BOOL ppc_syscall_getpid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_mount(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_umount(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mount(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_umount(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall_getuid(gliss_state_t *state) {
+BOOL gliss_syscall_getuid(gliss_state_t *state) {
 	uid_t uid;
 	
 	if(verbose)
@@ -770,26 +770,26 @@ BOOL ppc_syscall_getuid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_stime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ptrace(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_alarm(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_oldfstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_pause(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_utime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_stty(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_gtty(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_access(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_nice(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ftime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_kill(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rename(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mkdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rmdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_dup(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_pipe(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_stime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ptrace(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_alarm(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_oldfstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_pause(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_utime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_stty(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_gtty(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_access(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_nice(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ftime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_kill(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rename(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mkdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rmdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_dup(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_pipe(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-static void ppc_swap(void *buf, int count)
+static void gliss_swap(void *buf, int count)
 {
 	if(count > 0)
 	{
@@ -804,22 +804,22 @@ static void ppc_swap(void *buf, int count)
 	}
 }
 
-static void ppc_swap_tms(struct tms *buf)
+static void gliss_swap_tms(struct tms *buf)
 {
-	ppc_swap(&buf->tms_utime, sizeof(&buf->tms_utime));
-	ppc_swap(&buf->tms_stime, sizeof(&buf->tms_stime));
-	ppc_swap(&buf->tms_cutime, sizeof(&buf->tms_cutime));
-	ppc_swap(&buf->tms_cstime, sizeof(&buf->tms_cstime));
+	gliss_swap(&buf->tms_utime, sizeof(&buf->tms_utime));
+	gliss_swap(&buf->tms_stime, sizeof(&buf->tms_stime));
+	gliss_swap(&buf->tms_cutime, sizeof(&buf->tms_cutime));
+	gliss_swap(&buf->tms_cstime, sizeof(&buf->tms_cstime));
 }
 
-BOOL ppc_syscall_times(gliss_state_t *state) {
+BOOL gliss_syscall_times(gliss_state_t *state) {
 	gliss_address_t buf_addr;
 	struct tms buf;
 	clock_t ret;
 
 	//printf("times is being executed\n");
 	ret = times(&buf);	
-	if(swap) ppc_swap_tms(&buf);
+	if(swap) gliss_swap_tms(&buf);
 	PARM_BEGIN
 		buf_addr = PARM(0);
 	PARM_END
@@ -830,9 +830,9 @@ BOOL ppc_syscall_times(gliss_state_t *state) {
 }
 
 
-BOOL ppc_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall_brk(gliss_state_t *state)
+BOOL gliss_syscall_brk(gliss_state_t *state)
 {
 	uint32_t new_brk_point;
 	BOOL success;
@@ -858,8 +858,8 @@ BOOL ppc_syscall_brk(gliss_state_t *state)
 	return success;
 }
 
-BOOL ppc_syscall_setgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getgid(gliss_state_t *state) {
+BOOL gliss_syscall_setgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getgid(gliss_state_t *state) {
 	gid_t gid;
 	if(verbose)
 		fprintf(verbose, "getgid()\n");
@@ -868,8 +868,8 @@ BOOL ppc_syscall_getgid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_signal(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_geteuid(gliss_state_t *state) {
+BOOL gliss_syscall_signal(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_geteuid(gliss_state_t *state) {
 	uid_t uid;
 	
 	if(verbose)
@@ -879,7 +879,7 @@ BOOL ppc_syscall_geteuid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_getegid(gliss_state_t *state) {
+BOOL gliss_syscall_getegid(gliss_state_t *state) {
 	gid_t gid;
 	
 	if(verbose)
@@ -889,106 +889,106 @@ BOOL ppc_syscall_getegid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL ppc_syscall_acct(gliss_state_t *state) 
+BOOL gliss_syscall_acct(gliss_state_t *state) 
 { 
   if(verbose)
     fprintf(verbose, "acct() not implemented.\n");
   RETURN(-1); return FALSE; 
 }
 
-BOOL ppc_syscall_umount2(gliss_state_t *state) 
+BOOL gliss_syscall_umount2(gliss_state_t *state) 
 { 
   if(verbose)
     fprintf(verbose, "unmount2() not implemented.\n");
   RETURN(-1); return FALSE; 
 }
 
-BOOL ppc_syscall_lock(gliss_state_t *state) 
+BOOL gliss_syscall_lock(gliss_state_t *state) 
 { 
   if(verbose)
     fprintf(verbose, "lock() not implemented.\n");
   RETURN(-1); return FALSE; 
 }
 
-BOOL ppc_syscall_ioctl(gliss_state_t *state) 
+BOOL gliss_syscall_ioctl(gliss_state_t *state) 
 { 	
   if(verbose)
     fprintf(verbose, "ioctl() not implemented.\n");
   RETURN(-1); return FALSE; 
 }
 
-BOOL ppc_syscall_fcntl(gliss_state_t *state)  {  RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mpx(gliss_state_t *state) { RETURN(-1); return FALSE;  }
-BOOL ppc_syscall_setpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ulimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_oldolduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_umask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_chroot(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ustat(gliss_state_t *state)  { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_dup2(gliss_state_t *state) { RETURN(-1); return FALSE;  }
-BOOL ppc_syscall_getppid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getpgrp(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sgetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ssetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setreuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setregid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sethostname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getrusage(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_gettimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_settimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_select(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_symlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_oldlstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_readlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_uselib(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_swapon(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_reboot(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_readdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_munmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_truncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ftruncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fchmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_profil(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_statfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fstatfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ioperm(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_socketcall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_syslog(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_stat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_lstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fcntl(gliss_state_t *state)  {  RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mpx(gliss_state_t *state) { RETURN(-1); return FALSE;  }
+BOOL gliss_syscall_setpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ulimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_oldolduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_umask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_chroot(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ustat(gliss_state_t *state)  { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_dup2(gliss_state_t *state) { RETURN(-1); return FALSE;  }
+BOOL gliss_syscall_getppid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getpgrp(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sgetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ssetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setreuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setregid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sethostname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getrusage(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_gettimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_settimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_select(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_symlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_oldlstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_readlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_uselib(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_swapon(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_reboot(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_readdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_munmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_truncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ftruncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fchmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_profil(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_statfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fstatfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ioperm(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_socketcall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_syslog(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_stat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_lstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-static void ppc_swap_stat(struct stat *buf) {
-	ppc_swap(&buf->st_dev, sizeof(&buf->st_dev));
-	ppc_swap(&buf->st_ino, sizeof(&buf->st_ino));
-	ppc_swap(&buf->st_mode, sizeof(&buf->st_mode));
-	ppc_swap(&buf->st_nlink, sizeof(&buf->st_nlink));
-	ppc_swap(&buf->st_uid, sizeof(&buf->st_uid));
-	ppc_swap(&buf->st_gid, sizeof(&buf->st_gid));
-	ppc_swap(&buf->st_rdev, sizeof(&buf->st_rdev));
-	ppc_swap(&buf->st_size, sizeof(&buf->st_size));
-	ppc_swap(&buf->st_blksize, sizeof(&buf->st_blksize));
-	ppc_swap(&buf->st_blocks, sizeof(&buf->st_blocks));
-	ppc_swap(&buf->st_atime, sizeof(&buf->st_atime));
-	ppc_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
-	ppc_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
-	ppc_swap(&buf->st_ino, sizeof(&buf->st_ino));
+static void gliss_swap_stat(struct stat *buf) {
+	gliss_swap(&buf->st_dev, sizeof(&buf->st_dev));
+	gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
+	gliss_swap(&buf->st_mode, sizeof(&buf->st_mode));
+	gliss_swap(&buf->st_nlink, sizeof(&buf->st_nlink));
+	gliss_swap(&buf->st_uid, sizeof(&buf->st_uid));
+	gliss_swap(&buf->st_gid, sizeof(&buf->st_gid));
+	gliss_swap(&buf->st_rdev, sizeof(&buf->st_rdev));
+	gliss_swap(&buf->st_size, sizeof(&buf->st_size));
+	gliss_swap(&buf->st_blksize, sizeof(&buf->st_blksize));
+	gliss_swap(&buf->st_blocks, sizeof(&buf->st_blocks));
+	gliss_swap(&buf->st_atime, sizeof(&buf->st_atime));
+	gliss_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
+	gliss_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
+	gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
 }
 
-BOOL ppc_syscall_fstat(gliss_state_t *state) {
+BOOL gliss_syscall_fstat(gliss_state_t *state) {
 	int fd;
 	struct stat *buf;
 	gliss_address_t buf_addr;
@@ -1006,7 +1006,7 @@ BOOL ppc_syscall_fstat(gliss_state_t *state) {
 		ret = fstat(fd, buf);
 		if(ret >= 0)
 		{
-			if(swap) ppc_swap_stat(buf);
+			if(swap) gliss_swap_stat(buf);
 			MEM_WRITE(buf_addr, buf, sizeof(struct stat));
 		}
 		free(buf);
@@ -1019,41 +1019,41 @@ BOOL ppc_syscall_fstat(gliss_state_t *state) {
 	return ret != -1;
 }
 
-BOOL ppc_syscall_olduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_iopl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_vhangup(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_idle(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_vm86old(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_wait4(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_swapoff(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sysinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ipc(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fsync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_clone(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setdomainname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_uname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_modify_ldt(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_adjtimex(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mprotect(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_create_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_init_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_delete_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_get_kernel_syms(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_quotactl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fchdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_bdflush(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sysfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_olduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_iopl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_vhangup(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_idle(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_vm86old(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_wait4(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_swapoff(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sysinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ipc(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fsync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_clone(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setdomainname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_uname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_modify_ldt(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_adjtimex(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mprotect(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_create_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_init_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_delete_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_get_kernel_syms(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_quotactl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fchdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_bdflush(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sysfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall_personality(gliss_state_t *state) { return TRUE; }
+BOOL gliss_syscall_personality(gliss_state_t *state) { return TRUE; }
 
-BOOL ppc_syscall_afs_syscall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setfsuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setfsgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_afs_syscall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setfsuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setfsgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL ppc_syscall__llseek(gliss_state_t *state)
+BOOL gliss_syscall__llseek(gliss_state_t *state)
 {
 	int fd;
 	uint32_t offset_high;
@@ -1092,114 +1092,114 @@ BOOL ppc_syscall__llseek(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL ppc_syscall_getdents(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_newselect(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_flock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_msync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_readv(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_writev(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fdatasync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sysctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_munlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_munlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_setparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_getparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_setscheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getsheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_yield(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_get_priority_max(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_get_priority_min(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sched_rr_get_interval(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_nanosleep(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mremap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_vm86(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_query_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_poll(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_nfsservctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_prctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigtimedwait(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigqueueinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_rt_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_pread(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_pwrite(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_chown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getcwd(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_capget(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_capset(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sigaltstack(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_sendfile(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_putpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_vfork(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ugetrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mmap2(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_truncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_ftruncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_stat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_lstat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getdents(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_newselect(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_flock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_msync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_readv(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_writev(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fdatasync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sysctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_munlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_munlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_setparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_getparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_setscheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getsheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_yield(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_get_priority_max(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_get_priority_min(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sched_rr_get_interval(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_nanosleep(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mremap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_vm86(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_query_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_poll(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_nfsservctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_prctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigtimedwait(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigqueueinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_rt_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_pread(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_pwrite(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_chown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getcwd(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_capget(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_capset(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sigaltstack(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_sendfile(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_putpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_vfork(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ugetrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mmap2(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_truncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_ftruncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_stat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_lstat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 #ifdef linux
-static void ppc_swap_stat64(struct stat64 *buf)
+static void gliss_swap_stat64(struct stat64 *buf)
 {
-	ppc_swap(&buf->st_dev, sizeof(&buf->st_dev));
+	gliss_swap(&buf->st_dev, sizeof(&buf->st_dev));
 	#if __WORDSIZE == 64
-		ppc_swap(&buf->st_ino, sizeof(&buf->st_ino));
+		gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
 	#else
-		ppc_swap(&buf->__pad1, sizeof(&buf->__pad1));
-		ppc_swap(&buf->__st_ino, sizeof(&buf->__st_ino));
+		gliss_swap(&buf->__pad1, sizeof(&buf->__pad1));
+		gliss_swap(&buf->__st_ino, sizeof(&buf->__st_ino));
 	#endif
-	ppc_swap(&buf->st_mode, sizeof(&buf->st_mode));
-	ppc_swap(&buf->st_nlink, sizeof(&buf->st_nlink));
-	ppc_swap(&buf->st_uid, sizeof(&buf->st_uid));
-	ppc_swap(&buf->st_gid, sizeof(&buf->st_gid));
-	ppc_swap(&buf->st_rdev, sizeof(&buf->st_rdev));
+	gliss_swap(&buf->st_mode, sizeof(&buf->st_mode));
+	gliss_swap(&buf->st_nlink, sizeof(&buf->st_nlink));
+	gliss_swap(&buf->st_uid, sizeof(&buf->st_uid));
+	gliss_swap(&buf->st_gid, sizeof(&buf->st_gid));
+	gliss_swap(&buf->st_rdev, sizeof(&buf->st_rdev));
 	#if __WORDSIZE == 64
 	#else
-		ppc_swap(&buf->__pad2, sizeof(&buf->__pad2));
+		gliss_swap(&buf->__pad2, sizeof(&buf->__pad2));
 	#endif
-	ppc_swap(&buf->st_size, sizeof(&buf->st_size));
-	ppc_swap(&buf->st_blksize, sizeof(&buf->st_blksize));
-	ppc_swap(&buf->st_blocks, sizeof(&buf->st_blocks));
-	ppc_swap(&buf->st_ino, sizeof(&buf->st_ino));
+	gliss_swap(&buf->st_size, sizeof(&buf->st_size));
+	gliss_swap(&buf->st_blksize, sizeof(&buf->st_blksize));
+	gliss_swap(&buf->st_blocks, sizeof(&buf->st_blocks));
+	gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
 #if __GLIBC_PREREQ(2,3)
 #    if __USE_MISC 
 	/* st_atime, st_mtime and st_ctime are macros */
-	ppc_swap(&buf->st_atim, sizeof(&buf->st_atim));
-	ppc_swap(&buf->st_mtim, sizeof(&buf->st_mtim));
-	ppc_swap(&buf->st_ctim, sizeof(&buf->st_ctim));
+	gliss_swap(&buf->st_atim, sizeof(&buf->st_atim));
+	gliss_swap(&buf->st_mtim, sizeof(&buf->st_mtim));
+	gliss_swap(&buf->st_ctim, sizeof(&buf->st_ctim));
 #    else 
-	ppc_swap(&buf->st_atime, sizeof(&buf->st_atime));
-	ppc_swap(&buf->__st_atimensec, sizeof(&buf->__st_atimensec));
-	ppc_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
-	ppc_swap(&buf->__st_mtimensec, sizeof(&buf->__st_mtimensec));
-	ppc_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
-	ppc_swap(&buf->__st_ctimensec, sizeof(&buf->__st_ctimensec));
+	gliss_swap(&buf->st_atime, sizeof(&buf->st_atime));
+	gliss_swap(&buf->__st_atimensec, sizeof(&buf->__st_atimensec));
+	gliss_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
+	gliss_swap(&buf->__st_mtimensec, sizeof(&buf->__st_mtimensec));
+	gliss_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
+	gliss_swap(&buf->__st_ctimensec, sizeof(&buf->__st_ctimensec));
 #    endif
 #elif   __GLIBC_PREREQ(2,2)
-	ppc_swap(&buf->st_atime, sizeof(&buf->st_atime));
-	ppc_swap(&buf->__unused1, sizeof(&buf->__unused1));
-	ppc_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
-	ppc_swap(&buf->__unused2, sizeof(&buf->__unused2));
-	ppc_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
-	ppc_swap(&buf->__unused3, sizeof(&buf->__unused3));
+	gliss_swap(&buf->st_atime, sizeof(&buf->st_atime));
+	gliss_swap(&buf->__unused1, sizeof(&buf->__unused1));
+	gliss_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
+	gliss_swap(&buf->__unused2, sizeof(&buf->__unused2));
+	gliss_swap(&buf->st_ctime, sizeof(&buf->st_ctime));
+	gliss_swap(&buf->__unused3, sizeof(&buf->__unused3));
 #else
 #	error "Glibc 2.2 or greater needed"
 #endif
 }
 #endif
 
-BOOL ppc_syscall_fstat64(gliss_state_t *state) {
+BOOL gliss_syscall_fstat64(gliss_state_t *state) {
 #ifdef linux
 	int fd;
 	gliss_address_t buf_addr;
@@ -1218,7 +1218,7 @@ BOOL ppc_syscall_fstat64(gliss_state_t *state) {
 		ret = fstat64(fd, buf);
 		if(ret >= 0)
 		{
-			if(swap) ppc_swap_stat64(buf);
+			if(swap) gliss_swap_stat64(buf);
 			MEM_WRITE(buf_addr, buf, sizeof(struct stat64));
 		}
 		free(buf);
@@ -1236,30 +1236,30 @@ BOOL ppc_syscall_fstat64(gliss_state_t *state) {
 #endif
 }
 
-BOOL ppc_syscall_lchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_geteuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getegid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setreuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setregid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_chown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setfsuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_setfsgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_pivot_root(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_mincore(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_madvise(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_getdents64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL ppc_syscall_fnctl64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_lchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_geteuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getegid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setreuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setregid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_chown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setfsuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_setfsgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_pivot_root(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_mincore(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_madvise(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_getdents64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+BOOL gliss_syscall_fnctl64(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 
 void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
@@ -1268,235 +1268,235 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
   
 	syscall_num = GLISS_SYSCALL_CODE(inst, state);
 	if(verbose)
-		fprintf(verbose, "got a system call (number : %u; name : %s)\n", syscall_num, ppc_get_syscall_name(syscall_num));
+		fprintf(verbose, "got a system call (number : %u; name : %s)\n", syscall_num, gliss_get_syscall_name(syscall_num));
   
 	switch(syscall_num) {
-	case __SYSCALL_exit: ret = ppc_syscall_exit(state); break;
-	case __SYSCALL_fork: ret = ppc_syscall_fork(state); break;
-	case __SYSCALL_read: ret = ppc_syscall_read(state); break;
-	case __SYSCALL_write: ret = ppc_syscall_write(state); break;
-	case __SYSCALL_open: ret = ppc_syscall_open(state); break;
-	case __SYSCALL_close: ret = ppc_syscall_close(state); break;
-	case __SYSCALL_waitpid: ret = ppc_syscall_waitpid(state); break;
-	case __SYSCALL_creat: ret = ppc_syscall_creat(state); break;
-	case __SYSCALL_link: ret = ppc_syscall_link(state); break;
-	case __SYSCALL_unlink: ret = ppc_syscall_unlink(state); break;
-	case __SYSCALL_execve: ret = ppc_syscall_execve(state); break;
-	case __SYSCALL_chdir: ret = ppc_syscall_chdir(state); break;
-	case __SYSCALL_time: ret = ppc_syscall_time(state); break;
-	case __SYSCALL_mknod: ret = ppc_syscall_mknod(state); break;
-	case __SYSCALL_chmod: ret = ppc_syscall_chmod(state); break;
-	case __SYSCALL_lchown: ret = ppc_syscall_lchown(state); break;
-	case __SYSCALL_break: ret = ppc_syscall_break(state); break;
-	case __SYSCALL_oldstat: ret = ppc_syscall_oldstat(state); break;
-	case __SYSCALL_lseek: ret = ppc_syscall_lseek(state); break;
-	case __SYSCALL_getpid: ret = ppc_syscall_getpid(state); break;
-	case __SYSCALL_mount: ret = ppc_syscall_mount(state); break;
-	case __SYSCALL_umount: ret = ppc_syscall_umount(state); break;
-	case __SYSCALL_setuid: ret = ppc_syscall_setuid(state); break;
-	case __SYSCALL_getuid: ret = ppc_syscall_getuid(state); break;
-	case __SYSCALL_stime: ret = ppc_syscall_stime(state); break;
-	case __SYSCALL_ptrace: ret = ppc_syscall_ptrace(state); break;
-	case __SYSCALL_alarm: ret = ppc_syscall_alarm(state); break;
-	case __SYSCALL_oldfstat: ret = ppc_syscall_oldfstat(state); break;
-	case __SYSCALL_pause: ret = ppc_syscall_pause(state); break;
-	case __SYSCALL_utime: ret = ppc_syscall_utime(state); break;
-	case __SYSCALL_stty: ret = ppc_syscall_stty(state); break;
-	case __SYSCALL_gtty: ret = ppc_syscall_gtty(state); break;
-	case __SYSCALL_access: ret = ppc_syscall_access(state); break;
-	case __SYSCALL_nice: ret = ppc_syscall_nice(state); break;
-	case __SYSCALL_ftime: ret = ppc_syscall_ftime(state); break;
-	case __SYSCALL_sync: ret = ppc_syscall_sync(state); break;
-	case __SYSCALL_kill: ret = ppc_syscall_kill(state); break;
-	case __SYSCALL_rename: ret = ppc_syscall_rename(state); break;
-	case __SYSCALL_mkdir: ret = ppc_syscall_mkdir(state); break;
-	case __SYSCALL_rmdir: ret = ppc_syscall_rmdir(state); break;
-	case __SYSCALL_dup: ret = ppc_syscall_dup(state); break;
-	case __SYSCALL_pipe: ret = ppc_syscall_pipe(state); break;
-	case __SYSCALL_times: ret = ppc_syscall_times(state); break;
-	case __SYSCALL_prof: ret = ppc_syscall_prof(state); break;
-	case __SYSCALL_brk: ret = ppc_syscall_brk(state); break;
-	case __SYSCALL_setgid: ret = ppc_syscall_setgid(state); break;
-	case __SYSCALL_getgid: ret = ppc_syscall_getgid(state); break;
-	case __SYSCALL_signal: ret = ppc_syscall_signal(state); break;
-	case __SYSCALL_geteuid: ret = ppc_syscall_geteuid(state); break;
-	case __SYSCALL_getegid: ret = ppc_syscall_getegid(state); break;
-	case __SYSCALL_acct: ret = ppc_syscall_acct(state); break;
-	case __SYSCALL_umount2: ret = ppc_syscall_umount2(state); break;
-	case __SYSCALL_lock: ret = ppc_syscall_lock(state); break;
-	case __SYSCALL_ioctl: ret = ppc_syscall_ioctl(state); break;
-	case __SYSCALL_fcntl: ret = ppc_syscall_fcntl(state); break;
-	case __SYSCALL_mpx: ret = ppc_syscall_mpx(state); break;
-	case __SYSCALL_setpgid: ret = ppc_syscall_setpgid(state); break;
-	case __SYSCALL_ulimit: ret = ppc_syscall_ulimit(state); break;
-	case __SYSCALL_oldolduname: ret = ppc_syscall_oldolduname(state); break;
-	case __SYSCALL_umask: ret = ppc_syscall_umask(state); break;
-	case __SYSCALL_chroot: ret = ppc_syscall_chroot(state); break;
-	case __SYSCALL_ustat	: ret = ppc_syscall_ustat(state); break;
-	case __SYSCALL_dup2: ret = ppc_syscall_dup2(state); break;
-	case __SYSCALL_getppid: ret = ppc_syscall_getppid(state); break;
-	case __SYSCALL_getpgrp: ret = ppc_syscall_getpgrp(state); break;
-	case __SYSCALL_setsid: ret = ppc_syscall_setsid(state); break;
-	case __SYSCALL_sigaction: ret = ppc_syscall_sigaction(state); break;
-	case __SYSCALL_sgetmask: ret = ppc_syscall_sgetmask(state); break;
-	case __SYSCALL_ssetmask: ret = ppc_syscall_ssetmask(state); break;
-	case __SYSCALL_setreuid: ret = ppc_syscall_setreuid(state); break;
-	case __SYSCALL_setregid: ret = ppc_syscall_setregid(state); break;
-	case __SYSCALL_sigsuspend: ret = ppc_syscall_sigsuspend(state); break;
-	case __SYSCALL_sigpending: ret = ppc_syscall_sigpending(state); break;
-	case __SYSCALL_sethostname: ret = ppc_syscall_sethostname(state); break;
-	case __SYSCALL_setrlimit: ret = ppc_syscall_setrlimit(state); break;
-	case __SYSCALL_getrlimit: ret = ppc_syscall_getrlimit(state); break;
-	case __SYSCALL_getrusage: ret = ppc_syscall_getrusage(state); break;
-	case __SYSCALL_gettimeofday: ret = ppc_syscall_gettimeofday(state); break;
-	case __SYSCALL_settimeofday: ret = ppc_syscall_settimeofday(state); break;
-	case __SYSCALL_getgroups: ret = ppc_syscall_getgroups(state); break;
-	case __SYSCALL_setgroups: ret = ppc_syscall_setgroups(state); break;
-	case __SYSCALL_select: ret = ppc_syscall_select(state); break;
-	case __SYSCALL_symlink: ret = ppc_syscall_symlink(state); break;
-	case __SYSCALL_oldlstat: ret = ppc_syscall_oldlstat(state); break;
-	case __SYSCALL_readlink: ret = ppc_syscall_readlink(state); break;
-	case __SYSCALL_uselib: ret = ppc_syscall_uselib(state); break;
-	case __SYSCALL_swapon: ret = ppc_syscall_swapon(state); break;
-	case __SYSCALL_reboot: ret = ppc_syscall_reboot(state); break;
-	case __SYSCALL_readdir: ret = ppc_syscall_readdir(state); break;
-	case __SYSCALL_mmap: ret = ppc_syscall_mmap(state); break;
-	case __SYSCALL_munmap: ret = ppc_syscall_munmap(state); break;
-	case __SYSCALL_truncate: ret = ppc_syscall_truncate(state); break;
-	case __SYSCALL_ftruncate: ret = ppc_syscall_ftruncate(state); break;
-	case __SYSCALL_fchmod: ret = ppc_syscall_fchmod(state); break;
-	case __SYSCALL_fchown: ret = ppc_syscall_fchown(state); break;
-	case __SYSCALL_getpriority: ret = ppc_syscall_getpriority(state); break;
-	case __SYSCALL_setpriority: ret = ppc_syscall_setpriority(state); break;
-	case __SYSCALL_profil: ret = ppc_syscall_profil(state); break;
-	case __SYSCALL_statfs: ret = ppc_syscall_statfs(state); break;
-	case __SYSCALL_fstatfs: ret = ppc_syscall_fstatfs(state); break;
-	case __SYSCALL_ioperm: ret = ppc_syscall_ioperm(state); break;
-	case __SYSCALL_socketcall: ret = ppc_syscall_socketcall(state); break;
-	case __SYSCALL_syslog: ret = ppc_syscall_syslog(state); break;
-	case __SYSCALL_setitimer: ret = ppc_syscall_setitimer(state); break;
-	case __SYSCALL_getitimer: ret = ppc_syscall_getitimer(state); break;
-	case __SYSCALL_stat: ret = ppc_syscall_stat(state); break;
-	case __SYSCALL_lstat: ret = ppc_syscall_lstat(state); break;
-	case __SYSCALL_fstat: ret = ppc_syscall_fstat(state); break;
-	case __SYSCALL_olduname: ret = ppc_syscall_olduname(state); break;
-	case __SYSCALL_iopl: ret = ppc_syscall_iopl(state); break;
-	case __SYSCALL_vhangup: ret = ppc_syscall_vhangup(state); break;
-	case __SYSCALL_idle: ret = ppc_syscall_idle(state); break;
-	case __SYSCALL_vm86old: ret = ppc_syscall_vm86old(state); break;
-	case __SYSCALL_wait4: ret = ppc_syscall_wait4(state); break;
-	case __SYSCALL_swapoff: ret = ppc_syscall_swapoff(state); break;
-	case __SYSCALL_sysinfo: ret = ppc_syscall_sysinfo(state); break;
-	case __SYSCALL_ipc: ret = ppc_syscall_ipc(state); break;
-	case __SYSCALL_fsync: ret = ppc_syscall_fsync(state); break;
-	case __SYSCALL_sigreturn: ret = ppc_syscall_sigreturn(state); break;
-	case __SYSCALL_clone: ret = ppc_syscall_clone(state); break;
-	case __SYSCALL_setdomainname: ret = ppc_syscall_setdomainname(state); break;
-	case __SYSCALL_uname: ret = ppc_syscall_uname(state); break;
-	case __SYSCALL_modify_ldt: ret = ppc_syscall_modify_ldt(state); break;
-	case __SYSCALL_adjtimex: ret = ppc_syscall_adjtimex(state); break;
-	case __SYSCALL_mprotect: ret = ppc_syscall_mprotect(state); break;
-	case __SYSCALL_sigprocmask: ret = ppc_syscall_sigprocmask(state); break;
-	case __SYSCALL_create_module: ret = ppc_syscall_create_module(state); break;
-	case __SYSCALL_init_module: ret = ppc_syscall_init_module(state); break;
-	case __SYSCALL_delete_module: ret = ppc_syscall_delete_module(state); break;
-	case __SYSCALL_get_kernel_syms: ret = ppc_syscall_get_kernel_syms(state); break;
-	case __SYSCALL_quotactl: ret = ppc_syscall_quotactl(state); break;
-	case __SYSCALL_getpgid: ret = ppc_syscall_getpgid(state); break;
-	case __SYSCALL_fchdir: ret = ppc_syscall_fchdir(state); break;
-	case __SYSCALL_bdflush: ret = ppc_syscall_bdflush(state); break;
-	case __SYSCALL_sysfs: ret = ppc_syscall_sysfs(state); break;
-	case __SYSCALL_personality: ret = ppc_syscall_personality(state); break;
-	case __SYSCALL_afs_syscall: ret = ppc_syscall_afs_syscall(state); break;
-	case __SYSCALL_setfsuid: ret = ppc_syscall_setfsuid(state); break;
-	case __SYSCALL_setfsgid: ret = ppc_syscall_setfsgid(state); break;
-	case __SYSCALL__llseek: ret = ppc_syscall__llseek(state); break;
-	case __SYSCALL_getdents: ret = ppc_syscall_getdents(state); break;
-	case __SYSCALL__newselect: ret = ppc_syscall_newselect(state); break;
-	case __SYSCALL_flock: ret = ppc_syscall_flock(state); break;
-	case __SYSCALL_msync: ret = ppc_syscall_msync(state); break;
-	case __SYSCALL_readv: ret = ppc_syscall_readv(state); break;
-	case __SYSCALL_writev: ret = ppc_syscall_writev(state); break;
-	case __SYSCALL_getsid: ret = ppc_syscall_getsid(state); break;
-	case __SYSCALL_fdatasync: ret = ppc_syscall_fdatasync(state); break;
-	case __SYSCALL__sysctl: ret = ppc_syscall_sysctl(state); break;
-	case __SYSCALL_mlock: ret = ppc_syscall_mlock(state); break;
-	case __SYSCALL_munlock: ret = ppc_syscall_munlock(state); break;
-	case __SYSCALL_mlockall: ret = ppc_syscall_mlockall(state); break;
-	case __SYSCALL_munlockall: ret = ppc_syscall_munlockall(state); break;
-	case __SYSCALL_sched_setparam: ret = ppc_syscall_sched_setparam(state); break;
-	case __SYSCALL_sched_getparam: ret = ppc_syscall_sched_getparam(state); break;
-	case __SYSCALL_sched_setscheduler: ret = ppc_syscall_sched_setscheduler(state); break;
-	case __SYSCALL_sched_getscheduler: ret = ppc_syscall_getsheduler(state); break;
-	case __SYSCALL_sched_yield: ret = ppc_syscall_sched_yield(state); break;
-	case __SYSCALL_sched_get_priority_max: ret = ppc_syscall_sched_get_priority_max(state); break;
-	case __SYSCALL_sched_get_priority_min: ret = ppc_syscall_sched_get_priority_min(state); break;
-	case __SYSCALL_sched_rr_get_interval: ret = ppc_syscall_sched_rr_get_interval(state); break;
-	case __SYSCALL_nanosleep: ret = ppc_syscall_nanosleep(state); break;
-	case __SYSCALL_mremap: ret = ppc_syscall_mremap(state); break;
-	case __SYSCALL_setresuid	: ret = ppc_syscall_setresuid(state); break;
-	case __SYSCALL_getresuid: ret = ppc_syscall_getresuid(state); break;
-	case __SYSCALL_vm86: ret = ppc_syscall_vm86(state); break;
-	case __SYSCALL_query_module: ret = ppc_syscall_query_module(state); break;
-	case __SYSCALL_poll: ret = ppc_syscall_poll(state); break;
-	case __SYSCALL_nfsservctl: ret = ppc_syscall_nfsservctl(state); break;
-	case __SYSCALL_setresgid	: ret = ppc_syscall_setresgid(state); break;
-	case __SYSCALL_getresgid: ret = ppc_syscall_getresgid(state); break;
-	case __SYSCALL_prctl: ret = ppc_syscall_prctl(state); break;
-	case __SYSCALL_rt_sigreturn: ret = ppc_syscall_rt_sigreturn(state); break;
-	case __SYSCALL_rt_sigaction: ret = ppc_syscall_rt_sigaction(state); break;
-	case __SYSCALL_rt_sigprocmask: ret = ppc_syscall_rt_sigprocmask(state); break;
-	case __SYSCALL_rt_sigpending: ret = ppc_syscall_rt_sigpending(state); break;
-	case __SYSCALL_rt_sigtimedwait: ret = ppc_syscall_rt_sigtimedwait(state); break;
-	case __SYSCALL_rt_sigqueueinfo: ret = ppc_syscall_rt_sigqueueinfo(state); break;
-	case __SYSCALL_rt_sigsuspend: ret = ppc_syscall_rt_sigsuspend(state); break;
-	case __SYSCALL_pread: ret = ppc_syscall_pread(state); break;
-	case __SYSCALL_pwrite: ret = ppc_syscall_pwrite(state); break;
-	case __SYSCALL_chown: ret = ppc_syscall_chown(state); break;
-	case __SYSCALL_getcwd: ret = ppc_syscall_getcwd(state); break;
-	case __SYSCALL_capget: ret = ppc_syscall_capget(state); break;
-	case __SYSCALL_capset: ret = ppc_syscall_capset(state); break;
-	case __SYSCALL_sigaltstack: ret = ppc_syscall_sigaltstack(state); break;
-	case __SYSCALL_sendfile: ret = ppc_syscall_sendfile(state); break;
-	case __SYSCALL_getpmsg: ret = ppc_syscall_getpmsg(state); break;
-	case __SYSCALL_putpmsg: ret = ppc_syscall_putpmsg(state); break;
-	case __SYSCALL_vfork: ret = ppc_syscall_vfork(state); break;
-	case __SYSCALL_ugetrlimit: ret = ppc_syscall_ugetrlimit(state); break;
-	case __SYSCALL_mmap2: ret = ppc_syscall_mmap2(state); break;
-	case __SYSCALL_truncate64: ret = ppc_syscall_truncate64(state); break;
-	case __SYSCALL_ftruncate64: ret = ppc_syscall_ftruncate64(state); break;
-	case __SYSCALL_stat64: ret = ppc_syscall_stat64(state); break;
-	case __SYSCALL_lstat64: ret = ppc_syscall_lstat64(state); break;
-	case __SYSCALL_fstat64: ret = ppc_syscall_fstat64(state); break;
-	case __SYSCALL_lchown32: ret = ppc_syscall_lchown32(state); break;
-	case __SYSCALL_getuid32: ret = ppc_syscall_getuid32(state); break;
-	case __SYSCALL_getgid32: ret = ppc_syscall_getgid32(state); break;
-	case __SYSCALL_geteuid32: ret = ppc_syscall_geteuid32(state); break;
-	case __SYSCALL_getegid32: ret = ppc_syscall_getegid32(state); break;
-	case __SYSCALL_setreuid32: ret = ppc_syscall_setreuid32(state); break;
-	case __SYSCALL_setregid32: ret = ppc_syscall_setregid32(state); break;
-	case __SYSCALL_getgroups32: ret = ppc_syscall_getgroups32(state); break;
-	case __SYSCALL_setgroups32: ret = ppc_syscall_setgroups32(state); break;
-	case __SYSCALL_fchown32: ret = ppc_syscall_fchown32(state); break;
-	case __SYSCALL_setresuid32: ret = ppc_syscall_setresuid32(state); break;
-	case __SYSCALL_getresuid32: ret = ppc_syscall_getresuid32(state); break;
-	case __SYSCALL_setresgid32: ret = ppc_syscall_setresgid32(state); break;
-	case __SYSCALL_getresgid32: ret = ppc_syscall_getresgid32(state); break;
-	case __SYSCALL_chown32: ret = ppc_syscall_chown32(state); break;
-	case __SYSCALL_setuid32: ret = ppc_syscall_setuid32(state); break;
-	case __SYSCALL_setgid32: ret = ppc_syscall_setgid32(state); break;
-	case __SYSCALL_setfsuid32: ret = ppc_syscall_setfsuid32(state); break;
-	case __SYSCALL_setfsgid32: ret = ppc_syscall_setfsgid32(state); break;
-	case __SYSCALL_pivot_root: ret = ppc_syscall_pivot_root(state); break;
-	case __SYSCALL_mincore: ret = ppc_syscall_mincore(state); break;
-	case __SYSCALL_madvise: ret = ppc_syscall_madvise(state); break;
-	case __SYSCALL_getdents64: ret = ppc_syscall_getdents64(state); break;
-	case __SYSCALL_fcntl64: ret = ppc_syscall_fnctl64(state); break;
+	case __SYSCALL_exit: ret = gliss_syscall_exit(state); break;
+	case __SYSCALL_fork: ret = gliss_syscall_fork(state); break;
+	case __SYSCALL_read: ret = gliss_syscall_read(state); break;
+	case __SYSCALL_write: ret = gliss_syscall_write(state); break;
+	case __SYSCALL_open: ret = gliss_syscall_open(state); break;
+	case __SYSCALL_close: ret = gliss_syscall_close(state); break;
+	case __SYSCALL_waitpid: ret = gliss_syscall_waitpid(state); break;
+	case __SYSCALL_creat: ret = gliss_syscall_creat(state); break;
+	case __SYSCALL_link: ret = gliss_syscall_link(state); break;
+	case __SYSCALL_unlink: ret = gliss_syscall_unlink(state); break;
+	case __SYSCALL_execve: ret = gliss_syscall_execve(state); break;
+	case __SYSCALL_chdir: ret = gliss_syscall_chdir(state); break;
+	case __SYSCALL_time: ret = gliss_syscall_time(state); break;
+	case __SYSCALL_mknod: ret = gliss_syscall_mknod(state); break;
+	case __SYSCALL_chmod: ret = gliss_syscall_chmod(state); break;
+	case __SYSCALL_lchown: ret = gliss_syscall_lchown(state); break;
+	case __SYSCALL_break: ret = gliss_syscall_break(state); break;
+	case __SYSCALL_oldstat: ret = gliss_syscall_oldstat(state); break;
+	case __SYSCALL_lseek: ret = gliss_syscall_lseek(state); break;
+	case __SYSCALL_getpid: ret = gliss_syscall_getpid(state); break;
+	case __SYSCALL_mount: ret = gliss_syscall_mount(state); break;
+	case __SYSCALL_umount: ret = gliss_syscall_umount(state); break;
+	case __SYSCALL_setuid: ret = gliss_syscall_setuid(state); break;
+	case __SYSCALL_getuid: ret = gliss_syscall_getuid(state); break;
+	case __SYSCALL_stime: ret = gliss_syscall_stime(state); break;
+	case __SYSCALL_ptrace: ret = gliss_syscall_ptrace(state); break;
+	case __SYSCALL_alarm: ret = gliss_syscall_alarm(state); break;
+	case __SYSCALL_oldfstat: ret = gliss_syscall_oldfstat(state); break;
+	case __SYSCALL_pause: ret = gliss_syscall_pause(state); break;
+	case __SYSCALL_utime: ret = gliss_syscall_utime(state); break;
+	case __SYSCALL_stty: ret = gliss_syscall_stty(state); break;
+	case __SYSCALL_gtty: ret = gliss_syscall_gtty(state); break;
+	case __SYSCALL_access: ret = gliss_syscall_access(state); break;
+	case __SYSCALL_nice: ret = gliss_syscall_nice(state); break;
+	case __SYSCALL_ftime: ret = gliss_syscall_ftime(state); break;
+	case __SYSCALL_sync: ret = gliss_syscall_sync(state); break;
+	case __SYSCALL_kill: ret = gliss_syscall_kill(state); break;
+	case __SYSCALL_rename: ret = gliss_syscall_rename(state); break;
+	case __SYSCALL_mkdir: ret = gliss_syscall_mkdir(state); break;
+	case __SYSCALL_rmdir: ret = gliss_syscall_rmdir(state); break;
+	case __SYSCALL_dup: ret = gliss_syscall_dup(state); break;
+	case __SYSCALL_pipe: ret = gliss_syscall_pipe(state); break;
+	case __SYSCALL_times: ret = gliss_syscall_times(state); break;
+	case __SYSCALL_prof: ret = gliss_syscall_prof(state); break;
+	case __SYSCALL_brk: ret = gliss_syscall_brk(state); break;
+	case __SYSCALL_setgid: ret = gliss_syscall_setgid(state); break;
+	case __SYSCALL_getgid: ret = gliss_syscall_getgid(state); break;
+	case __SYSCALL_signal: ret = gliss_syscall_signal(state); break;
+	case __SYSCALL_geteuid: ret = gliss_syscall_geteuid(state); break;
+	case __SYSCALL_getegid: ret = gliss_syscall_getegid(state); break;
+	case __SYSCALL_acct: ret = gliss_syscall_acct(state); break;
+	case __SYSCALL_umount2: ret = gliss_syscall_umount2(state); break;
+	case __SYSCALL_lock: ret = gliss_syscall_lock(state); break;
+	case __SYSCALL_ioctl: ret = gliss_syscall_ioctl(state); break;
+	case __SYSCALL_fcntl: ret = gliss_syscall_fcntl(state); break;
+	case __SYSCALL_mpx: ret = gliss_syscall_mpx(state); break;
+	case __SYSCALL_setpgid: ret = gliss_syscall_setpgid(state); break;
+	case __SYSCALL_ulimit: ret = gliss_syscall_ulimit(state); break;
+	case __SYSCALL_oldolduname: ret = gliss_syscall_oldolduname(state); break;
+	case __SYSCALL_umask: ret = gliss_syscall_umask(state); break;
+	case __SYSCALL_chroot: ret = gliss_syscall_chroot(state); break;
+	case __SYSCALL_ustat	: ret = gliss_syscall_ustat(state); break;
+	case __SYSCALL_dup2: ret = gliss_syscall_dup2(state); break;
+	case __SYSCALL_getppid: ret = gliss_syscall_getppid(state); break;
+	case __SYSCALL_getpgrp: ret = gliss_syscall_getpgrp(state); break;
+	case __SYSCALL_setsid: ret = gliss_syscall_setsid(state); break;
+	case __SYSCALL_sigaction: ret = gliss_syscall_sigaction(state); break;
+	case __SYSCALL_sgetmask: ret = gliss_syscall_sgetmask(state); break;
+	case __SYSCALL_ssetmask: ret = gliss_syscall_ssetmask(state); break;
+	case __SYSCALL_setreuid: ret = gliss_syscall_setreuid(state); break;
+	case __SYSCALL_setregid: ret = gliss_syscall_setregid(state); break;
+	case __SYSCALL_sigsuspend: ret = gliss_syscall_sigsuspend(state); break;
+	case __SYSCALL_sigpending: ret = gliss_syscall_sigpending(state); break;
+	case __SYSCALL_sethostname: ret = gliss_syscall_sethostname(state); break;
+	case __SYSCALL_setrlimit: ret = gliss_syscall_setrlimit(state); break;
+	case __SYSCALL_getrlimit: ret = gliss_syscall_getrlimit(state); break;
+	case __SYSCALL_getrusage: ret = gliss_syscall_getrusage(state); break;
+	case __SYSCALL_gettimeofday: ret = gliss_syscall_gettimeofday(state); break;
+	case __SYSCALL_settimeofday: ret = gliss_syscall_settimeofday(state); break;
+	case __SYSCALL_getgroups: ret = gliss_syscall_getgroups(state); break;
+	case __SYSCALL_setgroups: ret = gliss_syscall_setgroups(state); break;
+	case __SYSCALL_select: ret = gliss_syscall_select(state); break;
+	case __SYSCALL_symlink: ret = gliss_syscall_symlink(state); break;
+	case __SYSCALL_oldlstat: ret = gliss_syscall_oldlstat(state); break;
+	case __SYSCALL_readlink: ret = gliss_syscall_readlink(state); break;
+	case __SYSCALL_uselib: ret = gliss_syscall_uselib(state); break;
+	case __SYSCALL_swapon: ret = gliss_syscall_swapon(state); break;
+	case __SYSCALL_reboot: ret = gliss_syscall_reboot(state); break;
+	case __SYSCALL_readdir: ret = gliss_syscall_readdir(state); break;
+	case __SYSCALL_mmap: ret = gliss_syscall_mmap(state); break;
+	case __SYSCALL_munmap: ret = gliss_syscall_munmap(state); break;
+	case __SYSCALL_truncate: ret = gliss_syscall_truncate(state); break;
+	case __SYSCALL_ftruncate: ret = gliss_syscall_ftruncate(state); break;
+	case __SYSCALL_fchmod: ret = gliss_syscall_fchmod(state); break;
+	case __SYSCALL_fchown: ret = gliss_syscall_fchown(state); break;
+	case __SYSCALL_getpriority: ret = gliss_syscall_getpriority(state); break;
+	case __SYSCALL_setpriority: ret = gliss_syscall_setpriority(state); break;
+	case __SYSCALL_profil: ret = gliss_syscall_profil(state); break;
+	case __SYSCALL_statfs: ret = gliss_syscall_statfs(state); break;
+	case __SYSCALL_fstatfs: ret = gliss_syscall_fstatfs(state); break;
+	case __SYSCALL_ioperm: ret = gliss_syscall_ioperm(state); break;
+	case __SYSCALL_socketcall: ret = gliss_syscall_socketcall(state); break;
+	case __SYSCALL_syslog: ret = gliss_syscall_syslog(state); break;
+	case __SYSCALL_setitimer: ret = gliss_syscall_setitimer(state); break;
+	case __SYSCALL_getitimer: ret = gliss_syscall_getitimer(state); break;
+	case __SYSCALL_stat: ret = gliss_syscall_stat(state); break;
+	case __SYSCALL_lstat: ret = gliss_syscall_lstat(state); break;
+	case __SYSCALL_fstat: ret = gliss_syscall_fstat(state); break;
+	case __SYSCALL_olduname: ret = gliss_syscall_olduname(state); break;
+	case __SYSCALL_iopl: ret = gliss_syscall_iopl(state); break;
+	case __SYSCALL_vhangup: ret = gliss_syscall_vhangup(state); break;
+	case __SYSCALL_idle: ret = gliss_syscall_idle(state); break;
+	case __SYSCALL_vm86old: ret = gliss_syscall_vm86old(state); break;
+	case __SYSCALL_wait4: ret = gliss_syscall_wait4(state); break;
+	case __SYSCALL_swapoff: ret = gliss_syscall_swapoff(state); break;
+	case __SYSCALL_sysinfo: ret = gliss_syscall_sysinfo(state); break;
+	case __SYSCALL_ipc: ret = gliss_syscall_ipc(state); break;
+	case __SYSCALL_fsync: ret = gliss_syscall_fsync(state); break;
+	case __SYSCALL_sigreturn: ret = gliss_syscall_sigreturn(state); break;
+	case __SYSCALL_clone: ret = gliss_syscall_clone(state); break;
+	case __SYSCALL_setdomainname: ret = gliss_syscall_setdomainname(state); break;
+	case __SYSCALL_uname: ret = gliss_syscall_uname(state); break;
+	case __SYSCALL_modify_ldt: ret = gliss_syscall_modify_ldt(state); break;
+	case __SYSCALL_adjtimex: ret = gliss_syscall_adjtimex(state); break;
+	case __SYSCALL_mprotect: ret = gliss_syscall_mprotect(state); break;
+	case __SYSCALL_sigprocmask: ret = gliss_syscall_sigprocmask(state); break;
+	case __SYSCALL_create_module: ret = gliss_syscall_create_module(state); break;
+	case __SYSCALL_init_module: ret = gliss_syscall_init_module(state); break;
+	case __SYSCALL_delete_module: ret = gliss_syscall_delete_module(state); break;
+	case __SYSCALL_get_kernel_syms: ret = gliss_syscall_get_kernel_syms(state); break;
+	case __SYSCALL_quotactl: ret = gliss_syscall_quotactl(state); break;
+	case __SYSCALL_getpgid: ret = gliss_syscall_getpgid(state); break;
+	case __SYSCALL_fchdir: ret = gliss_syscall_fchdir(state); break;
+	case __SYSCALL_bdflush: ret = gliss_syscall_bdflush(state); break;
+	case __SYSCALL_sysfs: ret = gliss_syscall_sysfs(state); break;
+	case __SYSCALL_personality: ret = gliss_syscall_personality(state); break;
+	case __SYSCALL_afs_syscall: ret = gliss_syscall_afs_syscall(state); break;
+	case __SYSCALL_setfsuid: ret = gliss_syscall_setfsuid(state); break;
+	case __SYSCALL_setfsgid: ret = gliss_syscall_setfsgid(state); break;
+	case __SYSCALL__llseek: ret = gliss_syscall__llseek(state); break;
+	case __SYSCALL_getdents: ret = gliss_syscall_getdents(state); break;
+	case __SYSCALL__newselect: ret = gliss_syscall_newselect(state); break;
+	case __SYSCALL_flock: ret = gliss_syscall_flock(state); break;
+	case __SYSCALL_msync: ret = gliss_syscall_msync(state); break;
+	case __SYSCALL_readv: ret = gliss_syscall_readv(state); break;
+	case __SYSCALL_writev: ret = gliss_syscall_writev(state); break;
+	case __SYSCALL_getsid: ret = gliss_syscall_getsid(state); break;
+	case __SYSCALL_fdatasync: ret = gliss_syscall_fdatasync(state); break;
+	case __SYSCALL__sysctl: ret = gliss_syscall_sysctl(state); break;
+	case __SYSCALL_mlock: ret = gliss_syscall_mlock(state); break;
+	case __SYSCALL_munlock: ret = gliss_syscall_munlock(state); break;
+	case __SYSCALL_mlockall: ret = gliss_syscall_mlockall(state); break;
+	case __SYSCALL_munlockall: ret = gliss_syscall_munlockall(state); break;
+	case __SYSCALL_sched_setparam: ret = gliss_syscall_sched_setparam(state); break;
+	case __SYSCALL_sched_getparam: ret = gliss_syscall_sched_getparam(state); break;
+	case __SYSCALL_sched_setscheduler: ret = gliss_syscall_sched_setscheduler(state); break;
+	case __SYSCALL_sched_getscheduler: ret = gliss_syscall_getsheduler(state); break;
+	case __SYSCALL_sched_yield: ret = gliss_syscall_sched_yield(state); break;
+	case __SYSCALL_sched_get_priority_max: ret = gliss_syscall_sched_get_priority_max(state); break;
+	case __SYSCALL_sched_get_priority_min: ret = gliss_syscall_sched_get_priority_min(state); break;
+	case __SYSCALL_sched_rr_get_interval: ret = gliss_syscall_sched_rr_get_interval(state); break;
+	case __SYSCALL_nanosleep: ret = gliss_syscall_nanosleep(state); break;
+	case __SYSCALL_mremap: ret = gliss_syscall_mremap(state); break;
+	case __SYSCALL_setresuid	: ret = gliss_syscall_setresuid(state); break;
+	case __SYSCALL_getresuid: ret = gliss_syscall_getresuid(state); break;
+	case __SYSCALL_vm86: ret = gliss_syscall_vm86(state); break;
+	case __SYSCALL_query_module: ret = gliss_syscall_query_module(state); break;
+	case __SYSCALL_poll: ret = gliss_syscall_poll(state); break;
+	case __SYSCALL_nfsservctl: ret = gliss_syscall_nfsservctl(state); break;
+	case __SYSCALL_setresgid	: ret = gliss_syscall_setresgid(state); break;
+	case __SYSCALL_getresgid: ret = gliss_syscall_getresgid(state); break;
+	case __SYSCALL_prctl: ret = gliss_syscall_prctl(state); break;
+	case __SYSCALL_rt_sigreturn: ret = gliss_syscall_rt_sigreturn(state); break;
+	case __SYSCALL_rt_sigaction: ret = gliss_syscall_rt_sigaction(state); break;
+	case __SYSCALL_rt_sigprocmask: ret = gliss_syscall_rt_sigprocmask(state); break;
+	case __SYSCALL_rt_sigpending: ret = gliss_syscall_rt_sigpending(state); break;
+	case __SYSCALL_rt_sigtimedwait: ret = gliss_syscall_rt_sigtimedwait(state); break;
+	case __SYSCALL_rt_sigqueueinfo: ret = gliss_syscall_rt_sigqueueinfo(state); break;
+	case __SYSCALL_rt_sigsuspend: ret = gliss_syscall_rt_sigsuspend(state); break;
+	case __SYSCALL_pread: ret = gliss_syscall_pread(state); break;
+	case __SYSCALL_pwrite: ret = gliss_syscall_pwrite(state); break;
+	case __SYSCALL_chown: ret = gliss_syscall_chown(state); break;
+	case __SYSCALL_getcwd: ret = gliss_syscall_getcwd(state); break;
+	case __SYSCALL_capget: ret = gliss_syscall_capget(state); break;
+	case __SYSCALL_capset: ret = gliss_syscall_capset(state); break;
+	case __SYSCALL_sigaltstack: ret = gliss_syscall_sigaltstack(state); break;
+	case __SYSCALL_sendfile: ret = gliss_syscall_sendfile(state); break;
+	case __SYSCALL_getpmsg: ret = gliss_syscall_getpmsg(state); break;
+	case __SYSCALL_putpmsg: ret = gliss_syscall_putpmsg(state); break;
+	case __SYSCALL_vfork: ret = gliss_syscall_vfork(state); break;
+	case __SYSCALL_ugetrlimit: ret = gliss_syscall_ugetrlimit(state); break;
+	case __SYSCALL_mmap2: ret = gliss_syscall_mmap2(state); break;
+	case __SYSCALL_truncate64: ret = gliss_syscall_truncate64(state); break;
+	case __SYSCALL_ftruncate64: ret = gliss_syscall_ftruncate64(state); break;
+	case __SYSCALL_stat64: ret = gliss_syscall_stat64(state); break;
+	case __SYSCALL_lstat64: ret = gliss_syscall_lstat64(state); break;
+	case __SYSCALL_fstat64: ret = gliss_syscall_fstat64(state); break;
+	case __SYSCALL_lchown32: ret = gliss_syscall_lchown32(state); break;
+	case __SYSCALL_getuid32: ret = gliss_syscall_getuid32(state); break;
+	case __SYSCALL_getgid32: ret = gliss_syscall_getgid32(state); break;
+	case __SYSCALL_geteuid32: ret = gliss_syscall_geteuid32(state); break;
+	case __SYSCALL_getegid32: ret = gliss_syscall_getegid32(state); break;
+	case __SYSCALL_setreuid32: ret = gliss_syscall_setreuid32(state); break;
+	case __SYSCALL_setregid32: ret = gliss_syscall_setregid32(state); break;
+	case __SYSCALL_getgroups32: ret = gliss_syscall_getgroups32(state); break;
+	case __SYSCALL_setgroups32: ret = gliss_syscall_setgroups32(state); break;
+	case __SYSCALL_fchown32: ret = gliss_syscall_fchown32(state); break;
+	case __SYSCALL_setresuid32: ret = gliss_syscall_setresuid32(state); break;
+	case __SYSCALL_getresuid32: ret = gliss_syscall_getresuid32(state); break;
+	case __SYSCALL_setresgid32: ret = gliss_syscall_setresgid32(state); break;
+	case __SYSCALL_getresgid32: ret = gliss_syscall_getresgid32(state); break;
+	case __SYSCALL_chown32: ret = gliss_syscall_chown32(state); break;
+	case __SYSCALL_setuid32: ret = gliss_syscall_setuid32(state); break;
+	case __SYSCALL_setgid32: ret = gliss_syscall_setgid32(state); break;
+	case __SYSCALL_setfsuid32: ret = gliss_syscall_setfsuid32(state); break;
+	case __SYSCALL_setfsgid32: ret = gliss_syscall_setfsgid32(state); break;
+	case __SYSCALL_pivot_root: ret = gliss_syscall_pivot_root(state); break;
+	case __SYSCALL_mincore: ret = gliss_syscall_mincore(state); break;
+	case __SYSCALL_madvise: ret = gliss_syscall_madvise(state); break;
+	case __SYSCALL_getdents64: ret = gliss_syscall_getdents64(state); break;
+	case __SYSCALL_fcntl64: ret = gliss_syscall_fnctl64(state); break;
 	}
   
 	if(!ret) {
 		if(verbose)
-			fprintf(verbose, "Warning : system call returns an error (number : %u, name : %s)\n", syscall_num, ppc_get_syscall_name(syscall_num));
+			fprintf(verbose, "Warning : system call returns an error (number : %u, name : %s)\n", syscall_num, gliss_get_syscall_name(syscall_num));
 		SET_CR0SO;
 	}
 	else
