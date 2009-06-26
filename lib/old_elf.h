@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.h,v 1.8 2009/04/09 08:17:24 casse Exp $
+ *	$Id: old_elf.h,v 1.9 2009/06/26 14:50:51 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -24,6 +24,7 @@
 
 #include "grt.h"
 #include "../include/gliss/mem.h"
+#include "../include/gliss/api.h"
 
 #if defined(__cplusplus)
     extern  "C" {
@@ -166,6 +167,55 @@ gliss_loader_t *gliss_loader_open(const char *path);
 void gliss_loader_close(gliss_loader_t *loader);
 void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory);
 gliss_address_t gliss_loader_start(gliss_loader_t *loader);
+
+
+/* stack and environment */
+
+/* auxiliary vector */
+/* struct's size = 2 words (64 bits) */
+typedef struct auxv_t {
+	int	a_type;
+	union {
+		long a_val;
+		void *a_ptr;
+		void (*a_fcn)();
+	} a_un;
+} auxv_t;
+
+ /* auxiliary vector types */
+ #define AT_NULL			0
+ #define AT_IGNORE		1
+ #define AT_EXECFD		2
+ #define AT_PHDR			3
+ #define AT_PHENT		4
+ #define AT_PHNUM		5
+ #define AT_PAGESZ		6
+ #define AT_BASE			7
+ #define AT_FLAGS		8
+ #define AT_ENTRY		9
+ #define AT_DCACHEBSIZE	10
+ #define AT_ICACHEBSIZE	11
+ #define AT_UCACHEBSIZE	12
+
+
+typedef struct gliss_env_t
+{
+	int argc;
+	/* NULL terminated */
+	char **argv;
+	gliss_address_t argv_addr;
+	/* NULL terminated */
+	char **envp;
+	gliss_address_t envp_addr;
+	auxv_t *auxv;
+	gliss_address_t auxv_addr;
+	gliss_address_t stack_pointer;
+} gliss_env_t;
+
+/* system initialization */
+void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_env_t *env);
+void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
+
 
 /* section iteration */
 typedef int gliss_sect_t;

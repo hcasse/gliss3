@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.6 2009/04/24 15:48:08 casse Exp $
+ *	$Id: old_elf.c,v 1.7 2009/06/26 14:50:51 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -92,7 +92,7 @@ struct data_secs{
 	uint32_t size;
 	uint32_t type;
 	uint32_t flags;
-    uint8_t *bytes;
+	uint8_t *bytes;
 	struct data_secs *next;
 };
 
@@ -802,5 +802,196 @@ Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
 {
 	return loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
+}
+
+
+/* stack and system initialization for PowerPC linux-like systems,
+   with respect to the System V ABI PowerPC Processor Supplement */
+
+/* by default, start the stack just before the system reserved address space */
+#define STACKADDR_DESCENDING_DEFAULT 0xE0000000
+/* no size advised, to my knowledge */
+#define STACKSIZE_DEFAULT 0x1000000
+
+
+/**
+ * initialize the stack pointer with the default value,
+ * checking code and data may not overlap with the forecast stack size.
+ * @param	loader	Loader containing code and data size informations.
+ * @return		the initial stack pointer value, 0 if there's an error (overlapping)
+ */
+static gliss_address_t gliss_stack_pointer_init(gliss_loader_t *loader)
+{
+	if (loader == 0)
+		return 0;
+
+	uint32_t data_max = loader->Data.size + loader->Data.address;
+	uint32_t code_max = loader->Text.size + loader->Text.address;
+	uint32_t addr_max = (data_max > code_max) ? data_max : code_max;
+
+	/* check if code/data and stack don't overlap */
+	if (addr_max >= STACKADDR_DESCENDING_DEFAULT - STACKSIZE_DEFAULT)
+		return 0;
+
+	return STACKADDR_DESCENDING_DEFAULT;
+}
+
+
+#define MASK(n)		((1 << n) -1)
+/* round up to the next 16 byte boundary */
+#define ALIGN(v, a)	((v + MASK(a)) & ~MASK(a))
+
+#define PUSH32(v)		{ gliss_mem_write32(memory, stack_ptr, v); stack_ptr -= 4; }
+#define PUSH64(v)		{ memcpy(&tmp, &v, sizeof(uint64_t)); gliss_mem_write64(memory, stack_ptr, tmp); stack_ptr -= 8; }
+
+
+/**
+ * system initialization of the stack, program arguments, environment and auxilliar
+ * vectors are written in the stack. some key addresses are stored for later register initialization.
+ * @param	loader	informations about code and data size.
+ * @param	memory	memory containing the stack to initialize.
+ * @param	env	contains the data to write in the stack, the addresses of written data are stored in it by the function.
+ *
+ */
+void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_env_t *env)
+{
+	uint32_t size;
+	uint32_t init_size;
+	uint64_t tmp;
+	int num_arg, num_env, i, num_aux;
+	gliss_address_t addr_str;
+	gliss_address_t stack_ptr, align_stack_addr;
+	auxv_t auxv_null = {AT_NULL, 0};
+	
+	if ((memory==0) || (env==0))
+		gliss_panic("param error in gliss_stack_fill_env");
+
+	/* initialize stack pointer */
+	env->stack_pointer = gliss_stack_pointer_init(loader);
+	if (env->stack_pointer == 0)
+		gliss_panic("code/data and stack are overlapping");
+
+	/* compute initial stack size (arg, env., ..) */
+	init_size = 0;
+
+	/* count arguments */
+	num_arg = 0;
+	if(env->argv)
+		for(; env->argv[num_arg] != NULL; num_arg++);
+
+	/* count environment variables */
+	num_env = 0;
+	if(env->envp)
+		for(; env->envp[num_env] != NULL; num_env++);
+
+	/* count auxiliary vectors */
+	num_aux = 0;
+	if(env->auxv)
+		for(; env->auxv[num_aux].a_type != AT_NULL; num_aux++);
+
+	/* compute memory required by arguments */
+	size = 0;
+	for (i = 0; i < num_arg; i++)
+		size += strlen(env->argv[i]) + 1;
+
+	/* compute memory required by environnement */
+	for (i = 0; i < num_env; i++)
+		size += strlen(env->envp[i]) + 1;
+
+	/* compute used stack size */
+	init_size = (num_arg + num_env + 2 ) * sizeof(gliss_address_t) + size + sizeof(uint32_t);
+	/* 16 byte alignment for PowerPC stack pointer after initialization */
+	init_size = ALIGN(init_size, 7);
+	/* we will pad the end of the written data with 0 to have an aligned sp */
+	align_stack_addr = env->stack_pointer - init_size;
+
+
+	/* write all data in a descending way */
+	/* we assume argc and each pointer is 32 bit long */
+	
+	stack_ptr = env->stack_pointer;
+
+	/* write argv[] pointers */
+	/* find argv[i] address in the simulated system */
+	addr_str = env->stack_pointer + (num_arg + num_env + 2)*sizeof(char *) + (num_aux + 1)*sizeof(auxv_t);
+	env->argv_addr = stack_ptr;
+	for (i = 0; i < num_arg; i++)
+	{
+		PUSH32(addr_str);
+		addr_str += strlen(env->argv[i] + 1);
+	}
+	/* null word termination */
+	PUSH32(0);
+
+	/* write envp[] pointers */
+	/* we will write the env strings after the arg strings, so addr_str is pointing to the right place */
+	env->envp_addr = stack_ptr;
+	for (i = 0; i < num_env; i++)
+	{
+		PUSH32(addr_str);
+		addr_str += strlen(env->envp[i] + 1);
+	}
+	/* null word termination */
+	PUSH32(0);
+
+	/* write the auxiliary vectors */
+	env->auxv_addr = stack_ptr;
+	for (i = 0; i < num_aux; i++)
+		PUSH64(env->auxv[i]);
+	/* AT_NULL termination entry */
+	PUSH64(auxv_null);
+
+	/* write argv strings */
+	addr_str = env->stack_pointer + (num_arg + num_env + 2)*sizeof(char *) + (num_aux + 1)*sizeof(auxv_t);
+	for (i = 0; i < num_arg; i++)
+	{
+		gliss_mem_write(memory, addr_str, env->argv[i], strlen(env->argv[i]) + 1);
+		addr_str += strlen(env->argv[i]) + 1;
+	}
+
+	/* write envp strings */
+	for (i = 0; i < num_env; i++)
+	{
+		gliss_mem_write(memory, addr_str, env->envp[i], strlen(env->envp[i]) + 1);
+		addr_str += strlen(env->envp[i]) + 1;
+	}
+	
+	/* pad with 0 to have a 16 byte aligned stack pointer towards a null word */
+	stack_ptr = addr_str;
+	while (stack_ptr > align_stack_addr)
+		PUSH32(0);
+	gliss_mem_write32(memory, stack_ptr, 0);
+}
+
+/**
+ * Initialize a state's registers with systems value collected during stack initialization
+ * @param	env	structure containing the values to put in specific registers
+ * @param	state	the state whose registers will be initialized
+ */
+void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
+{
+	if ((state == 0) || (env == 0))
+		gliss_panic("param error in gliss_registers_fill_env");
+	
+	/* r1 will hold the stack pointer */
+	state->GPR[1] = env->stack_pointer;
+
+	/* argc goes in r3 */
+	state->GPR[3] = env->argc;
+
+	/* r4 recieves the address of argv's pointer array */
+	state->GPR[4] = env->argv_addr;
+
+	/* we do the same with r5 and envp */
+	state->GPR[5] = env->envp_addr;
+
+	/* idem with r6 and auxv */
+	state->GPR[6] = env->auxv_addr;
+
+	/* r7 contains a termination function pointer, 0 in our case */
+	state->GPR[7] = 0;
+
+	/* fpscr set to "round to nearest" mode */
+	state->FPSCR = 0;
 }
 
