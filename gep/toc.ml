@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.39 2009/06/19 12:06:40 barre Exp $
+ * $Id: toc.ml,v 1.40 2009/06/26 14:46:07 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1020,6 +1020,12 @@ let rec gen_expr info (expr: Irg.expr) =
 			end
 
 	| Irg.COERCE (typ, expr) ->
+		let int_floor v minimum =
+			if v < minimum then
+				minimum
+			else
+				v
+		in
 		let type_C_length t =
 			let tc = convert_type t
 			in
@@ -1099,7 +1105,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.BOOL, Irg.RANGE _
 		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
 		| Irg.INT _, Irg.BOOL -> trans ()
-		| Irg.INT n, Irg.INT m when n > m -> sign_ext ((type_C_length (Irg.INT m)) - m)
+		| Irg.INT n, Irg.INT m when n > m -> sign_ext ((int_floor (type_C_length (Irg.INT m)) 32) - m)
 		| Irg.INT n, Irg.INT m when m > n -> (* truncate *) mask n
 		| Irg.INT _, Irg.INT _ -> trans ()
 		| Irg.INT n, Irg.CARD m when n > m -> mask m
