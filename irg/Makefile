@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 2009/04/28 12:39:19 barre Exp $
+# $Id: Makefile,v 1.13 2009/07/02 08:46:58 dubot Exp $
 include ../Makefile.head
 
 ifndef NDEBUG
@@ -26,4 +26,4 @@ include ../Makefile.tail
 
 doc:
 	mkdir autodoc
-	ocamldoc -html -i . irg.ml sem.ml iter.ml -d autodoc
+	ocamldoc -html irg.ml sem.ml iter.ml -d autodoc

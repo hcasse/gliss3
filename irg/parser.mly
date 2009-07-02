@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.23 2009/04/06 14:39:03 casse Exp $
+ * $Id: parser.mly,v 1.24 2009/07/02 08:46:58 dubot Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -392,11 +392,13 @@ AttrExpr :
 		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 |	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
 		{  eline (Sem.build_format $3 $5) }
+|	Expr
+		{ eline $1 }
 ;
 
 FormatIdlist: 
-	FormatId						{ [$1] }
-|	FormatIdlist  COMMA FormatId	{ $3::$1 }
+	Expr						{ [$1] }
+|	FormatIdlist  COMMA Expr	{ $3::$1 }
 ;
 
 FormatId: 	
