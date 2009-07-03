@@ -1,5 +1,5 @@
 /*
- *	$Id: grt.h,v 1.1 2009/04/09 08:17:24 casse Exp $
+ *	$Id: grt.h,v 1.2 2009/07/03 14:32:02 barre Exp $
  *	gliss declarations
  *
  *	This file is part of OTAWA
@@ -65,6 +65,15 @@ uint32_t gliss_exp32u(uint32_t v1, uint32_t v2);
 int64_t gliss_exp64(int64_t v1, int64_t v2);
 uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
 
+
+/* for the field modification or extraction functions, there are 3 family:
+ *  - function name not suffixed, used when field's bounds are known (constant)
+ * and in the same order as specified by the nml var bit_order (no bit inversion needed)
+ *  - <name>_inverted, bounds are known and order is different from bit_order (inversion needed)
+ *  - <name>_generic, bounds known or not, will call a function from 1 of the 2 previous family
+ * depending on the order of the bounds and bit_order
+ */
+
 /* set field */
 #define gliss_set_field8(v, s, u, l) ((int8_t)gliss_set_field32u(v, s, u, l))
 #define gliss_set_field8u(v, s, u, l) gliss_set_field32u(v, s, l, u)
@@ -74,7 +83,27 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l);
 #define gliss_set_field64(v, s, u, l) ((int64_t)gliss_set_field64u(v, s, u, l))
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l);
-double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l);
+uint64_t gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l);
+
+#define gliss_set_field8_inverted(v, s, u, l) ((int8_t)gliss_set_field32u_inverted(v, s, u, l))
+#define gliss_set_field8u_inverted(v, s, u, l) gliss_set_field32u_inverted(v, s, l, u)
+#define gliss_set_field16_inverted(v, s, u, l) ((int16_t)gliss_set_field32u_inverted(v, s, u, l))
+#define gliss_set_field16u_inverted(v, s, u, l) gliss_set_field32u_inverted(v, s, l, u)
+#define gliss_set_field32_inverted(v, s, u, l) ((int32_t)gliss_set_field32u_inverted(v, s, u, l))
+uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t l);
+#define gliss_set_field64_inverted(v, s, u, l) ((int64_t)gliss_set_field64u_inverted(v, s, u, l))
+uint64_t gliss_set_field64u_inverted(uint64_t v, uint64_t s, int32_t u, int32_t l);
+uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l);
+
+#define gliss_set_field8_generic(v, s, a, b, bo) ((int8_t)gliss_set_field32u_generic(v, s, a, b, bo))
+#define gliss_set_field8u_generic(v, s, a, b, bo) gliss_set_field32u_generic(v, s, a, b, bo)
+#define gliss_set_field16_generic(v, s, a, b, bo) ((int16_t)gliss_set_field32u_generic(v, s, a, b, bo))
+#define gliss_set_field16u_generic(v, s, a, b, bo) gliss_set_field32u_generic(v, s, a, b, bo)
+#define gliss_set_field32_generic(v, s, a, b, bo) ((int32_t)gliss_set_field32u_generic(v, s, a, b, bo))
+uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b, int bit_order);
+#define gliss_set_field64_generic(v, s, a, b, bo) ((int64_t)gliss_set_field64u_generic(v, s, a, b, bo))
+uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b, int bit_order);
+uint64_t gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order);
 
 /* field */
 #define gliss_field8(v, u, l) gliss_field32u(v, u, l)
@@ -86,6 +115,26 @@ uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l);
 #define gliss_field64(v, u, l) gliss_field64u(v, u, l)
 uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l);
 uint64_t gliss_fieldd(double v, uint32_t u, uint32_t l);
+
+#define gliss_field8_inverted(v, u, l) gliss_field32u_inverted(v, u, l)
+#define gliss_field8u_inverted(v, u, l) gliss_field32u_inverted(v, u, l)
+#define gliss_field16_inverted(v, u, l) gliss_field32u_inverted(v, u, l)
+#define gliss_field16u_inverted(v, u, l) gliss_field32u_inverted(v, u, l)
+#define gliss_field32_inverted(v, u, l) gliss_field32u_inverted(v, u, l)
+uint32_t gliss_field32u_inverted(uint32_t v, uint32_t u, uint32_t l);
+#define gliss_field64_inverted(v, u, l) gliss_field64u_inverted(v, u, l)
+uint64_t gliss_field64u_inverted(uint64_t v, uint32_t u, uint32_t l);
+uint64_t gliss_fieldd_inverted(double v, uint32_t u, uint32_t l);
+
+#define gliss_field8_generic(v, a, b, bo) gliss_field32u_generic(v, a, b, bo)
+#define gliss_field8u_generic(v, a, b, bo) gliss_field32u_generic(v, a, b, bo)
+#define gliss_field16_generic(v, a, b, bo) gliss_field32u_generic(v, a, b, bo)
+#define gliss_field16u_generic(v, a, b, bo) gliss_field32u_generic(v, a, b, bo)
+#define gliss_field32_generic(v, a, b, bo) gliss_field32u_generic(v, a, b, bo)
+uint32_t gliss_field32u_generic(uint32_t v, uint32_t a, uint32_t b, int bit_order);
+#define gliss_field64_generic(v, a, b, bo) gliss_field64u_generic(v, a, b, bo)
+uint64_t gliss_field64u_generic(uint64_t v, uint32_t a, uint32_t b, int bit_order);
+uint64_t gliss_fieldd_generic(double v, uint32_t a, uint32_t b, int bit_order);
 
 /* enumeration */
 int gliss_enumerate(int val, int max);
