@@ -166,6 +166,14 @@ sub parse_file{
             chomp($ligne);
             @{$macro{$nom_macro}}[0].=$ligne;
             check_macro($nom_macro);
+            
+            # !!HKC!!
+            $num_ligne = $num_ligne + 1;
+            
+			print "#line $num_ligne \"$nom_fichier_courrant\"\n";
+			
+			# !!HKC!!
+			$num_ligne = $num_ligne - 1;
         } 
 
         # si c'est un include (au debut)
