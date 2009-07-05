@@ -1,0 +1,12 @@
+
+
+op instruction(p: card(1))
+	syntax = if p then "push" else "pop" endif
+
+op op2(c: card(2))
+	syntax = switch(c) {
+		case 0: "0"
+		case 1: "1"
+		case 2: "2"
+		case 3: "3"
+		}
