@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.19 2009/04/28 12:39:20 barre Exp $
+ * $Id: sem.ml,v 1.20 2009/07/05 06:59:11 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -21,6 +21,7 @@
 
 
 open Irg
+open Printf
 
 exception SemError of string
 exception SemErrorWithFun of string * (unit -> unit)
@@ -875,20 +876,52 @@ let check_set_stat l e =
 				e
 
 
-(** Check if the possible expressions of the conditionnal branchs of an if-then-else expression give a valid if-then-else expression.
-	It check if the types of the differents possibility are compatible (for this, it use the same compatibility rule than the addition).
-	
+(** Raise a type error message for two operands.
+	@param t1	Type of first operand.
+	@param t2	Type of second operand. *)
+let raise_type_error_two_operand t1 t2 =
+	let f _ =
+		print_string "first operand : ";
+		Irg.print_type_expr t1;
+		print_string "\n";
+		print_string "second operand : ";
+		Irg.print_type_expr t2;
+		print_string "\n" in
+	raise (SemErrorWithFun ("incompatible type of 'if' parts", f))
+
+
+(** Check if the possible expressions of the conditionnal branchs of an
+	if-then-else expression give a valid if-then-else expression.
+	It check if the types of the differents possibility are compatible
+	(for this, it use the same compatibility rule than the addition).
 	@param e1	the then-expression
 	@param e2	the else-expression
-	@return True if the parameters give a valid conditionnal statement, false otherwise
+	@return		Type of the result, raise an exception else.
 *)
 let check_if_expr e1 e2=
-	let t1=(get_type_expr e1)
-	and t2=(get_type_expr e2)	
-	in
-	(check_binop_type t1 t2 Irg.ADD) 	(*The allowed types are the sames than those of the operation ADD *)
-	(*|| t2=NO_TYPE		<- NOT ALLOWED : an if-then-else expression MUST have an else branch *)			
+	let t1 = get_type_expr e1 in
+	let t2 = get_type_expr e2 in
+	match (t1, t2) with
+	| (CARD _,CARD _)
+	| (INT _,INT _)
+	| (INT _, CARD _)
+	| (CARD _,INT _)
+	| (FLOAT _,FLOAT _)
+	| (FIX _,FIX _)
+	| (STRING, STRING)
+		-> t1
+	| _ -> raise_type_error_two_operand t1 t2
 
+
+(** Get the interval value of an integer type.
+	@param t	Type to get interval of.
+	@return		(minimum, maximum) or (0, 0) for non integer type. *)
+let interval_of t =
+	match t with
+	| BOOL -> (0, 1)
+	| CARD(n) -> (0, (1 lsl n) - 1)
+	| INT(n) -> (-(1 lsl (n - 1)), (1 lsl (n - 1)) - 1)
+	| _ -> (0, 0)
 
 
 (** Check if the given parameters of a switch expression give a valid switch expression.
@@ -907,152 +940,160 @@ let check_if_expr e1 e2=
 let check_switch_expr test list_case default=
 
 
-(* --- this part is a definition of many subfunctions used in the verification --- *)
-
-let rec is_param_of_type_enum e=	(* check if an expression if a param of type eum *)
- 	match e with
-		REF i ->( match (get_symbol i) with
-				PARAM (n,t)->	rm_symbol n;
-					    	let value=(match t with
-					 		TYPE_ID ti-> (match (get_symbol ti) with
-										TYPE (_,t)->(match t with
-							 					ENUM _-> true
-												|_->false
-											     )
-										|_->false
-									)
-							|TYPE_EXPR te->(match te with
-										ENUM _->true	(*Possible ?*)
-										|_->false
-									)
-							)
-						in
-						add_param (n,t); value
-					
-				
-				|_->false
-			)
+	(* --- this part is a definition of many subfunctions used in the verification --- *)
+	let rec is_param_of_type_enum e =	(* check if an expression if a param of type eum *)
+ 		match e with
+		| REF i ->
+			(match (get_symbol i) with
+			| PARAM (n,t)->	rm_symbol n;
+				let value = 
+					(match t with
+					| TYPE_ID ti->
+						(match (get_symbol ti) with
+						| TYPE (_,t)->
+							(match t with
+							| ENUM _-> true
+							| _ ->false)
+						|_->false)
+					| TYPE_EXPR te->
+						(match te with
+						| ENUM _->true	(*Possible ?*)
+						| _ -> false)) in
+				add_param (n,t); value
+			|_->false)
 		| ELINE (_, _, e) -> is_param_of_type_enum e
-		|_->false
+		| _ -> false
 
-and get_list_poss_from_enum_expr e= (* Get a list of all possibility of the enum which is the type of the expression *)
-	let rec temp id=(match get_symbol id with
-				TYPE (_,t)-> (match t with
-						ENUM l->l
-						|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
-					)
-				|PARAM (n,t)->(rm_symbol n;
-					    	let value=(match t with
-							TYPE_ID s->temp s
-							|TYPE_EXPR tb->(match tb with
-										ENUM l->l
-										|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
-									)
-						)
-						in
-						add_param (n,t); value)
-				|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+	and get_list_poss_from_enum_expr e = (* Get a list of all possibility of the enum which is the type of the expression *)
+		let rec temp id =
+			(match get_symbol id with
+			| TYPE (_,t)->
+				(match t with
+				| ENUM l->l
+				| _ -> failwith "get_list_poss_from_enum_expr : expr is not an enum")
+			| PARAM (n,t) ->
+				(rm_symbol n;
+				let value =
+					(match t with
+					| TYPE_ID s->temp s
+					| TYPE_EXPR tb->
+						(match tb with
+						| ENUM l->l
+						|_-> failwith "get_list_poss_from_enum_expr : expr is not an enum")) in
+				add_param (n,t); value)
+			|_->failwith "get_list_poss_from_enum_expr : expr is not an enum") in
+		match e with
+		| REF id -> temp id
+		|_ -> failwith "get_list_poss_from_enum_expr : expr is not an enum"
 
-			)
+	and is_enum_poss e =	(* check if the expression is an ENUM_POSS *)
+		match e with
+		| REF s->
+			(match (get_symbol s) with
+			| ENUM_POSS _->true
+			| _ ->false)
+		| ELINE(_, _, e) -> is_enum_poss e
+		| _ -> false
 
-	in
-	match e with
-		REF id -> temp id
-		|_->failwith "get_list_poss_from_enum_expr : expr is not an enum"
+	(* Return a couple composed of the enum that the expression refer to and of the value of the expression *)
+	and get_enum_poss_info e =
+		match e with
+		| REF s->
+			(match (get_symbol s) with
+				| ENUM_POSS (_,r,t,_)->(r,t)
+				| _ -> failwith ("get_enum : expression is not an enum poss"))
+		| ELINE (_, _, e) -> get_enum_poss_info e
+		| _ ->failwith "get_enum : expression is not an enum poss" in
+		
+	(* Return the enum that the expression refer to *)
+	let rec get_enum_poss_type e =
+		get_type_ident (fst (get_enum_poss_info e))
 
-and is_enum_poss e =	(* check if the expression is an ENUM_POSS *)
-	match e with
-	 REF s->(match (get_symbol s) with
-			ENUM_POSS _->true
-			|_->false
-		)
-	| ELINE(_, _, e) -> is_enum_poss e
-	|_->false
+	(* Get the id of the enum_poss refered by e*)
+	and get_enum_poss_id e=
+		match e with
+		| REF s->
+			(match (get_symbol s) with
+			| ENUM_POSS (_,_,_,_)->s
+			|_->failwith ("get_enum_poss_id : expression is not an enum poss"))
+		| ELINE (_, _, e) -> get_enum_poss_id e
+		| _ -> failwith "get_enum_poss_id : expression is not an enum poss" in
 
-and get_enum_poss_info e=	(* Return a couple composed of the enum that the expression refer to and of the value of the expression *)
-	match e with
-	REF s->(match (get_symbol s) with
-			ENUM_POSS (_,r,t,_)->(r,t)
-			|_->failwith ("get_enum : expression is not an enum poss")
-		)
-	| ELINE (_, _, e) -> get_enum_poss_info e
-	|_->failwith "get_enum : expression is not an enum poss"
-
-in
-let rec get_enum_poss_type e= get_type_ident (fst (get_enum_poss_info e))	(* Return the enum that the expression refer to *)
-
-and get_enum_poss_id e=	(* Get the id of the enum_poss refered by e*)
-	match e with
-	REF s->(match (get_symbol s) with
-			ENUM_POSS (_,_,_,_)->s
-			|_->failwith ("get_enum_poss_id : expression is not an enum poss")
-		)
-	| ELINE (_, _, e) -> get_enum_poss_id e
-	|_->failwith "get_enum_poss_id : expression is not an enum poss"
-
-in
-
-(* --- end of definition of the "little" subfunction. 
-		Now we can start the declaration of the three "big" subfonctions who will each check one condition to validate the switch ---*)
+	(* --- end of definition of the "little" subfunction. 
+			Now we can start the declaration of the three "big" subfonctions who will each check one condition to validate the switch ---*)
 
 
-(* This part check if all the cases of a switch are of the type of the expression to be tested*)
-
-let check_switch_cases =
-
-	let rec sub_fun list_c t=
+	(* This part check if all the cases of a switch are of the type of the expression to be tested*)
+	let check_switch_cases =
+		let t = get_type_expr test in
+		let rec sub_fun list_c =
 			match list_c with
-			 []->true
-			|(c,_)::l-> if(is_enum_poss c) 
-					then (get_enum_poss_type c=t) && (sub_fun l  t)
-					else (get_type_expr c=t ) && (sub_fun l  t)			
-	in
-	let t= get_type_expr test
-	in
-	match t with
-	CARD _->sub_fun list_case (get_type_expr test)
-	|_->false 
-	
+			| [] -> true
+			| (c,_)::l->
+				if(is_enum_poss c) 
+				then (get_enum_poss_type c = t) && (sub_fun l)
+				else (get_type_expr c = t) && (sub_fun l) in
+		let rec is_int lst =
+			match lst with
+			| [] -> true
+			| (hd, _)::tl ->
+				(match get_type_expr hd with
+				| BOOL | CARD _ | INT _ | RANGE _ -> is_int tl
+				| _ -> false) in
+		match t with
+		| ENUM _ -> sub_fun list_case
+		| BOOL | CARD _ | INT _ | RANGE _ -> is_int list_case
+		| _ -> false
 
-
-(* This part check if all the possible result of a switch expression are of the same type *)
-
-and check_switch_return_type =
-	let type_default = get_type_expr default
-	in
-	let rec sub_fun list_c t=
+	(* This part check if all the possible result of a switch expression are of the same type *)
+	and check_switch_return_type =
+		let type_default = get_type_expr default in
+		let rec sub_fun list_c t=
 			match list_c with
-			 []->true
-			|(_,e)::l-> (get_type_expr e)=t  && sub_fun l  t
-	in
-	if type_default = NO_TYPE
-			then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
-			else sub_fun list_case type_default
+			| [] -> true
+			| (_,e)::l -> (get_type_expr e)=t  && sub_fun l  t in
+		if type_default = NO_TYPE
+		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
+		else sub_fun list_case type_default
 
-(* This part check if all the possibles values of the expression to test are covered *)
+	(* This part check if all the possibles values of the expression to test are covered *)
+	and check_switch_all_possibilities =
+		(* a default is needed to be sure that all possibilities are covered, except for ENUM where you can enumerate all the possibilities*)
+		if (not (default = NONE)) then true	
+		else if is_param_of_type_enum test  then	
+			(* l is the id list of the enum type used *)
+			let l = get_list_poss_from_enum_expr test	in
+			(* cond_list is the list of id of the enum type who are presents in the swith *)
+			let cond_list = List.map get_enum_poss_id (List.map fst list_case) in
+			(* check that all element of l are contained in cond_list *)
+			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l	
+		else
+			let min, max = interval_of (get_type_expr test) in
+			if (min, max) = (0, 0) then
+				raise (SemError ("bad type for 'switch' test: only integer types supported"))
+			else
+				let vals = List.sort compare
+					(List.map (fun (case, _) -> to_int (eval_const case)) list_case) in
+				let vals = List.map
+					(fun v ->
+						if v >= min || v <= max then v else
+						raise (SemError (sprintf "%d out of switch bounds" v)))
+					vals in
+				let rec test i l =
+					if i > max then true
+					else if l = [] || i <> (List.hd l) then
+						raise (SemError (sprintf "uncomplete switch: %d is lacking" i))
+					else
+						test (i + 1) (List.tl l) in
+				test min vals in
 
-and check_switch_all_possibilities =
-	
-		if (not (default=NONE)) then true
-		else (* a default is needed to be sure that all possibilities are covered, except for ENUM where you can enumerate all the possibilities*)
-		if is_param_of_type_enum test 
-		then	
-			let l=get_list_poss_from_enum_expr test	(* l is the id list of the enum type used *)
-			in
-			let cond_list=List.map get_enum_poss_id (List.map fst list_case)	(* cond_list is the list of id of the enum type who are presents in the swith *)
-			in
-			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l	(* check that all element of l are contained in cond_list *)
-		else false
-in
-
-(* --- And finally we apply all these three subfunctions to check the switch --- *)
-
-	if not check_switch_cases 
-		then raise (SemError "the cases of a functional switch must be consitent with the expression to test")
-	else if not check_switch_return_type
-		then raise (SemError "the return values of a functionnal switch must be of the sames type")
-	else if not check_switch_all_possibilities
-		then raise (SemError "the cases of a functional switch must cover all possibilities or contain a default")
+	(* --- And finally we apply all these three subfunctions to check the switch --- *)
+	if not check_switch_cases then
+		raise (SemError "the cases of a functional switch must be consistent with the expression to test")
+	else if not check_switch_return_type then
+		raise (SemError "the return values of a functionnal switch must be of the sames type")
+	else if not check_switch_all_possibilities then
+		raise (SemError "the cases of a functional switch must cover all possibilities or contain a default")
 	else if (get_type_expr default != NO_TYPE)
 		then get_type_expr default
 		else get_type_expr (snd (List.hd list_case))

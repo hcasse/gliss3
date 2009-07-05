@@ -1,5 +1,5 @@
 /*
- * $Id: parser.mly,v 1.24 2009/07/02 08:46:58 dubot Exp $
+ * $Id: parser.mly,v 1.25 2009/07/05 06:59:11 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * Parser of OGEP.
@@ -841,35 +841,10 @@ Expr :
 		}
 |	LPAREN Expr RPAREN
 		{ $2 }
-/*|	DOLLAR { }
-|	BINARY_CONST { }
-|	HEX_CONST { }*/
-/*|	IF Expr THEN Expr OptionalElseExpr ENDIF */
 |	IF Expr THEN Expr ELSE Expr ENDIF
-		{ let t1=(Sem.get_type_expr $4)
-		  and t2=(Sem.get_type_expr $6)	
-		  in
-		if Sem.check_if_expr $4 $6
-			then
-				eline (Irg.IF_EXPR (t1,$2, $4, $6))
-			else
-				(
-				 let dsp =(fun _->
-					print_string "Type of the first operand : ";
-				 	Irg.print_type_expr t1;
-					print_string "\n";
-					print_string "Type of the second operand : ";
-				 	Irg.print_type_expr t2;
-				 	print_string "\n"
-				 )
-				 in
-				 raise (Sem.SemErrorWithFun ("In this conditional expression, the first and second operands must be of compatible type",dsp))
-				)
-		}
+		{ eline (Irg.IF_EXPR (Sem.check_if_expr $4 $6, $2, $4, $6)) }
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
-		{	
-			eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6))
-		}	
+		{ eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6)) }	
 |	Constant
 		{ eline (Irg.CONST (fst $1, snd $1)) }
 ;

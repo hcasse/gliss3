@@ -1,5 +1,5 @@
 (*
- * $Id: print_irg.ml,v 1.4 2009/04/24 16:28:30 casse Exp $
+ * $Id: print_irg.ml,v 1.5 2009/07/05 06:59:11 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -47,6 +47,7 @@ let _ =
 			(if Filename.check_suffix !input ".irg" then
 				Irg.load !input
 			else
+				Lexer.file := !input;
 				let lexbuf = Lexing.from_channel (open_in !input) in
 				Parser.top Lexer.main lexbuf);
 			
@@ -63,10 +64,9 @@ let _ =
 		Lexer.display_error "syntax error"; exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	(*| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2*)
+	| Sem.SemError msg ->
+		Lexer.display_error msg; exit 2
 	| Irg.IrgError msg ->
 		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-(*	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;*)
+	| Sem.SemErrorWithFun (msg, fn) ->
+		Lexer.display_error msg; fn (); exit 2
