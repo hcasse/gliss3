@@ -1,5 +1,7 @@
-# $Id: Makefile,v 1.13 2009/07/02 08:46:58 dubot Exp $
+# $Id: Makefile,v 1.14 2009/07/05 07:25:21 casse Exp $
 include ../Makefile.head
+
+OCAMLYACC_FLAGS = -v
 
 ifndef NDEBUG
 OCAML_FLAGS+=-g

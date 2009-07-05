@@ -1,8 +1,23 @@
 /*
- * $Id: parser.mly,v 1.25 2009/07/05 06:59:11 casse Exp $
- * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
+ * $Id: parser.mly,v 1.26 2009/07/05 07:25:21 casse Exp $
+ * Copyright (c) 2007-09, IRIT - UPS <casse@irit.fr>
+ * SimNML parser
  *
- * Parser of OGEP.
+ * This file is part of Gliss2.
+ *
+ * Gliss2 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * Gliss2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Foobar; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 %{
@@ -353,10 +368,14 @@ ParaType:
 |	ID		{ Irg.TYPE_ID $1 }
 ;
 
-AttrDefList:	
+AttrDefList:
 	/* empty */			{ [] }
-|	AttrDef				{ Irg.add_attr $1; [$1] }
-|	AttrDefList AttrDef	{ Irg.add_attr $2; $2::$1 }
+|	NOAttrDefList			{ $1 }
+;
+
+NOAttrDefList:	
+|	AttrDef					{ Irg.add_attr $1; [$1] }
+|	NOAttrDefList AttrDef	{ Irg.add_attr $2; $2::$1 }
 ; 
 
 AttrDef :/* It is not possible to check if the ID and the attributes exits because this is used for op, in wich they can be defined later. 
@@ -384,6 +403,7 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 ;
 
 AttrExpr :
+/*	no more restriction on attribute expression
 	ID DOT SYNTAX
 		{ eline (Irg.FIELDOF (Irg.STRING, $1, "syntax")) }
 |	ID DOT IMAGE
@@ -391,10 +411,13 @@ AttrExpr :
 |	STRING_CONST
 		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
 |	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
-		{  eline (Sem.build_format $3 $5) }
+		{  eline (Sem.build_format $3 $5) }*/
 |	Expr
 		{ eline $1 }
 ;
+
+/* format() now accepts any expression but some restriction may
+	apply according the defined attribute.
 
 FormatIdlist: 
 	Expr						{ [$1] }
@@ -437,12 +460,12 @@ FormatId:
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
-	/* we should autorise constant parameters in a format expression 
-	correct type will be checked in Sem */
+ we should autorise constant parameters in a format expression 
+	correct type will be checked in Sem 
 |	Constant
 		{ eline (Irg.CONST (fst $1, snd $1)) }
 			
-/*|	DOLLAR PLUS ID
+|	DOLLAR PLUS ID
 		{ }*/
 ;
 
