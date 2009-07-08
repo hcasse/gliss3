@@ -1,5 +1,5 @@
 /*
- *	$Id: grt.h,v 1.2 2009/07/03 14:32:02 barre Exp $
+ *	$Id: grt.h,v 1.3 2009/07/08 12:09:19 barre Exp $
  *	gliss declarations
  *
  *	This file is part of OTAWA
@@ -71,7 +71,10 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
  * and in the same order as specified by the nml var bit_order (no bit inversion needed)
  *  - <name>_inverted, bounds are known and order is different from bit_order (inversion needed)
  *  - <name>_generic, bounds known or not, will call a function from 1 of the 2 previous family
- * depending on the order of the bounds and bit_order
+ * depending on the order of the bounds and bit_order.
+ * Convention for bit_order:
+ *  - 0 => lowermost
+ *  - !=0 => uppermost
  */
 
 /* set field */

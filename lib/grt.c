@@ -1,5 +1,5 @@
 /*
- *	$Id: grt.c,v 1.5 2009/07/03 14:32:02 barre Exp $
+ *	$Id: grt.c,v 1.6 2009/07/08 12:09:19 barre Exp $
  *	gliss definitions
  *
  *	This file is part of OTAWA
@@ -80,7 +80,7 @@ uint32_t gliss_invert32(uint32_t v, uint32_t n)
 {
 	uint32_t res = 0;
 	int i = 0;
-	
+
 	for ( ; i < n ; i++)
 	{
 		res <<= 1;
@@ -145,7 +145,7 @@ uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l) {
 }
 
 
-/* will perform v<a..b> = s, s is reversed if needed */
+/* will perform v<a..b> = s, s is reversed if needed depending on the value of bit_order (0 : lowermost (default), !=0 : uppermost) */
 uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b, int bit_order)
 {
 	/* only 1 bit to copy, do not care about bit_order, just do it the most convenient way */
@@ -201,13 +201,13 @@ uint64_t gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, in
 /* for these functions no inversion is done and l <= u */
 uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l)
 {
-	uint32_t mask = (1<<(u-l+1) -1 ) << l;
+	uint32_t mask = ((1<<(u-l+1)) -1 ) << l;
 	return (v & mask) >> l;
 }
 
 uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l)
 {
-	uint64_t mask = (1<<(u-l+1) -1 ) << l;
+	uint64_t mask = ((1<<(u-l+1)) -1 ) << l;
 	return (v & mask) >> l;
 }
 
@@ -219,13 +219,13 @@ uint64_t gliss_fieldd(double v, uint32_t u, uint32_t l) {
 /* for these functions inversion is done and l <= u */
 uint32_t gliss_field32u_inverted(uint32_t v, uint32_t u, uint32_t l)
 {
-	uint32_t mask = (1<<(u-l+1) -1 ) << l;
+	uint32_t mask = ((1<<(u-l+1)) -1 ) << l;
 	return gliss_invert32((v & mask) >> l, u-l+1);
 }
 
 uint64_t gliss_field64u_inverted(uint64_t v, uint32_t u, uint32_t l)
 {
-	uint64_t mask = (1<<(u-l+1) -1 ) << l;
+	uint64_t mask = ((1<<(u-l+1)) -1 ) << l;
 	return gliss_invert64((v & mask) >> l, u-l+1);
 }
 
