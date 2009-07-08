@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.34 2009/06/10 16:04:16 barre Exp $
+ * $Id: irg.ml,v 1.35 2009/07/08 09:38:24 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -257,6 +257,15 @@ let add_symbol name sym =
 			| UNKNOW_TYPE -> 
 				failwith "length unknown"
 		in
+		let b_o =
+			match get_symbol "bit_order" with
+			UNDEF -> true
+			| LET(_, STRING_CONST id) ->
+				if (String.uppercase id) = "UPPERMOST" then true
+				else if (String.uppercase id) = "LOWERMOST" then false
+				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
+			| _ -> failwith "'bit_order' must be defined as a string let"
+		in
 		let rec change_alias_attr mem_attr_l n =
 			let t = CARD(32)
 			in
@@ -278,7 +287,10 @@ let add_symbol name sym =
 							a::(change_alias_attr b n)
 						else
 							if l=NONE && u=NONE then
-								(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
+								if b_o then
+									(ALIAS(LOC_REF(typ, name, NONE, i, sub i (sub (const n) (const 1)) (*i-(n-1)*))))::(change_alias_attr b n)
+								else
+									(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
 							else
 								a::(change_alias_attr b n)
 					| _ ->
