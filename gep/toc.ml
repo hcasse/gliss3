@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.40 2009/06/26 14:46:07 barre Exp $
+ * $Id: toc.ml,v 1.41 2009/07/10 09:26:49 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -978,16 +978,94 @@ let rec gen_expr info (expr: Irg.expr) =
 		| _ -> failwith "invalid itemof")
 
 	| Irg.BITFIELD (typ, expr, lo, up) ->
-		out info.proc;
-		out "_field";
-		out (type_to_mem (convert_type typ));
-		out "(";
-		gen_expr info expr;
-		out ", ";
-		gen_expr info lo;
-		out ", ";
-		gen_expr info up;
-		out ")"
+		let rec is_const e =
+			(* !!DEBUG!! *)
+			(*print_string "is_const ";
+			Irg.print_expr e;
+			print_string " => ";*)
+			match e with
+			Irg.CONST(_, _) ->
+				(* !!DEBUG!! *)
+				(*print_string "true\n";*)
+				true
+			| Irg.ELINE(_, _, ee) ->
+				is_const ee
+			| _ ->
+				(* !!DEBUG!! *)
+				(*print_string "false\n";*)
+				false
+		in
+		(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10000000000000!) *)
+		let const_val e =
+			match e with
+			Irg.CARD_CONST(i32) ->
+				Int32.to_int i32
+			| Irg.CARD_CONST_64(i64) ->
+				Int64.to_int i64
+			| _ ->
+					failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)"
+		in
+		let bitorder_to_int bo =
+			match bo with
+			LOWERMOST ->
+				0
+			| UPPERMOST ->
+				1
+		in
+		(* stop printing after the expr and the bounds, a closing parens or the bit_order param has to be added apart *)
+		let output_field_common_C_code sufx a b arg3 b_o =
+			out info.proc;
+			out "_field";
+			out (type_to_mem (convert_type typ));
+			out sufx;
+			out "(";
+			gen_expr info expr;
+			out ", ";
+			gen_expr info a;
+			out ", ";
+			gen_expr info b;
+			if arg3 then
+				begin
+				out ", ";
+				out (string_of_int b_o);
+				out ")"
+				end
+			else
+				out ")"
+		in
+		(* !!DEBUG!! *)
+		(*print_string "field up=";Irg.print_expr up;
+		print_string ", lo=";Irg.print_expr lo;*)
+		(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
+		if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
+			output_field_common_C_code "" lo up false 0
+		else
+			begin
+			let bo = bitorder_to_int info.bito
+			in
+			(* 2 const => we can decide right now if inversion is to be done or not *)
+			if (is_const lo) && (is_const up) then
+				begin
+				(* !!DEBUG!! *)
+				(*print_string "[<rien>/inv]";*)
+				if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
+					if bo != 0 then
+						output_field_common_C_code "_inverted" up lo false 0
+					else
+						output_field_common_C_code "" up lo false 0
+				else
+					if bo != 0 then
+						output_field_common_C_code "" lo up false 0
+					else
+						output_field_common_C_code "_inverted" lo up false 0
+				end
+			else
+				output_field_common_C_code "_generic" lo up true bo;
+				(* !!DEBUG!! *)
+				(*print_string "[gen]"*)
+			end;
+		(* !!DEBUG!! *)
+		(*print_string "\n"*)
 
 	| Irg.UNOP (_, op, e) -> 
 		convert_unop info.out op;
@@ -1167,21 +1245,86 @@ let rec gen_stat info stat =
 			args) in
 
 	let set_field typ id idx lo up expr =
-		if lo = Irg.NONE then expr
+		let rec is_const e =
+			match e with
+			Irg.CONST(_, _) -> true
+			| Irg.ELINE(_, _, ee) -> is_const ee
+			| _ -> false
+		in
+		(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10.000.000.000.000!) *)
+		let const_val e =
+			match e with
+			Irg.CARD_CONST(i32) ->
+				Int32.to_int i32
+			| Irg.CARD_CONST_64(i64) ->
+				Int64.to_int i64
+			| _ ->
+					failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)"
+		in
+		let bitorder_to_int bo =
+			match bo with
+			LOWERMOST -> 0
+			| UPPERMOST -> 1
+		in
+		let transform_expr sufx a b arg3 b_o =
+			let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o))
+			in
+			if lo = Irg.NONE then
+				expr
+			else
+				Irg.CANON_EXPR (
+					typ,
+					Printf.sprintf "%s_set_field%s%s"
+						info.proc (type_to_mem (convert_type typ)) sufx,
+					if arg3 then
+					[	if idx = Irg.NONE then Irg.REF id
+						else Irg.ITEMOF (typ, id, idx);
+						expr;
+						a;
+						b;
+						e_bo
+					]
+					else
+					[	if idx = Irg.NONE then Irg.REF id
+						else Irg.ITEMOF (typ, id, idx);
+						expr;
+						a;
+						b
+					]
+				)
+		in
+		(* !!DEBUG!! *)
+		(*print_string "field up=";Irg.print_expr up;
+		print_string ", lo=";Irg.print_expr lo;*)
+		(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
+		if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
+			transform_expr "" up lo false 0
 		else
-			Irg.CANON_EXPR (
-				typ,
-				Printf.sprintf "%s_set_field%s"
-					info.proc (type_to_mem (convert_type typ)),
-				[
-					if idx = Irg.NONE then Irg.REF id
-					else Irg.ITEMOF (typ, id, idx);
-					expr;
-					lo;
-					up
-				]
-			) in
-
+			begin
+			let bo = bitorder_to_int info.bito
+			in
+			(* 2 const => we can decide right now if inversion is to be done or not *)
+			if (is_const lo) && (is_const up) then
+				begin
+				(* !!DEBUG!! *)
+				(*print_string "[<rien>/inv]";*)
+				if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
+					if bo != 0 then
+						transform_expr "_inverted" up lo false 0
+					else
+						transform_expr "" up lo false 0
+				else
+					if bo != 0 then
+						transform_expr "" lo up false 0
+					else
+						transform_expr "_inverted" lo up false 0
+				end
+			else
+				transform_expr "_generic" lo up true bo;
+				(* !!DEBUG!! *)
+				(*print_string "[gen]"*)
+			end;	
+	in
 	match stat with
 	| Irg.NOP -> ()
 
