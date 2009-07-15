@@ -77,7 +77,7 @@ $(IRG)/irg.cma:
 doc: optirg.ml 
 	@echo "### Make Documentation ###"
 	mkdir -p $(DOCP)
-	$(DOCC) $(INC) $(IRG)/irg.cma optirg.cmo -d $(DOCP)
+	$(DOCC) $(INC) $(IRG)/irg.ml formatlexer.ml string_of_expr.ml image_attr_size.ml optirg.ml -d $(DOCP)
 	@echo ""
 
 # Cleaning
