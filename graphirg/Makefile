@@ -17,7 +17,7 @@ DOCC=ocamldoc -html
 DOCP=doc
 
 # TOD path
-TOD=../../tod
+TOD=./tod
 
 # IRG path
 IRG=../irg
