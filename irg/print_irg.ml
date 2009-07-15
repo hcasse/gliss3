@@ -1,5 +1,5 @@
 (*
- * $Id: print_irg.ml,v 1.5 2009/07/05 06:59:11 casse Exp $
+ * $Id: print_irg.ml,v 1.6 2009/07/15 12:15:06 dubot Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -45,11 +45,13 @@ let _ =
 		
 			(* opent the file *)
 			(if Filename.check_suffix !input ".irg" then
-				Irg.load !input
+                                Irg.load !input
 			else
-				Lexer.file := !input;
-				let lexbuf = Lexing.from_channel (open_in !input) in
-				Parser.top Lexer.main lexbuf);
+			        begin
+				        Lexer.file := !input;
+				        let lexbuf = Lexing.from_channel (open_in !input) in
+				        Parser.top Lexer.main lexbuf
+                                end);
 			
 			(* display output *)
 			if !insts then
