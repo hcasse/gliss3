@@ -121,9 +121,7 @@ and
 	(key:string) 
 	:int = 
 	begin
-		let size = sizeOfSpec (Irg.get_symbol key) in 		
-		print_string (key^" size = "^(string_of_int size)^".\n")
-		;size
+		sizeOfSpec (Irg.get_symbol key)
 	end
 and
 	sizeOfSpec 
