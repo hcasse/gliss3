@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.1 2008/11/18 10:09:57 casse Exp $
+# $Id: Makefile,v 1.2 2009/07/15 13:13:26 dubot Exp $
 include Makefile.head
 
-SUBDIRS=irg gep
+SUBDIRS=irg gep graphirg optirg
 
 include Makefile.tail
