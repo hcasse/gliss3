@@ -92,9 +92,6 @@ let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*I
 	@return 
 		the case for an switch statement 
 *)
-
-(** 
-*)
 let case_from_attr_stat size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.stat) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
@@ -114,7 +111,30 @@ let case_from_value_expr size (and_node:Irg.spec) :(Irg.expr*Irg.expr) =
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
 		get_expr_from_value_from_and_mode and_node
 	)
+(**
+	Return the type of the expression
+	@param expr
+		An Irg.expr 
+	@return 
+		An Irg.type_expr
+*)
 
+let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with 
+	| 	Irg.NONE -> Irg.NO_TYPE
+	| 	Irg.COERCE(type_expr,_) -> type_expr
+	| 	Irg.FORMAT(_,_)-> Irg.STRING
+	| 	Irg.CANON_EXPR( type_expr,_,_)-> type_expr
+	| 	Irg.REF(_)-> Irg.UNKNOW_TYPE
+	| 	Irg.FIELDOF(type_expr,_,_) -> type_expr
+	| 	Irg.ITEMOF (type_expr,_,_)-> type_expr
+	| 	Irg.BITFIELD (type_expr,_,_,_) -> type_expr
+	| 	Irg.UNOP (type_expr,_,_)-> type_expr
+	| 	Irg.BINOP (type_expr,_,_,_)-> type_expr
+	| 	Irg.IF_EXPR (type_expr,_,_,_)-> type_expr
+	| 	Irg.SWITCH_EXPR (type_expr,_,_,_)-> type_expr
+	| 	Irg.CONST (type_expr,_)-> type_expr
+	| 	Irg.ELINE (_,_,e)-> type_of_expr e
+	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
 
 (**
 	Create an opt_t_struct with the name of the node.
@@ -198,11 +218,11 @@ let attr_list_from_and_node
 		-> List.map 
 			(
 			function 
-			|Irg.ATTR_EXPR(name,_) -> 
+			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
 					SWITCH_EXPR(
-						STRING, 
+						(type_of_expr e), 
 						REF("code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
 						NONE
