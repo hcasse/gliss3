@@ -205,7 +205,13 @@ let rec set_of_struct
 			List.fold_right (fun fils res -> set_of_struct res fils) (next pere) set
 
 (**
-!!!!! STRING -> TYPE OF EXPR !!!!!
+	Extracte a list of attributes from a list of and nodes.
+	@param and_list
+		the liste of nodes
+	@param size
+		an attribute's size.
+	@return 
+		the list of attribute 
 *)
 
 let attr_list_from_and_node 
@@ -225,7 +231,7 @@ let attr_list_from_and_node
 						(type_of_expr e), 
 						REF("code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
-						NONE
+						Irg.NONE
 					)
 				)
 			|Irg.ATTR_STAT(name,_) -> 
@@ -249,9 +255,7 @@ let attr_list_from_and_node
 		or_node: the node that will be optimized
 		and_list: the list of and node attached with the or_node
 	@return 
-	@TODO
-	Take acount the other attribute, those are different to image an syntax.
-	Think about the switch default case semantic.
+		a node which is fused with its sons.
 *)
 
 let fusion 

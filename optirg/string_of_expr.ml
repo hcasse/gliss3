@@ -1,6 +1,12 @@
 open Irg
-
-let rec string_of_expr = function
+(**
+	Describe an expression in a nml format.
+	@param expr
+		the expression
+	@return	
+		the describtion
+*)
+let rec string_of_expr (expr:Irg.expr) : string = match expr with 
           NONE ->
                   "<none>"
         | COERCE (t, e) ->
@@ -78,9 +84,14 @@ let rec string_of_expr = function
                 "CONST"
         | EINLINE s ->
                 "inline()"
-
-
-let rec name_of_expr = function
+(**
+	Describe an expression by showing its ocaml type.
+	@param expr
+		the expression
+	@return	
+		the describtion
+*)
+let rec name_of_expr (expr:Irg.expr) : string = match expr with 
           NONE ->
                   "<none>"
         | COERCE (t, e) ->

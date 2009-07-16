@@ -1,3 +1,5 @@
+
+
 (**
 Image attribute size computing. 
 Used to see if a node can be optimized.
@@ -14,8 +16,7 @@ open Irg
 open String_of_expr
 
 (**
-exception InconsistentSize
-Raised if the attribute image can have different (inconsistent) sizes.
+	Raised if the attribute image can have different (inconsistent) sizes.
 *)
 exception InconsistentSize;;
 
@@ -29,18 +30,30 @@ let format= "%2b%s111001%5b%s"
 let _ = parse format ;;
 
 *)
+(**
+	Parse an string to extract its size and the positions of expressions in the format.
+	@param chaine
+		the string that describe the format of expressions.
+	@return	
+		-the number of expressions
+		-the list of positions.
+	@see formatlexer.mll
+		
+*)
 let parse (chaine:string):(int * int list)  = 
   let lexbuf = Lexing.from_string  chaine in
    Formatlexer.formatSize 0 0 [] lexbuf
 
 
 (**
-get_expr_of_image
-Param : a:attribute list from an And node.
-Return : expression of attribute image from a
+	Extract the expression of an image attribute from the list of attribute.
+	@param attr_list
+		the list of attributes.
+	@return
+		the expression of the image attribute.
 *)
-let rec get_expr_of_image a =
-                match a with
+let rec get_expr_of_image attr_list =
+                match attr_list with
                 [] -> 
                 (* if attr not found => means an empty attr (?) *)
                       failwith "get_expr_of_image: No image found in this list"  
@@ -52,24 +65,12 @@ let rec get_expr_of_image a =
                 | _::t -> get_expr_of_image t;;
 
 (**
-Functions used to calculate the size of an image attribute. 
-
-Raise InconsistentSize
-
-Use string_of_expr.cmo
-
-sizeOfExpr
-	Param: e : the expresions that describes the attribute
-	Return: the size
-sizeOfFormat
-	Param: an expression wich is a format 
-	Return: the size
-sizeOfNodeKey
-	Param: a string wich represente the key in the hashtable.
-	Return: the size
-sizeOfSpec
-	Param: a spec wich reprensent a node in the hashtable.
-	Return: the size
+	Calculate an expression's size. 
+	@param e
+		the expresions that describes the attribute
+	@return
+		the size
+	Raise InconsistentSize
 *)
 let rec sizeOfExpr 
 	(listeParam:(string * typ) list)  
@@ -105,6 +106,17 @@ let rec sizeOfExpr
 		|	_ -> failwith ("sizeOfExpr : Constructor "^(name_of_expr e)^" of expr is not yet implemented. ")
 	end
 and
+(**
+	Calculate the size for an format expression.
+	@param listeParam
+		the node's list of parameters
+	@param st
+		the string which describe the format of expressions
+	@param expr_l
+		the list of expressions that are described.
+	@return
+		the size
+*)
  sizeOfFormat 
 	(listeParam:(string * typ) list) 
 	(st:string) 
@@ -117,6 +129,13 @@ and
 		|_ -> size + List.fold_right (fun nop somme -> somme + ( sizeOfExpr listeParam (List.nth  expr_l nop) )) op_l 0
 	end
 and	
+(**
+	Return the size of a node's expression
+	@param key
+		the node's name which is the key in the hashtable.
+	@return
+		 the size
+*)
  	sizeOfNodeKey  
 	(key:string) 
 	:int = 
@@ -124,6 +143,13 @@ and
 		sizeOfSpec (Irg.get_symbol key)
 	end
 and
+(**
+	Return the size of a node's expression.
+	@param spec
+		a spec which reprensent a node in the hashtable.
+	@return
+		 the size
+*)
 	sizeOfSpec 
 	(spec:Irg.spec)
 	:int = 
