@@ -258,19 +258,16 @@ let fusion
 	((or_node,and_list):(opt_struct))
 	:Irg.spec =
 	let size = Image_attr_size.sizeOfSpec or_node in
+	let new_attr_list = attr_list_from_and_node and_list size in
 	match or_node with
 
 	(* Case in which we have a MODE *)
 	| Irg.OR_MODE(name,_) -> 
 		let val_expr = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_value_expr size) and_list), NONE) in
-		let expr_image = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_attr_expr size "image") and_list), NONE) in
-		let expr_syntax = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_attr_expr size "syntax") and_list), NONE) in
-		let attr_list = [ATTR_EXPR("image",expr_image);ATTR_EXPR("syntax",expr_syntax)] in
-		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))],val_expr,attr_list)
+		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], val_expr, new_attr_list)
 
 	(* Case in which we have a MODE *)
 	| Irg.OR_OP(name,_) -> 
-		let new_attr_list = attr_list_from_and_node and_list size in
 		Irg.AND_OP(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], new_attr_list)
 
 	(* Case in which we have an other thing : it should not happen here. *)
