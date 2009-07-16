@@ -185,6 +185,45 @@ let rec set_of_struct
 			List.fold_right (fun fils res -> set_of_struct res fils) (next pere) set
 
 (**
+!!!!! STRING -> TYPE OF EXPR !!!!!
+*)
+
+let attr_list_from_and_node 
+	(and_list : Irg.spec list)
+	(size : int)
+	:Irg.attr list = 
+	match List.hd and_list with 
+	| Irg.AND_OP(_,_,attr_list) 
+	| Irg.AND_MODE(_,_,_,attr_list)
+		-> List.map 
+			(
+			function 
+			|Irg.ATTR_EXPR(name,_) -> 
+				ATTR_EXPR(
+					name,
+					SWITCH_EXPR(
+						STRING, 
+						REF("code"), 
+						(List.map (case_from_attr_expr size name) and_list) , 
+						NONE
+					)
+				)
+			|Irg.ATTR_STAT(name,_) -> 
+				ATTR_STAT(
+					name,
+					SWITCH_STAT(
+						REF("code"), 
+						List.map (case_from_attr_stat size name) and_list, 
+						Irg.NOP
+					)
+				)
+			|Irg.ATTR_USES -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
+			) 
+			attr_list
+	| _ -> failwith "optirg : attr_list_from_and_node : We must have AND Node here. "
+
+
+(**
 	fuse an or_node to create an or mode wich contains all alternative from the or node.
 	@param
 		or_node: the node that will be optimized
@@ -200,15 +239,21 @@ let fusion
 	:Irg.spec =
 	let size = Image_attr_size.sizeOfSpec or_node in
 	match or_node with
+
+	(* Case in which we have a MODE *)
 	| Irg.OR_MODE(name,_) -> 
 		let val_expr = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_value_expr size) and_list), NONE) in
 		let expr_image = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_attr_expr size "image") and_list), NONE) in
 		let expr_syntax = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_attr_expr size "syntax") and_list), NONE) in
 		let attr_list = [ATTR_EXPR("image",expr_image);ATTR_EXPR("syntax",expr_syntax)] in
 		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))],val_expr,attr_list)
+
+	(* Case in which we have a MODE *)
 	| Irg.OR_OP(name,_) -> 
-		let attr_list = [] in
-		Irg.AND_OP(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))],attr_list)
+		let new_attr_list = attr_list_from_and_node and_list size in
+		Irg.AND_OP(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], new_attr_list)
+
+	(* Case in which we have an other thing : it should not happen here. *)
 	| _ -> failwith "fusion : 1st argument must be an or node."
 
 (**
