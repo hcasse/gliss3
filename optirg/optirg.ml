@@ -162,6 +162,40 @@ let union_add (elem:'a)  (set:'a list)  :'a list =
 
 (*let union = List.fold_right (union_add)*)
 
+
+(**
+	
+*)
+
+let get_attr_name (_:Irg.attr) :string= function 
+	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) -> st
+	| 	ATTR_USES -> "none"
+
+
+let get_attr= function 
+					| AND_MODE(_,[],_,attr_list) | AND_OP(_,[],attr_list) -> attr_list
+					| _ ->failwith "Optirg.get_attr: AND_OP or AND_MODE expected here"
+
+
+let list_equal l1 l2 = 
+	let len1=  (List.length l1) 
+	and len2= (List.length l2)
+	and aux at1 at2 res= 
+		List.exists(fun a -> (get_attr_name a) = (get_attr_name at1)) l2 
+		&& List.exists(fun a -> (get_attr_name a) = (get_attr_name at2)) l1  
+		&& res 
+	in 
+		(len1 = len2) && List.fold_right2 (aux) l1 l2 true
+
+
+let same_attr_list list_of_nodes=
+	try  
+		let head_list = get_attr(List.hd list_of_nodes) in 
+		let aux node res = (list_equal head_list (get_attr node) ) && res in 
+		List.fold_right (aux) list_of_nodes true
+	with 
+		|_ -> false 
+
 (**
 	Verify if a node can be optimized.
 	@param 
@@ -180,8 +214,10 @@ let is_opt (struc:opt_struct) :bool =
 				) 
 				sons
 			)
+			&& same_attr_list sons
 			&& try let _= Image_attr_size.sizeOfNodeKey name in true with | _ -> false)
 	|	_ -> false
+
 
 (**
 	Insert all nodes in a set of opt_stuct implemanted as a list.
