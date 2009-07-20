@@ -11,6 +11,11 @@ type opt_struct= Irg.spec (* current node *)
 				*
 			  Irg.spec list (* list of sons *)
 
+let lra = ref []
+let lrs = ref []
+let lrp = ref []
+let la = ref []
+
 
 (** 
 	Provide the list of all sons's name for a parent node.  
@@ -167,7 +172,7 @@ let union_add (elem:'a)  (set:'a list)  :'a list =
 	
 *)
 
-let get_attr_name (_:Irg.attr) :string= function 
+let get_attr_name = function 
 	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) -> st
 	| 	ATTR_USES -> "none"
 
@@ -206,16 +211,28 @@ let same_attr_list list_of_nodes=
 let is_opt (struc:opt_struct) :bool = 
 	match struc with 
 	|	(OR_MODE(name,_), sons) | (OR_OP(name,_), sons) ->
-			((List.for_all 
+		begin 
+
+			let param = (List.for_all 
 				(
 				function 
 					| AND_MODE(_,[],_,_) | AND_OP(_,[],_) -> true 
+					| AND_MODE(n,_,_,_) | AND_OP(n,_,_) -> false
 					| _ -> false
 				) 
 				sons
-			)
-			&& same_attr_list sons
-			&& try let _= Image_attr_size.sizeOfNodeKey name in true with | _ -> false)
+			) in
+			let attr = (same_attr_list sons) in
+			let size = (try let _= Image_attr_size.sizeOfNodeKey name in true with | _ -> false) in 
+
+			if param && (not attr) && (not size) then (lrp:=("\t"^name^"\n")::!lrp) else ();
+			if (not param) && attr && (not size) then (lra:=("\t"^name^"\n")::!lra) else ();
+			if (not param) && (not attr) && size then (lrs:=("\t"^name^"\n")::!lrs) else ();
+			if param && attr && size then (la:=("\t"^name^"\n")::!la) else ();
+
+			param && attr && size
+
+		end
 	|	_ -> false
 
 
@@ -236,7 +253,7 @@ let rec set_of_struct
 	=
 	 let node_opt= (create_opt_struct pere)	in 
 		if (is_opt node_opt) then 
-			union_add node_opt set  
+			union_add node_opt set
 		else 
 			List.fold_right (fun fils res -> set_of_struct res fils) (next pere) set
 
@@ -333,14 +350,26 @@ let imp_fusion ((or_node,and_list):(opt_struct)) :unit =
 let optimize (name : string) :unit =
 	let liste_opt= set_of_struct [] name in 
 	let nb_opt = string_of_int (List.length liste_opt) in
+	begin
 	match liste_opt with 
 	[] -> () 
-			; (print_string ("##################################\n############# No Optimization ####\n##################################\n"))
+			; (print_string ("##################################\n############# No Optimization ####\n##################################\n")) 
 	|_ -> List.iter (imp_fusion) liste_opt 
 			; (print_string ("#####################################\n#### Number of optimization =  "^nb_opt^" ####\n#####################################\n")) 
+	end ; 
+	print_string "\nOptimized nodes : \n" ;
+	List.iter (print_string) !la ; 
+	print_string "\nNon-Optimizable because of parameters only : \n" ;
+	List.iter (print_string) !lrp ;
+	print_string "\n" ;
+	print_string "\nNon-Optimizable because of size inconsistences only : \n" ;
+	List.iter (print_string) !lrs ;
+	print_string "\n" ;
+	print_string "\nNon-Optimizable because of attributes inconsistences only : \n" ;
+	List.iter (print_string) !lra ;
+	print_string "\n" 
 
 
-(**)
 
 
 
