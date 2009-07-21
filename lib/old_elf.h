@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.h,v 1.9 2009/06/26 14:50:51 barre Exp $
+ *	$Id: old_elf.h,v 1.10 2009/07/21 13:17:58 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -201,14 +201,18 @@ typedef struct auxv_t {
 typedef struct gliss_env_t
 {
 	int argc;
+
 	/* NULL terminated */
 	char **argv;
 	gliss_address_t argv_addr;
+
 	/* NULL terminated */
 	char **envp;
 	gliss_address_t envp_addr;
+
 	auxv_t *auxv;
 	gliss_address_t auxv_addr;
+
 	gliss_address_t stack_pointer;
 } gliss_env_t;
 

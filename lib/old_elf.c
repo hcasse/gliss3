@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.7 2009/06/26 14:50:51 barre Exp $
+ *	$Id: old_elf.c,v 1.8 2009/07/21 13:17:58 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -841,8 +841,9 @@ static gliss_address_t gliss_stack_pointer_init(gliss_loader_t *loader)
 /* round up to the next 16 byte boundary */
 #define ALIGN(v, a)	((v + MASK(a)) & ~MASK(a))
 
-#define PUSH32(v)		{ gliss_mem_write32(memory, stack_ptr, v); stack_ptr -= 4; }
-#define PUSH64(v)		{ memcpy(&tmp, &v, sizeof(uint64_t)); gliss_mem_write64(memory, stack_ptr, tmp); stack_ptr -= 8; }
+#define PUSH8(v, sp)		{ gliss_mem_write8(memory, sp, v); sp++; }
+#define PUSH32(v, sp)		{ gliss_mem_write32(memory, sp, v); sp += 4; }
+#define PUSH64(v, sp)		{ memcpy(&tmp, &v, sizeof(uint64_t)); gliss_mem_write64(memory, sp, tmp); sp += 8; }
 
 
 /**
@@ -858,9 +859,9 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	uint32_t size;
 	uint32_t init_size;
 	uint64_t tmp;
-	int num_arg, num_env, i, num_aux;
+	int num_arg, num_env, num_aux, i, j, len;
 	gliss_address_t addr_str;
-	gliss_address_t stack_ptr, align_stack_addr;
+	gliss_address_t stack_ptr, align_stack_addr, argv_ptr, envp_ptr, auxv_ptr;
 	auxv_t auxv_null = {AT_NULL, 0};
 	
 	if ((memory==0) || (env==0))
@@ -898,69 +899,138 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	for (i = 0; i < num_env; i++)
 		size += strlen(env->envp[i]) + 1;
 
+	/* we assume argc and each pointer is 32 bit long */
+	/* and auxv_t is 64 bit long */
+#define ADDR_SIZE	4
+#define AUXV_SIZE	8
+
 	/* compute used stack size */
-	init_size = (num_arg + num_env + 2 ) * sizeof(gliss_address_t) + size + sizeof(uint32_t);
+	init_size = (num_arg + num_env + 2 ) * ADDR_SIZE + (num_aux + 1) * AUXV_SIZE + size + ADDR_SIZE;
 	/* 16 byte alignment for PowerPC stack pointer after initialization */
 	init_size = ALIGN(init_size, 7);
 	/* we will pad the end of the written data with 0 to have an aligned sp */
 	align_stack_addr = env->stack_pointer - init_size;
 
 
-	/* write all data in a descending way */
-	/* we assume argc and each pointer is 32 bit long */
+	/* 
+	stack scheme		addresses
+	=========================================
 	
-	stack_ptr = env->stack_pointer;
+	strings			+++
+	_________
+	AT-NULL
+	---------
+	auxv_t[n]
+	...
+	auxv_t[0]
+	_________
+	0			^
+	---------		|
+	env[i]
+	...
+	env[0]
+	_________
+	0
+	---------
+	argv[argc-1]
+	...
+	argv[0]			---
+	_________
+	argc			<- sp after init
+	_________
+	
+	*/
+	
 
-	/* write argv[] pointers */
-	/* find argv[i] address in the simulated system */
-	addr_str = env->stack_pointer + (num_arg + num_env + 2)*sizeof(char *) + (num_aux + 1)*sizeof(auxv_t);
-	env->argv_addr = stack_ptr;
-	for (i = 0; i < num_arg; i++)
-	{
-		PUSH32(addr_str);
-		addr_str += strlen(env->argv[i] + 1);
-	}
-	/* null word termination */
-	PUSH32(0);
+	env->stack_pointer -= init_size;
+	stack_ptr = env->stack_pointer, 7;
+	
+	/* write argc */
+	//PUSH32(env->argc, stack_ptr);
 
-	/* write envp[] pointers */
-	/* we will write the env strings after the arg strings, so addr_str is pointing to the right place */
-	env->envp_addr = stack_ptr;
-	for (i = 0; i < num_env; i++)
-	{
-		PUSH32(addr_str);
-		addr_str += strlen(env->envp[i] + 1);
-	}
-	/* null word termination */
-	PUSH32(0);
+	/* write argv[] pointers later */
+	env->argv_addr = argv_ptr = stack_ptr;
 
+	/* write envp[] pointers later*/
+	env->envp_addr = envp_ptr = argv_ptr + (num_arg + 1) * ADDR_SIZE;
+	
 	/* write the auxiliary vectors */
-	env->auxv_addr = stack_ptr;
+	auxv_ptr = env->auxv_addr = envp_ptr + (num_env + 1) * ADDR_SIZE;
+num_aux = 0;
 	for (i = 0; i < num_aux; i++)
-		PUSH64(env->auxv[i]);
+		PUSH64(env->auxv[i], auxv_ptr);
 	/* AT_NULL termination entry */
-	PUSH64(auxv_null);
+//	PUSH64(auxv_null, auxv_ptr);
 
-	/* write argv strings */
-	addr_str = env->stack_pointer + (num_arg + num_env + 2)*sizeof(char *) + (num_aux + 1)*sizeof(auxv_t);
+	/* write argv strings and put addresses in argv[i] */
+	addr_str = auxv_ptr + (num_aux + 1) * AUXV_SIZE;
 	for (i = 0; i < num_arg; i++)
 	{
-		gliss_mem_write(memory, addr_str, env->argv[i], strlen(env->argv[i]) + 1);
-		addr_str += strlen(env->argv[i]) + 1;
+		len = strlen(env->argv[i]) + 1;
+		/* store address of argv[i] in stack */
+		PUSH32(addr_str, argv_ptr);
+		for (j = 0 ; j < len ; j++)
+			PUSH8(env->argv[i][j], addr_str);
 	}
+	/* NULL word termination */
+	PUSH32(0, argv_ptr);
 
-	/* write envp strings */
+	/* write envp strings and put addresses in envp[i]  */
 	for (i = 0; i < num_env; i++)
 	{
-		gliss_mem_write(memory, addr_str, env->envp[i], strlen(env->envp[i]) + 1);
-		addr_str += strlen(env->envp[i]) + 1;
+		len = strlen(env->envp[i]) + 1;
+		/* store address of envp[i] in stack */
+		PUSH32(addr_str, envp_ptr);
+		for (j = 0 ; j < len ; j++)
+			PUSH8(env->envp[i][j], addr_str);
 	}
+	/* NULL word termination */
+	PUSH32(0, envp_ptr);
 	
 	/* pad with 0 to have a 16 byte aligned stack pointer towards a null word */
-	stack_ptr = addr_str;
+	/*stack_ptr = addr_str;
 	while (stack_ptr > align_stack_addr)
-		PUSH32(0);
-	gliss_mem_write32(memory, stack_ptr, 0);
+		PUSH8(0, stack_ptr);*/
+	/* stack ready, pointing to a NULL word */
+	/*gliss_mem_write32(memory, stack_ptr, 0);*/
+	
+	
+	env->stack_pointer = env->argv_addr;
+}
+
+
+/* !!DEBUG!! */
+void read_string(gliss_address_t a, gliss_memory_t *mem, char * buffer)
+{
+	int i = 0;
+	while (1)
+	{
+		buffer[i] = gliss_mem_read8(mem, a++);
+		if (buffer[i] == '\0')
+			break;
+		i++;
+	}
+}
+
+/* dump everything betwen 0xE0000000 and a */
+void dump_stack(gliss_address_t a, gliss_state_t *state)
+{
+	gliss_address_t i = 0xE0000000;
+	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
+	uint8_t bytes[4];
+	uint32_t word;
+	int j;
+	while (i >= a)
+	{
+		printf("0x%08X-0x%08X:\t", i, i+3);
+		word = gliss_mem_read32(mem, i);
+		bytes[0] = gliss_mem_read8(mem, i);
+		bytes[1] = gliss_mem_read8(mem, i+1);
+		bytes[2] = gliss_mem_read8(mem, i+2);
+		bytes[3] = gliss_mem_read8(mem, i+3);
+		printf("%c,%c,%c,%c [0x%008X]\n", bytes[0], bytes[1], bytes[2], bytes[3], word);
+		i -= 4;
+	}
 }
 
 /**
@@ -993,5 +1063,60 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 
 	/* fpscr set to "round to nearest" mode */
 	state->FPSCR = 0;
+	
+	
+	/* !!DEBUG!! */
+	state->GPR[2] = 0x01234567;
+	state->GPR[0] = 0X12345678;
+	state->GPR[8] = 0X23456789;
+	state->GPR[9] = 0X34567890;
+	state->GPR[10] = 0X33445566;
+	state->GPR[11] = 0X44556677;
+	state->GPR[12] = 0X55667788;
+	state->GPR[13] = 0X00112233;
+	state->GPR[14] = 0X11223344;
+	state->GPR[15] = 0X22334455;
+	state->GPR[16] = 0X11112222;
+	state->GPR[17] = 0X22223333;
+	state->GPR[18] = 0X44445555;
+	state->GPR[19] = 0X55556666;
+	state->GPR[20] = 0X66667777;
+	state->GPR[21] = 0X77778888;
+	state->GPR[22] = 0X88889999;
+	state->GPR[23] = 0X9999AAAA;
+	state->GPR[24] = 0Xaaaabbbb;
+	state->GPR[25] = 0Xbbbbcccc;
+	state->GPR[26] = 0Xccccdddd;
+	state->GPR[27] = 0Xddddeeee;
+	state->GPR[28] = 0Xeeeeffff;
+	state->GPR[29] = 0Xfff00fff;
+	state->GPR[30] = 0Xfedcfedc;
+	state->GPR[31] = 0Xffeeeeff;
+	state->GPR[32] = 0Xffeddeff;
+	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
+	printf("init\n");
+	printf("sp = %08X[%08X]\n", env->stack_pointer, gliss_mem_read32(mem, env->stack_pointer));
+	printf("argc = %d\n", env->argc);
+	printf("@argv = %08X\n", env->argv_addr);
+	char buffer[8000];
+	int i;
+	gliss_address_t a;
+	for (i=0; i<env->argc; i++)
+	{
+		a = gliss_mem_read32(mem, env->argv_addr + (i<<2));
+		read_string(a, mem, buffer);
+		printf("@%08X\targv[%d]=%s\n", a, i, buffer);
+	}
+	printf("@envp = %08X\n", env->envp_addr);
+	for (i=0; ; i++)
+	{
+		a = gliss_mem_read32(mem, env->envp_addr + (i<<2));
+		if (a == 0)
+			break;
+		read_string(a, mem, buffer);
+		printf("@%08X\tenvp[%d]=%s\n", a, i, buffer);
+	}
+	printf("@auxv = %08X\n\n============================================================================\n\n", env->auxv_addr);
+	dump_stack(env->stack_pointer, state);
 }
 
