@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.14 2009/04/28 12:39:20 barre Exp $
+ * $Id: disasm.ml,v 1.15 2009/07/21 06:59:43 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -63,16 +63,19 @@ let rec gen_disasm info inst expr =
 			if fmt.[i + 1] != 's' then scan fmt tl s (hd::used) (i + 2) else
 			Irg.SEQ (format fmt used s i, scan fmt args (i + 2) [] (i + 2)) in
 	
-	(* !!DEBUG!! *)
-	(*print_string "gen_disasm:";
-	Irg.print_expr expr;
-	print_char '\n';*)
-	
+	let rec process expr =
 	match expr with
 	| Irg.FORMAT (fmt, args) ->
 		scan fmt args 0 [] 0
 	| Irg.CONST (_, Irg.STRING_CONST s) ->
 		format "%s" [str s] 0 2
+	| Irg.IF_EXPR (_, c, t, e) ->
+		Irg.IF_STAT(c, process t, process e)
+	| Irg.SWITCH_EXPR(_, c, cases, def) ->
+		Irg.SWITCH_STAT(
+			c,
+			List.map (fun (c, e) -> (c, process e)) cases,
+			if def <> Irg.NONE then process def else Irg.NOP)
 	| Irg.NONE
 	| Irg.CANON_EXPR _
 	| Irg.REF _
@@ -81,14 +84,18 @@ let rec gen_disasm info inst expr =
 	| Irg.BITFIELD _
 	| Irg.UNOP _
 	| Irg.BINOP _
-	| Irg.IF_EXPR _
-	| Irg.SWITCH_EXPR _
 	| Irg.CONST _
 	| Irg.COERCE _
 	| Irg.EINLINE _ ->
 		Toc.error_on_expr "bad syntax expression" expr
 	| Irg.ELINE (file, line, e) ->
-		Toc.locate_error file line (gen_disasm info inst) e
+		Toc.locate_error file line (gen_disasm info inst) e in
+		
+	(* !!DEBUG!! *)
+	(*print_string "gen_disasm:";
+	Irg.print_expr expr;
+	print_char '\n';*)
+	process expr
 
 
 (** Perform the disassembling of the given instruction.
