@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.8 2009/07/21 13:17:58 barre Exp $
+ *	$Id: old_elf.c,v 1.9 2009/07/21 13:29:56 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -909,7 +909,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	/* 16 byte alignment for PowerPC stack pointer after initialization */
 	init_size = ALIGN(init_size, 7);
 	/* we will pad the end of the written data with 0 to have an aligned sp */
-	align_stack_addr = env->stack_pointer - init_size;
+	//align_stack_addr = env->stack_pointer - init_size;
 
 
 	/* 
@@ -946,7 +946,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	stack_ptr = env->stack_pointer, 7;
 	
 	/* write argc */
-	//PUSH32(env->argc, stack_ptr);
+	PUSH32(env->argc, stack_ptr);
 
 	/* write argv[] pointers later */
 	env->argv_addr = argv_ptr = stack_ptr;
@@ -956,11 +956,12 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	
 	/* write the auxiliary vectors */
 	auxv_ptr = env->auxv_addr = envp_ptr + (num_env + 1) * ADDR_SIZE;
+// !DEBUG!!
 num_aux = 0;
 	for (i = 0; i < num_aux; i++)
 		PUSH64(env->auxv[i], auxv_ptr);
 	/* AT_NULL termination entry */
-//	PUSH64(auxv_null, auxv_ptr);
+	//PUSH64(auxv_null, auxv_ptr);
 
 	/* write argv strings and put addresses in argv[i] */
 	addr_str = auxv_ptr + (num_aux + 1) * AUXV_SIZE;
