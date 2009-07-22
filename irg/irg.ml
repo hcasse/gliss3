@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.35 2009/07/08 09:38:24 barre Exp $
+ * $Id: irg.ml,v 1.36 2009/07/22 13:07:47 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -217,7 +217,11 @@ let get_symbol n =
 	try
 		StringHashtbl.find syms n
 	with Not_found ->
-		UNDEF
+		if n = "bit_order" then
+			UNDEF
+		else
+		(* !!DEBUG!! *)
+		failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")
 
 
 (** Add a symbol to the namespace.
@@ -1091,6 +1095,8 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 		| AND_MODE(_, _, _, a_l) ->
 			get_attr name_attr a_l
 		| _ ->
+		(* !!DEBUG!! *)
+		(*print_string name_attr;*)
 			failwith "cannot get an expr attribute from not an AND OP or an AND MODE (irg.ml::get_expr_from_attr_from_op_or_mode)"
 
 
@@ -1245,12 +1251,11 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
-				begin
-				print_string "!!!ARG!!!\n";
+				(* !!DEBUG!! *)
+				(*print_string "!!!ARG!!!\n";
 				print_location loc; print_char '\n';
-				print_expr (get_mode_value op); print_char '\n';
+				print_expr (get_mode_value op); print_char '\n';*)
 				failwith "\nincorrect type of expr for a mode value (irg.ml::substitute_in_location)"
-				end
 		
 		in
 		(* change if op is a AND_MODE and s refers to it *)
@@ -1397,14 +1402,18 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
-		| CONST(STRING, s) ->
+		(*| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
 			| _ -> failwith "cannot get a string from not a string constant (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
-			)
+			)*)
 		| REF(s) -> s
 		| ELINE (_, _, e) -> get_str_from_format_expr e
-		| _ -> failwith "expression not suitable to get a string from it (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
+		| _ -> 
+			"";
+		(* !!DEBUG!! 
+		print_char '['; print_expr f; print_string "]\n";
+		failwith "expression not suitable to get a string from it (irg.ml::replace_format_by_attr::get_str_from_format_expr)"*)
 	in
 	match str_format with
 	Str.Text(t) -> t
@@ -1412,13 +1421,18 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 		(match expr_field with
 		(* replace expr like "x.image" "y.syntax" etc *)
 		FIELDOF(_, _, s) ->
-			get_str_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
+			let new_s = get_str_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
+			in
+			if new_s = "" then
+				t
+			else
+				new_s
 		(* replace format by text for string constants *)
-		| CONST(STRING, cst) ->
+		(*| CONST(STRING, cst) ->
 			(match cst with
 			STRING_CONST(str) -> str
 			| _ -> ""
-			)
+			)*)
 		| ELINE (_, _, e) -> replace_format_by_attr str_format e spec_type
 		(* leave unchanged for simple expr of simple types, like "tmp", "x" *)
 		| _ -> t)
@@ -1426,19 +1440,26 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 
 
 (* replace an "x.image" (x is an op foo) param by the params of the "image" attribute in the "foo" spec 
-the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params) *)
+the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params),
+others expressions remain *)
 let rec replace_field_expr_by_param_list expr_field spec_type =
 	let rec get_param_list_from_format_expr f =
+		(* !!DEBUG!! *)
+		(*print_string "get_pl_from_f_e f=[[";print_expr f; print_string "]]\n";*)
 		match f with
 		FORMAT(_, l) -> l
 		| ELINE (_, _, e) -> get_param_list_from_format_expr e
-		| _ -> []
+		(*| CONST(_, _) -> []*)
+		| _ ->[f]
 	in
+	(* !!DEBUG!! *)
+	(*print_string "####repl_f_e_by_p_l expr=["; print_expr expr_field; print_string "]\n[";print_spec spec_type;print_string "]\n";*)
 	match expr_field with
 	FIELDOF(_, _, s) ->
+		(*print_string "####rfebpl res = p_l\n";*)
 		get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
 	| ELINE (_, _, e) -> replace_field_expr_by_param_list e spec_type
-	| _ -> [expr_field]
+	| _ -> (*print_string "####rfebpl res_ = [";print_expr expr_field; print_string "]\n";*)[expr_field]
 
 let get_param_of_spec s =
 	match s with
@@ -1467,7 +1488,10 @@ let rec search_spec_of_name name param_list =
 	let spec_from_type t =
 		match t with
 		TYPE_ID(n) -> get_symbol n
-		| _ -> UNDEF
+		| TYPE_EXPR(t_e) -> 
+		(* !!DEBUG!! *)
+		(*print_string "spec_from_type, t="; print_type_expr t_e; print_string ", res=>UNDEF\n";*)
+		UNDEF
 	in
 	let rec rec_aux nam p_l =
 		match p_l with
@@ -1492,9 +1516,12 @@ let get_spec_from_expr e spec_params =
 			prefix_name_of_params_in_spec (search_spec_of_name expre spec_params) expre
 		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| ELINE (_, _, e) -> rec_aux e p_l
-		| CONST(t_e, c) -> UNDEF
+		| CONST(t_e, c) ->
+			UNDEF
 		| _ -> failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
-	in
+	in 
+	(* !!DEBUG!! *)
+	(*print_string "get_spec_from_expr, expr="; print_expr e; print_string ", p_l="; print_param_list spec_params;print_char '\n';*)
 	rec_aux e spec_params
 
 
@@ -1713,6 +1740,15 @@ let rec remove_const_param_from_format f =
 	FORMAT(s, p) ->
 		let r_l = string_to_regexp_list s
 		in
+		(* !!DEBUG!! *)
+		(*let rec print_expr_list e_l =
+			match e_l with
+			[] -> ()
+			| a::b -> print_string " [["; print_expr a; print_string "]]\n"; print_expr_list b
+		in
+		print_string ("remove_const_param_from_format, s=[["^s^"]]----p=\n");
+		print_expr_list p;
+		print_char '\n';*)
 		FORMAT(str_list_to_str (regexp_list_to_str_list (r_aux r_l p)), p_aux r_l p)
 	| ELINE (file, line, e) ->
 			(match e with
@@ -1732,11 +1768,11 @@ let change_format_attr expr_frmt param_list =
 	let rec get_str_from_format_expr f =
 		match f with
 		FORMAT(s, _) -> s
-		| CONST(STRING, s) ->
+		(*| CONST(STRING, s) ->
 			(match s with
 			STRING_CONST(str) -> str
 			| _ -> ""
-			)
+			)*)
 		| REF(s) -> s
 		| ELINE(_, _, e) -> get_str_from_format_expr e
 		| _ -> "[err1357]"
@@ -1768,7 +1804,30 @@ let change_format_attr expr_frmt param_list =
 			)
 		| _ -> f
 	in
-	reduce_frmt (remove_const_param_from_format (FORMAT(str_list_to_str (transform_str_list str_frmt param_frmt param_list), List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt))))
+	(* !!DEBUG!! *)
+	(*let rec print_e_l e_l =
+		match e_l with
+		[] -> ()
+		| a::b -> print_string " [["; print_expr a; print_string "]]\n"; print_e_l b
+	in
+	let l = List.flatten (List.map (fun x -> print_string "cfa::replace [[";print_expr x;print_string "]] get_spec_f_e = "; print_spec (get_spec_from_expr x param_list);
+	print_string "\n"; replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
+	in
+	let res =reduce_frmt (remove_const_param_from_format 
+		(FORMAT(
+			str_list_to_str (transform_str_list str_frmt param_frmt param_list), 
+			(*List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)*)
+			l
+			)))
+	in
+	print_string "chg_fmt_attr expr_frmt="; print_expr expr_frmt; print_string ", params="; print_param_list param_list;print_char '\n';
+	print_string "new params = "; print_e_l l;
+	print_string "\n\n===========cfa res= [[";print_expr res; print_string "]]\n";*)
+	reduce_frmt (remove_const_param_from_format 
+		(FORMAT(
+			str_list_to_str (transform_str_list str_frmt param_frmt param_list), 
+			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
+			)))
 	
 
 (* replace the type by the spec if the param refers to an op or mode,
