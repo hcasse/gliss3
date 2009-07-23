@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.36 2009/07/23 12:57:37 barre Exp $
+ * $Id: gep.ml,v 1.37 2009/07/23 13:05:37 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -113,8 +113,11 @@ let make_env info =
 			let size = Fetch.get_instruction_length inst in
 			if size < min then size else min)
 			1024 in
+	let invalid_category = "-1"
+	in
 	let get_category i =
-		match Iter.get_attr i "category" with
+		try
+		(match Iter.get_attr i "category" with
 		Iter.EXPR(e) ->
 			(try
 				let c = Sem.eval_const e
@@ -126,7 +129,9 @@ let make_env info =
 					failwith "the attribute named \"category\" is defined as a number in a string constant (like \"4\" or \"8\")"
 			with Sem.SemError _ -> failwith "the attribute named \"category\" should be a constant")
 		| Iter.STAT(s) ->
-			failwith "the attribute named \"category\" mustn't be a statement but an expression."
+			failwith "the attribute named \"category\" mustn't be a statement but an expression.")
+		with Not_found -> (* attribute "category" doesn't exist, return invalid category *)
+			invalid_category
 	in
 	let add_mask_32_to_param inst idx _ _ dict =
 		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
@@ -152,7 +157,7 @@ let make_env info =
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	(* for category table for ppc, category is always a number >= 0, let's take -1 for an invalid category (eg. for instr unknown) *)
-	("invalid_category", Templater.TEXT (fun out -> Printf.fprintf out "-1" )) ::
+	("invalid_category", Templater.TEXT (fun out -> output_string out invalid_category)) ::
 	("gen_pc_incr", Templater.TEXT (fun out -> 
 			let info = Toc.info () in
 			info.Toc.out <- out;
