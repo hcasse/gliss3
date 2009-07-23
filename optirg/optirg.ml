@@ -252,9 +252,9 @@ let is_opt (struc:opt_struct) :bool =
 			(* Treatments for display *)
 			let ncall = syms_fold_right (fun loc_name cpt -> if name=loc_name then cpt+1 else cpt) "instruction" 0 in
 			let _ = stats_assoc_list := (name,(ncall,List.length sons))::!stats_assoc_list in
-			if param && (not attr) && (not size) then (lrp:=(union_add name !lrp)) else ();
-			if (not param) && attr && (not size) then (lra:=(union_add name !lra)) else ();
-			if (not param) && (not attr) && size then (lrs:=(union_add name !lrs)) else ();
+			if (not param) && attr && size then (lrp:=(union_add name !lrp)) else ();
+			if param && (not attr) && size then (lra:=(union_add name !lra)) else ();
+			if param && attr && (not size) then (lrs:=(union_add name !lrs)) else ();
 			if param && attr && size then (la:=(union_add name !la)) else ();
 
 			(* return value *)
