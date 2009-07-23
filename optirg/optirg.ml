@@ -15,7 +15,7 @@ let lra = ref []
 let lrs = ref []
 let lrp = ref []
 let la = ref []
-
+let stats_assoc_list = ref []
 
 (** 
 	Provide the list of all sons's name for a parent node.  
@@ -31,6 +31,13 @@ let next (s:string) : (string list) = match (get_symbol s) with
 		-> sl
 	| _ 
 		-> []
+
+(** Iterator on symboles canvas. *)
+let rec syms_fold_right (f:string->'a->'a) (father:string) (res:'a) :'a = 
+	let sons: string list = next father in 
+	List.fold_right (syms_fold_right f) sons (f father res)
+
+
 
 (**
 	Provide the value of a node.
@@ -169,7 +176,7 @@ let union_add (elem:'a)  (set:'a list)  :'a list =
 
 
 (**
-	
+	Get the attribute's name 
 *)
 
 let get_attr_name = function 
@@ -181,7 +188,9 @@ let get_attr= function
 					| AND_MODE(_,[],_,attr_list) | AND_OP(_,[],attr_list) -> attr_list
 					| _ ->failwith "Optirg.get_attr: AND_OP or AND_MODE expected here"
 
-
+(**
+	Verify if 2 lists of attributes have the same elements.
+*)
 let list_equal l1 l2 = 
 	let len1=  (List.length l1) 
 	and len2= (List.length l2)
@@ -192,7 +201,13 @@ let list_equal l1 l2 =
 	in 
 		(len1 = len2) && List.fold_right2 (aux) l1 l2 true
 
-
+(**
+	Verify if all nodes of the list have same attributes.
+	@param list_of_nodes
+		A list of a OR node sons
+	@return 
+		true or false weather nodes have same attributes or not
+*)
 let same_attr_list list_of_nodes=
 	try  
 		let head_list = get_attr(List.hd list_of_nodes) in 
@@ -200,6 +215,15 @@ let same_attr_list list_of_nodes=
 		List.fold_right (aux) list_of_nodes true
 	with 
 		|_ -> false 
+
+
+(*
+contraintes.
+
+le mode OU n’est jamais utilisé en partie gauche d’une affectation,
+aucun attribut du mode OU n’est en partie gauche d’une affectation.
+
+*)
 
 (**
 	Verify if a node can be optimized.
@@ -224,12 +248,16 @@ let is_opt (struc:opt_struct) :bool =
 			) in
 			let attr = (same_attr_list sons) in
 			let size = (try let _= Image_attr_size.sizeOfNodeKey name in true with | _ -> false) in 
+			
+			(* Treatments for display *)
+			let ncall = syms_fold_right (fun loc_name cpt -> if name=loc_name then cpt+1 else cpt) "instruction" 0 in
+			let _ = stats_assoc_list := (name,(ncall,List.length sons))::!stats_assoc_list in
+			if param && (not attr) && (not size) then (lrp:=(union_add name !lrp)) else ();
+			if (not param) && attr && (not size) then (lra:=(union_add name !lra)) else ();
+			if (not param) && (not attr) && size then (lrs:=(union_add name !lrs)) else ();
+			if param && attr && size then (la:=(union_add name !la)) else ();
 
-			if param && (not attr) && (not size) then (lrp:=("\t"^name^"\n")::!lrp) else ();
-			if (not param) && attr && (not size) then (lra:=("\t"^name^"\n")::!lra) else ();
-			if (not param) && (not attr) && size then (lrs:=("\t"^name^"\n")::!lrs) else ();
-			if param && attr && size then (la:=("\t"^name^"\n")::!la) else ();
-
+			(* return value *)
 			param && attr && size
 
 		end
@@ -237,7 +265,7 @@ let is_opt (struc:opt_struct) :bool =
 
 
 (**
-	Insert all nodes in a set of opt_stuct implemanted as a list.
+	Insert all nodes in a set of opt_stuct implemented as a list.
 	@param 
 		the set  
 	@param
@@ -342,32 +370,105 @@ let imp_fusion ((or_node,and_list):(opt_struct)) :unit =
 	Irg.rm_symbol name; Irg.add_symbol name spec
 
 
+
+
+let name_of_typ = function TYPE_ID(name) -> name | TYPE_EXPR(_) -> "TYPE_EXPR"
+
+
+
+
+(** Delete struct_opt from list_opt if they are used in left side of an assigment. *)
+let affect_constraint (list_opt: opt_struct list) :opt_struct list=
+
+	(** Delete struct_opt from list_opt if they are used in left side of an assigment. Not recursive.*)
+	let del_flat name list_opt = 
+
+		(** give names of locations from a location *)
+		let  get_names_from_location (loc:location) :string list= 
+			let rec aux =function  
+				| 	LOC_NONE -> []
+				| 	LOC_REF(_,st,_,_,_)-> [st]	
+				| 	LOC_CONCAT(_,loc1, loc2)-> (aux loc1)@(aux loc2) 
+			in  
+				aux loc in
+
+		(** give names of locations used in the SETs of a stat *)
+		let rec get_location = function 
+			| LINE(_,_,s) -> (get_location s) 
+			| SEQ(s1,s2) -> (get_location s1)@(get_location s2)
+			| SET(loc,_) | SETSPE(loc,_) -> get_names_from_location loc
+			| _ -> []
+		in	
+		match (Irg.get_symbol name) with 
+		| Irg.AND_OP(_,list_param,list_attr)|Irg.AND_MODE(_,list_param,_,list_attr)->
+			let attr_stats = List.filter (function ATTR_STAT(_,_) -> true | _ -> false) list_attr in
+			let forbiddens_param = List.fold_right (fun (ATTR_STAT(_,s)) r-> (get_location s)@r) attr_stats [] in
+			let forbiddens = List.map 
+					(
+						fun param_name ->
+							try name_of_typ(List.assoc param_name list_param) with Not_found -> "" 
+					) 
+					forbiddens_param 
+			
+			
+			in
+				List.filter (fun (s,_) -> not (List.exists ((=)(name_of s)) forbiddens )) list_opt
+		| _ -> list_opt
+	in
+	syms_fold_right (del_flat) "instruction" list_opt
+
+(*
+let _=  
+				begin
+				(*print_string ("\n+++ ");
+				List.iter (fun s -> print_string (s^" ")) forbiddens_param ;
+				print_string ("+++\n") ;*)
+				print_string ("+++ ");
+				List.iter (fun s -> print_string (s^" ")) forbiddens ;
+				print_string ("+++\n") 
+				end
+in
+
+*)
+
+(** Display stat *)
+let string_of_stat (nc,ns) = (string_of_int nc)^" calls and "^(string_of_int ns)^" sons = "^(string_of_int (nc*ns))^" potentials instructions. "
+let string_of_opt name = name^" : "^(string_of_stat (List.assoc name !stats_assoc_list))
+let string_of_optname_list opt_list = List.fold_right (fun name res -> res^"\t"^(string_of_opt name)^"\n") opt_list ""
+
 (**
 	Optimize the tree from the root and print the number of optimization. 
 	@param 
 		the name of the root
 *)
 let optimize (name : string) :unit =
-	let liste_opt= set_of_struct [] name in 
-	let nb_opt = string_of_int (List.length liste_opt) in
-	begin
-	match liste_opt with 
+	begin	
+	let list_opt = set_of_struct [] name in 
+	let list_clean = affect_constraint list_opt in 
+	let nb_opt = string_of_int (List.length list_clean) in
+	
+	(match list_clean with 
 	[] -> () 
 			; (print_string ("##################################\n############# No Optimization ####\n##################################\n")) 
-	|_ -> List.iter (imp_fusion) liste_opt 
+	|_ -> List.iter (imp_fusion) list_clean
 			; (print_string ("#####################################\n#### Number of optimization =  "^nb_opt^" ####\n#####################################\n")) 
-	end ; 
-	print_string "\nOptimized nodes : \n" ;
-	List.iter (print_string) !la ; 
+
+	);
+	
+
+	let opt_node_name_list = List.fold_right (fun (s,_) r -> (name_of s)::r) list_clean [] in 
+	print_string "\nOptimized Nodes : \n" ;
+	print_string (string_of_optname_list opt_node_name_list); 
+	print_string "\nNodes acceptable without assigment constraint : \n" ;
+	print_string (string_of_optname_list !la); 
 	print_string "\nNon-Optimizable because of parameters only : \n" ;
-	List.iter (print_string) !lrp ;
-	print_string "\n" ;
+	print_string (string_of_optname_list !lrp); 
 	print_string "\nNon-Optimizable because of size inconsistences only : \n" ;
-	List.iter (print_string) !lrs ;
-	print_string "\n" ;
+	print_string (string_of_optname_list !lrs); 
 	print_string "\nNon-Optimizable because of attributes inconsistences only : \n" ;
-	List.iter (print_string) !lra ;
+	print_string (string_of_optname_list !lra); 
 	print_string "\n" 
+	end
 
 
 
