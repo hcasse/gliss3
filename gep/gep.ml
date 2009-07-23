@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.35 2009/04/22 14:21:18 barre Exp $
+ * $Id: gep.ml,v 1.36 2009/07/23 12:57:37 barre Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -113,7 +113,21 @@ let make_env info =
 			let size = Fetch.get_instruction_length inst in
 			if size < min then size else min)
 			1024 in
-
+	let get_category i =
+		match Iter.get_attr i "category" with
+		Iter.EXPR(e) ->
+			(try
+				let c = Sem.eval_const e
+				in
+				match c with
+				Irg.STRING_CONST(s) ->
+					s
+				| _ ->
+					failwith "the attribute named \"category\" is defined as a number in a string constant (like \"4\" or \"8\")"
+			with Sem.SemError _ -> failwith "the attribute named \"category\" should be a constant")
+		| Iter.STAT(s) ->
+			failwith "the attribute named \"category\" mustn't be a statement but an expression."
+	in
 	let add_mask_32_to_param inst idx _ _ dict =
 		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
 		dict in
@@ -124,6 +138,8 @@ let make_env info =
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
 			Toc.gen_action info "action")) ::
+		(* ppc category, will return the value of the category attribute in ppc description, could be extended to other procs *)
+		("category", Templater.TEXT (fun out -> Printf.fprintf out "%s" (get_category inst) )) ::
 		dict in
 
 	let maker = App.maker() in
@@ -135,6 +151,8 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
+	(* for category table for ppc, category is always a number >= 0, let's take -1 for an invalid category (eg. for instr unknown) *)
+	("invalid_category", Templater.TEXT (fun out -> Printf.fprintf out "-1" )) ::
 	("gen_pc_incr", Templater.TEXT (fun out -> 
 			let info = Toc.info () in
 			info.Toc.out <- out;
@@ -241,6 +259,8 @@ let _ =
 			make_template "decode_table32.h" "src/decode_table.h" dict;
 			make_template "inst_size_table.h" "src/inst_size_table.h" dict;
 			make_template "code_table.h" "src/code_table.h" dict;
+			(* for ppc category table *)
+			make_template "category_table.h" "src/category_table.h" dict;
 			
 			(* module linking *)
 			List.iter (process_module info) !modules;
