@@ -88,9 +88,9 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 	gliss_inst_t *res = 0;
 	gliss_ident_t id = gliss_fetch(decoder->fetch, address);
 	uint32_t code = gliss_mem_read32(decoder->fetch->mem, address);
-	/* revert bytes if endianness of host and target are not equals */
-	if (HOST_ENDIANNESS != TARGET_ENDIANNESS)
-		code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
+	///* revert bytes if endianness of host and target are not equals */
+	//if (HOST_ENDIANNESS != TARGET_ENDIANNESS)
+	//	code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
 	
 	/* then decode it */
 	
