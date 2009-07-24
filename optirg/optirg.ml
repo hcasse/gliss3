@@ -183,7 +183,9 @@ let get_attr_name = function
 	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) -> st
 	| 	ATTR_USES -> "none"
 
-
+(**
+	Get the attribute from a and node
+*)
 let get_attr= function 
 					| AND_MODE(_,[],_,attr_list) | AND_OP(_,[],attr_list) -> attr_list
 					| _ ->failwith "Optirg.get_attr: AND_OP or AND_MODE expected here"
@@ -343,7 +345,8 @@ let fusion
 	((or_node,and_list):(opt_struct))
 	:Irg.spec =
 	let size = Image_attr_size.sizeOfSpec or_node in
-	let new_attr_list = attr_list_from_and_node and_list size in
+	let val_attr = ATTR_EXPR("__val",REF("code")) in 
+	let new_attr_list = val_attr::(attr_list_from_and_node and_list size) in
 	match or_node with
 
 	(* Case in which we have a MODE *)
@@ -378,7 +381,7 @@ let name_of_typ = function TYPE_ID(name) -> name | TYPE_EXPR(_) -> "TYPE_EXPR"
 
 
 (** Delete struct_opt from list_opt if they are used in left side of an assigment. *)
-let affect_constraint (list_opt: opt_struct list) :opt_struct list=
+let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 
 	(** Delete struct_opt from list_opt if they are used in left side of an assigment. Not recursive.*)
 	let del_flat name list_opt = 
@@ -392,7 +395,7 @@ let affect_constraint (list_opt: opt_struct list) :opt_struct list=
 			in  
 				aux loc in
 
-		(** give names of locations used in the SETs of a stat *)
+		(* give the list of locations names used in the SETs of a stat *)
 		let rec get_location = function 
 			| LINE(_,_,s) -> (get_location s) 
 			| SEQ(s1,s2) -> (get_location s1)@(get_location s2)
@@ -401,8 +404,11 @@ let affect_constraint (list_opt: opt_struct list) :opt_struct list=
 		in	
 		match (Irg.get_symbol name) with 
 		| Irg.AND_OP(_,list_param,list_attr)|Irg.AND_MODE(_,list_param,_,list_attr)->
+			(* get the statements attributes *)
 			let attr_stats = List.filter (function ATTR_STAT(_,_) -> true | _ -> false) list_attr in
+			(* look for names of parameters that will be on the left side of a assigment *)						
 			let forbiddens_param = List.fold_right (fun (ATTR_STAT(_,s)) r-> (get_location s)@r) attr_stats [] in
+			(* look for names of parameters that will be excluded *)			
 			let forbiddens = List.map 
 					(
 						fun param_name ->
@@ -412,24 +418,115 @@ let affect_constraint (list_opt: opt_struct list) :opt_struct list=
 			
 			
 			in
+				(* remove the forbiddens nodes from list of optimized node*)
 				List.filter (fun (s,_) -> not (List.exists ((=)(name_of s)) forbiddens )) list_opt
 		| _ -> list_opt
 	in
 	syms_fold_right (del_flat) "instruction" list_opt
 
-(*
-let _=  
-				begin
-				(*print_string ("\n+++ ");
-				List.iter (fun s -> print_string (s^" ")) forbiddens_param ;
-				print_string ("+++\n") ;*)
-				print_string ("+++ ");
-				List.iter (fun s -> print_string (s^" ")) forbiddens ;
-				print_string ("+++\n") 
-				end
-in
-
+(**
+	Get the string from an ref expression.
+	@param ref_expr
+		the ref expression 
+	@retun 
+		the name of the referenced node.	
 *)
+let rec string_of_ref_expr ref_expr = match ref_expr with 
+		| REF(str) -> str
+		| ELINE(_,_,expr) -> string_of_ref_expr(expr)
+		| _-> failwith "optirg.ml: string_of_Ref_expr -> this argument is not a REF or a ELINE"
+
+
+
+(** 
+	Replace assigment of optimized Or_Node by a switch between the values. 
+	@param list_name 
+		the list of optimized node'name
+
+	(1) If the left side of the set exist in the list of optimized nodes , 
+	(2) then replace the assigment of X by a switch stat on X.__val.
+	(3) The new switch will contains cases based on X value switch cases.
+	(4) To create the cases, we convert switch_expr case into switch_stat case. 
+	(4) We insert assigment into each case.
+*)		
+
+let affect_constraint (list_name: string list) :unit=
+
+	(* (4) *) 	
+	let create_case_stat  (LOC_REF(a, _, b, c, d)) expr (code,ref_expr) = 
+		(code,SET(LOC_REF(a, (string_of_ref_expr ref_expr), b, c, d),expr ) )
+	in
+
+	(* Deletes struct_opt from list_opt if they are used in left side of an assigment. Not recursive.*)
+	let del_flat name () = 
+
+		(* gives names of locations from a location *)
+		let  get_names_from_location (loc:location) :string list= 
+			let rec aux =function  
+				| 	LOC_NONE -> []
+				| 	LOC_REF(_,st,_,_,_)-> [st]	
+				| 	LOC_CONCAT(_,loc1, loc2)-> (aux loc1)@(aux loc2) 
+			in  
+				aux loc in
+
+		
+		(* 
+			Modify the statement when it is a assigment. It replace 
+			this assigment with a switch_stat		
+		*)
+		let rec modify_stat list_param = function 
+			| LINE(a,b,s) -> LINE(a,b,(modify_stat list_param s))
+			| SEQ(s1,s2) -> SEQ((modify_stat list_param s1),(modify_stat list_param s2))
+			| SET(loc,e) | SETSPE(loc,e) as set -> 
+				let name_of_loc= List.hd (get_names_from_location loc) in
+				let type_of_loc= try name_of_typ ( List.assoc name_of_loc list_param ) with | _ -> " " in  
+				(* (3) *)
+				(* Return the value of a and mode. This value must be a switch expr. *)				
+				let switch_from_node () = 
+					match (get_symbol type_of_loc) with
+					| AND_MODE(_,_,expr,_)-> expr
+					| _ -> failwith "optirg.ml : affect_constraint::del_flat ::switch_from_node : An assigment on nodes work only on mode not on op"
+				in
+				(* (3) *) 
+				(* Return the list of cases from a switch expr *)
+				let case_list () = 
+					match switch_from_node () with 
+					|SWITCH_EXPR (_,_,l,_)-> l
+					|_ -> failwith "optirg.ml : affect_constraint::del_flat ::case_list: affect_constraint must be called after optimization. So Optimized mode must have swith_expr as value."
+				in
+				(* (1) *)		
+				if( List.exists ((=) type_of_loc) list_name) then 
+					(* (2) *)
+					SWITCH_STAT(
+						FIELDOF(UNKNOW_TYPE, name_of_loc, "__val"),
+						List.map ( create_case_stat loc e ) (case_list ()), 
+						NOP
+					)
+				else
+					set
+			| _ as x-> x 
+		in	
+		(* Modify the asigment of an statement attribute.*)
+		let stats_with_modified_sets list_param =  
+			List.map 
+				(
+					function 
+						| ATTR_STAT(n,s) -> ATTR_STAT(n,modify_stat list_param s)
+						| _ as x -> x
+				) 
+		in
+		(* 
+			Modify the node by changing the attributes where it exists a assigment.
+			There is no treatment when the node is not an and node. 
+		*)
+		match (Irg.get_symbol name) with 
+		| Irg.AND_OP(name,list_param,list_attr) -> Irg.rm_symbol name; Irg.add_symbol name (Irg.AND_OP(name,list_param,stats_with_modified_sets list_param list_attr))
+		|Irg.AND_MODE(name,list_param,x,list_attr)-> Irg.rm_symbol name; Irg.add_symbol name (Irg.AND_MODE(name,list_param,x,stats_with_modified_sets list_param list_attr))
+			
+		| _ -> ()
+	in
+	syms_fold_right (del_flat) "instruction" ()
+
 
 (** Display stat *)
 let string_of_stat (nc,ns) = (string_of_int nc)^" calls and "^(string_of_int ns)^" sons = "^(string_of_int (nc*ns))^" potentials instructions. "
@@ -444,19 +541,18 @@ let string_of_optname_list opt_list = List.fold_right (fun name res -> res^"\t"^
 let optimize (name : string) :unit =
 	begin	
 	let list_opt = set_of_struct [] name in 
-	let list_clean = affect_constraint list_opt in 
-	let nb_opt = string_of_int (List.length list_clean) in
-	
-	(match list_clean with 
-	[] -> () 
-			; (print_string ("##################################\n############# No Optimization ####\n##################################\n")) 
-	|_ -> List.iter (imp_fusion) list_clean
-			; (print_string ("#####################################\n#### Number of optimization =  "^nb_opt^" ####\n#####################################\n")) 
-
-	);
-	
-
+	let list_clean = list_opt in 
+	let nb_opt =  (List.length list_clean) in
 	let opt_node_name_list = List.fold_right (fun (s,_) r -> (name_of s)::r) list_clean [] in 
+
+	List.iter (imp_fusion) list_clean ;
+	affect_constraint opt_node_name_list ;	
+
+	if nb_opt = 0 then
+		(print_string ("##################################\n############# No Optimization ####\n##################################\n")) 
+	else 
+		(print_string ("#####################################\n#### Number of optimization =  "^(string_of_int nb_opt)^" ####\n#####################################\n")) 
+	;
 	print_string "\nOptimized Nodes : \n" ;
 	print_string (string_of_optname_list opt_node_name_list); 
 	print_string "\nNodes acceptable without assigment constraint : \n" ;
