@@ -1,5 +1,5 @@
 /*
- *	$Id: fast_mem.c,v 1.6 2009/01/21 07:30:54 casse Exp $
+ *	$Id: fast_mem.c,v 1.7 2009/07/24 14:04:59 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
@@ -35,6 +35,8 @@
  * to access memory pages.
  */
 
+#define little	0
+#define big		1
 #include "config.h"
 
 /**
@@ -64,11 +66,6 @@
 #	define assertp(c, m)
 #endif
 
-/* endianness */
-typedef enum gliss_endianness_t {
-  little = 0,
-  big = 1
-} gliss_endianness_t;
 
 #ifndef TARGET_ENDIANNESS
 #	error "TARGET_ENDIANNESS must be defined !"
@@ -76,6 +73,12 @@ typedef enum gliss_endianness_t {
 
 #ifndef HOST_ENDIANNESS
 #	error "HOST_ENDIANNESS must be defined !"
+#endif
+
+#if TARGET_ENDIANNESS == HOST_ENDIANNESS
+#	warning "endianness equals"
+#else
+#	warning "endianness different"
 #endif
 
 
@@ -462,15 +465,15 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 	
 	/* aligned ? */
 	if((address & 0x00000001) == 0)
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			return *(uint16_t *)p;
 #		else
-			val.half = *(uint16_t)p;
+			val.half = *(uint16_t *)p;
 #		endif
 
 	/* unaligned ! */
 	else
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			{ memcpy(val.bytes, p, 2); return val.half; }
 #		else
 			memcpy(val.bytes, p, 2);
@@ -506,15 +509,15 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 	
 	/* aligned ? */
 	if((address & 0x00000003) == 0)
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			return *(uint32_t *)p;
 #		else
-			val.word = *(uint32_t)p;
+			val.word = *(uint32_t *)p;
 #		endif
 
 	/* unaligned ! */
 	else
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			{ memcpy(val.bytes, p, 4); return val.word; }
 #		else
 			memcpy(val.bytes, p, 4);
@@ -553,15 +556,15 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 	
 	/* aligned ? */
 	if((address & 0x00000007) == 0)
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			return *(uint64_t *)p;
 #		else
-			val.word = *(uint64_t)p;
+			val.dword = *(uint64_t *)p;
 #		endif
 
 	/* unaligned ! */
 	else
-#		if TARGET_HOST == TARGET_LITTLE
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
 			{ memcpy(val.bytes, p, 8); return val.dword; }
 #		else
 			memcpy(val.bytes, p, 8);
