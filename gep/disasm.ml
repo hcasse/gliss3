@@ -1,5 +1,5 @@
 (*
- * $Id: disasm.ml,v 1.15 2009/07/21 06:59:43 casse Exp $
+ * $Id: disasm.ml,v 1.16 2009/07/29 09:26:28 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -61,41 +61,44 @@ let rec gen_disasm info inst expr =
 			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
 			if i + 1 >= String.length fmt then format fmt used s i else
 			if fmt.[i + 1] != 's' then scan fmt tl s (hd::used) (i + 2) else
-			Irg.SEQ (format fmt used s i, scan fmt args (i + 2) [] (i + 2)) in
+			Irg.SEQ (format fmt used s i,
+				Irg.SEQ(
+					process hd,
+					scan fmt args (i + 2) [] (i + 2)))
 	
-	let rec process expr =
-	match expr with
-	| Irg.FORMAT (fmt, args) ->
-		scan fmt args 0 [] 0
-	| Irg.CONST (_, Irg.STRING_CONST s) ->
-		format "%s" [str s] 0 2
-	| Irg.IF_EXPR (_, c, t, e) ->
-		Irg.IF_STAT(c, process t, process e)
-	| Irg.SWITCH_EXPR(_, c, cases, def) ->
-		Irg.SWITCH_STAT(
-			c,
-			List.map (fun (c, e) -> (c, process e)) cases,
-			if def <> Irg.NONE then process def else Irg.NOP)
-	| Irg.NONE
-	| Irg.CANON_EXPR _
-	| Irg.REF _
-	| Irg.FIELDOF _
-	| Irg.ITEMOF _
-	| Irg.BITFIELD _
-	| Irg.UNOP _
-	| Irg.BINOP _
-	| Irg.CONST _
-	| Irg.COERCE _
-	| Irg.EINLINE _ ->
-		Toc.error_on_expr "bad syntax expression" expr
-	| Irg.ELINE (file, line, e) ->
-		Toc.locate_error file line (gen_disasm info inst) e in
-		
-	(* !!DEBUG!! *)
-	(*print_string "gen_disasm:";
-	Irg.print_expr expr;
-	print_char '\n';*)
-	process expr
+	and process expr =
+		match expr with
+		| Irg.FORMAT (fmt, args) ->
+			scan fmt args 0 [] 0
+		| Irg.CONST (_, Irg.STRING_CONST s) ->
+			Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
+		| Irg.IF_EXPR (_, c, t, e) ->
+			Irg.IF_STAT(c, process t, process e)
+		| Irg.SWITCH_EXPR(_, c, cases, def) ->
+			Irg.SWITCH_STAT(
+				c,
+				List.map (fun (c, e) -> (c, process e)) cases,
+				if def <> Irg.NONE then process def else Irg.NOP)
+		| Irg.NONE
+		| Irg.CANON_EXPR _
+		| Irg.REF _
+		| Irg.FIELDOF _
+		| Irg.ITEMOF _
+		| Irg.BITFIELD _
+		| Irg.UNOP _
+		| Irg.BINOP _
+		| Irg.CONST _
+		| Irg.COERCE _
+		| Irg.EINLINE _ ->
+			Toc.error_on_expr "bad syntax expression" expr
+		| Irg.ELINE (file, line, e) ->
+			Toc.locate_error file line (gen_disasm info inst) e in
+			
+		(* !!DEBUG!! *)
+		(*print_string "gen_disasm:";
+		Irg.print_expr expr;
+		print_char '\n';*)
+		process expr
 
 
 (** Perform the disassembling of the given instruction.
