@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.37 2009/07/23 13:05:37 barre Exp $
+ * $Id: gep.ml,v 1.38 2009/07/31 09:09:42 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -223,10 +223,6 @@ let process_module info m =
 	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".h") header
 
 
-let make_template template file dict =
-	if not !App.quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
-	Templater.generate dict template file
-
 (* main program *)
 let _ =
 	App.run
@@ -244,9 +240,9 @@ let _ =
 			App.makedir "include";
 			if not !App.quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
 			App.makedir info.Toc.hpath;
-			make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
-			make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
-			make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
+			App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
+			App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
+			App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 			
 			(* source generation *)
 
@@ -256,16 +252,16 @@ let _ =
 			link
 				(info.Toc.hpath)
 				(info.Toc.spath ^ "/target");
-			make_template "Makefile" "src/Makefile" dict;
-			make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
-			make_template "api.c" "src/api.c" dict;
-			make_template "platform.h" "src/platform.h" dict;
-			make_template "fetch_table32.h" "src/fetch_table.h" dict;
-			make_template "decode_table32.h" "src/decode_table.h" dict;
-			make_template "inst_size_table.h" "src/inst_size_table.h" dict;
-			make_template "code_table.h" "src/code_table.h" dict;
+			App.make_template "Makefile" "src/Makefile" dict;
+			App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
+			App.make_template "api.c" "src/api.c" dict;
+			App.make_template "platform.h" "src/platform.h" dict;
+			App.make_template "fetch_table32.h" "src/fetch_table.h" dict;
+			App.make_template "decode_table32.h" "src/decode_table.h" dict;
+			App.make_template "inst_size_table.h" "src/inst_size_table.h" dict;
+			App.make_template "code_table.h" "src/code_table.h" dict;
 			(* for ppc category table *)
-			make_template "category_table.h" "src/category_table.h" dict;
+			App.make_template "category_table.h" "src/category_table.h" dict;
 			
 			(* module linking *)
 			List.iter (process_module info) !modules;

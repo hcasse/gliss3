@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 2009/07/05 07:25:21 casse Exp $
+# $Id: Makefile,v 1.15 2009/07/31 09:09:42 casse Exp $
 include ../Makefile.head
 
 OCAMLYACC_FLAGS = -v
@@ -25,7 +25,3 @@ mkirg_LIBS=str irg
 $(eval $(call ocaml_prog,mkirg,mkirg.ml))
 
 include ../Makefile.tail
-
-doc:
-	mkdir autodoc
-	ocamldoc -html irg.ml sem.ml iter.ml -d autodoc

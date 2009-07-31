@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.20 2009/07/05 06:59:11 casse Exp $
+ * $Id: sem.ml,v 1.21 2009/07/31 09:09:43 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -54,7 +54,7 @@ let to_int32 c =
 	@param c		Constant to convert.
 	@return			Matching int value.			print_expr e1;
 			print_string " (";
-			print_type_expr t1; 
+			print_type_expr t1;
 			print_string ") ";
 			print_string (string_of_binop bop);
 			print_string " ";
@@ -62,7 +62,7 @@ let to_int32 c =
 			print_string " (";
 			print_type_expr t2;
 			print_string ")";
-			print_string "\n"; 
+			print_string "\n";
 	@raise SemError	If the constant is not convertible. *)
 let to_int c =
 	Int32.to_int (to_int32 c)
@@ -84,7 +84,7 @@ let is_true c =
 
 
 (**)
-(* A verifier : 
+(* A verifier :
 	-Est ce normal que y soit de type Int32 ?
 	-Ne devrait on pas utiliser des shift_<left/right>_logical ?
 *)
@@ -123,14 +123,14 @@ let rec eval_unop op c =
 		FIXED_CONST (-. v)
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_unop op))) 
+			(string_of_unop op)))
 
 
 (** Evaluate a binary operation.
 	@param op	Operation.
 	@param v1	First operand.
 	@param v2	Second operand.
-	@param 		Result. *)
+	@return 	Result. *)
 let eval_binop_card op v1 v2 =
 	match op with
 	  ADD ->
@@ -177,14 +177,14 @@ let eval_binop_card op v1 v2 =
 		(*Irg.*)CARD_CONST (Int32.logxor v1 v2)
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op))) 
+			(string_of_binop op)))
 
 
 (** Evaluate a fixed binary operation.
 	@param op	Operation.
 	@param v1	First operand.
 	@param v2	Second operand.
-	@param 		Result. *)
+	@return 	Result. *)
 let eval_binop_fixed op v1 v2 =
 	match op with
 	  ADD		->
@@ -215,14 +215,14 @@ let eval_binop_fixed op v1 v2 =
 		if v1 <> 0. || v2 <> 0. then true_const else false_const
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op))) 
+			(string_of_binop op)))
 
 
 (** Evaluate a string binary operation.
 	@param op	Operation.
 	@param v1	First operand.
 	@param v2	Second operand.
-	@param 		;Result. *)
+	@return		Result. *)
 let eval_binop_string op v1 v2 =
 	match op with
 	  LT 		-> to_bool (v1 < v2)
@@ -234,7 +234,7 @@ let eval_binop_string op v1 v2 =
 	| CONCAT	-> STRING_CONST (v1 ^ v2)
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op))) 
+			(string_of_binop op)))
 
 
 
@@ -257,7 +257,7 @@ let eval_binop op c1 c2 =
 		eval_binop_string op v1 v2
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op))) 
+			(string_of_binop op)))
 
 
 (** Perform the expression switch.
@@ -291,8 +291,8 @@ and eval_const expr =
 		|ENUM_POSS (_,_,v,_)->CARD_CONST v
 		(**)
 		| _ -> raise (SemError "this expression should be constant"))
-	| ELINE (_, _, e) -> eval_const e 
-	| _ -> 
+	| ELINE (_, _, e) -> eval_const e
+	| _ ->
 		raise (SemError "this expression should be constant")
 
 
@@ -334,7 +334,7 @@ let check_constant_type t c =
    @param  loc		a memory location
    @return  the number of bit available of the location
 *)
-(*let rec  get_location_size loc = 
+(*let rec  get_location_size loc =
 	match loc with
 	  LOC_REF id -> (match Irg.get_symbol id with
 			UNDEF -> raise (SemError (Printf.sprintf "get_location_size : undeclared memory location :\"%s\"" id))
@@ -358,12 +358,12 @@ let check_constant_type t c =
 
 (** make the implicit conversion a to b in b op a)
   @author PJ
-  @param loc		location 
+  @param loc		location
   @param expr_b		expression to cast
-  @ return           expr_b casted to loc
+  @return           expr_b casted to loc
 *)
 
-(*nml_cast a b = 
+(*nml_cast a b =
 	match (a,b) with
 	  (INT k,CARD(n,m)) ->  n+m
 	| _ -> failwith*)
@@ -375,7 +375,7 @@ let check_constant_type t c =
     bit sign is first bit of the mantisse *)
 let is_IEEE754_float f = match f with
 	(FLOAT(m,e)) ->(match(m+e) with
-			 32 -> (e =8)&&(m=24) 
+			 32 -> (e =8)&&(m=24)
 			| 64 -> (e = 11)&&(m =53)
 			| 80 -> (e = 15)&&(m = 65)
 			| _  -> raise (SemError "float number doesn't follow IEEE754 specification "))
@@ -390,9 +390,9 @@ let is_IEEE754_float f = match f with
 	@raise SemError if the keyword is not defined
 *)
 let rec get_type_ident id=
-	let symb= get_symbol id 
+	let symb= get_symbol id
 	in
-	
+
 	if symb=UNDEF
 	then
 		raise (SemError (Printf.sprintf "The keyword \"%s\" not defined" id))
@@ -424,12 +424,12 @@ let rec get_type_ident id=
 				 t
 				)
 
-	(* --- this was used to check that all the modes composing an OR_MODE where of the same type. But it was abandoned because of compatibility issues --- *)	
+	(* --- this was used to check that all the modes composing an OR_MODE where of the same type. But it was abandoned because of compatibility issues --- *)
 	(*|OR_MODE (n,l)->let type_mode = get_type_ident (List.hd l)
-			in 
+			in
 			if List.for_all (fun a-> if (get_type_ident a)=type_mode then true else false) (List.tl l)
 				then type_mode
-				else 
+				else
 					let dsp=(fun _-> (	(List.map (fun a->print_string "\n--- ";print_string a;print_string " : ";print_type_expr (get_type_ident a);print_string "\n") l)	);()	)
 					in
 					raise (SemErrorWithFun ((Printf.sprintf "The or_mode %s is not of consistant type\n" n),dsp))*)
@@ -462,7 +462,7 @@ and get_type_expr exp=
 		|COERCE(t,_)->t
 		|FORMAT (_,_)->STRING
 		|CANON_EXPR (t,_,_) ->t
-		|REF id->get_type_ident id 
+		|REF id->get_type_ident id
 		|FIELDOF (t,_,_)->t
 		|ITEMOF (t,_,_)->t
 		|BITFIELD (t,_,_,_)->t
@@ -496,23 +496,23 @@ let get_type_length t =
 		int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
 	| NO_TYPE
 	| STRING
-	| UNKNOW_TYPE -> 
+	| UNKNOW_TYPE ->
 		failwith "length unknown"
 
 
-(** Give the bit lenght of an expression 
+(** Give the bit lenght of an expression
 	@param e	the expression of wich we want the size
 	@return 	the bit-length of the expression (as an iteger)
 	@raise Failure	this exception is raised when it is not possible to determine the length (for expressions of type NO_TYPE, STRING or UNKNOW_TYPE)
 *)
-let get_length_from_expr e=	
+let get_length_from_expr e=
 	get_type_length (get_type_expr e)
 
 
 (** Check the matching of a unary operation and the type of its operand.
 	@param t	Type to check.
 	@param uop	Operation to check.
-	@return	True if they match, false else. 
+	@return	True if they match, false else.
 *)
 let check_unop_type t uop =
 	match t with
@@ -520,7 +520,7 @@ let check_unop_type t uop =
 	|(CARD _|INT _	|FIX (_,_) | FLOAT (_,_))->((uop=NOT)||(uop=NEG)||(uop=BIN_NOT))
 	|STRING->false
 	|_->(uop=NOT||uop=BIN_NOT)
-	
+
 
 (** Create a unary operation with a correct type in function of its operand.
 	@param e	First operand.
@@ -530,10 +530,10 @@ let check_unop_type t uop =
 *)
 let get_unop e uop=
 
-	let t=get_type_expr e 
+	let t=get_type_expr e
 	in
 	if(not (check_unop_type t uop))
-		then	let aff=fun _->(	
+		then	let aff=fun _->(
 						print_string (string_of_unop uop);
 						print_string " ";
 						print_string "(";
@@ -541,7 +541,7 @@ let get_unop e uop=
 						print_string ") -";
 						print_type_expr t;
 						print_string "-";
-						print_string "\n" 
+						print_string "\n"
 					 )
 			in
 			raise (SemErrorWithFun ("This unary operation is semantically incorrect",aff))
@@ -552,7 +552,7 @@ let get_unop e uop=
 			(_,UNKNOW_TYPE)->UNOP (UNKNOW_TYPE, uop,e)
 			|(NEG,CARD n)->UNOP(INT n,uop,e)	(*for the negation of a CARD, the type is INT *)
 			|_->UNOP (t,uop,e))
-	
+
 (** Check the matching of a binary operation and the type of its operands.
 	@param t1	First type to check.
 	@param t2	Second type to check
@@ -564,7 +564,7 @@ let check_binop_type t1 t2 bop =
 	then false
 	else
 
-	if (t1=UNKNOW_TYPE||t2=UNKNOW_TYPE) 
+	if (t1=UNKNOW_TYPE||t2=UNKNOW_TYPE)
 	then true
 	else
 
@@ -607,7 +607,7 @@ let check_binop_type t1 t2 bop =
 									(CARD _|INT _)->true
 									|_->false)
 					|_->false)
-				
+
 
 	|(LT|GT|LE|GE|EQ|NE)->	(match t1 with
 					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
@@ -638,7 +638,7 @@ let check_binop_type t1 t2 bop =
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
 let get_add_sub e1 e2 bop=
-	let t1=get_type_expr e1 
+	let t1=get_type_expr e1
 	and t2=get_type_expr e2
 	in
 	match (t1,t2) with
@@ -662,7 +662,7 @@ let get_add_sub e1 e2 bop=
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
 let get_mult_div_mod e1 e2 bop=
-	let t1=get_type_expr e1 
+	let t1=get_type_expr e1
 	and t2=get_type_expr e2
 	in
 	match (t1,t2) with
@@ -680,7 +680,7 @@ let get_mult_div_mod e1 e2 bop=
 	|_->failwith "internal error : get_mult_div_mod"
 
 
-	
+
 (** Create a concat with a correct type in function of its operands.
 	This function is used in get_binop.
 	@param e1	First operand.
@@ -689,11 +689,11 @@ let get_mult_div_mod e1 e2 bop=
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
 let rec get_concat e1 e2=
-	
-	(*let t1=get_type_expr e1 
+
+	(*let t1=get_type_expr e1
 	and t2=get_type_expr e2
 	in
-	
+
 	match (t1,t2) with
 	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, CONCAT,e1,e2)
 	|(CARD m, CARD n) -> BINOP (CARD (n+m), CONCAT,e1,e2)
@@ -718,7 +718,7 @@ let rec get_concat e1 e2=
 	@raise SemErrorWithFun	Raised when the type of the operands is not compatible with the operation
 *)
 let rec get_binop e1 e2 bop=
-	let t1=get_type_expr e1 
+	let t1=get_type_expr e1
 	and t2=get_type_expr e2
 	in
 	(* add coerce when needed, typically when one operand is int and the other one card or int *)
@@ -748,7 +748,7 @@ let rec get_binop e1 e2 bop=
 						(*Printf.printf "\tcoerce e1 -> INT(%d)\n" n2;*)
 						(COERCE(INT(n2), e1), e2)
 						end
-					
+
 				| CARD(n2) ->
 					if n1 < n2 then
 						begin
@@ -787,13 +787,13 @@ let rec get_binop e1 e2 bop=
 	in
 
 	if( not (check_binop_type t1 t2 bop))
-	then 	(	
+	then 	(
 
-			let aff=fun _->(	
+			let aff=fun _->(
 						print_string "(";
 						print_expr e1;
 						print_string ") -";
-						print_type_expr t1; 
+						print_type_expr t1;
 						print_string "- ";
 						print_string (string_of_binop bop);
 						print_string " ";
@@ -802,7 +802,7 @@ let rec get_binop e1 e2 bop=
 						print_string ") -";
 						print_type_expr t2;
 						print_string "-";
-						print_string "\n" 
+						print_string "\n"
 					 )
 			in
 			raise (SemErrorWithFun ("This binary operation is semantically incorrect",aff))
@@ -824,7 +824,7 @@ let rec get_binop e1 e2 bop=
     we deal with int and card
     @param	l	the location of the SET(SPE)
     @param	e	the rvalue expression to be coerced if needed
-    @param		the rvalue expression coerced or not
+    @return		the rvalue expression coerced or not
 *)
 let check_set_stat l e =
 	let t2 = get_type_expr e
@@ -928,7 +928,7 @@ let interval_of t =
 	It check that all the cases are of the same type than the condition,
 	that all the cases and the default return an expression of the same type,
 	that all pssibilites are covered by the cases.
-	
+
 	TODO : Allow compatibles types (instead of strictly the same type) to be presents in the conditional part of the cases
 
 	@param test	the condition of the switch.
@@ -946,7 +946,7 @@ let check_switch_expr test list_case default=
 		| REF i ->
 			(match (get_symbol i) with
 			| PARAM (n,t)->	rm_symbol n;
-				let value = 
+				let value =
 					(match t with
 					| TYPE_ID ti->
 						(match (get_symbol ti) with
@@ -1004,7 +1004,7 @@ let check_switch_expr test list_case default=
 				| _ -> failwith ("get_enum : expression is not an enum poss"))
 		| ELINE (_, _, e) -> get_enum_poss_info e
 		| _ ->failwith "get_enum : expression is not an enum poss" in
-		
+
 	(* Return the enum that the expression refer to *)
 	let rec get_enum_poss_type e =
 		get_type_ident (fst (get_enum_poss_info e))
@@ -1019,7 +1019,7 @@ let check_switch_expr test list_case default=
 		| ELINE (_, _, e) -> get_enum_poss_id e
 		| _ -> failwith "get_enum_poss_id : expression is not an enum poss" in
 
-	(* --- end of definition of the "little" subfunction. 
+	(* --- end of definition of the "little" subfunction.
 			Now we can start the declaration of the three "big" subfonctions who will each check one condition to validate the switch ---*)
 
 
@@ -1030,7 +1030,7 @@ let check_switch_expr test list_case default=
 			match list_c with
 			| [] -> true
 			| (c,_)::l->
-				if(is_enum_poss c) 
+				if(is_enum_poss c)
 				then (get_enum_poss_type c = t) && (sub_fun l)
 				else (get_type_expr c = t) && (sub_fun l) in
 		let rec is_int lst =
@@ -1059,14 +1059,14 @@ let check_switch_expr test list_case default=
 	(* This part check if all the possibles values of the expression to test are covered *)
 	and check_switch_all_possibilities =
 		(* a default is needed to be sure that all possibilities are covered, except for ENUM where you can enumerate all the possibilities*)
-		if (not (default = NONE)) then true	
-		else if is_param_of_type_enum test  then	
+		if (not (default = NONE)) then true
+		else if is_param_of_type_enum test  then
 			(* l is the id list of the enum type used *)
 			let l = get_list_poss_from_enum_expr test	in
 			(* cond_list is the list of id of the enum type who are presents in the swith *)
 			let cond_list = List.map get_enum_poss_id (List.map fst list_case) in
 			(* check that all element of l are contained in cond_list *)
-			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l	
+			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l
 		else
 			let min, max = interval_of (get_type_expr test) in
 			if (min, max) = (0, 0) then
@@ -1102,7 +1102,7 @@ let check_switch_expr test list_case default=
 
 (** Check is the given id refer to a valid memory location
 	To allow compatibility with older versions, is_loc_mode and is_loc_spe must be used in conjunction with this function
-	@ param id	the id to check
+	@param id	the id to check
 	@return True if the id is a valid memory location, false otherwise *)
 let rec is_location id=
 	let sym=Irg.get_symbol id
@@ -1113,7 +1113,7 @@ let rec is_location id=
 			 (MEM (_,_,_,_)|REG (_,_,_,_)|VAR(_,_,_))->true
 			|_->false
 	in
-	(**)	
+	(**)
 	(*print_spec sym;*)
 	(**)
 	match sym with
@@ -1126,10 +1126,10 @@ let rec is_location id=
 			add_param (n,t);value)
 	|_->false
 
-(** Check is the given id refer to a MODE. 
+(** Check is the given id refer to a MODE.
 	This is needed for compatibility with some versions of GLISS v1 where assignements in modes where used.
 	This function is defined to be used in complement of is_location
-	@ param id	the id to check
+	@param id	the id to check
 	@return True if the id refer to a MODE false otherwise
 *)
 let rec is_loc_mode id =
@@ -1137,10 +1137,10 @@ let rec is_loc_mode id =
 	and is_location_param id=
 		let sym=Irg.get_symbol id
 		in
-		match sym with	
-			(AND_MODE(_,_,_,_)|OR_MODE(_,_))->true			
+		match sym with
+			(AND_MODE(_,_,_,_)|OR_MODE(_,_))->true
 			|_->false
-	in	
+	in
 	match sym with
 	PARAM (n,t)->	(rm_symbol n;
 			let value=(match t with
@@ -1151,10 +1151,10 @@ let rec is_loc_mode id =
 			add_param (n,t);value)
 	|_->false
 
-(** Check is the given id refer to a parameter. 
+(** Check is the given id refer to a parameter.
 	This is needed for compatibility with some versions of GLISS v1 where assignements to parameter (namely in the predecode attribute) was allowed
 	This function is defined to be used in complement of is_location
-	@ param id	the id to check
+	@param id	the id to check
 	@return True if the id refer to a parameter false otherwise
 *)
 let rec is_loc_spe id=
@@ -1170,42 +1170,42 @@ let rec is_loc_spe id=
 	 PARAM (n,t)->(rm_symbol n;
 			let value=(match t with
 			 TYPE_ID idb-> is_location_param idb
-			| TYPE_EXPR _->true	
+			| TYPE_EXPR _->true
 			)
 			in
 			add_param (n,t);value)
-	|_->false	
+	|_->false
 
 
 (** Check if the given location is a parameter.
 	This possibility is not allowed in the nML standard. But it was with some versions of GLISS v1 (in the predecode attribute).
 	The locations which verify this condition are the ones allowed in is_loc_spe.
 	We keep it here for compatibility with previous versions only.
-	@ param id	the id to check
+	@param id	the id to check
 	@return True if the id refer to a parameter false otherwise
 *)
-let is_setspe loc=	
+let is_setspe loc=
 	match loc with
-	LOC_REF (_, id, Irg.NONE, Irg.NONE, Irg.NONE) -> (let symb= get_symbol id 
+	LOC_REF (_, id, Irg.NONE, Irg.NONE, Irg.NONE) -> (let symb= get_symbol id
 			in
 			match  symb with
 				|PARAM _->true
 				|_->false
 		   )
-	|_->false	
+	|_->false
 
 
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp=Str.regexp "%[0-9]*[dbxsf]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 , 
+let reg_exp=Str.regexp "%[0-9]*[dbxsf]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
 						so we allow this kind of expression here for compatibility *)
 
 (** this function is used to find all references to a parameter in a string passed to a format
 	@param str	The string to treat
 	@return A list of string matching reg_exp
  *)
-let get_all_ref str=	
+let get_all_ref str=
 	let str_list=Str.full_split reg_exp str
 	in
 	let rec temp str_l res_l=
@@ -1240,22 +1240,22 @@ let build_format str exp_list=
 					(*let num= try(int_of_string (String.sub e_s 1 ((String.length e_s)-2)))with Failure "int_of_string" -> (-1)
 					in*)
 					match Str.last_chars e_s 1 with
-						 "d"-> (match (get_type_expr e_i) with 
+						 "d"-> (match (get_type_expr e_i) with
 								(CARD _|INT _)->true
 								|_->false)
 
 						|"b"-> true (* If the bit length is different, we will trunkate or extend like for a cast. This is needed for compatibility*)
-							
+
 							(*(try(
 								get_length_from_expr e_i = num ||  num=(-1) (*no size defined*) || num=0 (*needed for compatibility*)
-							)with Failure "length unknown"->true)*) 
+							)with Failure "length unknown"->true)*)
 
-						|"x"->(match (get_type_expr e_i) with 
+						|"x"->(match (get_type_expr e_i) with
 								(CARD _|INT _)->true
 								|_->false)
 
 						|"s"-> true
-							(* (match (get_type_expr e_i) with 
+							(* (match (get_type_expr e_i) with
 								STRING->true
 								|_->false) *)
 						|"f"-> (match (get_type_expr e_i) with
@@ -1313,7 +1313,7 @@ in
 				then
 					(add_image (List.hd e_l))::(temp l (List.tl e_l))
 				else
-					(List.hd e_l)::(temp l (List.tl e_l))	
+					(List.hd e_l)::(temp l (List.tl e_l))
 	in
 	FORMAT (str, (List.rev (temp r_list e_list)))
 
@@ -1368,15 +1368,15 @@ let check_param name list_param=
 *)
 let build_canonical_expr name param=
 	if not (check_param name param)
-		then 
+		then
 			raise (SemError (Printf.sprintf "The canonical function %s have incorrect parameters" name))
-		else 
-			let e=get_canon name 
+		else
+			let e=get_canon name
 			in
 			CANON_EXPR (e.type_res, name , param)
 
 (** This function build a canonical statement, after checked if the parameters are corrects.
-	If the function have a return type different of NO_TYPE (except of course UNKNOW_TYPE, when the function is unknow), then a warning is displayed 
+	If the function have a return type different of NO_TYPE (except of course UNKNOW_TYPE, when the function is unknow), then a warning is displayed
 
 	@param name	The name of the canonical function
 	@param list_param	The list of parameters given to the canonical function
@@ -1385,7 +1385,7 @@ let build_canonical_expr name param=
 *)
 let build_canonical_stat name param=
 	if not (check_param name param)
-		then 
+		then
 			raise (SemError (Printf.sprintf "The canonical function %s have incorrect parameters" name))
 		else
 			let e= get_canon name
@@ -1452,7 +1452,7 @@ let have_attribute id attr=
 		in
 		match sym_temp with
 		 OR_MODE (_,l)->if (List.exists (fun e->e==id) mem_list)
-					then false 
+					then false
 					else (List.for_all (fun e->loop_verification e (id::mem_list)) l)
 		|_->true
 	in
@@ -1462,7 +1462,7 @@ let have_attribute id attr=
 		in
 		let rec contains l= match l with
 			 []->false
-			|e::lt->( match e with 
+			|e::lt->( match e with
 					 (ATTR_EXPR (v,_)|ATTR_STAT (v,_)) when v=attr->true
 					|_->contains lt)
 			(*
@@ -1473,7 +1473,7 @@ let have_attribute id attr=
 		in
 		match sym with
 			 (AND_MODE (_,_,_,l)|AND_OP (_,_,l))->contains l
-			|(OR_MODE (_,l)|OR_OP(_,l))->if List.exists (fun e->temp e attr false) l 
+			|(OR_MODE (_,l)|OR_OP(_,l))->if List.exists (fun e->temp e attr false) l
 							then
 								((if List.for_all (fun e->temp e attr false) l && aff
 									then

@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.41 2009/07/10 09:26:49 barre Exp $
+ * $Id: toc.ml,v 1.42 2009/07/31 09:09:42 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -133,7 +133,7 @@ type info_t = {
 
 (** Empty information record. *)
 let info _ =
-	let p = 
+	let p =
 		match Irg.get_symbol "proc" with
 		  Irg.LET(_, Irg.STRING_CONST name) -> name
 		| _ -> raise (Error "'proc' must be defined as a string let") in
@@ -480,7 +480,7 @@ let cstring str =
 		  '\"' -> aux str (i + 1) (res ^ "\\\"")
 		| '\\' -> aux str (i + 1) (res ^ "\\\\")
 		| c -> aux str (i + 1) (res ^ (String.make 1 c)) in
-		
+
 	aux str 0 ""
 
 
@@ -502,7 +502,7 @@ let rec get_alias attrs =
 	@param idx		Index of the accessed state resource.
 	@param ub		Upper bit.
 	@param lb		Lower bit.
-	@return			(unaliased state name, first state index, 
+	@return			(unaliased state name, first state index,
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
@@ -521,7 +521,7 @@ let resolve_alias name idx ub lb =
 
 	let t = Irg.CARD(32) in
 	let const c =
-		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in 
+		Irg.CONST (t, Irg.CARD_CONST (Int32.of_int c)) in
 	let add e1 e2 =
 		if e1 = Irg.NONE then e2 else
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
@@ -546,7 +546,7 @@ let resolve_alias name idx ub lb =
 		if sa = sr then v else
 		if sa < sr then
 			let f = const (sr / sa) in
-			(r, div i f, 1, add (rem i f) ub, add (rem i f) lb, t) 
+			(r, div i f, 1, add (rem i f) ub, add (rem i f) lb, t)
 		else
 			let f = sa / sr in
 			(r, mul i (const f), il * f, ub, lb, t) in
@@ -554,7 +554,7 @@ let resolve_alias name idx ub lb =
 	let shift s v =
 		let (r, i, il, ub, lb, t) = v in
 		(r, add i s, il, ub, lb, t) in
-	
+
 	let field u l v =
 		let (r, i, il, ub, lb, t) = v in
 		if ub = Irg.NONE
@@ -597,7 +597,7 @@ let resolve_alias name idx ub lb =
 			process_alias tr attrs v
 		| _ ->
 			failwith "bad alias" in
-	
+
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	printv "return" res;
 	res
@@ -607,13 +607,13 @@ let resolve_alias name idx ub lb =
 	@param name		Name of the accessed state resource.
 	@param idx		Index (may be NONE)
 	@param ub		Upper bit number (may be NONE)
-	@patam lb		Lower bit number (may be NONE)
+	@param lb		Lower bit number (may be NONE)
 	@return			Unaliased expression. *)
 let unalias_expr name idx ub lb =
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	let t32 = Irg.CARD(32) in
 	let const c =
-		Irg.CONST (t32, Irg.CARD_CONST (Int32.of_int c)) in 
+		Irg.CONST (t32, Irg.CARD_CONST (Int32.of_int c)) in
 	let add e1 e2 =
 		if e1 = Irg.NONE then e2 else
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
@@ -640,7 +640,7 @@ let unalias_expr name idx ub lb =
 
 (** Prepare expression for generation.
 	@param info		Generation information.
-	@param stats	Prefix statements.	
+	@param stats	Prefix statements.
 	@param expr		Expression to prepare.
 	@return			(new prefix statements, prepared expression) *)
 let rec prepare_expr info stats expr =
@@ -687,7 +687,7 @@ let rec prepare_expr info stats expr =
 	| Irg.FORMAT (fmt, args) ->
 		let (stats, args) = prepare_exprs info stats args in
 		(stats, Irg.FORMAT (fmt, List.rev args))
-	| Irg.CANON_EXPR (typ, name, args) -> 
+	| Irg.CANON_EXPR (typ, name, args) ->
 		let (stats, args) = prepare_exprs info stats args in
 		(stats, Irg.CANON_EXPR (typ, name, List.rev args))
 	| Irg.FIELDOF (typ, base, id) ->
@@ -715,7 +715,7 @@ let rec prepare_expr info stats expr =
 		let tmp = new_temp info typ in
 		(Irg.SEQ(stats, Irg.IF_STAT (cond, set typ tmp tpart, set typ tmp epart)),
 		Irg.REF tmp)
-		
+
 	| Irg.SWITCH_EXPR (typ, cond, cases, def) ->
 		let tmp = new_temp info typ in
 		let (stats, cond) = prepare_expr info stats cond in
@@ -728,11 +728,11 @@ let rec prepare_expr info stats expr =
 			cases in
 		(Irg.SEQ(stats, Irg.SWITCH_STAT (cond, cases, set typ tmp def)),
 		Irg.REF tmp)
-	
+
 	| Irg.ELINE (file, line, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		(stats, Irg.ELINE (file, line, expr))
-	
+
 	| Irg.EINLINE _ ->
 		(stats, expr)
 
@@ -835,7 +835,7 @@ let unalias_set info stats name idx ub lb expr =
 
 (* !!TODO!! move to Sem *)
 let get_loc_size l =
-	Sem.get_type_length (Sem.get_loc_type l)	
+	Sem.get_type_length (Sem.get_loc_type l)
 
 (** Prepare a statement before generation. It includes:
 	- preparation of expressions,
@@ -851,7 +851,7 @@ let rec prepare_stat info stat =
 	let refto n = Irg.REF n in
 	let rshift t v s = Irg.BINOP (t, Irg.RSHIFT, v, s) in
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
-	
+
 	let rec prepare_set stats loc expr =
 		(*print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
 		print_string ", expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
@@ -868,7 +868,7 @@ let rec prepare_stat info stat =
 			let stats = prepare_set stats l1
 				(rshift t (refto tmp) (index (get_loc_size l2))) in
 			prepare_set stats l2 (refto tmp) in
-	
+
 	match stat with
 	| Irg.NOP
 	| Irg.ERROR _ ->
@@ -905,10 +905,10 @@ let rec prepare_stat info stat =
 	| Irg.EVAL name ->
 		prepare_call info name;
 		stat
-		
+
 	| Irg.EVALIND _ ->
 		failwith "prepare_stat: must have been removed !"
-	
+
 	| Irg.INLINE _ ->
 		stat
 
@@ -922,7 +922,7 @@ and prepare_call info name =
 
 (** Generate a prepared expression.
 	@param info		Generation information.
-	@param expr		Expression to generate. *)	
+	@param expr		Expression to generate. *)
 let rec gen_expr info (expr: Irg.expr) =
 	let out = output_string info.out in
 
@@ -945,11 +945,11 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
 	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
 	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
-	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v  
-	
+	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v
+
 	| Irg.REF name ->
 		(match Irg.get_symbol name with
-		| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) 
+		| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst))
 		| Irg.VAR _ -> out name
 		| Irg.REG _ -> out (state_macro info name)
 		| Irg.MEM _ -> out (state_macro info name)
@@ -1067,7 +1067,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		(* !!DEBUG!! *)
 		(*print_string "\n"*)
 
-	| Irg.UNOP (_, op, e) -> 
+	| Irg.UNOP (_, op, e) ->
 		convert_unop info.out op;
 		gen_expr info e
 
@@ -1165,7 +1165,7 @@ let rec gen_expr info (expr: Irg.expr) =
 			apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
 		let coerce fn =
 			apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
-			
+
 		(* !!DEBUG!! *)
 		(*print_string "toc.gen_expr(coerce( ";
 		Irg.print_type_expr typ;
@@ -1174,7 +1174,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		print_string " : ";
 		Irg.print_type_expr otyp;
 		print_string " )\n";*)
-		
+
 		if typ = otyp then gen_expr info expr else
 		(match (typ, otyp) with
 		| Irg.BOOL, Irg.INT _
@@ -1211,7 +1211,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.RANGE (lo, up), _ -> to_range lo up
 		| Irg.ENUM vals, _ -> to_enum vals
 		| _ -> error_on_expr "unsupported coercition" expr)
-	
+
 	| Irg.CANON_EXPR (_, name, args) ->
 		out name;
 		out "(";
@@ -1221,7 +1221,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		out ")"
 	| Irg.EINLINE s ->
 		out s
-	
+
 	| Irg.ELINE (file, line, expr) -> gen_expr info expr
 	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
 	| Irg.IF_EXPR _
@@ -1323,7 +1323,7 @@ let rec gen_stat info stat =
 				transform_expr "_generic" lo up true bo;
 				(* !!DEBUG!! *)
 				(*print_string "[gen]"*)
-			end;	
+			end;
 	in
 	match stat with
 	| Irg.NOP -> ()
@@ -1376,7 +1376,7 @@ let rec gen_stat info stat =
 			info.proc
 			(cstring msg)
 
-	| Irg.IF_STAT (cond, tpart, epart) -> 
+	| Irg.IF_STAT (cond, tpart, epart) ->
 		out "\tif(";
 		gen_expr info cond;
 		out ") {\n";
@@ -1408,7 +1408,7 @@ let rec gen_stat info stat =
 			end;
 		out "\t}\n"
 
-	| Irg.LINE (_, _, stat) -> 
+	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
 
 	| Irg.EVAL name ->
@@ -1422,13 +1422,13 @@ let rec gen_stat info stat =
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
 		failwith "must have been removed"
-		
+
 and gen_call info name =
-	
+
 	(* recursive call ? *)
 	if 	List.mem_assoc name info.calls then
 		Printf.fprintf info.out "\tgoto %s;\n" (List.assoc name info.calls)
-	
+
 	(* normal call *)
 	else
 		begin
@@ -1436,7 +1436,7 @@ and gen_call info name =
 			let before = info.calls in
 			if List.mem name info.recs then
 				begin
-					let lab = new_label info in 
+					let lab = new_label info in
 					Printf.fprintf info.out "\t%s:\n" lab;
 					info.calls <- (name, lab)::info.calls
 				end;
@@ -1451,7 +1451,7 @@ and gen_call info name =
 	@param name		Name of the first attribute.
 	@return			List of recursive attributes. *)
 let find_recursives info name =
-	
+
 	let rec look_attr name stack recs =
 		if List.mem name stack then
 			if List.mem name recs then recs
@@ -1484,7 +1484,7 @@ let find_recursives info name =
 			match Iter.get_attr info.inst name with
 			| Iter.STAT stat -> look_stat stat recs
 			| _ -> failwith "find_recursives" in
-	
+
 	info.recs <- look_attr name [] []
 
 (** generate the instruction responsibe for the incrementation of PCs,
@@ -1532,15 +1532,15 @@ let gen_action info name =
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;
-	
+
 	(* generate the code *)
 	declare_temps info;
-	
+
 	(* PCs incrementation *)
 	gen_stat info (gen_pc_increment info);
-	
+
 	(* generate the code *)
-	gen_call info name;	
+	gen_call info name;
 	cleanup_temps info;
 	StringHashtbl.clear info.attrs
 

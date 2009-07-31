@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.12 2009/04/20 13:17:43 barre Exp $
+ * $Id: app.ml,v 1.13 2009/07/31 09:09:42 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,9 +36,14 @@ type maker_t = {
 (** Build the given directory.
 	@param path			Path of the directory.
 	@raise Sys_error	If there is an error. *)
-let makedir path =
+let rec makedir path =
 	if not (Sys.file_exists path) then
-		try 
+		try
+			(try
+				let p = String.rindex path '/' in
+				makedir (String.sub path 0 p)
+			with Not_found -> ());
+			Printf.printf "making %s" path;
 			Unix.mkdir path 0o740
 		with Unix.Unix_error (code, _, _) ->
 			raise (Sys_error (Printf.sprintf "cannot create \"%s\": %s" path (Unix.error_message code)))
@@ -62,7 +67,7 @@ let path_re = Str.regexp "gliss/"
 let replace_gliss info in_file out_file =
 	let in_stream = open_in in_file in
 	let out_stream = open_out out_file in
-	let lower = info.Toc.proc ^ "_" in 
+	let lower = info.Toc.proc ^ "_" in
 	let upper = String.uppercase lower in
 	let rec trans _ =
 		let line = input_line in_stream in
@@ -161,7 +166,7 @@ let get_param f dict t =
 		dict
 	)
 
-let get_memory f dict key sym = 
+let get_memory f dict key sym =
 	match sym with
 	  Irg.MEM (name, size, Irg.CARD(8), attrs) ->
 	  	f (
@@ -171,13 +176,12 @@ let get_memory f dict key sym =
 			dict
 		)
 	| _ -> ()
-	
+
 
 let maker _ = {
 	get_params = (fun _ _ _ _ dict -> dict);
 	get_instruction = (fun _ dict -> dict)
 }
-
 let make_env info maker =
 
 	let param_types =
@@ -188,7 +192,7 @@ let make_env info maker =
 				(match (Irg.get_symbol n) with
 				  Irg.TYPE (_, t) -> TypeSet.add (Toc.convert_type t) set
 				| _ -> set) in
-	
+
 		let collect_fields set params =
 			List.fold_left collect_field set params in
 		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
@@ -213,14 +217,20 @@ let make_env info maker =
  * @param f		Function to work with definitions.
  *)
 let process file f =
-	try	
-		begin
-			Lexer.file := file;
-			let lexbuf = Lexing.from_channel (open_in file) in
-			Parser.top Lexer.main lexbuf;
-			let info = Toc.info () in
-			f info
-		end
+	try
+		(* is it an IRG file ? *)
+		(if Filename.check_suffix file ".irg" then
+				Irg.load file
+
+		(* else an NML file *)
+		else
+			begin
+				Lexer.file := file;
+				let lexbuf = Lexing.from_channel (open_in file) in
+				Parser.top Lexer.main lexbuf;
+			end);
+		let info = Toc.info () in
+		f info
 	with
 	  Parsing.Parse_error ->
 		Lexer.display_error "syntax error"; exit 2
@@ -233,7 +243,7 @@ let process file f =
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
-	| Toc.Error msg -> 
+	| Toc.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg;
 		exit 4
 	| Toc.PreError f ->
@@ -253,14 +263,14 @@ let process file f =
 	@param source		Looked source.
 	@param paths		List of paths to look in.
 	@raise Not_found	If the source can not be found. *)
-let rec find_lib source paths = 
+let rec find_lib source paths =
 	match paths with
 	| [] ->  raise Not_found
 	| path::tail ->
 		let source_path = path ^ "/" ^ source in
 		if Sys.file_exists source_path then path
 		else find_lib source tail
-	
+
 
 (* options *)
 let nmp: string ref = ref ""
@@ -292,3 +302,10 @@ let run args help f =
 		process !nmp f
 
 
+(** Build a template, possibly informing the user.
+	@param template		Template name.
+	@param file			File path to output to.
+	@param dict			Dictionary to use. *)
+let make_template template file dict =
+	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
+	Templater.generate dict template file

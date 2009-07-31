@@ -30,7 +30,7 @@
 // 1.1 Constants                                                             //
 // ------------------------------------------------------------------------- //
 
-let FP_RN_TONEAREST =0
+let FP_RN_TONEAREST = 0
 let FP_RN_TOWARDZERO =1
 let FP_RN_UPWARD =2
 let FP_RN_DOWNWARD =3
