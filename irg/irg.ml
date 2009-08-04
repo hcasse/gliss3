@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.36 2009/07/22 13:07:47 barre Exp $
+ * $Id: irg.ml,v 1.37 2009/08/04 15:38:37 dubot Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -211,7 +211,7 @@ module StringHashtbl = Hashtbl.Make(HashString)
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 
-
+exception Symbol_not_found of string
 (** Get the symbol matching the given name or UNDEF if not found.*)
 let get_symbol n =
 	try
@@ -221,8 +221,8 @@ let get_symbol n =
 			UNDEF
 		else
 		(* !!DEBUG!! *)
-		failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")
-
+		(*failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")*)
+		raise (Symbol_not_found(n))
 
 (** Add a symbol to the namespace.
 	@param name	Name of the symbol to add.
