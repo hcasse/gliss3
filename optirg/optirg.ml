@@ -6,36 +6,17 @@ OR_node factorization.
 *)
 
 open Irg
+open Irgp
+
 (**Association of an node and its sons *)
 type opt_struct= Irg.spec (* current node *)
 				*
 			  Irg.spec list (* list of sons *)
-
 let lra = ref []
 let lrs = ref []
 let lrp = ref []
 let la = ref []
 let stats_assoc_list = ref []
-
-(** 
-	Provide the list of all sons's name for a parent node.  
-	@param s
-		the name of the parent node
-	@return 
-		the string list that contains the names
-*)
-let next (s:string) : (string list) = match (get_symbol s) with
-	|AND_MODE(_,pl,_,_) | AND_OP(_,pl,_) 
-		-> List.fold_right (fun (_,t) r ->match t with TYPE_ID(s)->s::r | _ -> r) pl []
-	|OR_MODE(_,sl) | OR_OP(_,sl) 
-		-> sl
-	| _ 
-		-> []
-
-(** Iterator on symboles canvas. *)
-let rec syms_fold_right (f:string->'a->'a) (father:string) (res:'a) :'a = 
-	let sons: string list = next father in 
-	List.fold_right (syms_fold_right f) sons (f father res)
 
 
 
@@ -60,7 +41,6 @@ let get_expr_from_value_from_and_mode (and_node:Irg.spec) :Irg.expr =
 	@return 
 		the code of the node
 *)
-
 let case_code_from_spec (s:Irg.spec) :int = match s with 
 	| Irg.AND_MODE (_,_,_,attr_list)|Irg.AND_OP (_,_,attr_list) -> 
 		let image_expr = (Image_attr_size.get_expr_of_image attr_list) in 
@@ -85,7 +65,6 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 	@return 
 		the case for an switch expression
 *)
-
 let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.expr) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
@@ -117,7 +96,6 @@ let case_from_attr_stat size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*I
 	@return
 		the case for an switch expression
 *)
-
 let case_from_value_expr size (and_node:Irg.spec) :(Irg.expr*Irg.expr) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
@@ -130,7 +108,6 @@ let case_from_value_expr size (and_node:Irg.spec) :(Irg.expr*Irg.expr) =
 	@return 
 		An Irg.type_expr
 *)
-
 let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with 
 	| 	Irg.NONE -> Irg.NO_TYPE
 	| 	Irg.COERCE(type_expr,_) -> type_expr
@@ -155,7 +132,6 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	@return 
 		the structure that has been create
 *)
-
 let create_opt_struct (name:string) : opt_struct =
 	let spec= Irg.get_symbol name and 
 	liste_fils = List.fold_right (fun st r ->  (Irg.get_symbol st):: r) (next name) []
@@ -178,7 +154,6 @@ let union_add (elem:'a)  (set:'a list)  :'a list =
 (**
 	Get the attribute's name 
 *)
-
 let get_attr_name = function 
 	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) -> st
 	| 	ATTR_USES -> "none"
@@ -288,7 +263,7 @@ let rec set_of_struct
 			List.fold_right (fun fils res -> set_of_struct res fils) (next pere) set
 
 (**
-	Extracte a list of attributes from a list of and nodes.
+	Extract a list of attributes from a list of and nodes.
 	@param and_list
 		the liste of nodes
 	@param size
@@ -296,7 +271,6 @@ let rec set_of_struct
 	@return 
 		the list of attribute 
 *)
-
 let attr_list_from_and_node 
 	(and_list : Irg.spec list)
 	(size : int)
@@ -307,6 +281,11 @@ let attr_list_from_and_node
 		-> List.map 
 			(
 			function 
+			|Irg.ATTR_EXPR(name,e) when name="image"-> 
+				ATTR_EXPR(
+					name,
+					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF("code")])
+				)
 			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
@@ -340,7 +319,6 @@ let attr_list_from_and_node
 	@return 
 		a node which is fused with its sons.
 *)
-
 let fusion 
 	((or_node,and_list):(opt_struct))
 	:Irg.spec =
@@ -449,7 +427,6 @@ let rec string_of_ref_expr ref_expr = match ref_expr with
 	(4) To create the cases, we convert switch_expr case into switch_stat case. 
 	(4) We insert assigment into each case.
 *)		
-
 let affect_constraint (list_name: string list) :unit=
 
 	(* (4) *) 	
@@ -528,6 +505,35 @@ let affect_constraint (list_name: string list) :unit=
 	syms_fold_right (del_flat) "instruction" ()
 
 
+
+let all_instr debut=
+		let rec gen_arbre pere liste =
+			List.fold_right (fun fils res ->  gen_arbre fils (union_add fils res) ) (next pere) liste
+		in 
+		debut ::(gen_arbre debut [])
+
+
+
+
+let number_of_instr () = 
+	let rec count spec = 
+		match spec with 
+	| 	AND_MODE (_, arglist,_,_) | 	AND_OP (_, arglist,_)-> 
+			List.fold_right (
+				fun (_,t) res ->  
+					res * 
+					try 
+						(count (get_symbol (name_of_typ t)))
+					with Symbol_not_found(_) -> 1
+				) 
+				arglist 1
+	| 	OR_MODE(_,arglist)| 	OR_OP(_,arglist) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0
+	|_ -> 1 
+	in count (get_symbol "instruction")
+	 	
+		
+
+
 (** Display stat *)
 let string_of_stat (nc,ns) = (string_of_int nc)^" calls and "^(string_of_int ns)^" sons = "^(string_of_int (nc*ns))^" potentials instructions. "
 let string_of_opt name = name^" : "^(string_of_stat (List.assoc name !stats_assoc_list))
@@ -540,19 +546,39 @@ let string_of_optname_list opt_list = List.fold_right (fun name res -> res^"\t"^
 *)
 let optimize (name : string) :unit =
 	begin	
+	let n_instr_before = number_of_instr () in
 	let list_opt = set_of_struct [] name in 
 	let list_clean = list_opt in 
 	let nb_opt =  (List.length list_clean) in
 	let opt_node_name_list = List.fold_right (fun (s,_) r -> (name_of s)::r) list_clean [] in 
 
+	(* OR(AND(),AND(),...) Fusion *)
 	List.iter (imp_fusion) list_clean ;
-	affect_constraint opt_node_name_list ;	
 
+	(* Assigment consistency restoration *)
+	affect_constraint opt_node_name_list ;
+
+	let n_instr_after = number_of_instr () in
+
+	(* Vertical fusion *)
+	(*Canon.canon (); *)
+	(* Horizontal fusion *)
+	(*Classfusion.h_optimize ();*)
+
+	
 	if nb_opt = 0 then
 		(print_string ("##################################\n############# No Optimization ####\n##################################\n")) 
 	else 
 		(print_string ("#####################################\n#### Number of optimization =  "^(string_of_int nb_opt)^" ####\n#####################################\n")) 
 	;
+
+	print_string "\nNumber of instructions before optimization = " ;
+	print_string (string_of_int n_instr_before); 
+	print_string "\nNumber of instructions after optimization = " ;
+	print_string (string_of_int n_instr_after); 
+	print_string "\n" ;
+
+
 	print_string "\nOptimized Nodes : \n" ;
 	print_string (string_of_optname_list opt_node_name_list); 
 	print_string "\nNodes acceptable without assigment constraint : \n" ;
@@ -564,6 +590,9 @@ let optimize (name : string) :unit =
 	print_string "\nNon-Optimizable because of attributes inconsistences only : \n" ;
 	print_string (string_of_optname_list !lra); 
 	print_string "\n" 
+
+
+
 	end
 
 
