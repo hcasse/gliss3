@@ -1,5 +1,5 @@
 (*
- * $Id: mksyscall.ml,v 1.3 2009/08/07 08:06:36 abbal Exp $
+ * $Id: mksyscall.ml,v 1.4 2009/08/07 12:03:54 abbal Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -188,7 +188,7 @@ let rec is_fd attrs =
 
 
 (** Test if the attribute string is set.
-	@param attrs	Attribute to look in.
+	@param attr_typ	Attribute to look in.
 	@return			True if string is set, false else. *)
 let is_string attr_typ = match attr_typ with
 	(Cabs.GNU_TYPE(attr_list, _)) ->
@@ -212,25 +212,25 @@ let is_pointer typ =
 	typ = "0x%08x"
 	|| String.contains typ '*'
 
-(** Returns the name list of a  (name, type) list *)
+(** Return the name list of a  (name, type) list *)
 let get_name_list name_type_list =
 	List.map
 		(fun (n, t) -> n)
 		name_type_list
 
-(** Returns the type list of a  (name, type) list *)
+(** Return the type list of a  (name, type) list *)
 let get_type_list name_type_list =
 	List.map
 		(fun (n, t) -> t)
 		name_type_list
 
-(** Returns  the pair (name, type) list of a name list *)
+(** Return  the pair (name, type) list of a name list *)
 let get_name_type_list name_list=
 	List.map
 		(fun (n, t, _, _) -> (n, t))
 		name_list
 		
-(** Returns the pair (name, type) list of a name_group list *)
+(** Return the pair (name, type) list of a name_group list *)
 let rec get_name name_group_lst =
 	match name_group_lst with
 	 [] -> []
@@ -238,7 +238,7 @@ let rec get_name name_group_lst =
 					 @
 					 (get_name tl)
 
-(** Returns an associative (name_structure, (fields_names, types_fields)) list
+(** Return an associative (name_structure, (fields_names, types_fields)) list
 	if another structure is declared for one field,
 	this definition is appenned at the beginning of the list *)
 let rec get_struct typ = match typ with
@@ -415,8 +415,8 @@ match parlist with
 									if(is_pointer f)
 									then
 									(
-										(
-											try	(* need a ' ' if the pointer is defined by a tyedef *)
+										(		(* if the parameter is a pointer, it needs a ' ' *)
+											try	(* because it is defined by a tyedef and have no '*' *)
 												if(List.exists 
 													(fun (alias, _) -> alias = (type_to_string typ))
 													typedef_list
@@ -426,6 +426,7 @@ match parlist with
 											with
 											Not_found -> Printf.fprintf out "\t%s%s;\n" t name;
 										);
+										(* declare a ppc_address variable to get the address *)
 										Printf.fprintf out "\tppc_address_t %s_addr;\n" name;
 										if(is_string attr_typ)
 										then	Printf.fprintf out "\tint %s_length;\n" name
@@ -458,10 +459,13 @@ let rec ext_to_string elt typ struct_list typedef_list print_name_var =
 	 	let elt_list = (List.assoc struct_name struct_list) in
 		let elt_name_list = fst elt_list in
 		let elt_typ_list = snd elt_list in
-			let ext_list = 
-				List.flatten
+			let ext_list =							(* List.map build a list, so we have a string list list *)
+				List.flatten						(* We only want a string list so we call List.flatten *)
 					(List.map2 
-						(fun e t -> ext_to_string e (format_to_string t typedef_list) struct_list typedef_list true)
+						(fun e t -> ext_to_string e 
+											(format_to_string t typedef_list)
+											struct_list typedef_list true
+						)
 						elt_name_list
 						elt_typ_list
 					)
@@ -719,7 +723,9 @@ let gen_fct_corpus out (name, rtype, params, attrs) struct_list typedef_list =
 			Printf.fprintf out "\tPARM_BEGIN\n";
 			for i = 0 to (List.length name_list) -1 do
 				if(is_pointer (List.nth form_list i))
-				then print_pop_ptr out (List.nth params i) i
+				then (* if this is a pointer, we get the addres in PARM(i) *)
+					(* in the ppc_addess corrsponding to the variable *)
+					print_pop_ptr out (List.nth params i) i
 				else
 					if(is_structure (List.nth form_list i))
 					then (* if this is a structure, we have to print the affectation component by component *)
@@ -764,8 +770,8 @@ let gen_fct_corpus out (name, rtype, params, attrs) struct_list typedef_list =
 		Printf.fprintf out "\n\t/* Primitive Calling */\n";
 		print_ptr_mem_read out params size_ptr_list;
 		if(ret_declared)
-		then Printf.fprintf out "\tret = %s(" name
-		else Printf.fprintf out "\t%s(" name;
+		then Printf.fprintf out "\tret = %s(" name					(* Ptrint the return of the primitive *)
+		else Printf.fprintf out "\t%s(" name;						(* if it exists *)
 		(* Print the arguments of the primitive if they exist *)
 		for i = 0 to (List.length name_list) -1 do
 			if(i <> (List.length name_list) -1)
@@ -821,6 +827,7 @@ let _ =
 
 	(* look for structure descriptions *)
 	let struct_list = get_struct_def defs in
+	(* print the structures descriptions (only usefull to debug) *)
 (* *)List.iter
 (* *)	(fun (n, (component_list, type_list)) ->
 (* *)		Printf.fprintf out "structure %s : " n;
@@ -835,6 +842,7 @@ let _ =
 
 	(* look for aliases (typedef) *)
 	let typedef_list = get_typedef_def defs [] in
+	(* print the typedef descriptions (only usefull to debug) *)
 (* *)List.iter
 (* *)	(fun (alias_typedef_list, base_typedef_list) ->
 (* *)		Printf.fprintf out "typedef : %s = %s\n" alias_typedef_list base_typedef_list 
