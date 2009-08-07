@@ -1,5 +1,5 @@
 (*
- * $Id: mksyscall.ml,v 1.2 2009/07/30 11:57:39 abbal Exp $
+ * $Id: mksyscall.ml,v 1.3 2009/08/07 08:06:36 abbal Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -131,7 +131,6 @@ let declare_param out param =
 
 
 
-
 (** Test if the attribute unsupported is set.
 	@param attrs	Attribute to look in.
 	@return			True if unsupported is set, false else. *)
@@ -149,7 +148,7 @@ let rec is_only_args attrs =
 	match attrs with
 	  [] -> false
 	| (Cabs.GNU_ID "only_args")::_ -> true
-	| _::tl -> is_unsupported tl
+	| _::tl -> is_only_args tl
 
 
 (** Test if the attribute unsupported is set.
@@ -159,7 +158,7 @@ let rec is_only_emulate attrs =
 	match attrs with
 	  [] -> false
 	| (Cabs.GNU_ID "only_emulate")::_ -> true
-	| _::tl -> is_unsupported tl
+	| _::tl -> is_only_emulate tl
 
 
 
@@ -174,14 +173,44 @@ let rec is_use_return attrs =
 	match attrs with
 	  [] -> false
 	| (Cabs.GNU_ID "use_return")::_ -> true
-	| _::tl -> is_unsupported tl
+	| _::tl -> is_use_return tl
 
+
+(** Test if the attribute fd is set.
+	@param attrs	Attribute to look in.
+	@return			True if fd is set, false else. *)
+let rec is_fd attrs =
+	match attrs with
+	  [] -> false
+	| (Cabs.GNU_ID "fd")::_ -> true
+	| _::tl -> is_fd tl
+
+
+
+(** Test if the attribute string is set.
+	@param attrs	Attribute to look in.
+	@return			True if string is set, false else. *)
+let is_string attr_typ = match attr_typ with
+	(Cabs.GNU_TYPE(attr_list, _)) ->
+		let rec attr_is_string attrs = match attrs with
+			 [] -> false
+			|(Cabs.GNU_ID "string")::_ -> true
+			|_::tl -> attr_is_string tl
+		in
+		attr_is_string attr_list
+	| _ -> false
 
 
 (** Return true if the string typ begin with "struct" *)
 let is_structure typ =
-(((String.length typ) > 6 ) 
-&& (String.sub typ 0 6) = "struct")
+	(((String.length typ) > 6 ) 
+	&& (String.sub typ 0 6) = "struct")
+
+
+(** Return true if the string typ contains '*' *)
+let is_pointer typ =
+	typ = "0x%08x"
+	|| String.contains typ '*'
 
 (** Returns the name list of a  (name, type) list *)
 let get_name_list name_type_list =
@@ -250,9 +279,9 @@ match name_list with
 let rec get_struct_def defs =
 match defs with
  [] -> []
-|(Cabs.DECDEF (typ, _, (*name_list*)_))::tl -> (get_struct typ) @ (*find_struct name_list) @*) (get_struct_def tl)
-|(Cabs.TYPEDEF ((typ, _, (*name_list*)_), _))::tl -> (get_struct typ) @ (*find_struct name_list) @ *)(get_struct_def tl)
-|(Cabs.ONLYTYPEDEF (typ, _, (*name_list*)_))::tl -> (get_struct typ) @ (*find_struct name_list) @*) (get_struct_def tl)
+|(Cabs.DECDEF (typ, _, _))::tl -> (get_struct typ) @ (get_struct_def tl)
+|(Cabs.TYPEDEF ((typ, _, _), _))::tl -> (get_struct typ) @ (get_struct_def tl)
+|(Cabs.ONLYTYPEDEF (typ, _, _))::tl -> (get_struct typ) @ (get_struct_def tl)
 |(Cabs.FUNDEF ((typ, _, _), (def_list, _)))::tl -> (get_struct typ) @ (get_struct_def def_list) @ (get_struct_def tl)
 |(Cabs.OLDFUNDEF ((typ, _, _), name_group, (def_list, _)))::tl -> 
 	let rec get_name_list name_group_list = match name_group_list with
@@ -260,9 +289,6 @@ match defs with
 		|(_, _, name_list)::tail -> (find_struct name_list) @ (get_name_list tail)
 	in
 	(get_struct typ) @ (get_name_list name_group) @ (get_struct_def def_list) @ (get_struct_def tl)
-
-
-
 
 
 (** Look for the reference given by the alias,
@@ -290,6 +316,8 @@ else if(t_name = "double")
 then "%lf"
 else if(is_structure t_name) (* if the type is a structure, we return t_name *)
 then t_name
+else if(is_pointer t_name)
+then "0x%08x"
 else (* we try to found a simple type (int, char, ...) with or without attributes (long, ...) *)
 	(* This function make a string list composed by the words of the string given in parameter	*)
 	(* For instance, if s = "unsigned long int" the function returns ["unsigned"; "long"; "int"]	*)
@@ -308,7 +336,7 @@ else (* we try to found a simple type (int, char, ...) with or without attribute
 
 (** Return the format for a printf . if t_string = "struct structName",
 	the function returns t_string to get the fields of the structure *)	
-let format_to_string typ typedef_list = match typ with
+let rec format_to_string typ typedef_list = match typ with
 	 Cabs.VOID -> ""
 	|Cabs.INT(_, _) -> "%d"
 	|Cabs.CHAR(_) -> "%c"
@@ -316,10 +344,13 @@ let format_to_string typ typedef_list = match typ with
 	|Cabs.DOUBLE(_) -> "%lf"
 	|Cabs.STRUCT(name, _) -> "struct "^name
 	|Cabs.NAMED_TYPE(name) -> type_string_to_format (get_base_type name typedef_list)
+	|Cabs.PTR(t) -> "0x%08x"
+	|Cabs.RESTRICT_PTR(t) -> "0x%08x"
+	|Cabs.GNU_TYPE(_, t) -> format_to_string t typedef_list
 	|_ -> ""
 
 (** Return the type (in a string) *)
-let type_to_string typ= match typ with
+let rec type_to_string typ= match typ with
 	 Cabs.VOID -> "void"
 	|Cabs.INT(size, sign) -> (Cprint.get_sign sign)^(Cprint.get_size size)^"int"
 	|Cabs.CHAR(sign) -> (Cprint.get_sign sign)^"char"
@@ -327,6 +358,9 @@ let type_to_string typ= match typ with
 	|Cabs.DOUBLE(size) -> (if size then "long " else "")^"double"
 	|Cabs.STRUCT(name, name_group_list) -> "struct "^name
 	|Cabs.NAMED_TYPE(name) -> name
+	|Cabs.PTR(t) -> (type_to_string t)^" *"
+	|Cabs.RESTRICT_PTR(t) -> (type_to_string t)^" * restrict "
+	|Cabs.GNU_TYPE(_, t) -> type_to_string t
 	|_ -> ""
 
 
@@ -340,7 +374,7 @@ let type_to_string typ= match typ with
 let rec get_typedef name_list typ typedef_list =
 match name_list with
  [] -> []
-|(name, _, _, _)::tl -> (name, type_to_string typ)::(get_typedef tl typ typedef_list)
+|(name, t, _, _)::tl -> (name, type_to_string t)::(get_typedef tl typ typedef_list)
 
 (** Return the (source, alias) list of the typedef definitions list
 	@param out			(string * string) list for the pair (name_type_source, name_alias)
@@ -367,17 +401,36 @@ match defs with
 let rec print_param_decl out parlist rtype typedef_list=
 match parlist with
  [] -> let t = type_to_string rtype in					(* No more parameters, print the return variable ret *)
- 	  let return_struct = ((String.sub t 0 6) = "struct") in
+ 	  let return_struct = (((String.length t) > 6) && (String.sub t 0 6) = "struct") in
  	  	if(t <> "void" && t <> "" && (not return_struct))
  		then Printf.fprintf out "\t%s ret;\n" t;
 		([], [], (t<>"void" && t<>"" && (not return_struct)))
-|(_, _, (name, typ, _, _))::tl -> let t = (type_to_string typ) in
+|(attr_typ, _, (name, typ, _, _))::tl -> 
+							let t = (type_to_string typ) in
 							let f = (format_to_string typ typedef_list) in
 							let (n, form, ret_declared) = print_param_decl out tl rtype typedef_list in
 								if(t <> "void" && t <> "")
 								then
 								(
-									Printf.fprintf out "\t%s %s;\n" t name;
+									if(is_pointer f)
+									then
+									(
+										(
+											try	(* need a ' ' if the pointer is defined by a tyedef *)
+												if(List.exists 
+													(fun (alias, _) -> alias = (type_to_string typ))
+													typedef_list
+												  )
+												then Printf.fprintf out "\t%s %s;\n" t name
+												else Printf.fprintf out "\t%s%s;\n" t name
+											with
+											Not_found -> Printf.fprintf out "\t%s%s;\n" t name;
+										);
+										Printf.fprintf out "\tppc_address_t %s_addr;\n" name;
+										if(is_string attr_typ)
+										then	Printf.fprintf out "\tint %s_length;\n" name
+									)
+									else Printf.fprintf out "\t%s %s;\n" t name;
 									(name::n, f::form, ret_declared)
 								)
 								else (n, form, ret_declared)
@@ -446,7 +499,7 @@ let rec make_format_list elt typ struct_list typedef_list =
 				)		 
 		else [typ]
 
-(** print de affectations to pop the parameters
+(** Print the affectations to pop the structures parameters
 	@param out			None (only print the code)
 	@param in				Out Channel
 						base_type of the parameter to print
@@ -459,7 +512,133 @@ List.iter
 	(ext_to_string name (format_to_string typ typedef_list) struct_list typedef_list false)
 
 
+(** Print the affectations to pop the pointers parameters
+	@param out			None (only print the code)
+	@param in				Out Channel
+						base_type of the parameter to print
+						parameter position *)
+let print_pop_ptr out (typ, _, (name, _, _, _)) i =
+	Printf.fprintf out "\t\t%s_addr = (uint32_t) PARM(%d);\n" name i;
+	if(is_string typ)
+	then	Printf.fprintf out "\t\t%s_length = STRLEN(%s_addr);\n" name name
 
+
+(** Return the type of the pointer given
+	if the pointer is defined by a typedef, the function looks for the reference *)
+let get_type_alloc typ typedef_list =
+	match typ with
+	 Cabs.NAMED_TYPE name ->
+		(
+			try (String.sub (get_base_type name typedef_list) 0  				(* Get the type of the pointer (int, char, ...) *)
+				 		   (try
+				 		   	(String.index (get_base_type name typedef_list) '*')-1
+				 		    with Not_found -> String.length (get_base_type name typedef_list)
+				 		   ))
+			with
+			Invalid_argument _ -> (get_base_type name typedef_list)
+		)
+	|_ -> try (String.sub (get_base_type (type_to_string typ) typedef_list) 0  	(* Get the type of the pointer (int, char, ...) *)
+				 		   (try
+				 		   	(String.index (get_base_type (type_to_string typ) typedef_list) '*')-1
+				 		    with Not_found -> String.length (get_base_type (type_to_string typ) typedef_list)
+				 		   ))
+			with
+			Invalid_argument _ -> (get_base_type (type_to_string typ) typedef_list)
+
+
+(** Return the name of the variable giving the size to allocate
+	if the variable called "name" has an attribute STRING,
+	the function returns "name_length".
+	If a parameter is associated to a pointer,
+	the function returns the name of the parameter associated *)   
+let get_size_name name attr_typ size_ptr_list =
+	if (is_string attr_typ)
+	 then name^"_length"
+	 else
+	 	try List.assoc name size_ptr_list with
+	 	(* The size is not found, it is a string -> STRLEN) *)
+	 	Not_found -> name^"_length"(* "XXX" *)
+	 	
+(** print allocations for a pointer
+	@param out			None (only print the code)
+	@param in				Out Channel
+						base_type of the parameter to print *)
+let print_ptr_alloc out (attr_typ, _, (name, typ, _, _)) size_ptr_list typedef_list =
+	let size_name = get_size_name name attr_typ size_ptr_list in
+	if(size_name = "XXX")
+	then Printf.fprintf out "\t/** ERROR : size unknown for the pointer %s **/\n" name
+	else
+	(
+		Printf.fprintf out "\t/* Allocation of the variable %s */\n" name;
+		Printf.fprintf out "\t%s = (%s) malloc(%s*sizeof(%s));\n"
+					 name (type_to_string typ) size_name
+					 (get_type_alloc typ typedef_list)
+		 ;
+		Printf.fprintf out "\tif(%s == NULL) {\n" name;
+		Printf.fprintf out "\t\tfprintf(stderr, \"Erreur Allocation %s\\n\");\n" name;
+		Printf.fprintf out "\t\tRETURN(-1);\n";
+		Printf.fprintf out "\t\treturn FALSE;\n";
+		Printf.fprintf out "\t}\n"
+	)
+	
+
+
+(** Returns true if the parameter has the gnu_attribute MEM_RD *)
+let is_typ_read typ = match typ with
+	Cabs.GNU_TYPE(attrs, _) -> 
+		let rec arg_read attrs = match attrs with
+		 [] -> false
+		|(Cabs.GNU_ID "mem_rd")::_ -> true
+		|_::tl -> arg_read tl
+		in
+		arg_read attrs
+	|_ -> false
+	
+(** print the primitive calling with the MEM_READ and MEM_WRITE needed
+	@param out			None (only print the code)
+	@param in				Out Channel
+						base_type of the parameter to print *)
+let print_ptr_mem_read out params size_ptr_list = 
+	List.iter
+		( fun (typ, _, (name, _, _, _)) ->
+			if(is_typ_read typ)
+			then Printf.fprintf out "\tMEM_READ(%s, %s_addr, %s);\n"
+							name name (get_size_name name typ size_ptr_list);
+		)
+		params
+
+
+
+
+(** Returns true if the parameter has the gnu_attribute MEM_WR *)
+let is_typ_write typ = match typ with
+Cabs.GNU_TYPE(attrs, _) -> 
+	let rec arg_write attrs = match attrs with
+	 [] -> false
+	|(Cabs.GNU_ID "mem_wr")::_ -> true
+	|_::tl -> arg_write tl
+	in
+		arg_write attrs
+|_ -> false
+
+
+(** print the primitive calling with the MEM_READ and MEM_WRITE needed
+	@param out			None (only print the code)
+	@param in				Out Channel
+						base_type of the parameter to print *)
+let print_ptr_mem_write out params use_return = 
+		List.iter
+			( fun (typ, _, (name, _, _, _)) -> 
+				if(is_typ_write typ)
+				then if(use_return)
+					then Printf.fprintf out "\t/* You try to call MEM_WRITE(%s_addr, %s, ret) but ret does not exist */\n"
+						name
+						name
+					else Printf.fprintf out "\tMEM_WRITE(%s_addr, %s, ret);\n" name name
+			)
+			params
+	
+	
 
 
 
@@ -492,9 +671,36 @@ let print_arg_form out (_, _, (name, typ, _, _)) struct_list typedef_list =
 		for i = 0 to (List.length elt_list) -1 do
 			Printf.fprintf out ", %s" (List.nth elt_list i)
 		done
-	
-	
-	
+
+
+(** Auxiliar funtion for get_ptr_size *)
+let rec get_pair_size name attrs =
+	match attrs with
+	 [] -> []
+	|(Cabs.GNU_CALL ("length", [Cabs.GNU_CST(Cabs.CONST_STRING s)]))::tl->
+		(s,name)::(get_pair_size name tl)
+	|_::tl -> get_pair_size name tl
+
+
+(** Return the list of (pointer, size) where
+	pointer and size are parameters
+	In the function prototype, the parameter size
+	is declared with the attribute LENGTH("ptr_name") *)
+let get_ptr_size params =
+	List.flatten
+	(
+		List.map
+			(fun (typ, _, (name, _, _, _)) ->
+				let make_size_list typ =
+					match typ with
+					(Cabs.GNU_TYPE(attrs, _))-> get_pair_size name attrs
+					|_-> []
+				in
+				make_size_list typ
+			)
+			params
+	)
+		
 
 (** Generate the code of the corpus of the function given
 	@param out			None (only print the code)
@@ -512,14 +718,27 @@ let gen_fct_corpus out (name, rtype, params, attrs) struct_list typedef_list =
 		then (
 			Printf.fprintf out "\tPARM_BEGIN\n";
 			for i = 0 to (List.length name_list) -1 do
-				if(is_structure (List.nth form_list i))
-				then (* if this is a structure, we have to print the affectation component by component *)
+				if(is_pointer (List.nth form_list i))
+				then print_pop_ptr out (List.nth params i) i
+				else
+					if(is_structure (List.nth form_list i))
+					then (* if this is a structure, we have to print the affectation component by component *)
 					print_pop_struct out (List.nth params i) struct_list typedef_list i
-				else Printf.fprintf out "\t\t%s = PARM(%d);\n" (List.nth name_list i) i
+					else Printf.fprintf out "\t\t%s = PARM(%d);\n" (List.nth name_list i) i
 			done;
 			Printf.fprintf out "\tPARM_END\n";
 		)
 		else Printf.fprintf out "\t/* Useless because the primitive needs no arguments */\n";
+
+
+		(* get the size of the poitners in the parameters list *)
+		let size_ptr_list = get_ptr_size params in
+		(* Memory Allocations *)
+		Printf.fprintf out "\n\t/* Memory Allocations */\n";
+		for i = 0 to (List.length name_list) -1 do
+			if(is_pointer (List.nth form_list i))
+			then print_ptr_alloc out (List.nth params i) size_ptr_list typedef_list
+		done;
 	
 		(* Print the primitive calling, to debbug *)
 		Printf.fprintf out "\n\tif(verbose)\n";
@@ -543,6 +762,7 @@ let gen_fct_corpus out (name, rtype, params, attrs) struct_list typedef_list =
 		
 		(* Primitive Calling *)
 		Printf.fprintf out "\n\t/* Primitive Calling */\n";
+		print_ptr_mem_read out params size_ptr_list;
 		if(ret_declared)
 		then Printf.fprintf out "\tret = %s(" name
 		else Printf.fprintf out "\t%s(" name;
@@ -553,13 +773,22 @@ let gen_fct_corpus out (name, rtype, params, attrs) struct_list typedef_list =
 			else Printf.fprintf out "%s" (List.nth name_list i)
 		done;
 		Printf.fprintf out ");\n";
+		print_ptr_mem_write out params ((is_use_return attrs) or not ret_declared);
+		
+		(* Free the memory *)
+		for i = 0 to (List.length name_list) -1 do
+			if(is_pointer (List.nth form_list i))
+			then Printf.fprintf out "\tfree(%s);\n" (List.nth name_list i)
+		done;
 		
 		(* Returns *)
 		if is_use_return attrs
 		then Printf.fprintf out "\n\t/* Attr USE_RETURN : no RETURN calling */\n\treturn TRUE;\n"
 		else
 			if(ret_declared)
-			then Printf.fprintf out "\n\tRETURN(ret);\n\treturn ret != -1;\n"
+			then if(is_fd attrs)
+				then Printf.fprintf out "\n\tRETURN(fd_new(ret));\n\treturn ret != -1;\n"
+				else Printf.fprintf out "\n\tRETURN(ret);\n\treturn ret != -1;\n"
 			else Printf.fprintf out "\n\tRETURN(1);\n\treturn TRUE;\n"
 
 	
@@ -633,11 +862,12 @@ let _ =
 		calls;
 
 
+
 	(* generate the gliss_syscall function *)
 	Printf.fprintf out "\n\n/* gliss_syscall function */\n";
 	Printf.fprintf out "void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {\n";
 	Printf.fprintf out "	int syscall_num;\n";
-	Printf.fprintf out "	BOOL ret = FALSE;;\n\n";
+	Printf.fprintf out "	BOOL ret = FALSE;\n\n";
 	Printf.fprintf out "	syscall_num = GLISS_SYSCALL_CODE(inst, state);\n";
 	Printf.fprintf out "	if(verbose)\n";
 	Printf.fprintf out "		fprintf(verbose, \"got a system call (number : %%u; name : %%s)\\n\", syscall_num, ppc_get_syscall_name(syscall_num));\n";
