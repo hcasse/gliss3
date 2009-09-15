@@ -65,17 +65,24 @@ static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode(uint32_t code_inst)
 }
 
 $(foreach instructions)
-static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, uint32_t code_inst)
 {
 	$(if has_param)uint32_t mask;
 	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
 	inst->ident = $(PROC)_$(IDENT);
 	inst->instrinput = malloc(sizeof($(proc)_ii_t) * $(num_params));
-	
+
+	/* set size and address */
+	inst->instrinput[0].type = $(PROC)_ADDR;
+	inst->instrinput[0].val.addr = address;
+	inst->instrinput[1].type = $(PROC)_SIZE;
+	inst->instrinput[1].val.size = 4;
+
+	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
 	mask = $(mask_32)UL;
 	$(PROC)_$(IDENT)_$(PARAM) = valeur_sur_mask_bloc(code_inst, mask); /* res->instrinput[$(INDEX)].val.$(param_type) */
-	inst->instrinput[$(INDEX)].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;
+	inst->instrinput[$(INDEX) + 2].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;
 	$(end)
 	return inst;
 }

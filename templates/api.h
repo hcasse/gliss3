@@ -23,7 +23,7 @@ typedef struct $(proc)_state_t {
 $(foreach registers)$(if !aliased)$(if array)
 	$(type) $(name)[$(size)];
 $(else)
-	$(type) $(name);	
+	$(type) $(name);
 $(end)$(end)$(end)
 $(foreach memories)$(if !aliased)
 	$(proc)_memory_t *$(NAME);
@@ -41,6 +41,8 @@ typedef struct $(proc)_sim_t {
 
 /* $(proc)_value_t type */
 typedef union $(proc)_value_t {
+	$(proc)_address_t addr;
+	unsigned long size;
 $(foreach values)
 	$(type) $(name);
 $(end)
@@ -48,7 +50,9 @@ $(end)
 
 /* $(proc)_param_t type */
 typedef enum $(proc)_param_t {
-	$(PROC)_VOID_T = 0$(foreach params),
+	$(PROC)_VOID_T = 0,
+	$(PROC)_ADDR,
+	$(PROC)_SIZE$(foreach params),
 	$(PROC)_PARAM_$(NAME)_T$(end)$(foreach registers),
 	$(PROC)_$(NAME)_T$(end)
 } $(proc)_param_t;

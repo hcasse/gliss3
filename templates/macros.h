@@ -18,8 +18,11 @@ $(end)
 
 
 /* parameter access macros */
-$(foreach instructions)$(foreach params)
-#define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX)].val.$(param_type))
+$(foreach instructions)
+#define $(PROC)_$(IDENT)_IADDR		((inst)->instrinput[0].val.$(param_type))
+#define $(PROC)_$(IDENT)_ISIZE		((inst)->instrinput[1].val.$(param_type))
+$(foreach params)
+#define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX) + 2].val.$(param_type))
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */
