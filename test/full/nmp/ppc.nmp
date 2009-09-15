@@ -591,6 +591,7 @@ op branch_rel ( BRANCH_ADDR : IMM24 )
                TMP_SWORD = BRANCH_ADDR; // sign extension
                NIA = CIA + ( TMP_SWORD << 2 );
             }
+   otawa_target = IADDR + (BRANCH_ADDR << 2)
 
 op branch_abs ( BRANCH_ADDR : IMM24 )
    syntax = format ( "ba %s", BRANCH_ADDR.syntax )
@@ -599,6 +600,7 @@ op branch_abs ( BRANCH_ADDR : IMM24 )
                TMP_SWORD = BRANCH_ADDR; // sign extension
                NIA = ( TMP_SWORD << 2 );
             }
+   otawa_target = BRANCH_ADDR << 2
 			   
 op branch_link ( BRANCH_ADDR : IMM24 )
    syntax = format ( "bl %s", BRANCH_ADDR.syntax )
@@ -609,6 +611,7 @@ op branch_link ( BRANCH_ADDR : IMM24 )
                 LR  = CIA + 4;
              }
    otawa_kind = BRANCH | IS_CALL
+   otawa_target = IADDR + (BRANCH_ADDR << 2)
 
 op branch_link_abs ( BRANCH_ADDR : IMM24 )
    syntax = format ( "bla %s", BRANCH_ADDR.syntax )
@@ -619,6 +622,7 @@ op branch_link_abs ( BRANCH_ADDR : IMM24 )
                LR  = CIA + 4;
             }
    otawa_kind = BRANCH | IS_CALL
+   otawa_target = BRANCH_ADDR << 2
 
 // Conditional Branch Instructions
 
@@ -653,12 +657,12 @@ op bran_cond_rel ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		endif;
 
 		}
-   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
-			BRANCH | IS_COND;
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH;
 		else
-			IS_INTERN;
+			BRANCH | IS_COND;
 		endif
+   otawa_target = IADDR + (BD << 2)
 
 op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bca %d,%d,%s", BO, BI, BD.syntax )
@@ -677,12 +681,12 @@ op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		endif;
 
 	    }
-   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
-			BRANCH | IS_COND;
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH;
 		else
-			IS_INTERN;
+			BRANCH | IS_COND;
 		endif
+   otawa_target = BD << 2
             
 op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bcl %d,%d,%s", BO, BI, BD.syntax )
@@ -703,12 +707,12 @@ op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		LR = CIA + 4;
         
 		}
-   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
-			BRANCH | IS_COND | IS_CALL;
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH | IS_CALL;
 		else
-			IS_INTERN;
+			BRANCH | IS_CALL | IS_COND;
 		endif
+   otawa_target = IADDR + (BD << 2)
 
 op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bcla %d,%d,%s", BO, BI, BD.syntax )
@@ -728,12 +732,13 @@ op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		LR = CIA + 4;
         
 		}
-   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
-			BRANCH | IS_COND | IS_CALL;
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH | IS_CALL;
 		else
-			IS_INTERN;
+			BRANCH | IS_CALL | IS_COND;
 		endif
+   otawa_target = BD << 2
+
 
 // Branch Conditonal with Registers CTR and LR
 
@@ -764,11 +769,11 @@ op branch_cond_ctr ( BO : card ( 5 ), BI : card ( 5 ) )
 			NIA = ( CTR & 0xfffffffc );
 		endif;
 		}
-   otawa_kind = if ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) then
-			BRANCH | IS_COND
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH;
 		else
-			IS_INTERN
-		endif;
+			BRANCH | IS_COND;
+		endif
 
 op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bcctrl %d,%d", BO, BI )
@@ -782,11 +787,11 @@ op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		LR = ( CIA + 4 );
 		}
-   otawa_kind = if ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) then
-			BRANCH | IS_COND | IS_CALL
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH | IS_CALL;
 		else
-			IS_INTERN
-		endif;
+			BRANCH | IS_CALL | IS_COND;
+		endif
 
 op bran_cond_lr =   branch_cond_lr
                   | branch_cond_lr_link
@@ -806,12 +811,11 @@ op branch_cond_lr ( BO : card ( 5 ), BI : card ( 5 ) )
 			NIA = ( LR & 0xfffffffc );
 		endif;
 		} 
-   otawa_kind = if ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) ) then
-			BRANCH | IS_COND | IS_RETURN
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
+			BRANCH | IS_RETURN;
 		else
-			IS_INTERN
-		endif;
+			BRANCH | IS_RETURN | IS_COND;
+		endif
 
 op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bclrl %d,%d", BO, BI )
@@ -829,12 +833,11 @@ op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		LR = ( CIA + 4 );
 		}
-   otawa_kind = if ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
-			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) ) then
-			BRANCH | IS_COND | IS_RETURN // on sauvegarde LR, faut-il rajouter IS_CALL ?
+   otawa_kind = if  ( BO<2..2> & BO<4..4> ) then  // on sauvegarde LR, faut-il rajouter IS_CALL en plus de IS_RETURN ?
+			BRANCH | IS_RETURN;
 		else
-			IS_INTERN
-		endif;
+			BRANCH | IS_RETURN | IS_COND;
+		endif
  
 // ------------------------------------------------------------------------- //
 // 2.2 Non Branch Instructions
