@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.13 2009/07/31 09:09:42 casse Exp $
+ * $Id: app.ml,v 1.14 2009/09/15 07:50:48 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -212,7 +212,8 @@ let make_env info maker =
 
 
 (**
- * Load a NMP file and launch the given function on it.
+ * Load a NMP file and launch the given function on it
+ * (and capture and display all exceptions).
  * @param file	File to process.
  * @param f		Function to work with definitions.
  *)
@@ -282,7 +283,7 @@ let options = [
 ]
 
 
-(** Run a standard command using IRG.
+(** Run a standard command using IRG. Capture and display all errors.
 	@param f		Function to run once the IRG is load.
 	@param args		Added arguments.
 	@param help		Help text about the command. *)

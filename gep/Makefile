@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 2009/04/14 11:04:56 casse Exp $
+# $Id: Makefile,v 1.13 2009/09/15 07:50:48 casse Exp $
 include ../Makefile.head
 
 OCAML_FLAGS=-I ../irg
@@ -27,12 +27,20 @@ gep: ../irg/irg.cma
 
 # gliss-disasm build
 DISASM_SOURCES = \
-	app.ml \
 	disasm.ml
 
 gliss-disasm_LIBS = str unix ../irg/irg libgep
 $(eval $(call ocaml_prog,gliss-disasm,$(DISASM_SOURCES)))
-gliss-disasm: ../irg/irg.cma
+gliss-disasm: ../irg/irg.cma  libgep.cma
+
+
+# gliss-attr build
+ATTR_SOURCES = \
+	gliss-attr.ml
+
+gliss-attr_LIBS = str unix ../irg/irg libgep
+$(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))
+gliss-attr: ../irg/irg.cma libgep.cma
 
 
 # config build

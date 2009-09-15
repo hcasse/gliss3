@@ -1,5 +1,5 @@
 (*
- * $Id: sem.ml,v 1.21 2009/07/31 09:09:43 casse Exp $
+ * $Id: sem.ml,v 1.22 2009/09/15 07:50:48 casse Exp $
  * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -271,7 +271,8 @@ let rec select c cases def =
 	  | _::t -> select c t def
 
 (** Evaluate an expression to constant.
-	@param expr		Expression to evaluate. *)
+	@param expr			Expression to evaluate.
+	@raise SemError		If the expression is not constant. *)
 and eval_const expr =
 	match expr with
 	  CONST (_,cst) ->
