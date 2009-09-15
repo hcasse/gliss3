@@ -608,6 +608,7 @@ op branch_link ( BRANCH_ADDR : IMM24 )
                 NIA = CIA + ( TMP_SWORD << 2 ); 
                 LR  = CIA + 4;
              }
+   otawa_kind = BRANCH | IS_CALL
 
 op branch_link_abs ( BRANCH_ADDR : IMM24 )
    syntax = format ( "bla %s", BRANCH_ADDR.syntax )
@@ -617,6 +618,7 @@ op branch_link_abs ( BRANCH_ADDR : IMM24 )
                NIA = ( TMP_SWORD << 2 );
                LR  = CIA + 4;
             }
+   otawa_kind = BRANCH | IS_CALL
 
 // Conditional Branch Instructions
 
@@ -651,6 +653,12 @@ op bran_cond_rel ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		endif;
 
 		}
+   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
+			BRANCH | IS_COND;
+		else
+			IS_INTERN;
+		endif
 
 op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bca %d,%d,%s", BO, BI, BD.syntax )
@@ -669,6 +677,12 @@ op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		endif;
 
 	    }
+   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
+			BRANCH | IS_COND;
+		else
+			IS_INTERN;
+		endif
             
 op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bcl %d,%d,%s", BO, BI, BD.syntax )
@@ -689,6 +703,12 @@ op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		LR = CIA + 4;
         
 		}
+   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
+			BRANCH | IS_COND | IS_CALL;
+		else
+			IS_INTERN;
+		endif
 
 op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bcla %d,%d,%s", BO, BI, BD.syntax )
@@ -708,6 +728,12 @@ op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		LR = CIA + 4;
         
 		}
+   otawa_kind = if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)> ^ !BO<3..3> ) ) ) then
+			BRANCH | IS_COND | IS_CALL;
+		else
+			IS_INTERN;
+		endif
 
 // Branch Conditonal with Registers CTR and LR
 
@@ -738,6 +764,11 @@ op branch_cond_ctr ( BO : card ( 5 ), BI : card ( 5 ) )
 			NIA = ( CTR & 0xfffffffc );
 		endif;
 		}
+   otawa_kind = if ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) then
+			BRANCH | IS_COND
+		else
+			IS_INTERN
+		endif;
 
 op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bcctrl %d,%d", BO, BI )
@@ -751,6 +782,11 @@ op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		LR = ( CIA + 4 );
 		}
+   otawa_kind = if ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) then
+			BRANCH | IS_COND | IS_CALL
+		else
+			IS_INTERN
+		endif;
 
 op bran_cond_lr =   branch_cond_lr
                   | branch_cond_lr_link
@@ -770,6 +806,12 @@ op branch_cond_lr ( BO : card ( 5 ), BI : card ( 5 ) )
 			NIA = ( LR & 0xfffffffc );
 		endif;
 		} 
+   otawa_kind = if ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) ) then
+			BRANCH | IS_COND | IS_RETURN
+		else
+			IS_INTERN
+		endif;
 
 op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bclrl %d,%d", BO, BI )
@@ -787,6 +829,12 @@ op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		LR = ( CIA + 4 );
 		}
+   otawa_kind = if ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+			  ( BO<4..4> | ( CR[(31-BI)/4]<31-BI-4*((31-BI)/4)..31-BI-4*((31-BI)/4)>  ^ !BO <3..3> ) ) ) then
+			BRANCH | IS_COND | IS_RETURN // on sauvegarde LR, faut-il rajouter IS_CALL ?
+		else
+			IS_INTERN
+		endif;
  
 // ------------------------------------------------------------------------- //
 // 2.2 Non Branch Instructions
@@ -1224,7 +1272,8 @@ op int_load_multiple ( rd : index, ra : REG_IND_ZERO, d : IMM16 )
                    recurs; // recursiveness is OK : it is compiled as labels and gotos
                 endif; 
  
-             } 
+             }
+     otawa_kind = LOAD | IS_MULTI
   user0 = "7"
                
 // Integer Load String Instructions
@@ -1623,7 +1672,8 @@ op int_store_multiple ( rs : index, ra : REG_IND_ZERO, d : IMM16 )
 			recurs;
 		endif; 
  
-		} 
+		}
+    otawa_kind = STORE | IS_MULTI
    user0 = "7"
                
 // Integer Store Stirng Instructions
@@ -2326,7 +2376,7 @@ op int_multiply ( x : int_multiply_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   otawa_kind = MULDIV
+   otawa_kind = MULDIV | IS_MUL
 
 op int_multiply_action =   mult_low
                   | mult_low_imm
@@ -2453,7 +2503,7 @@ op int_divide ( x : int_divide_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   otawa_kind = MULDIV
+   otawa_kind = MULDIV | IS_DIV
 
 op int_divide_action =   div_word
                 | div_word_unsig
