@@ -77,6 +77,9 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 	inst->instrinput[0].val.addr = address;
 	inst->instrinput[1].type = $(PROC)_SIZE;
 	inst->instrinput[1].val.size = 4;
+/* !!DEBUG!! */
+printf("IADDR=%08X, ISIZE=%d\n", address, 4);
+fflush(stdout);
 
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
@@ -97,7 +100,7 @@ $(end)
 $(end)
 
 
-typedef $(proc)_inst_t *$(proc)_decode_function_t(uint32_t code_inst);
+typedef $(proc)_inst_t *$(proc)_decode_function_t($(proc)_address_t address, uint32_t code_inst);
 
 static $(proc)_decode_function_t *$(proc)_decode_table[] =
 {
