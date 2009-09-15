@@ -59,18 +59,18 @@ let FP_ZE =4
 let FP_XE =3
 let FP_NI =2
 
-// Category of instructions
+// Category of instructions (old ones)
 // Might be used to know in which functional unit the instruction is executed
-let FPARITH = "17"   // Floating-Point Arithmetic Instructions
-let FPMUL = "18"
-let FPDIV = "19"
-let FPMADD = "20"     // FP mul add
-let FPRC = "21" // FP rounding and convert
-let FPLOAD = "22"
-let FPSTORE = "23"
-let FPSCRI = "24" // FP status and control register instructions
-let FPCMP = "25" // FP compare
-let FPMOV = "26"
+let FPARITH = IS_ALU | IS_FLOAT //"17"   // Floating-Point Arithmetic Instructions
+let FPMUL = IS_ALU | IS_MUL | IS_FLOAT //"18"
+let FPDIV = IS_ALU | IS_DIV | IS_FLOAT //"19"
+let FPMADD = IS_ALU | IS_FLOAT //"20"     // FP mul add
+let FPRC = IS_ALU | IS_FLOAT | IS_INT //"21" // FP rounding and convert
+let FPLOAD = IS_MEM | IS_LOAD | IS_FLOAT //"22"
+let FPSTORE = IS_MEM | IS_STORE | IS_FLOAT //"23"
+let FPSCRI = IS_INTERN | IS_FLOAT //"24" // FP status and control register instructions
+let FPCMP = IS_ALU | IS_FLOAT //"25" // FP compare
+let FPMOV = IS_ALU | IS_FLOAT //"26"
 
 // ------------------------------------------------------------------------- //
 // 1.2 Types                                                                 //
@@ -493,7 +493,7 @@ op ufp_load ( x : ufp_load_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPLOAD
+   otawa_kind = FPLOAD
 
 op ufp_load_action =   ufp_load_double
                      | ufp_load_single
@@ -695,7 +695,7 @@ op ufp_store ( x : ufp_store_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPSTORE
+   otawa_kind = FPSTORE
 
 op ufp_store_action =   ufp_store_double
                       | ufp_store_single
@@ -922,7 +922,7 @@ op  ufp_add( x : ufp_add_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPARITH
+   otawa_kind = FPARITH
 
 op ufp_add_action =   ufp_add_double
                     | ufp_add_dbl_cr_update
@@ -1023,7 +1023,7 @@ op  ufp_subtract( x : ufp_subtract_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPARITH
+   otawa_kind = FPARITH
 
 op ufp_subtract_action =   ufp_sub_double
                          | ufp_sub_dbl_cr_update
@@ -1123,7 +1123,7 @@ op  ufp_multiply ( x : ufp_multiply_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPMUL
+   otawa_kind = FPMUL
 
 op ufp_multiply_action =   ufp_mult_double
                          | ufp_mult_dbl_cr_update
@@ -1225,7 +1225,7 @@ op  ufp_divide( x : ufp_divide_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPDIV
+   otawa_kind = FPDIV
 
 op ufp_divide_action =   ufp_div_double
                        | ufp_div_dbl_cr_update
@@ -1326,7 +1326,7 @@ op  ufp_mult_add_instr( x : ufp_mult_add_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPMADD
+   otawa_kind = FPMADD
 
 
 op ufp_mult_add_instr_action =   ufp_mult_add
@@ -1789,7 +1789,7 @@ op  ufp_compare ( x : ufp_compare_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPCMP
+   otawa_kind = FPCMP
 
 op ufp_compare_action =   ufp_cmp_ord
                         | ufp_cmp_unord
@@ -1863,7 +1863,7 @@ op  ufp_move( x : ufp_move_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPMOV
+   otawa_kind = FPMOV
 
 op ufp_move_action =   ufp_mov_reg
                      | ufp_neg
@@ -1974,7 +1974,7 @@ op  ufp_round ( x : ufp_round_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPRC
+   otawa_kind = FPRC
 
 op ufp_round_action =   ufp_rsp
                       | ufp_rsp_cr_update
@@ -2021,7 +2021,7 @@ op  ufp_convert ( x : ufp_convert_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = FPRC
+   otawa_kind = FPRC
 
 op ufp_convert_action =   ufp_ctiw | ufp_ctiw_cr_update | ufp_ctiwz | ufp_ctiwz_cr_update
 
@@ -2113,7 +2113,7 @@ op ufp_status_cr_instr ( x : ufp_status_cr_instr_action )
 	syntax = x.syntax
 	image = x.image
 	action = { x.action; }
-        category = FPSCRI
+        otawa_kind = FPSCRI
 
 op ufp_status_cr_instr_action =   ufp_mov_cr_fs
                                 | ufp_movf_fs

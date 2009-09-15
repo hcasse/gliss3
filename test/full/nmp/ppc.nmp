@@ -101,23 +101,43 @@ let SYST_CALL = 9
 let TRACE = 10
 let FP_ASSIST = 11
 
-// 1.1.6 Category of instructions
+// 1.1.6 otawa_kind of instructions
 // Might be used to know in which functional unit the instruction is executed
-let ARITH = "0"       // Integer Add and Sub Instructions
-let MULDIV = "1"     // Integer Mul and Div Instructions
-let INTCMP = "2"     // Integer Compare Instructions
-let LOGIC = "3"       // Integer Logical instructions
-let SHIFTROT = "4" // Int shift and rotate
-let STORE = "5"       // Integer Stores including byte reverse, multiple and string
-let LOAD = "6"         // Integer Loads including byte reverse, multiple and string
-let MEMSYNC = "7"   // Memory Synchronization Instructions
-let BRANCH = "8"
-let CRLI = "9"         // Condition Register Logical Instructions
-let SYSTEM = "10"     // System Linkage Instructions
-let TRAP = "11"
-let EXT = "12"           // External Control Instructions
-let CONTROL = "13"   // Processor Control Instructions
-let CACHE = "14"       // Cache Management Instructions
+
+let IS_COND    = 0x00001
+let IS_CONTROL = 0x00002
+let IS_CALL    = 0x00004
+let IS_RETURN  = 0x00008
+let IS_MEM     = 0x00010
+let IS_LOAD    = 0x00020
+let IS_STORE   = 0x00040
+let IS_INT     = 0x00080
+let IS_FLOAT   = 0x00100
+let IS_ALU     = 0x00200
+let IS_MUL     = 0x00400
+let IS_DIV     = 0x00800
+let IS_SHIFT   = 0x01000
+let IS_TRAP    = 0x02000
+let IS_INTERN  = 0x04000
+let IS_MULTI   = 0x08000
+let IS_SPECIAL = 0x10000
+
+// old kind of instructions
+let ARITH = IS_ALU | IS_INT  //"0"       // Integer Add and Sub Instructions
+let MULDIV = IS_ALU | IS_INT //"1"     // Integer Mul and Div Instructions
+let INTCMP = IS_ALU | IS_INT //"2"     // Integer Compare Instructions
+let LOGIC = IS_ALU | IS_INT //"3"       // Integer Logical instructions
+let SHIFTROT = IS_ALU | IS_SHIFT | IS_INT //"4" // Int shift and rotate
+let STORE = IS_MEM | IS_STORE | IS_INT //"5"       // Integer Stores including byte reverse, multiple and string
+let LOAD = IS_MEM | IS_LOAD | IS_INT //"6"         // Integer Loads including byte reverse, multiple and string
+let MEMSYNC = IS_INTERN //"7"   // Memory Synchronization Instructions
+let BRANCH = IS_CONTROL //"8"
+let CRLI = IS_INTERN //"9"         // Condition Register Logical Instructions
+let SYSTEM = IS_CONTROL | IS_TRAP //"10"     // System Linkage Instructions
+let TRAP = IS_CONTROL | IS_TRAP //"11"
+let EXT = IS_INTERN //"12"           // External Control Instructions
+let CONTROL = IS_INTERN //"13"   // Processor Control Instructions
+let CACHE = IS_INTERN //"14"       // Cache Management Instructions
 
 
 
@@ -546,7 +566,7 @@ op branch_instr ( x : branch_instr_action )
    image   = x.image
    syntax  = x.syntax
    action  = { x.action; }
-   category = BRANCH                
+   otawa_kind = BRANCH                
 
 op branch_instr_action  = branch_uncond 
                         | branch_cond
@@ -791,7 +811,7 @@ op sys_call ( )
    syntax = "sc"
    image  = "01000100000000000000000000000010"
    action = { "sc_impl"("instr","state",M);}
-   category = SYSTEM
+   otawa_kind = SYSTEM
    is_branch = 1
 
 // 2.2.2 Load and Store Instructions
@@ -809,7 +829,7 @@ op int_load ( x : int_load_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = LOAD
+   otawa_kind = LOAD
 
 op int_load_action =   int_load_byte
               | int_load_half_word
@@ -1297,7 +1317,7 @@ op int_store ( x : int_store_action )
    image   = x.image
    syntax  = x.syntax
    action  = { x.action; }
-   category = STORE               
+   otawa_kind = STORE               
 
 op int_store_action =   int_store_byte
                | int_store_half_word 
@@ -1712,7 +1732,7 @@ op int_add ( x : int_add_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = ARITH
+   otawa_kind = ARITH
 
 op int_add_action =   add
              | add_immediate
@@ -2014,7 +2034,7 @@ op int_subtract (x: int_subtract_action)
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = ARITH
+   otawa_kind = ARITH
 
 op int_subtract_action =   sub_from
                   | sub_imm_carry_rec
@@ -2306,7 +2326,7 @@ op int_multiply ( x : int_multiply_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = MULDIV
+   otawa_kind = MULDIV
 
 op int_multiply_action =   mult_low
                   | mult_low_imm
@@ -2433,7 +2453,7 @@ op int_divide ( x : int_divide_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = MULDIV
+   otawa_kind = MULDIV
 
 op int_divide_action =   div_word
                 | div_word_unsig
@@ -2582,7 +2602,7 @@ op int_negate ( x : int_negate_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = ARITH
+   otawa_kind = ARITH
 
 op int_negate_action =   neg
                 | neg_cr_update
@@ -2637,7 +2657,7 @@ op int_compare ( x : int_compare_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = INTCMP
+   otawa_kind = INTCMP
 
 op int_compare_action  =   cmp_imm
                          | cmp
@@ -2754,7 +2774,7 @@ op int_logical ( x : int_logical_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = LOGIC
+   otawa_kind = LOGIC
 
 op int_logical_action  =   or_instr
                  | and_instr
@@ -3159,7 +3179,7 @@ op  int_rotate_shift ( x : int_rotate_shift_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = SHIFTROT
+   otawa_kind = SHIFTROT
 
 op int_rotate_shift_action =   int_rotate
                       | int_shift
@@ -3481,7 +3501,7 @@ op flow_control_instr ( x : cond_reg_log )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CRLI
+   otawa_kind = CRLI
 
 // Condition Register Logic Instructions
 
@@ -3634,7 +3654,7 @@ op proce_control_instr ( x : proce_con_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CONTROL
+   otawa_kind = CONTROL
 
 op proce_con_instr_action =   mov_from_cr
                             | mov_to_spr
@@ -3710,7 +3730,7 @@ op mem_sync_instr ( x : mem_sync_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = MEMSYNC
+   otawa_kind = MEMSYNC
 
 op mem_sync_instr_action =  lwarx | stwcx | sync
 
@@ -3767,7 +3787,7 @@ op trap_instr ( x : trap_instr_action )
 	syntax = x.syntax
 	image = x.image
 	action = { x.action; }
-        category = TRAP
+        otawa_kind = TRAP
 
 op trap_instr_action = tw | twi
 

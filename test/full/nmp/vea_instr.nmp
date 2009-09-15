@@ -43,7 +43,7 @@ op  vea_cache_man_instr( x : vea_cache_man_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CACHE
+   otawa_kind = CACHE
 
 op vea_cache_man_instr_action =   vea_dcbf
                         | vea_dcbst
@@ -122,7 +122,7 @@ op  vea_ext_control_instr( x : vea_ext_control_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = EXT
+   otawa_kind = EXT
 
 op vea_ext_control_instr_action  =   vea_eciwx
                             | vea_ecowx
@@ -150,7 +150,7 @@ op  vea_mem_sync_instr( x : vea_mem_sync_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = MEMSYNC
+   otawa_kind = MEMSYNC
 
 op vea_mem_sync_instr_action =   vea_eieio
                         | vea_isync
@@ -175,7 +175,7 @@ op  vea_proc_control_instr( x : vea_proc_control_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CONTROL
+   otawa_kind = CONTROL
 
 op vea_proc_control_instr_action = vea_mftb
 

@@ -24,10 +24,10 @@
 // 1. Definitions                                                            //
 // ========================================================================= //
 // 
-// 1.1.6 Category of instructions
+// 1.1.6 otawa_kind of instructions (old ones)
 // Might be used to know in which functional unit the instruction is executed
-let SEG = "15"   // Segment Register Manipulation Instructions
-let TLB = "16"           // Lookaside Buffer Management Instructions
+let SEG = IS_INTERN //"15"   // Segment Register Manipulation Instructions
+let TLB = IS_INTERN //"16"           // Lookaside Buffer Management Instructions
 
 
 // ========================================================================= //
@@ -60,7 +60,7 @@ op  oea_cache_man_instr( x : oea_cache_man_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CACHE
+   otawa_kind = CACHE
 
 op oea_cache_man_instr_action = oea_dcbi
 
@@ -79,7 +79,7 @@ op  oea_proc_control_instr ( x :oea_proc_control_instr_action  )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = CONTROL
+   otawa_kind = CONTROL
 
 op oea_proc_control_instr_action =   oea_mfmsr
                             | oea_mfspr
@@ -305,7 +305,7 @@ op  oea_seg_reg_man_instr ( x : oea_seg_reg_man_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = SEG
+   otawa_kind = SEG
 
 op oea_seg_reg_man_instr_action  =   oea_mfsr
                                    | oea_mfsrin
@@ -347,7 +347,7 @@ op  oea_sys_link_instr ( x : oea_sys_link_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = SYSTEM
+   otawa_kind = SYSTEM
 
 op oea_sys_link_instr_action =   oea_rfi
 
@@ -365,7 +365,7 @@ op oea_rfi ( )
 			MSR < 18..18 > = SRR [1] < 18..18 >;
 			NIA = SRR [0] & 0xfffffffc;
 		}
-        category = SYSTEM
+        otawa_kind = SYSTEM
 // ------------------------------------------------------------------------- //
 // 2.5 translation lookaside buffer (TLB) management instructions
 // ------------------------------------------------------------------------- //
@@ -374,7 +374,7 @@ op  oea_tlb_man_instr ( x : oea_tlb_man_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
-   category = TLB
+   otawa_kind = TLB
 
 op oea_tlb_man_instr_action  =   oea_tlbia
                         | oea_tlbie
