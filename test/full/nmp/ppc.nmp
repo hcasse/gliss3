@@ -658,9 +658,9 @@ op bran_cond_rel ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH;
+			BRANCH
 		else
-			BRANCH | IS_COND;
+			BRANCH | IS_COND
 		endif
    otawa_target = IADDR + (BD << 2)
 
@@ -682,9 +682,9 @@ op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 
 	    }
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH;
+			BRANCH
 		else
-			BRANCH | IS_COND;
+			BRANCH | IS_COND
 		endif
    otawa_target = BD << 2
             
@@ -708,9 +708,9 @@ op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
         
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH | IS_CALL;
+			BRANCH | IS_CALL
 		else
-			BRANCH | IS_CALL | IS_COND;
+			BRANCH | IS_CALL | IS_COND
 		endif
    otawa_target = IADDR + (BD << 2)
 
@@ -733,9 +733,9 @@ op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
         
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH | IS_CALL;
+			BRANCH | IS_CALL
 		else
-			BRANCH | IS_CALL | IS_COND;
+			BRANCH | IS_CALL | IS_COND
 		endif
    otawa_target = BD << 2
 
@@ -770,10 +770,11 @@ op branch_cond_ctr ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH;
+			BRANCH
 		else
-			BRANCH | IS_COND;
+			BRANCH | IS_COND
 		endif
+   otawa_target = 0  //target not known until execution
 
 op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bcctrl %d,%d", BO, BI )
@@ -788,10 +789,11 @@ op branch_cond_ctr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		LR = ( CIA + 4 );
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH | IS_CALL;
+			BRANCH | IS_CALL
 		else
-			BRANCH | IS_CALL | IS_COND;
+			BRANCH | IS_CALL | IS_COND
 		endif
+   otawa_target = 0  //target not known until execution
 
 op bran_cond_lr =   branch_cond_lr
                   | branch_cond_lr_link
@@ -812,10 +814,11 @@ op branch_cond_lr ( BO : card ( 5 ), BI : card ( 5 ) )
 		endif;
 		} 
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
-			BRANCH | IS_RETURN;
+			BRANCH | IS_RETURN
 		else
-			BRANCH | IS_RETURN | IS_COND;
+			BRANCH | IS_RETURN | IS_COND
 		endif
+   otawa_target = 0  //target not known until execution
 
 op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
    syntax = format ( "bclrl %d,%d", BO, BI )
@@ -834,10 +837,11 @@ op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		LR = ( CIA + 4 );
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then  // on sauvegarde LR, faut-il rajouter IS_CALL en plus de IS_RETURN ?
-			BRANCH | IS_RETURN;
+			BRANCH | IS_RETURN
 		else
-			BRANCH | IS_RETURN | IS_COND;
+			BRANCH | IS_RETURN | IS_COND
 		endif
+   otawa_target = 0  //target not known until execution
  
 // ------------------------------------------------------------------------- //
 // 2.2 Non Branch Instructions
