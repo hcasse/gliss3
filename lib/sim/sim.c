@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.7 2009/07/21 13:17:58 barre Exp $
+ * $Id: sim.c,v 1.8 2009/09/15 07:40:09 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -487,9 +487,9 @@ gliss_loader_close(loader);
 			break;
 		gliss_step(sim);
 // !!DEBUG BEGIN!!	
-	cpt++;
-//	printf("state after instr %d\n", cpt);
-//	gliss_dump_state(sim->state, stdout);
+//	cpt++;
+	printf("state after instr %d\n", cpt);
+	gliss_dump_state(sim->state, stdout);
 	fflush(stdout);
 //	getchar();
 	//if (cpt > 500)
