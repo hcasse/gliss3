@@ -44,7 +44,8 @@ $(proc)_platform_t *$(proc)_new_platform(void) {
 		errno = ENOMEM;
 		return NULL;
 	}
-	pf->usage = 1;
+	/* the new platform is not locked yet */
+	pf->usage = 0;
 	
 	/* memory initialization */
 $(foreach memories)
@@ -103,7 +104,6 @@ void $(proc)_unlock_platform($(proc)_platform_t *platform) {
 
 	/* unlock */
 	if(--platform->usage != 0)
-		return;
 	
 	/* destroy the modules */
 $(foreach modules)
@@ -466,7 +466,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 	$(proc)_execute(sim->state, inst);
 	
 	/* finally free it */
-	free(inst);
+	$(proc)_free_inst(inst);
 }
 
 
@@ -496,4 +496,7 @@ void $(proc)_delete_sim($(proc)_sim_t *sim)
 	
 	/* delete the state */
 	$(proc)_delete_state(sim->state);
+	
+	/* delete the sim */
+	free(sim);
 }

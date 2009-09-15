@@ -37,7 +37,11 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address);
 void gliss_free_inst(gliss_inst_t *inst)
 {
 	if (inst)
+	{
+		if (inst->instrinput)
+			free(inst->instrinput);
 		free(inst);
+	}
 	inst = 0;
 }
 

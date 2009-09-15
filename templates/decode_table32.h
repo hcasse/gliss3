@@ -70,7 +70,7 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 	$(if has_param)uint32_t mask;
 	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
 	inst->ident = $(PROC)_$(IDENT);
-	inst->instrinput = malloc(sizeof($(proc)_ii_t) * $(num_params));
+	inst->instrinput = malloc(sizeof($(proc)_ii_t) * ($(num_params) + 2));
 
 	/* set size and address */
 	inst->instrinput[0].type = $(PROC)_ADDR;
