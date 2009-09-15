@@ -19,8 +19,8 @@ $(end)
 
 /* parameter access macros */
 $(foreach instructions)
-#define $(PROC)_$(IDENT)_IADDR		((inst)->instrinput[0].val.$(PROC)_ADDR)
-#define $(PROC)_$(IDENT)_ISIZE		((inst)->instrinput[1].val.$(PROC)_SIZE)
+#define $(PROC)_$(IDENT)___IADDR		((inst)->instrinput[0].val.$(PROC)_ADDR)
+#define $(PROC)_$(IDENT)___ISIZE		((inst)->instrinput[1].val.$(PROC)_SIZE)
 $(foreach params)
 #define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX) + 2].val.$(param_type))
 $(end)$(end)

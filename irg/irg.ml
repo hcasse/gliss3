@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.37 2009/08/04 15:38:37 dubot Exp $
+ * $Id: irg.ml,v 1.38 2009/09/15 14:49:05 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +22,7 @@
 (*	State of the analysis includes:
 		- syms
 		- pos_table *)
-		
+
 
 exception RedefinedSymbol of string
 exception IrgError of string
@@ -50,7 +50,7 @@ type typ =
 type unop =
 	  NOT
 	| BIN_NOT
-	| NEG 
+	| NEG
 
 type binop =
 	  ADD
@@ -85,8 +85,8 @@ type const =
 
 type expr =
 	  NONE
-	| COERCE of type_expr * expr 
-	| FORMAT of string * expr list 
+	| COERCE of type_expr * expr
+	| FORMAT of string * expr list
 	| CANON_EXPR of type_expr * string * expr list
 	| REF of string
 	| FIELDOF of type_expr * string * string
@@ -99,7 +99,7 @@ type expr =
 	| CONST of type_expr*const
 	| ELINE of string * int * expr
 	| EINLINE of string				(** inline source in expression (for internal use only) *)
-	
+
 (** Statements *)
 type location =
 	| LOC_NONE												(** null location *)
@@ -134,8 +134,8 @@ type stat =
 	| ERROR of string	(* a changer : stderr ? *)
 	| IF_STAT of expr * stat * stat
 	| SWITCH_STAT of expr * (expr * stat) list * stat
-	| SETSPE of location * expr		(** Used for allowing assigment of parameters (for exemple in predecode attribute). 
-					   				This is NOT in the nML standard and is only present for compatibility *) 
+	| SETSPE of location * expr		(** Used for allowing assigment of parameters (for exemple in predecode attribute).
+					   				This is NOT in the nML standard and is only present for compatibility *)
 	| LINE of string * int * stat	(** Used to memorise the position of a statement *)
 	| INLINE of string				(** inline source in statement (for internal use only) *)
 
@@ -164,7 +164,7 @@ type spec =
 	| PARAM of string * typ
 	| ATTR of attr
 	| ENUM_POSS of string*string*Int32.t*bool	(*	Fields of ENUM_POSS :
-								the first parameter is the symbol of the enum_poss, 
+								the first parameter is the symbol of the enum_poss,
 								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
@@ -210,6 +210,10 @@ module StringHashtbl = Hashtbl.Make(HashString)
 
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
+let _ =
+	StringHashtbl.add syms "__IADDR" (PARAM ("__IADDR", TYPE_EXPR (CARD(32))));
+	StringHashtbl.add syms "__ISIZE" (PARAM ("__ISIZE", TYPE_EXPR (CARD(32))))
+
 
 exception Symbol_not_found of string
 (** Get the symbol matching the given name or UNDEF if not found.*)
@@ -228,7 +232,7 @@ let get_symbol n =
 	@param name	Name of the symbol to add.
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
-let add_symbol name sym = 
+let add_symbol name sym =
 	(*
 	transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
 	into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
@@ -258,7 +262,7 @@ let add_symbol name sym =
 				int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
 			| NO_TYPE
 			| STRING
-			| UNKNOW_TYPE -> 
+			| UNKNOW_TYPE ->
 				failwith "length unknown"
 		in
 		let b_o =
@@ -275,7 +279,7 @@ let add_symbol name sym =
 			in
 			let const c =
 				CONST (t, CARD_CONST (Int32.of_int c))
-			in 
+			in
 			let sub e1 e2 =
 				BINOP (t, SUB, e1, e2)
 			in
@@ -310,7 +314,7 @@ let add_symbol name sym =
 		| REG(name, size, typ, m_a_l) ->
 			REG(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
 		| _ ->
-			s			
+			s
 	in
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
@@ -364,13 +368,13 @@ let attr_unstack l= List.iter (StringHashtbl.remove syms) (List.map (fun x -> na
 		The ENUM can be reduced only when all the ENUM_POSS have been.
 		So when reduced, the ENUM_POSS have an boolean attribute "completed" set at false and their enum attribute is empty.
 		When the ENUM is reduced, we fill the enum attribute to make the link, and set the "completed" to true
-		
+
 		@param id	The id of the enum
 *)
 let complete_incomplete_enum_poss id =
-	StringHashtbl.fold (fun e v d-> match v with 
+	StringHashtbl.fold (fun e v d-> match v with
 				ENUM_POSS (n,_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (n,id,t,true))
-				|_->d 
+				|_->d
 			) syms ()
 
 
@@ -402,7 +406,7 @@ let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 let canon_list = [
 			{name= UNKNOW;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
 			{name=NAMED "sin";type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};
-			{name=NAMED "print";type_param=[STRING];type_res=NO_TYPE} 
+			{name=NAMED "print";type_param=[STRING];type_res=NO_TYPE}
 		 ]
 
 (* we add all the defined canonical functions to the canonical functions space *)
@@ -435,7 +439,7 @@ let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
 	@param v_file	Name of the file where the symbol is declared
 	@param v_line	Approximate line number of the declaration.
 *)
-let add_pos v_name v_file v_line = 
+let add_pos v_name v_file v_line =
 	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
 
 (* --- display functions --- *)
@@ -460,7 +464,7 @@ let output_const out cst =
 	| CARD_CONST_64 v->
 		output_string out (Int64.to_string v)
 	| STRING_CONST v ->
-		Printf.fprintf out "\"%s\"" v   
+		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
 		Printf.fprintf out "%f" v
 
@@ -535,7 +539,7 @@ let string_of_binop op =
 	| OR		-> "||"
 	| BIN_AND	-> "&"
 	| BIN_OR	-> "|"
-	| BIN_XOR	-> "^" 
+	| BIN_XOR	-> "^"
 	| CONCAT	-> "::"
 
 
@@ -699,7 +703,7 @@ let rec output_statement out stat =
 		output_string out ");\n"
 	| ERROR ch ->
 		Printf.fprintf out "\t\t error %s;\n" ch
-	| IF_STAT (exp,statT,statE) -> 
+	| IF_STAT (exp,statT,statE) ->
 		output_string out "\t\t if ";
 		output_expr out exp;
 		output_string out "\n";
@@ -811,7 +815,7 @@ let output_attr out attr =
 	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
 				  output_statement out stat;
 				  Printf.fprintf out "\t}\n";
-		() 
+		()
 	| ATTR_USES ->
 		()
 
@@ -884,17 +888,17 @@ let output_spec out spec =
 	| AND_OP (name, pars, attrs) -> Printf.fprintf out "op %s (" name ;
 					if (List.length pars)>0
 					then begin
-						List.iter (fun a -> begin 	Printf.fprintf out "%s : " (fst a) ; 
-										output_type out (snd a); 
+						List.iter (fun a -> begin 	Printf.fprintf out "%s : " (fst a) ;
+										output_type out (snd a);
 										Printf.fprintf out ", ";
 								   end) (List.rev (List.tl pars));
-						Printf.fprintf out "%s : " (fst (List.hd pars)); 
+						Printf.fprintf out "%s : " (fst (List.hd pars));
 						output_type out (snd (List.hd pars));
 					end;
 					Printf.fprintf out ")\n";
 					List.iter (output_attr out) (List.rev attrs) ;
 		()
-	| OR_OP (name, modes) -> Printf.fprintf out "op %s = " name ;		 
+	| OR_OP (name, modes) -> Printf.fprintf out "op %s = " name ;
 				 List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes));
 				 Printf.fprintf out "%s" (List.hd modes);
 				 Printf.fprintf out "\n";
@@ -955,7 +959,7 @@ let get_type p =
 	(str, TYPE_ID(n)) ->
 		n
 	| _ ->
-		"[err741]"		
+		"[err741]"
 
 let get_name p =
 	match p with
@@ -1054,7 +1058,7 @@ let is_attr_recursive sp name =
 let get_stat_from_attr_from_spec sp name_attr =
 	let rec get_attr n a =
 		match a with
-		[] -> 
+		[] ->
 		(* if attr not found => means an empty attr (?) *)
 			NOP
 		| ATTR_STAT(nm, s)::t ->
@@ -1079,7 +1083,7 @@ let get_stat_from_attr_from_spec sp name_attr =
 let get_expr_from_attr_from_op_or_mode sp name_attr =
 	let rec get_attr n a =
 		match a with
-		[] -> 
+		[] ->
 		(* if attr not found => means an empty attr (?) *)
 			NONE
 		| ATTR_EXPR(nm, e)::t ->
@@ -1160,7 +1164,7 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 			new_name
 		else
 			s in
-		
+
 	match ex with
 	NONE ->
 		NONE
@@ -1256,7 +1260,7 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
 				print_location loc; print_char '\n';
 				print_expr (get_mode_value op); print_char '\n';*)
 				failwith "\nincorrect type of expr for a mode value (irg.ml::substitute_in_location)"
-		
+
 		in
 		(* change if op is a AND_MODE and s refers to it *)
 		(* as mode values, we will accept only those "similar" to a LOC_REF (REF, ITEMOF, BITFIELD, (FIELDOF)) *)
@@ -1266,8 +1270,8 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
 			LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, substitute_in_location name op l1, substitute_in_location name op l2)
-		
-		
+
+
 (** search the symbol name in the given statement,
 the symbol is supposed to stand for a variable of type given by op,
 all occurrences of names are translated to refer to the op *)
@@ -1392,9 +1396,9 @@ let rec prefix_name_of_params_in_spec sp pfx =
 	| _ ->
 		sp
 
-	
-	
-(* str_format is a regexp representing a %... from a format expr 
+
+
+(* str_format is a regexp representing a %... from a format expr
  expr_field is supposed to be an expr of type FIELDOF ("x.syntax") or else corresponding to str_format
  spec_type is the spec of the base of the expr (here : the spec of "x"), has meaning only for some types of expr *)
 let rec replace_format_by_attr str_format expr_field spec_type =
@@ -1409,9 +1413,9 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 			)*)
 		| REF(s) -> s
 		| ELINE (_, _, e) -> get_str_from_format_expr e
-		| _ -> 
+		| _ ->
 			"";
-		(* !!DEBUG!! 
+		(* !!DEBUG!!
 		print_char '['; print_expr f; print_string "]\n";
 		failwith "expression not suitable to get a string from it (irg.ml::replace_format_by_attr::get_str_from_format_expr)"*)
 	in
@@ -1439,7 +1443,7 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 
 
 
-(* replace an "x.image" (x is an op foo) param by the params of the "image" attribute in the "foo" spec 
+(* replace an "x.image" (x is an op foo) param by the params of the "image" attribute in the "foo" spec
 the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params),
 others expressions remain *)
 let rec replace_field_expr_by_param_list expr_field spec_type =
@@ -1482,13 +1486,13 @@ let replace_param_list p_l =
 			[param]
 	in
 	List.flatten (List.map replace_param p_l)
-		
-	
+
+
 let rec search_spec_of_name name param_list =
 	let spec_from_type t =
 		match t with
 		TYPE_ID(n) -> get_symbol n
-		| TYPE_EXPR(t_e) -> 
+		| TYPE_EXPR(t_e) ->
 		(* !!DEBUG!! *)
 		(*print_string "spec_from_type, t="; print_type_expr t_e; print_string ", res=>UNDEF\n";*)
 		UNDEF
@@ -1519,7 +1523,7 @@ let get_spec_from_expr e spec_params =
 		| CONST(t_e, c) ->
 			UNDEF
 		| _ -> failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
-	in 
+	in
 	(* !!DEBUG!! *)
 	(*print_string "get_spec_from_expr, expr="; print_expr e; print_string ", p_l="; print_param_list spec_params;print_char '\n';*)
 	rec_aux e spec_params
@@ -1530,7 +1534,7 @@ let rec regexp_list_to_str_list l =
 	[] -> []
 	| Str.Text(txt)::b -> txt::(regexp_list_to_str_list b)
 	| Str.Delim(txt)::b -> txt::(regexp_list_to_str_list b)
-	
+
 let string_to_regexp_list s =
 	Str.full_split (Str.regexp "%[0-9]*[dbxsf]") s
 
@@ -1559,7 +1563,7 @@ let rec print_reg_list e_l =
 (* the reg_list is supposed to represent an expr from a format (eg : "001101%8b00%d")
 expr_list is the params of the same format (eg : x, z, y.image, TMP_VAR)
 the format is supposed to be an attribute of a spec
-whose params are given in spec_params 
+whose params are given in spec_params
 returns a string list where each format has been replaced by the correct image or syntax (or else) *)
 let transform_str_list reg_list expr_list spec_params =
 	let rec rec_aux r_l e_l p_l =
@@ -1813,9 +1817,9 @@ let change_format_attr expr_frmt param_list =
 	let l = List.flatten (List.map (fun x -> print_string "cfa::replace [[";print_expr x;print_string "]] get_spec_f_e = "; print_spec (get_spec_from_expr x param_list);
 	print_string "\n"; replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
 	in
-	let res =reduce_frmt (remove_const_param_from_format 
+	let res =reduce_frmt (remove_const_param_from_format
 		(FORMAT(
-			str_list_to_str (transform_str_list str_frmt param_frmt param_list), 
+			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
 			(*List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)*)
 			l
 			)))
@@ -1823,12 +1827,12 @@ let change_format_attr expr_frmt param_list =
 	print_string "chg_fmt_attr expr_frmt="; print_expr expr_frmt; print_string ", params="; print_param_list param_list;print_char '\n';
 	print_string "new params = "; print_e_l l;
 	print_string "\n\n===========cfa res= [[";print_expr res; print_string "]]\n";*)
-	reduce_frmt (remove_const_param_from_format 
+	reduce_frmt (remove_const_param_from_format
 		(FORMAT(
-			str_list_to_str (transform_str_list str_frmt param_frmt param_list), 
+			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
 			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
 			)))
-	
+
 
 (* replace the type by the spec if the param refers to an op or mode,
 the param is dropped if it is of a simple type *)
@@ -1853,7 +1857,7 @@ let rec instantiate_in_stat sta param_list =
 		instantiate_in_stat (substitute_in_stat name (prefix_name_of_params_in_spec (get_symbol t) name) sta) q
 	| (name, TYPE_EXPR(e))::q ->
 		instantiate_in_stat sta q
-		
+
 let rec instantiate_in_expr ex param_list =
 	let rec aux e p_l =
 		match p_l with
@@ -1890,7 +1894,7 @@ let instantiate_param param =
 				p @ (aux q) (* will this happen? *)
 			)
 		| [] ->
-			[]			
+			[]
 		| _ ->
 			p
 	in
@@ -1910,7 +1914,7 @@ let rec cross_prod l1 l2 =
 			[]
 		else
 			(List.map (fun x -> [a;x]) l2) @ (cross_prod b l2)
-			
+
 let rec list_and_list_list_prod l ll =
 	match l with
 	[] ->
@@ -2052,7 +2056,7 @@ let add_attr_to_spec sp param =
 		[] -> []
 		| a::b ->
 			if List.exists (fun x -> compare_attrs a x) a_l then
-				match a with 
+				match a with
 				ATTR_STAT(n, _) ->
 					begin
 					if is_attr_recursive (spec_of_param param) n then
@@ -2130,7 +2134,7 @@ let instantiate_spec sp param_list =
 		UNDEF
 
 
-		
+
 let instantiate_spec_all_combinations sp =
 	let new_param_lists = instantiate_param_list (get_param_of_spec sp)
 	in
@@ -2167,10 +2171,10 @@ let rec instantiate_spec_list s_l =
 
 
 
-(* this function instantiate all possible instructions given by the spec name in the hashtable *)			
+(* this function instantiate all possible instructions given by the spec name in the hashtable *)
 let instantiate_instructions name =
 	(* some AND_OP specs with empty attrs and no params are output, remove them
-	TODO : see where they come from, this patch is awful. 
+	TODO : see where they come from, this patch is awful.
 	here, we assume we have an empty spec as soon as the syntax or the image is void *)
 	let is_void_attr a =
 		match a with
@@ -2334,7 +2338,7 @@ let test_replace_param name =
 		Printf.printf "res test param:\n";
 		print_expr_list (replace_field_expr_by_param_list expre sp)
 	end
-	
+
 
 (**	Save the current IRG definition to a file.
 	@param path			Path of the file to save to.

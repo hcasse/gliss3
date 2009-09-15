@@ -1,10 +1,10 @@
 /*
- *	$Id: syscall-linux.c,v 1.3 2009/06/26 14:47:55 barre Exp $
+ *	$Id: syscall-linux.c,v 1.4 2009/09/15 14:49:05 casse Exp $
  *	syscall-linux module implementation
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2009, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,10 +16,10 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with OTAWA; if not, write to the Free Software 
+ *	along with OTAWA; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
- 
+
 #ifdef linux
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -357,7 +357,7 @@ static int my_strlen(gliss_state_t *state, gliss_address_t addr)
 {
 	int len = 0;
 	char buffer[32];
-	
+
 	while(1) {
 		int size = sizeof(buffer);
 		char *p = buffer;
@@ -607,7 +607,7 @@ static char *gliss_get_syscall_name(int num)
 //	exit(code);
 //}
 
-BOOL gliss_syscall_exit(gliss_state_t *state) {
+static BOOL gliss_syscall_exit(gliss_state_t *state) {
 	if(verbose)
 		fprintf(verbose, "exit()\n");
 	if(running)
@@ -615,9 +615,9 @@ BOOL gliss_syscall_exit(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_fork(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fork(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall_read(gliss_state_t *state) {
+static BOOL gliss_syscall_read(gliss_state_t *state) {
 	int fd;
 	size_t count;
 	gliss_address_t buf_addr;
@@ -645,14 +645,14 @@ BOOL gliss_syscall_read(gliss_state_t *state) {
 }
 
 
-BOOL gliss_syscall_write(gliss_state_t *state)
+static BOOL gliss_syscall_write(gliss_state_t *state)
 {
 	int fd;
 	size_t count;
 	void *buf;
 	gliss_address_t buf_addr;
 	size_t ret;
-	
+
 	PARM_BEGIN
 		fd = _fd(PARM(0));
 		buf_addr = (uint32_t)PARM(1);
@@ -675,14 +675,14 @@ BOOL gliss_syscall_write(gliss_state_t *state)
 	return (ret != (size_t) -1)?TRUE:FALSE;
 }
 
-BOOL gliss_syscall_open(gliss_state_t *state) {
+static BOOL gliss_syscall_open(gliss_state_t *state) {
 	gliss_address_t addr;
 	int pathnamelen;
 	char *pathname;
 	int flags;
 	mode_t mode;
 	int ret;
-	
+
 	PARM_BEGIN
 		addr = PARM(0);
 		pathnamelen = STRLEN(addr);
@@ -699,12 +699,12 @@ BOOL gliss_syscall_open(gliss_state_t *state) {
 	return ret != -1;
 }
 
-BOOL gliss_syscall_close(gliss_state_t *state)
+static BOOL gliss_syscall_close(gliss_state_t *state)
 {
 	int fd;
 	int ret;
 
-	PARM_BEGIN	
+	PARM_BEGIN
 		fd = _fd(PARM(0));
 	PARM_END
 	if(verbose)
@@ -714,26 +714,26 @@ BOOL gliss_syscall_close(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL gliss_syscall_waitpid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_creat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_link(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_unlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_execve(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_chdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_time(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mknod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_chmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_lchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_break(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_oldstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_waitpid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_creat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_link(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_unlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_execve(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_chdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_time(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mknod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_chmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_lchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_break(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_oldstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall_lseek(gliss_state_t *state)
+static BOOL gliss_syscall_lseek(gliss_state_t *state)
 {
 	int fildes;
 	off_t offset;
 	int whence;
 	off_t ret;
-	
+
 	PARM_BEGIN
 		fildes = _fd(PARM(0));
 		offset = PARM(1);
@@ -746,9 +746,9 @@ BOOL gliss_syscall_lseek(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL gliss_syscall_getpid(gliss_state_t *state) {
+static BOOL gliss_syscall_getpid(gliss_state_t *state) {
 	pid_t pid;
-	
+
 	if(verbose)
 		fprintf(verbose, "getpid()\n");
 	pid = getpid();
@@ -756,13 +756,13 @@ BOOL gliss_syscall_getpid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_mount(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_umount(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mount(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_umount(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall_getuid(gliss_state_t *state) {
+static BOOL gliss_syscall_getuid(gliss_state_t *state) {
 	uid_t uid;
-	
+
 	if(verbose)
 		fprintf(verbose, "getuid()\n");
 	uid = getuid();
@@ -770,24 +770,24 @@ BOOL gliss_syscall_getuid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_stime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ptrace(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_alarm(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_oldfstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_pause(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_utime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_stty(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_gtty(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_access(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_nice(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ftime(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_kill(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rename(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mkdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rmdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_dup(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_pipe(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_stime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ptrace(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_alarm(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_oldfstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_pause(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_utime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_stty(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_gtty(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_access(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_nice(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ftime(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_kill(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rename(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mkdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rmdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_dup(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_pipe(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 static void gliss_swap(void *buf, int count)
 {
@@ -796,7 +796,7 @@ static void gliss_swap(void *buf, int count)
 		char temp[8];
 		char *src = (char *) buf + count - 1;
 		char *dst = temp;
-		
+
 		do
 		{
 			*dst = *src;
@@ -812,13 +812,13 @@ static void gliss_swap_tms(struct tms *buf)
 	gliss_swap(&buf->tms_cstime, sizeof(&buf->tms_cstime));
 }
 
-BOOL gliss_syscall_times(gliss_state_t *state) {
+static BOOL gliss_syscall_times(gliss_state_t *state) {
 	gliss_address_t buf_addr;
 	struct tms buf;
 	clock_t ret;
 
 	//printf("times is being executed\n");
-	ret = times(&buf);	
+	ret = times(&buf);
 	if(swap) gliss_swap_tms(&buf);
 	PARM_BEGIN
 		buf_addr = PARM(0);
@@ -830,13 +830,13 @@ BOOL gliss_syscall_times(gliss_state_t *state) {
 }
 
 
-BOOL gliss_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall_brk(gliss_state_t *state)
+static BOOL gliss_syscall_brk(gliss_state_t *state)
 {
 	uint32_t new_brk_point;
 	BOOL success;
-	
+
 	PARM_BEGIN
 		new_brk_point = PARM(0);
 	PARM_END
@@ -852,14 +852,14 @@ BOOL gliss_syscall_brk(gliss_state_t *state)
 		((emulstate_t *)handler->instance)->brk_point = new_brk_point;
 		success = TRUE;
 	}
-	
+
 	RETURN(((emulstate_t *)handler->instance)->brk_point);*/
 	RETURN(0);
 	return success;
 }
 
-BOOL gliss_syscall_setgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getgid(gliss_state_t *state) {
+static BOOL gliss_syscall_setgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getgid(gliss_state_t *state) {
 	gid_t gid;
 	if(verbose)
 		fprintf(verbose, "getgid()\n");
@@ -868,10 +868,10 @@ BOOL gliss_syscall_getgid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_signal(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_geteuid(gliss_state_t *state) {
+static BOOL gliss_syscall_signal(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_geteuid(gliss_state_t *state) {
 	uid_t uid;
-	
+
 	if(verbose)
 		fprintf(verbose, "geteuid()\n");
 	uid = geteuid();
@@ -879,9 +879,9 @@ BOOL gliss_syscall_geteuid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_getegid(gliss_state_t *state) {
+static BOOL gliss_syscall_getegid(gliss_state_t *state) {
 	gid_t gid;
-	
+
 	if(verbose)
 		fprintf(verbose, "getegid()\n");
 	gid = getegid();
@@ -889,87 +889,87 @@ BOOL gliss_syscall_getegid(gliss_state_t *state) {
 	return TRUE;
 }
 
-BOOL gliss_syscall_acct(gliss_state_t *state) 
-{ 
+static BOOL gliss_syscall_acct(gliss_state_t *state)
+{
   if(verbose)
     fprintf(verbose, "acct() not implemented.\n");
-  RETURN(-1); return FALSE; 
+  RETURN(-1); return FALSE;
 }
 
-BOOL gliss_syscall_umount2(gliss_state_t *state) 
-{ 
+static BOOL gliss_syscall_umount2(gliss_state_t *state)
+{
   if(verbose)
     fprintf(verbose, "unmount2() not implemented.\n");
-  RETURN(-1); return FALSE; 
+  RETURN(-1); return FALSE;
 }
 
-BOOL gliss_syscall_lock(gliss_state_t *state) 
-{ 
+static BOOL gliss_syscall_lock(gliss_state_t *state)
+{
   if(verbose)
     fprintf(verbose, "lock() not implemented.\n");
-  RETURN(-1); return FALSE; 
+  RETURN(-1); return FALSE;
 }
 
-BOOL gliss_syscall_ioctl(gliss_state_t *state) 
-{ 	
+static BOOL gliss_syscall_ioctl(gliss_state_t *state)
+{
   if(verbose)
     fprintf(verbose, "ioctl() not implemented.\n");
-  RETURN(-1); return FALSE; 
+  RETURN(-1); return FALSE;
 }
 
-BOOL gliss_syscall_fcntl(gliss_state_t *state)  {  RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mpx(gliss_state_t *state) { RETURN(-1); return FALSE;  }
-BOOL gliss_syscall_setpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ulimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_oldolduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_umask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_chroot(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ustat(gliss_state_t *state)  { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_dup2(gliss_state_t *state) { RETURN(-1); return FALSE;  }
-BOOL gliss_syscall_getppid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getpgrp(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sgetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ssetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setreuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setregid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sethostname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getrusage(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_gettimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_settimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_select(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_symlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_oldlstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_readlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_uselib(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_swapon(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_reboot(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_readdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_munmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_truncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ftruncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fchmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_profil(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_statfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fstatfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ioperm(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_socketcall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_syslog(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_stat(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_lstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fcntl(gliss_state_t *state)  {  RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mpx(gliss_state_t *state) { RETURN(-1); return FALSE;  }
+static BOOL gliss_syscall_setpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ulimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_oldolduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_umask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_chroot(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ustat(gliss_state_t *state)  { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_dup2(gliss_state_t *state) { RETURN(-1); return FALSE;  }
+static BOOL gliss_syscall_getppid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getpgrp(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sgetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ssetmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setreuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setregid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sethostname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getrusage(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_gettimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_settimeofday(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setgroups(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_select(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_symlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_oldlstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_readlink(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_uselib(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_swapon(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_reboot(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_readdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_munmap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_truncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ftruncate(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fchmod(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fchown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setpriority(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_profil(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_statfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fstatfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ioperm(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_socketcall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_syslog(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getitimer(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_stat(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_lstat(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 static void gliss_swap_stat(struct stat *buf) {
 	gliss_swap(&buf->st_dev, sizeof(&buf->st_dev));
@@ -988,12 +988,12 @@ static void gliss_swap_stat(struct stat *buf) {
 	gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
 }
 
-BOOL gliss_syscall_fstat(gliss_state_t *state) {
+static BOOL gliss_syscall_fstat(gliss_state_t *state) {
 	int fd;
 	struct stat *buf;
 	gliss_address_t buf_addr;
 	int ret;
-	
+
 	PARM_BEGIN
 		fd = _fd(PARM(0));
 		buf_addr = PARM(1);
@@ -1019,41 +1019,41 @@ BOOL gliss_syscall_fstat(gliss_state_t *state) {
 	return ret != -1;
 }
 
-BOOL gliss_syscall_olduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_iopl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_vhangup(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_idle(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_vm86old(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_wait4(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_swapoff(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sysinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ipc(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fsync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_clone(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setdomainname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_uname(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_modify_ldt(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_adjtimex(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mprotect(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_create_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_init_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_delete_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_get_kernel_syms(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_quotactl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fchdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_bdflush(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sysfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_olduname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_iopl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_vhangup(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_idle(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_vm86old(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_wait4(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_swapoff(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sysinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ipc(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fsync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_clone(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setdomainname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_uname(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_modify_ldt(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_adjtimex(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mprotect(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_create_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_init_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_delete_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_get_kernel_syms(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_quotactl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getpgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fchdir(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_bdflush(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sysfs(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall_personality(gliss_state_t *state) { return TRUE; }
+static BOOL gliss_syscall_personality(gliss_state_t *state) { return TRUE; }
 
-BOOL gliss_syscall_afs_syscall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setfsuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setfsgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_afs_syscall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setfsuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setfsgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-BOOL gliss_syscall__llseek(gliss_state_t *state)
+static BOOL gliss_syscall__llseek(gliss_state_t *state)
 {
 	int fd;
 	uint32_t offset_high;
@@ -1061,7 +1061,7 @@ BOOL gliss_syscall__llseek(gliss_state_t *state)
 	gliss_address_t result_addr;
 	int whence;
 	int ret;
-	
+
 	PARM_BEGIN
 		fd = _fd(PARM(0));
 		offset_high = PARM(1);
@@ -1092,62 +1092,62 @@ BOOL gliss_syscall__llseek(gliss_state_t *state)
 	return ret != -1;
 }
 
-BOOL gliss_syscall_getdents(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_newselect(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_flock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_msync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_readv(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_writev(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fdatasync(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sysctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_munlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_munlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_setparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_getparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_setscheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getsheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_yield(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_get_priority_max(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_get_priority_min(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sched_rr_get_interval(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_nanosleep(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mremap(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_vm86(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_query_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_poll(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_nfsservctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_prctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigtimedwait(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigqueueinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_rt_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_pread(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_pwrite(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_chown(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getcwd(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_capget(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_capset(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sigaltstack(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_sendfile(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_putpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_vfork(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ugetrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mmap2(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_truncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_ftruncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_stat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_lstat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getdents(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_newselect(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_flock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_msync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_readv(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_writev(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getsid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fdatasync(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sysctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_munlock(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_munlockall(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_setparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_getparam(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_setscheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getsheduler(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_yield(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_get_priority_max(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_get_priority_min(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sched_rr_get_interval(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_nanosleep(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mremap(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getresuid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_vm86(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_query_module(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_poll(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_nfsservctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getresgid(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_prctl(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigreturn(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigaction(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigprocmask(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigpending(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigtimedwait(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigqueueinfo(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_rt_sigsuspend(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_pread(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_pwrite(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_chown(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getcwd(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_capget(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_capset(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sigaltstack(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_sendfile(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_putpmsg(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_vfork(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ugetrlimit(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mmap2(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_truncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_ftruncate64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_stat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_lstat64(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 #ifdef linux
 static void gliss_swap_stat64(struct stat64 *buf)
@@ -1173,12 +1173,12 @@ static void gliss_swap_stat64(struct stat64 *buf)
 	gliss_swap(&buf->st_blocks, sizeof(&buf->st_blocks));
 	gliss_swap(&buf->st_ino, sizeof(&buf->st_ino));
 #if __GLIBC_PREREQ(2,3)
-#    if __USE_MISC 
+#    if __USE_MISC
 	/* st_atime, st_mtime and st_ctime are macros */
 	gliss_swap(&buf->st_atim, sizeof(&buf->st_atim));
 	gliss_swap(&buf->st_mtim, sizeof(&buf->st_mtim));
 	gliss_swap(&buf->st_ctim, sizeof(&buf->st_ctim));
-#    else 
+#    else
 	gliss_swap(&buf->st_atime, sizeof(&buf->st_atime));
 	gliss_swap(&buf->__st_atimensec, sizeof(&buf->__st_atimensec));
 	gliss_swap(&buf->st_mtime, sizeof(&buf->st_mtime));
@@ -1199,13 +1199,13 @@ static void gliss_swap_stat64(struct stat64 *buf)
 }
 #endif
 
-BOOL gliss_syscall_fstat64(gliss_state_t *state) {
+static BOOL gliss_syscall_fstat64(gliss_state_t *state) {
 #ifdef linux
 	int fd;
 	gliss_address_t buf_addr;
 	struct stat64 *buf;
 	int ret;
-	
+
 	PARM_BEGIN
 		fd = _fd(PARM(0));
 		buf_addr = PARM(1);
@@ -1236,40 +1236,40 @@ BOOL gliss_syscall_fstat64(gliss_state_t *state) {
 #endif
 }
 
-BOOL gliss_syscall_lchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_geteuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getegid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setreuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setregid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_chown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setfsuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_setfsgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_pivot_root(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_mincore(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_madvise(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_getdents64(gliss_state_t *state) { RETURN(-1); return FALSE; }
-BOOL gliss_syscall_fnctl64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_lchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_geteuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getegid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setreuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setregid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setgroups32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fchown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getresuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getresgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_chown32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setfsuid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_setfsgid32(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_pivot_root(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_mincore(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_madvise(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_getdents64(gliss_state_t *state) { RETURN(-1); return FALSE; }
+static BOOL gliss_syscall_fnctl64(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
 
 void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
 	int syscall_num;
 	BOOL ret = FALSE;
-  
+
 	syscall_num = GLISS_SYSCALL_CODE(inst, state);
 	if(verbose)
 		fprintf(verbose, "got a system call (number : %u; name : %s)\n", syscall_num, gliss_get_syscall_name(syscall_num));
-  
+
 	switch(syscall_num) {
 	case __SYSCALL_exit: ret = gliss_syscall_exit(state); break;
 	case __SYSCALL_fork: ret = gliss_syscall_fork(state); break;
@@ -1493,7 +1493,7 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
 	case __SYSCALL_getdents64: ret = gliss_syscall_getdents64(state); break;
 	case __SYSCALL_fcntl64: ret = gliss_syscall_fnctl64(state); break;
 	}
-  
+
 	if(!ret) {
 		if(verbose)
 			fprintf(verbose, "Warning : system call returns an error (number : %u, name : %s)\n", syscall_num, gliss_get_syscall_name(syscall_num));

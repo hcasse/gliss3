@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.14 2009/09/15 07:50:48 casse Exp $
+ * $Id: app.ml,v 1.15 2009/09/15 14:49:05 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -241,6 +241,8 @@ let process file f =
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
 	| Irg.IrgError msg ->
 		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
+	| Irg.RedefinedSymbol sym ->
+		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\"" sym); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
