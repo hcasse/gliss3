@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.9 2009/07/21 13:29:56 barre Exp $
+ *	$Id: old_elf.c,v 1.10 2009/09/15 07:41:25 barre Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -808,8 +808,9 @@ char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
 /* stack and system initialization for PowerPC linux-like systems,
    with respect to the System V ABI PowerPC Processor Supplement */
 
-/* by default, start the stack just before the system reserved address space */
-#define STACKADDR_DESCENDING_DEFAULT 0xE0000000
+/* by default, start the stack just before the system reserved address space (0xE0000000) */
+/* doesn't work => try other values */
+#define STACKADDR_DESCENDING_DEFAULT 0x80000000
 /* no size advised, to my knowledge */
 #define STACKSIZE_DEFAULT 0x1000000
 
@@ -858,6 +859,8 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 {
 	uint32_t size;
 	uint32_t init_size;
+	uint32_t aligned_size;
+	uint32_t align_padding;
 	uint64_t tmp;
 	int num_arg, num_env, num_aux, i, j, len;
 	gliss_address_t addr_str;
@@ -907,9 +910,12 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	/* compute used stack size */
 	init_size = (num_arg + num_env + 2 ) * ADDR_SIZE + (num_aux + 1) * AUXV_SIZE + size + ADDR_SIZE;
 	/* 16 byte alignment for PowerPC stack pointer after initialization */
-	init_size = ALIGN(init_size, 7);
-	/* we will pad the end of the written data with 0 to have an aligned sp */
-	//align_stack_addr = env->stack_pointer - init_size;
+	aligned_size = ALIGN(init_size, 7);
+	/* 0-bytes to write before data */
+	align_padding = aligned_size - init_size;
+	/* we will pad the top addresses of the written data with 0 to have an aligned sp */
+	// TODO check if +1 needed
+	align_stack_addr = env->stack_pointer - aligned_size;
 
 
 	/* 
@@ -942,8 +948,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	*/
 	
 
-	env->stack_pointer -= init_size;
-	stack_ptr = env->stack_pointer, 7;
+	stack_ptr = align_stack_addr;
 	
 	/* write argc */
 	PUSH32(env->argc, stack_ptr);
@@ -961,7 +966,7 @@ num_aux = 0;
 	for (i = 0; i < num_aux; i++)
 		PUSH64(env->auxv[i], auxv_ptr);
 	/* AT_NULL termination entry */
-	//PUSH64(auxv_null, auxv_ptr);
+	PUSH64(auxv_null, auxv_ptr);
 
 	/* write argv strings and put addresses in argv[i] */
 	addr_str = auxv_ptr + (num_aux + 1) * AUXV_SIZE;
@@ -986,17 +991,10 @@ num_aux = 0;
 			PUSH8(env->envp[i][j], addr_str);
 	}
 	/* NULL word termination */
-	PUSH32(0, envp_ptr);
-	
-	/* pad with 0 to have a 16 byte aligned stack pointer towards a null word */
-	/*stack_ptr = addr_str;
-	while (stack_ptr > align_stack_addr)
-		PUSH8(0, stack_ptr);*/
-	/* stack ready, pointing to a NULL word */
-	/*gliss_mem_write32(memory, stack_ptr, 0);*/
-	
-	
-	env->stack_pointer = env->argv_addr;
+	PUSH32(0, envp_ptr);	
+
+	/* set the starting sp to the beginning of the written data (pointing to argc) */
+	env->stack_pointer = align_stack_addr;
 }
 
 
@@ -1013,10 +1011,10 @@ void read_string(gliss_address_t a, gliss_memory_t *mem, char * buffer)
 	}
 }
 
-/* dump everything betwen 0xE0000000 and a */
+/* dump everything betwen STACKADDR_DESCENDING_DEFAULT and a */
 void dump_stack(gliss_address_t a, gliss_state_t *state)
 {
-	gliss_address_t i = 0xE0000000;
+	gliss_address_t i = STACKADDR_DESCENDING_DEFAULT;
 	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
 	uint8_t bytes[4];
 	uint32_t word;
@@ -1030,6 +1028,7 @@ void dump_stack(gliss_address_t a, gliss_state_t *state)
 		bytes[2] = gliss_mem_read8(mem, i+2);
 		bytes[3] = gliss_mem_read8(mem, i+3);
 		printf("%c,%c,%c,%c [0x%008X]\n", bytes[0], bytes[1], bytes[2], bytes[3], word);
+		fflush(stdout);
 		i -= 4;
 	}
 }
@@ -1067,7 +1066,7 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 	
 	
 	/* !!DEBUG!! */
-	state->GPR[2] = 0x01234567;
+/*	state->GPR[2] = 0x01234567;
 	state->GPR[0] = 0X12345678;
 	state->GPR[8] = 0X23456789;
 	state->GPR[9] = 0X34567890;
@@ -1093,7 +1092,7 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 	state->GPR[29] = 0Xfff00fff;
 	state->GPR[30] = 0Xfedcfedc;
 	state->GPR[31] = 0Xffeeeeff;
-	state->GPR[32] = 0Xffeddeff;
+	state->GPR[32] = 0Xffeddeff;*/
 	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
 	printf("init\n");
 	printf("sp = %08X[%08X]\n", env->stack_pointer, gliss_mem_read32(mem, env->stack_pointer));
