@@ -1,10 +1,10 @@
 /*
- *	$Id: old_elf.c,v 1.10 2009/09/15 07:41:25 barre Exp $
+ *	$Id: old_elf.c,v 1.11 2009/09/16 10:54:58 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2008, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +16,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with OTAWA; if not, write to the Free Software 
+ *	along with OTAWA; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -49,7 +49,7 @@ typedef struct tables {
 	Elf32_Shdr *sec_header_tbl;
 	int32_t secnmtbl_ndx;
 	char *sec_name_tbl;
-        
+
 	int32_t symtbl_ndx;
 	Elf32_Sym *sym_tbl;
 	char *symstr_tbl;
@@ -197,7 +197,7 @@ static int ElfReadHeader(int fd, Elf32_Ehdr *Ehdr){
 		return -1;
 	}
 	lseek(fd, foffset, SEEK_SET);
-	if (is_host_little() != Is_Elf_Little) 
+	if (is_host_little() != Is_Elf_Little)
 		ConvertElfHeader(Ehdr);
 	return 0;
 }
@@ -213,14 +213,14 @@ static int ElfCheckExec(const Elf32_Ehdr *Ehdr) {
 }
 
 static void ConvertPgmHeader(Elf32_Phdr *Ephdr) {
-	Ephdr->p_type = ConvertByte4(Ephdr->p_type);	
-	Ephdr->p_offset = ConvertByte4(Ephdr->p_offset);	
-	Ephdr->p_vaddr = ConvertByte4(Ephdr->p_vaddr);	
-	Ephdr->p_paddr = ConvertByte4(Ephdr->p_paddr);	
-	Ephdr->p_filesz = ConvertByte4(Ephdr->p_filesz);	
-	Ephdr->p_memsz = ConvertByte4(Ephdr->p_memsz);	
-	Ephdr->p_flags = ConvertByte4(Ephdr->p_flags);	
-	Ephdr->p_align = ConvertByte4(Ephdr->p_align);	
+	Ephdr->p_type = ConvertByte4(Ephdr->p_type);
+	Ephdr->p_offset = ConvertByte4(Ephdr->p_offset);
+	Ephdr->p_vaddr = ConvertByte4(Ephdr->p_vaddr);
+	Ephdr->p_paddr = ConvertByte4(Ephdr->p_paddr);
+	Ephdr->p_filesz = ConvertByte4(Ephdr->p_filesz);
+	Ephdr->p_memsz = ConvertByte4(Ephdr->p_memsz);
+	Ephdr->p_flags = ConvertByte4(Ephdr->p_flags);
+	Ephdr->p_align = ConvertByte4(Ephdr->p_align);
 }
 
 static int ElfReadPgmHdrTbl(int fd,const Elf32_Ehdr *Ehdr) {
@@ -230,19 +230,19 @@ static int ElfReadPgmHdrTbl(int fd,const Elf32_Ehdr *Ehdr) {
 		errno = EBADF;
 		return -1;
 	}
-    lseek(fd, Ehdr->e_phoff,SEEK_SET);    
+    lseek(fd, Ehdr->e_phoff,SEEK_SET);
     Tables.pgm_hdr_tbl_size = Ehdr->e_phnum;
     Tables.pgm_header_tbl = (Elf32_Phdr *)malloc(Ehdr->e_phnum * sizeof(Elf32_Phdr));
     if(Tables.pgm_header_tbl == NULL) {
 		errno = ENOMEM;
 		return -1;
 	}
-	if(read(fd,Tables.pgm_header_tbl,(Ehdr->e_phnum*sizeof(Elf32_Phdr))) 
+	if(read(fd,Tables.pgm_header_tbl,(Ehdr->e_phnum*sizeof(Elf32_Phdr)))
 	!= (Ehdr->e_phnum*sizeof(Elf32_Phdr))) {
 		errno = EBADF;
 		return -1;
-	}		
-	if (is_host_little() != Is_Elf_Little) 
+	}
+	if (is_host_little() != Is_Elf_Little)
     	for(i=0; i < Ehdr->e_phnum; ++i)
 			ConvertPgmHeader(&Tables.pgm_header_tbl[i]);
    return 0;
@@ -276,12 +276,12 @@ static int ElfReadSecHdrTbl(int fd, const Elf32_Ehdr *Ehdr) {
 		errno = ENOMEM;
 		return -1;
 	}
-	if(read(fd,Tables.sec_header_tbl,(Ehdr->e_shnum*sizeof(Elf32_Shdr))) 
+	if(read(fd,Tables.sec_header_tbl,(Ehdr->e_shnum*sizeof(Elf32_Shdr)))
 	!= (Ehdr->e_shnum*sizeof(Elf32_Shdr))) {
 		errno = EBADF;
 		return -1;
 	}
-	if (is_host_little() != Is_Elf_Little) 
+	if (is_host_little() != Is_Elf_Little)
 		for(i=0;i<Ehdr->e_shnum;++i)
 			ConvertSecHeader(&Tables.sec_header_tbl[i]);
 	lseek(fd,foffset,SEEK_SET);
@@ -307,7 +307,7 @@ static int ElfReadSecNameTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	}
 	if (is_host_little() != Is_Elf_Little)
 		ConvertSecHeader(&Eshdr);
-	Tables.sec_name_tbl = (char *)malloc(Eshdr.sh_size);	
+	Tables.sec_name_tbl = (char *)malloc(Eshdr.sh_size);
     if(Tables.sec_name_tbl == NULL) {
 		errno = ENOMEM;
 		return -1;
@@ -325,7 +325,7 @@ static void ConvertSymTblEnt(Elf32_Sym *Esym) {
 	Esym->st_name = ConvertByte4(Esym->st_name);
 	Esym->st_value = ConvertByte4(Esym->st_value);
 	Esym->st_size = ConvertByte4(Esym->st_size);
-	Esym->st_shndx = ConvertByte2(Esym->st_shndx);	
+	Esym->st_shndx = ConvertByte2(Esym->st_shndx);
 }
 
 static int ElfReadSymTbl(int fd, const Elf32_Ehdr *Ehdr) {
@@ -364,7 +364,7 @@ static int ElfReadSymTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	}
 	if(is_host_little() != Is_Elf_Little)
 		for(j=0;j<(Tables.sec_header_tbl[i].sh_size/Tables.sec_header_tbl[i].sh_entsize);++j)
-			ConvertSymTblEnt(&Tables.sym_tbl[j]);		
+			ConvertSymTblEnt(&Tables.sym_tbl[j]);
 	/* Got Symbol table now reading string table for it */
 	i = Tables.sec_header_tbl[i].sh_link;
 	Tables.symstr_tbl = (char *)malloc(Tables.sec_header_tbl[i].sh_size);
@@ -446,7 +446,7 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	while(ptr1->next != NULL)
         ptr1 = ptr1->next;
 	Text.size = ptr1->address + ptr1->size - Text.address;
-	Text.bytes = (uint8_t *)malloc(Text.size); 
+	Text.bytes = (uint8_t *)malloc(Text.size);
 	if(Text.bytes == NULL) {
 		errno = ENOMEM;
 		return -1;
@@ -522,7 +522,7 @@ static int ElfReadDataSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	foffset = lseek(fd,0,SEEK_CUR);
 	for(i=0;i<Ehdr->e_shnum;++i){
 		int res = 0;
-		if(Tables.sec_header_tbl[i].sh_type == SHT_PROGBITS){ 
+		if(Tables.sec_header_tbl[i].sh_type == SHT_PROGBITS){
 			if(Tables.sec_header_tbl[i].sh_flags == (SHF_ALLOC | SHF_WRITE))
 				res = ElfInsertDataSec(&Tables.sec_header_tbl[i],fd);
 			else if(Tables.sec_header_tbl[i].sh_flags == (SHF_ALLOC))
@@ -535,7 +535,7 @@ static int ElfReadDataSecs(int fd, const Elf32_Ehdr *Ehdr) {
 			return -1;
     }
 	Data.address = Data.secs->address;
-	lseek(fd,foffset,SEEK_SET);    
+	lseek(fd,foffset,SEEK_SET);
     return 0;
 }
 
@@ -555,7 +555,7 @@ static int ElfRead(int elf){
 
 static void ElfCleanup(void) {
 	struct text_secs *curt, *nextt;
-	struct data_secs *curd, *nextd;	
+	struct data_secs *curd, *nextd;
 
 	/* free static tables */
 	if(Tables.pgm_header_tbl != NULL) {
@@ -582,7 +582,7 @@ static void ElfCleanup(void) {
 		free(Text.bytes);
 		Text.bytes = NULL;
 	}
-	
+
 	/* free text sections */
 	for(curt = Text.secs; curt != NULL; curt = nextt) {
 		nextt = curt->next;
@@ -590,7 +590,7 @@ static void ElfCleanup(void) {
 		free(curt);
 	}
 	Text.secs = NULL;
-	
+
 	/* free data sections */
 	for(curd = Data.secs; curd != NULL; curd = nextd) {
 		nextd = curd->next;
@@ -631,7 +631,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	gliss_loader_t *loader;
 	int elf,res;
 	assert(path);
-		
+
 	/* open the file */
 	TRACE;
     elf = open(path, O_RDONLY);
@@ -646,7 +646,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 		close(elf);
 		return NULL;
 	}
-	
+
 	/* load the ELF */
 	TRACE;
 	ElfReset();
@@ -658,7 +658,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 		free(loader);
 		return NULL;
 	}
-	
+
 	/* record data */
 	TRACE;
 	loader->Tables = Tables;
@@ -695,7 +695,7 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory) {
 	struct data_secs *ptr;
 	struct text_secs *ptr_tex;
 	assert(loader->Text.secs != NULL);
-	
+
 	/* load text part */
 	TRACE;
 	ptr_tex = loader->Text.secs;
@@ -704,7 +704,7 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory) {
 		gliss_mem_write(memory, ptr_tex->address, ptr_tex->bytes, ptr_tex->size);
 		ptr_tex = ptr_tex->next;
 	}
-	
+
 	/* load data part */
 	TRACE;
 	ptr = loader->Data.secs;
@@ -784,7 +784,7 @@ Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 {
 	int nb = gliss_loader_count_syms(loader);
-	
+
 	/* first check the iterator */
 	if (*sym < 0)
 		/* an negative iterator could be the convention for an "out bound" iterator (eg: if we call this function on the very last symbol) */
@@ -866,7 +866,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	gliss_address_t addr_str;
 	gliss_address_t stack_ptr, align_stack_addr, argv_ptr, envp_ptr, auxv_ptr;
 	auxv_t auxv_null = {AT_NULL, 0};
-	
+
 	if ((memory==0) || (env==0))
 		gliss_panic("param error in gliss_stack_fill_env");
 
@@ -889,9 +889,9 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 		for(; env->envp[num_env] != NULL; num_env++);
 
 	/* count auxiliary vectors */
-	num_aux = 0;
-	if(env->auxv)
-		for(; env->auxv[num_aux].a_type != AT_NULL; num_aux++);
+	num_aux = -1; /* 0; !!TODO!! */
+	/*if(env->auxv)
+		for(; env->auxv[num_aux].a_type != AT_NULL; num_aux++);*/
 
 	/* compute memory required by arguments */
 	size = 0;
@@ -910,7 +910,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	/* compute used stack size */
 	init_size = (num_arg + num_env + 2 ) * ADDR_SIZE + (num_aux + 1) * AUXV_SIZE + size + ADDR_SIZE;
 	/* 16 byte alignment for PowerPC stack pointer after initialization */
-	aligned_size = ALIGN(init_size, 7);
+	aligned_size = (init_size + 3) & ~3;	/* !!TODO!! alignment on 4 ou 8 */
 	/* 0-bytes to write before data */
 	align_padding = aligned_size - init_size;
 	/* we will pad the top addresses of the written data with 0 to have an aligned sp */
@@ -918,10 +918,10 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	align_stack_addr = env->stack_pointer - aligned_size;
 
 
-	/* 
+	/*
 	stack scheme		addresses
 	=========================================
-	
+
 	strings			+++
 	_________
 	AT-NULL
@@ -944,12 +944,12 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	_________
 	argc			<- sp after init
 	_________
-	
+
 	*/
-	
+
 
 	stack_ptr = align_stack_addr;
-	
+
 	/* write argc */
 	PUSH32(env->argc, stack_ptr);
 
@@ -958,15 +958,15 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 
 	/* write envp[] pointers later*/
 	env->envp_addr = envp_ptr = argv_ptr + (num_arg + 1) * ADDR_SIZE;
-	
+
 	/* write the auxiliary vectors */
 	auxv_ptr = env->auxv_addr = envp_ptr + (num_env + 1) * ADDR_SIZE;
 // !DEBUG!!
-num_aux = 0;
+/*num_aux = 0;
 	for (i = 0; i < num_aux; i++)
 		PUSH64(env->auxv[i], auxv_ptr);
-	/* AT_NULL termination entry */
-	PUSH64(auxv_null, auxv_ptr);
+	* AT_NULL termination entry *
+	PUSH64(auxv_null, auxv_ptr);*/
 
 	/* write argv strings and put addresses in argv[i] */
 	addr_str = auxv_ptr + (num_aux + 1) * AUXV_SIZE;
@@ -991,7 +991,7 @@ num_aux = 0;
 			PUSH8(env->envp[i][j], addr_str);
 	}
 	/* NULL word termination */
-	PUSH32(0, envp_ptr);	
+	PUSH32(0, envp_ptr);
 
 	/* set the starting sp to the beginning of the written data (pointing to argc) */
 	env->stack_pointer = align_stack_addr;
@@ -1042,7 +1042,7 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 {
 	if ((state == 0) || (env == 0))
 		gliss_panic("param error in gliss_registers_fill_env");
-	
+
 	/* r1 will hold the stack pointer */
 	state->GPR[1] = env->stack_pointer;
 
@@ -1056,15 +1056,15 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 	state->GPR[5] = env->envp_addr;
 
 	/* idem with r6 and auxv */
-	state->GPR[6] = env->auxv_addr;
+	/*state->GPR[6] = env->auxv_addr; !!TODO!! */
 
 	/* r7 contains a termination function pointer, 0 in our case */
 	state->GPR[7] = 0;
 
 	/* fpscr set to "round to nearest" mode */
 	state->FPSCR = 0;
-	
-	
+
+
 	/* !!DEBUG!! */
 /*	state->GPR[2] = 0x01234567;
 	state->GPR[0] = 0X12345678;
@@ -1094,14 +1094,14 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 	state->GPR[31] = 0Xffeeeeff;
 	state->GPR[32] = 0Xffeddeff;*/
 	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
-	printf("init\n");
+	/*printf("init\n");
 	printf("sp = %08X[%08X]\n", env->stack_pointer, gliss_mem_read32(mem, env->stack_pointer));
 	printf("argc = %d\n", env->argc);
-	printf("@argv = %08X\n", env->argv_addr);
+	printf("@argv = %08X\n", env->argv_addr);*/
 	char buffer[8000];
 	int i;
 	gliss_address_t a;
-	for (i=0; i<env->argc; i++)
+	/*for (i=0; i<env->argc; i++)
 	{
 		a = gliss_mem_read32(mem, env->argv_addr + (i<<2));
 		read_string(a, mem, buffer);
@@ -1117,6 +1117,6 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 		printf("@%08X\tenvp[%d]=%s\n", a, i, buffer);
 	}
 	printf("@auxv = %08X\n\n============================================================================\n\n", env->auxv_addr);
-	dump_stack(env->stack_pointer, state);
+	dump_stack(env->stack_pointer, state);*/
 }
 
