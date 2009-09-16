@@ -281,11 +281,13 @@ void compare_stack(void) {
 	}
 }
 
-void display_states(const char *msg, state_t *state1, ppc_state_t *state2) {
+void display_states(void) {
 	int i;
-	printf("%s\tSTATE 1\t STATE2\n", msg);
+	printf("BEFORE\tSTATE 1\t STATE2\tAFTER\tSTATE1 STATE2\n");
 	for(i = 0; i < 32; i++)
-		printf("r%d\t%08x %08x\n", i, state1->gpr[i], state2->GPR[i]);
+		printf("r%d\t%08x %08x\t%08x %08x\n", i,
+			save_real_state->gpr[i], save_state->GPR[i],
+			real_state->gpr[i], state->GPR[i]);
 }
 
 /*** main program ***/
@@ -355,13 +357,13 @@ int main(int argc, char **argv) {
 				else
 					fprintf(stdout, "%08x -> %08x", save_state->GPR[i], state->GPR[i]);
 				fprintf(stdout, ")\n");
-				display_states("current", real_state, state);
+				display_states();
 				return 1;
 			}
 			if((!eq1 || !eq2) && state->GPR[i] != real_state->gpr[i]) {
-				display_states("before", save_real_state, save_state);
 				fprintf(stdout, "ERROR: difference in value for r%d: 1->%08x, 2->%08x\n",
 					i, real_state->gpr[i], state->GPR[i]);
+				display_states();
 				return 1;
 			}
 		}
