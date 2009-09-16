@@ -249,7 +249,7 @@ char display(char c) {
 void compare_stack(void) {
 	address_t addr1 = real_state->gpr[1], top1 = 0x80000000;
 	ppc_address_t addr2 = state->GPR[1], top2 = 0x80000000;
-	printf("STACK COMPARISON\n");
+	printf("STACK COMPARISON\nSTACK1\t              \tSTACK2\n");
 
 	while(addr1 < top1 || addr2 < top2) {
 
