@@ -28,7 +28,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
  * @li the module data (including system calls and interruption support).
  */
 /* typedef struct $(proc)_platform_t $(proc)_platform_t;*/
- 
+
 
 /**
  * Build a new platform for the platform $(proc).
@@ -37,7 +37,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
  */
 $(proc)_platform_t *$(proc)_new_platform(void) {
 	$(proc)_platform_t *pf;
-	
+
 	/* allocation */
 	pf = ($(proc)_platform_t *)calloc(1, sizeof($(proc)_platform_t));
 	if(pf == NULL) {
@@ -46,7 +46,7 @@ $(proc)_platform_t *$(proc)_new_platform(void) {
 	}
 	/* the new platform is not locked yet */
 	pf->usage = 0;
-	
+
 	/* memory initialization */
 $(foreach memories)
 	pf->mems.named.$(name) = $(proc)_mem_new();
@@ -55,12 +55,12 @@ $(foreach memories)
 		return NULL;
 	}
 $(end)
-	
+
 	/* module initialization */
 $(foreach modules)
 	$(PROC)_$(NAME)_INIT(pf);
 $(end)
-	
+
 	/* return platform */
 	return pf;
 }
@@ -104,12 +104,13 @@ void $(proc)_unlock_platform($(proc)_platform_t *platform) {
 
 	/* unlock */
 	if(--platform->usage != 0)
-	
+		return;
+
 	/* destroy the modules */
 $(foreach modules)
 	$(PROC)_$(NAME)_DESTROY(platform);
 $(end)
-	
+
 	/* free the memories */
 $(foreach memories)
 	$(proc)_mem_delete(platform->mems.named.$(name));
@@ -136,13 +137,13 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	loader = $(proc)_loader_open(path);
 	if(loader == NULL)
 		return -1;
-	
+
 	/* load in memory */
 	$(proc)_loader_load(loader, $(proc)_get_memory(platform, $(PROC)_MAIN_MEMORY));
-	
+
 	/* initialize system information */
 	platform->entry = $(proc)_loader_start(loader);
-	
+
 	/* close the file */
 	$(proc)_loader_close(loader);
 
@@ -163,7 +164,7 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 $(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform)
 {
 	$(proc)_state_t *state;
-	
+
 	/* allocation */
 	state = ($(proc)_state_t *)malloc(sizeof($(proc)_state_t));
 	if(state == NULL)
@@ -174,7 +175,7 @@ $(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform)
 
 	/* zeroing of all registers and memory references */
 	memset(state, 0, sizeof($(proc)_state_t));
-	
+
 	/* creating platform */
 	if(platform == NULL)
 	{
@@ -185,10 +186,10 @@ $(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform)
 
 	/* locking it */
 	$(proc)_lock_platform(state->platform);
-	
+
 	//!!DEBUG!!
 	//printf("new_state, before init code, NIA=%08X\n", state->NIA);
-	
+
 	/* memory initialization */
 $(foreach memories)
 	state->$(NAME) = state->platform->mems.named.$(name);
@@ -211,7 +212,7 @@ void $(proc)_delete_state($(proc)_state_t *state)
 {
 	if (state == NULL)
 		return;
-	
+
 	/* unlock the platform */
 	$(proc)_unlock_platform(state->platform);
 
@@ -237,7 +238,7 @@ $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state)
 
 	if (state == NULL)
 		return NULL;
-	
+
 	/* allocate a new state */
 	$(proc)_state_t *new_state = ($(proc)_state_t *)malloc(sizeof($(proc)_state_t));
 	if(new_state == NULL)
@@ -245,23 +246,25 @@ $(proc)_state_t *$(proc)_copy_state($(proc)_state_t *state)
 		errno = ENOMEM;
 		return NULL;
 	}
-	
+
 	/* copy the platform and lock it */
 	/* !!WARNING!! is this needed? as we may not wish to simulate with this state */
 	new_state->platform = state->platform;
 	$(proc)_lock_platform(new_state->platform);
-	
+
 	/* copy all the registers */
 $(foreach registers)$(if !aliased)$(if array)
 	for (i = 0; i < $(size); i++)
 		new_state->$(name)[i] = state->$(name)[i];
 $(else)
-	new_state->$(name) = state->$(name);	
+	new_state->$(name) = state->$(name);
 $(end)$(end)$(end)
 	/* copy the references to the memory */
 $(foreach memories)$(if !aliased)
 	new_state->$(NAME) = state->$(NAME);
 $(end)$(end)
+
+	return new_state;
 }
 
 
@@ -292,17 +295,17 @@ $(proc)_state_t *$(proc)_fork_state($(proc)_state_t *state)
 		errno = ENOMEM;
 		return NULL;
 	}
-	
+
 	/* copy the platform and lock it */
 	new_state->platform = state->platform;
 	$(proc)_lock_platform(new_state->platform);
-	
+
 	/* copy all the registers */
 $(foreach registers)$(if !aliased)$(if array)
 	for (i = 0; i < $(size); i++)
 		new_state->$(name)[i] = state->$(name)[i];
 $(else)
-	new_state->$(name) = state->$(name);	
+	new_state->$(name) = state->$(name);
 $(end)$(end)$(end)
 	/* copy the references to the memory */
 $(foreach memories)$(if !aliased)
@@ -318,7 +321,7 @@ $(end)$(end)
  * @param	out	the file to dump within, typically stderr or stdout
  */
 void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
-{	
+{
 	int i;
 
 	/* dump all the registers */
@@ -378,10 +381,10 @@ $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state)
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_addr, $(proc)_address_t exit_addr)
 {
 	$(proc)_sim_t *sim;
-	
+
 	if (state == NULL)
 		return NULL;
-	
+
 	/* allocate a new simulator */
 	sim = ($(proc)_sim_t *)malloc(sizeof($(proc)_sim_t));
 	if(sim == NULL)
@@ -389,10 +392,10 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 		errno = ENOMEM;
 		return NULL;
 	}
-	
+
 	/* link the state to the new simulator */
 	sim->state = state;
-	
+
 	/* create a new decoder */
 	sim->decoder = $(proc)_new_decoder($(proc)_platform(state));
 	if (sim->decoder == NULL)
@@ -403,14 +406,14 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	if (start_addr)
 		sim->state->$(NPC_NAME) = start_addr;
 
-	
+
 	return sim;
 }
 
 
 /**
  * Return the next instruction to be executed by the given simulator
- * 
+ *
  * !!WARNING!! we assume the address is given by the NPC,
  * we must do otherwise if there is no NPC declared
  *
@@ -421,7 +424,7 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 {
 	/*$(proc)_state_t *state;*/
 	$(proc)_address_t addr_next_inst;
-	
+
 	if (sim == NULL)
 		return NULL;
 
@@ -430,7 +433,7 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 	/*state = sim->state;*/
 	// !!DEBUG!!
 	addr_next_inst = sim->state->$(NPC_NAME);
-	
+
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
 	return $(proc)_decode(sim->decoder, addr_next_inst);
@@ -446,14 +449,14 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 void $(proc)_step($(proc)_sim_t *sim)
 {
 	$(proc)_inst_t *inst;
-	
+
 	if (sim == NULL)
 	/* may be print an error? */
 		return;
 
 	/* retrieving next instruction */
 	inst = $(proc)_next(sim);
-	
+
 			// !!BEGIN DEBUG!!
 			char buff[100];
 			$(proc)_disasm(buff, inst);
@@ -464,7 +467,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 
 	/* execute it */
 	$(proc)_execute(sim->state, inst);
-	
+
 	/* finally free it */
 	$(proc)_free_inst(inst);
 }
@@ -493,10 +496,10 @@ void $(proc)_delete_sim($(proc)_sim_t *sim)
 
 	/* delete the decoder */
 	$(proc)_delete_decoder(sim->decoder);
-	
+
 	/* delete the state */
 	$(proc)_delete_state(sim->state);
-	
+
 	/* delete the sim */
 	free(sim);
 }
