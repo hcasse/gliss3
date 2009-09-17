@@ -45,6 +45,7 @@ op oea_instr ( x: oea_instr_action)
 			x.action;
 		endif;
 		}
+	otawa_kind = x.otawa_kind
 	
 
 op oea_instr_action = oea_cache_man_instr       // cache management instructions

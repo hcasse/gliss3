@@ -475,6 +475,7 @@ op uisa_fp_instr ( x: uisa_fp_instr_action )
 			"launch_exception"("instr",FP_UNAVAIL);
 		endif;
 		}
+	otawa_kind = x.otawa_kind
 
 op uisa_fp_instr_action =   ufp_load_store_instr      // fp load/store instructions
                           | ufp_instr                 // fp arithmethic instructions
@@ -901,6 +902,7 @@ op ufp_instr ( x : ufp_instr_action )
    syntax = x.syntax
    image  = x.image
    action = { x.action; }
+   otawa_kind = x.otawa_kind
 
 op ufp_instr_action =   ufp_arithmetic
                       | ufp_mult_add_instr
