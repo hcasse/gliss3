@@ -56,7 +56,7 @@ static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 	return res;
 }
 
-static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode(uint32_t code_inst)
+static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode($(proc)_address_t address, uint32_t code_inst)
 {
 	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_UNKNOWN;
