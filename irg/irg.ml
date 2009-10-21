@@ -1,5 +1,5 @@
 (*
- * $Id: irg.ml,v 1.38 2009/09/15 14:49:05 casse Exp $
+ * $Id: irg.ml,v 1.39 2009/10/21 14:40:50 barre Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -1079,12 +1079,102 @@ let get_stat_from_attr_from_spec sp name_attr =
 
 (* symbol substitution is needed *)
 
+(* different possibilities for var instantiation,
+prefix the new name by the old name,
+replace the old name by the new name,
+keep the old name *)
+(*type var_inst_type =
+	Prefix_name
+	| Replace_name
+	| Keep_name
+*)
+(** look a given spec (mode or op), return true if the new vars from a substition of a var (with the given name) of this spec type should be prefixed,
+false if the var name can simply be replaced,
+top_params is the list of params of a spec in which we want to instantiate a var of sp type (string * typ list)
+
+sp = 1 param mode => Keep_name (unicity in the spec to instantiate => we can simply keep the name)
+sp = * param mode => Prefix_name
+sp = 1 param op   => Replace_name, or Prefix_name if more than 1 param of sp type in the top spec or if the new name would conflict
+sp = * param op   => Replace_name, or Prefix_name if more than 1 param of sp type in the top spec or if one of the new names would conflict
+*)
+(*let check_if_prefix_needed sp name top_params =
+	let given_spec_name =
+		match sp with
+		AND_OP(n, _, _) ->
+			n
+		| AND_MODE(n, _, _, _) ->
+			n
+		| _ ->
+			failwith "shouldn't happen? (irg.ml::check_if_prefix_needed::spec_name)"
+	in
+	let is_param_of_given_type p =
+		match p with
+		(_, t) ->
+			(match t with
+			TYPE_ID(n) ->
+				n = given_spec_name
+			| _ ->
+				false
+			)
+	in
+	let rec count_same_type_params p_l =
+		match p_l with
+		[] ->
+			0
+		| a::b ->
+			if is_param_of_given_type a then
+				1 + (count_same_type_params b)
+			else
+				count_same_type_params b
+	in
+	let name_of_param p =
+		match p with
+		(n, _) ->
+			n
+	in
+	let sp_param_names =
+		match sp with
+		AND_OP(_, p_l, _) ->
+			List.map name_of_param p_l
+		| AND_MODE(_, p_l, _, _) ->
+			List.map name_of_param p_l
+		| _ ->
+			failwith "shouldn't happen? (irg.ml::check_if_prefix_needed::get_sp_param_names)"
+	in*)
+	(* return true if a param whose name is in n_l is existing in the given param list *)
+	(*let rec is_name_conflict p_l n_l =
+		match p_l with
+		[] ->
+			false
+		| a::b ->
+			((name_of_param a) = n) || (is_conflict_with_name b)
+	in*)
+	(*match sp with
+	AND_OP(_, params, _) ->
+		if ((count_same_type_params top_params) > 1) || (is_conflict_with_name top_params) then
+				Prefix_name
+			else
+				Replace_name
+	| AND_MODE(_, params, _, _) ->
+		if List.length params > 1 then
+			Prefix_name
+		else
+			Keep_name
+	| _ ->
+		failwith "shouldn't happen? (irg.ml::check_if_prefix_needed)"
+*)
+
+
+
 (** get the expression associated with attribute name_attr of the OP op *)
 let get_expr_from_attr_from_op_or_mode sp name_attr =
 	let rec get_attr n a =
 		match a with
 		[] ->
 		(* if attr not found => means an empty attr (?) *)
+		(* !!DEBUG!! *)
+		(*print_string ("attr of name " ^ name_attr ^ " not found in spec=\n");
+		print_spec sp;*)
 			NONE
 		| ATTR_EXPR(nm, e)::t ->
 			if nm = n then
@@ -1132,11 +1222,17 @@ let rec substitute_in_expr name op ex =
 		else
 			(* change also if s refers to an ATTR_EXPR of the same spec, does it have this form ? *)
 			REF(s)
-	| FIELDOF(te, e, s) ->
-		(*if e = REF(name) then*)
-			get_expr_from_attr_from_op_or_mode op s
-		(*else
-			FIELDOF(te, substitute_in_expr name op e, s)*)
+	| FIELDOF(te, s1, s2) ->
+	(* !!DEBUG!! *)
+	(*print_string ("subst in expr:\nname =[" ^ name ^ "]\nexpr =[");
+	print_expr ex;
+	print_string "]\nop =[";
+	print_spec op; print_string "]\n";
+	print_string "res = ["; print_expr (get_expr_from_attr_from_op_or_mode op s2); print_string "]\n\n"; flush stdout;*)
+		if s1 = name then
+			get_expr_from_attr_from_op_or_mode op s2
+		else
+			FIELDOF(te, s1, s2)
 	| ITEMOF(te, e1, e2) ->
 		ITEMOF(te, e1, substitute_in_expr name op e2)
 	| BITFIELD(te, e1, e2, e3) ->
@@ -1404,6 +1500,10 @@ let rec prefix_name_of_params_in_spec sp pfx =
 let rec replace_format_by_attr str_format expr_field spec_type =
 	(*return the "useful" string from an expr of type format(...) or simple type *)
 	let rec get_str_from_format_expr f =
+	(* !!DEBUG!! *)
+	(*print_string "debug g_str_f_frmt_expr, f = [";
+	print_expr f;
+	print_string "]\n";*)
 		match f with
 		FORMAT(s, _) -> s
 		(*| CONST(STRING, s) ->
@@ -1411,7 +1511,7 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 			STRING_CONST(str) -> str
 			| _ -> failwith "cannot get a string from not a string constant (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
 			)*)
-		| REF(s) -> s
+		| REF(s) -> ""
 		| ELINE (_, _, e) -> get_str_from_format_expr e
 		| _ ->
 			"";
@@ -1425,8 +1525,15 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 		(match expr_field with
 		(* replace expr like "x.image" "y.syntax" etc *)
 		FIELDOF(_, _, s) ->
-			let new_s = get_str_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
+			let new_expr = get_expr_from_attr_from_op_or_mode spec_type s
 			in
+			let new_s = get_str_from_format_expr new_expr
+			in
+			(*  !!DEBUG!! *)
+			(*print_string "debug repl_frmt_by_attr, str_format = ["; print_string t;
+			print_string "]\nexpr_field = ["; print_expr expr_field;
+			print_string "]\ng_e_f_attr_f_op_o_mode s_t s = ["; print_expr new_expr;
+			print_string "]\nnew_s = ["; print_string new_s; print_string "]\n\n";*)
 			if new_s = "" then
 				t
 			else
@@ -1481,6 +1588,10 @@ let replace_param_list p_l =
 	let replace_param param =
 		match param with
 		(nm , TYPE_ID(s)) ->
+			(* prefix si on va vers plsrs params de type op (au moins 2 de type op),
+			ou si on va d'un mode vers ses params (>1),
+			remplace si d'un op vers un autre op,
+			ou d'un mode vers un seul param *)
 			List.map (prefix_name nm) (get_param_of_spec (get_symbol s))
 		| (_, _) ->
 			[param]
@@ -1582,6 +1693,18 @@ let transform_str_list reg_list expr_list spec_params =
 				)
 			)
 	in
+	(* !!DEBUG!! *)
+	(*let res = rec_aux reg_list expr_list spec_params
+	in
+	print_string "debud transform_str_list, reg_list = [";
+	print_reg_list reg_list;
+	print_string "]\nexpr_list = [";
+	List.iter (fun x -> print_expr x; print_string ", ") expr_list;
+	print_string "]\nspec params = [";
+	print_param_list spec_params;
+	print_string "]\nres = ["; print_string (str_list_to_str  res);
+	print_string "]\n";*)
+	
 	rec_aux reg_list expr_list spec_params
 
 
@@ -1740,6 +1863,10 @@ let rec remove_const_param_from_format f =
 				)
 			)
 	in
+	(* !!DEBUG!! *)
+	(*print_string "debug remove_const_param_from_format, f = ";
+	print_expr f;
+	print_string "\n\n";*)
 	match f with
 	FORMAT(s, p) ->
 		let r_l = string_to_regexp_list s
@@ -1809,24 +1936,27 @@ let change_format_attr expr_frmt param_list =
 		| _ -> f
 	in
 	(* !!DEBUG!! *)
-	(*let rec print_e_l e_l =
+	let rec print_e_l e_l =
 		match e_l with
 		[] -> ()
 		| a::b -> print_string " [["; print_expr a; print_string "]]\n"; print_e_l b
 	in
-	let l = List.flatten (List.map (fun x -> print_string "cfa::replace [[";print_expr x;print_string "]] get_spec_f_e = "; print_spec (get_spec_from_expr x param_list);
+	(*let l = List.flatten (List.map (fun x -> print_string "cfa::replace [[";print_expr x;print_string "]] get_spec_f_e = "; print_spec (get_spec_from_expr x param_list);
 	print_string "\n"; replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
 	in
-	let res =reduce_frmt (remove_const_param_from_format
+	let res =
+	print_string "new params = "; print_e_l l;
+	print_string "chg_fmt_attr expr_frmt="; print_expr expr_frmt; print_string ", params="; print_param_list param_list;print_char '\n';
+	flush stdout;
+	reduce_frmt (remove_const_param_from_format
 		(FORMAT(
 			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
 			(*List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)*)
 			l
 			)))
 	in
-	print_string "chg_fmt_attr expr_frmt="; print_expr expr_frmt; print_string ", params="; print_param_list param_list;print_char '\n';
-	print_string "new params = "; print_e_l l;
-	print_string "\n\n===========cfa res= [[";print_expr res; print_string "]]\n";*)
+	print_string "\n\n===========cfa res= [[";print_expr res; print_string "]]\n";
+	flush stdout;*)
 	reduce_frmt (remove_const_param_from_format
 		(FORMAT(
 			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
@@ -1864,6 +1994,12 @@ let rec instantiate_in_expr ex param_list =
 		[] ->
 			e
 		| (name, TYPE_ID(t))::q ->
+			(* !!DEBUG!! *)
+			(*print_string "===call subs_in_expr, name = ["; print_string name;
+			print_string "]\nparam = ["; print_param (name, TYPE_ID(t));
+			print_string "]\ne = ["; print_expr e;
+			print_string "]\nspec = ["; print_spec (prefix_name_of_params_in_spec (get_symbol t) name);
+			print_string "]\n===\n";*)
 			aux (substitute_in_expr name (prefix_name_of_params_in_spec (get_symbol t) name) e) q
 		| (name, TYPE_EXPR(ty))::q ->
 			aux e q
@@ -1874,6 +2010,12 @@ let rec instantiate_in_expr ex param_list =
 	| ELINE(a, b, e) ->
 		ELINE(a, b, instantiate_in_expr e param_list)
 	| _ ->
+	(* !!DEBUG!! *)
+	(*print_string "inst_in_expr , expr = [";
+	print_expr ex;
+	print_string "]\nparams = [";
+	print_param_list param_list;
+	print_string "]\n"; flush stdout;*)
 		aux ex param_list
 
 
@@ -1978,6 +2120,10 @@ let add_attr_to_spec sp param =
 			failwith "shouldn't happen (irg.ml::add_attr_to_spec::name_of_param)"
 	in
 	let spec_of_param p =
+	(* !!DEBUG!! *)
+	(*print_string "add_attr_to_sepc::spec_of_param, param = ["; print_param p; print_string "]\n";
+	print_string "spec = ["; print_spec sp; print_string "]\n\n";
+	flush stdout;*)
 		match p with
 		(name, TYPE_ID(s)) ->
 			get_symbol s
@@ -2079,9 +2225,35 @@ let add_attr_to_spec sp param =
 		| (name, TYPE_EXPR(t)) ->
 			[]
 	in
+	(* !!DEBUG!! *)
+	let get_attr_name a =
+		match a with
+		ATTR_EXPR(n, _) ->
+			n
+		| ATTR_STAT(n, _) ->
+			n
+		| ATTR_USES ->
+			"<ATTR_USES>"
+	in
+	(* !!DEBUG!! *)
+	let rec print_attr_list_name a_l =
+		match a_l with
+		[] -> ()
+		| a::b -> print_string ((get_attr_name a) ^ " "); print_attr_list_name b
+	in
+	(* !!DEBUG!! *)
+	(*print_string "adding attrs\n\tattr_spec = "; print_attr_list_name attr_spec;
+	print_string "\n\tattr_param = "; print_attr_list_name attr_param;
+	print_string "\n";*)
 		match sp with
 		AND_OP(name, p_l, a_l) ->
-			AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
+			(match spec_of_param param with
+			(* we shouldn't add attributes from a mode to an op spec *)
+			AND_MODE(_, _, _, _) ->
+				sp
+			| _ ->
+				AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
+			)
 		| AND_MODE(name, p_l, e, a_l) ->
 			AND_MODE(name, p_l, e, a_l@(search_in_attrs attr_spec attr_param))
 		| _ -> sp
@@ -2093,7 +2265,12 @@ let rec add_new_attrs sp param_list =
 	[] ->
 		sp
 	| a::b ->
-		add_new_attrs (add_attr_to_spec sp a) b
+		(match a with
+		(_, TYPE_ID(_)) ->
+			add_new_attrs (add_attr_to_spec sp a) b
+		| (name, TYPE_EXPR(t)) ->
+			add_new_attrs sp b
+		)
 
 
 let instantiate_spec sp param_list =
@@ -2129,6 +2306,12 @@ let instantiate_spec sp param_list =
 	in
 	match sp with
 	AND_OP(name, params, attrs) ->
+	(*  !!DEBUG!! *)
+	(*print_string "################################################\ninstantiate_spec, new params=";
+	print_param_list new_param_list;
+	print_string "\tspec=\n";
+	print_spec sp;
+	print_string "################\n";*)
 		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr sp x new_param_list) attrs)) new_param_list
 	| _ ->
 		UNDEF
