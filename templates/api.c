@@ -48,7 +48,7 @@ $(proc)_platform_t *$(proc)_new_platform(void) {
 	pf->usage = 0;
 	
 	/* other init */
-	pf->entry = pf->sp = pf->argv = pf->envp = pf->aux = argc = 0;
+	pf->entry = pf->sp = pf->argv = pf->envp = pf->aux = pf->argc = 0;
 
 	/* memory initialization */
 $(foreach memories)
