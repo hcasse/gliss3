@@ -71,6 +71,7 @@ op oea_dcbi ( ra: REG_IND_ZERO, rb: REG_IND )
 	action = {
 		TMP_EA = ra + rb;
 		}
+   otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), END_REG)
 
 // ------------------------------------------------------------------------- //
 // 2.2 processor control instructions
@@ -93,6 +94,7 @@ op oea_mfmsr ( rd : REG_IND)
 	action = {
 			rd = MSR;
 		}
+   otawa_used_regs = "USED_REGS"(gpr_write(rd.value), END_REG)
 		
 op oea_mfspr ( rd : REG_IND, spr : card ( 9 ) )
    syntax = format ( "mfspr %s,%d", rd.syntax , spr )
@@ -191,6 +193,13 @@ op oea_mfspr ( rd : REG_IND, spr : card ( 9 ) )
                   	case 1022: GPR[rd] = THRM[2]  ; // mpc750 & mpc755 ONLY
 };
 		}
+   otawa_used_regs = "USED_REGS"(gpr_write(rd.value),
+	      switch ( spr ) {
+		      case 1 << 5 : xer_read
+		      case 8 << 5: lr_read
+		      case 9 << 5: ctr_read
+		      default : NO_REG },
+		END_REG)
 							
 op oea_mtmsr ( rs : REG_IND )
 	syntax = format ( "mtmsr %s", rs.syntax )
@@ -198,6 +207,7 @@ op oea_mtmsr ( rs : REG_IND )
 	action = {
 			MSR = rs;
 		}
+	otawa_used_regs = "USED_REGS"(gpr_read(rs.value), END_REG)
 
 op oea_mtspr ( spr : card( 9 ) , rs : index )
 	syntax = format ( "mtspr %d,r%d", spr, rs )
@@ -297,6 +307,13 @@ op oea_mtspr ( spr : card( 9 ) , rs : index )
                   case 1022: THRM[2]  = GPR[rs] ; // mpc750 & mpc755 ONLY
 			};
 		}
+   otawa_used_regs = "USED_REGS"(gpr_read(rs),
+	      switch ( spr ) {
+		      case 1 << 5 : xer_write
+		      case 8 << 5: lr_write
+		      case 9 << 5: ctr_write
+		      default : NO_REG },
+		END_REG)
 
 // ------------------------------------------------------------------------- //
 // 2.3 segment register manipulation instructions
@@ -319,6 +336,7 @@ op oea_mfsr ( rd : REG_IND , sr : card(4) )
 	action = {
 			rd = SR[sr];
 		}
+   otawa_used_regs = "USED_REGS"(gpr_write(rd.value), END_REG)
 
 op oea_mfsrin ( rd : REG_IND , rb : REG_IND )
 	syntax = format ( "mfsrin %s,%s", rd.syntax, rb.syntax )
@@ -326,6 +344,7 @@ op oea_mfsrin ( rd : REG_IND , rb : REG_IND )
 	action = {
 			rd = SR [ rb <31..28> ];
 		}
+   otawa_used_regs = "USED_REGS"(gpr_write(rd.value), gpr_read(rb.value), END_REG)
 
 op oea_mtsr ( sr : card(4) , rd : REG_IND )
 	syntax = format ( "mtsr %d,%s", sr, rd.syntax )
