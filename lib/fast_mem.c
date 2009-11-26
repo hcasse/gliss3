@@ -1,10 +1,10 @@
 /*
- *	$Id: fast_mem.c,v 1.7 2009/07/24 14:04:59 casse Exp $
+ *	$Id: fast_mem.c,v 1.8 2009/11/26 09:01:17 casse Exp $
  *	fast_mem module implementation
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2008, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +16,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with OTAWA; if not, write to the Free Software 
+ *	along with OTAWA; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -74,12 +74,12 @@
 #ifndef HOST_ENDIANNESS
 #	error "HOST_ENDIANNESS must be defined !"
 #endif
-
+/*
 #if TARGET_ENDIANNESS == HOST_ENDIANNESS
-#	warning "endianness equals"
+#	info "endianness equals"
 #else
-#	warning "endianness different"
-#endif
+#	info "endianness different"
+#endif*/
 
 
 /* MEMORY REPRESENTATION */
@@ -105,7 +105,7 @@
  *  |             |
  *  |-------------|
  *  |      -------|------->|-------|
- *  |-------------|        |   ----|---> list of pairs(address + 
+ *  |-------------|        |   ----|---> list of pairs(address +
  *  |             |        |-------|                   MEMORY_PAGE_SIZE bytes)
  *  |-------------|        |       |
  *  |             |        |-------|
@@ -137,8 +137,8 @@ typedef struct  {
 } secondary_memory_hash_table_t;
 
 struct gliss_memory_t {
-	void* image_link; /* link to a generic image data resource of the memory 
-	                     it permits to fetch informations about image structure 
+	void* image_link; /* link to a generic image data resource of the memory
+	                     it permits to fetch informations about image structure
 	                     via an optionnal external system */
     secondary_memory_hash_table_t *primary_hash_table[PRIMARYMEMORY_HASH_TABLE_SIZE];
 };
@@ -203,11 +203,11 @@ void gliss_mem_delete(gliss_memory_t *memory) {
 				while (pte) {
 					nextpte=pte->next;
 					free(pte->storage);
-					free(pte);	/* freeing each page */ 
-					pte=nextpte;	   
+					free(pte);	/* freeing each page */
+					pte=nextpte;
 				}
 			}
-			free(secondary_hash_table); /* freeing each secondary hash table */ 
+			free(secondary_hash_table); /* freeing each secondary hash table */
 		}
 	}
 	free(mem64); /* freeing the primary hash table */
@@ -223,7 +223,7 @@ void gliss_mem_delete(gliss_memory_t *memory) {
 gliss_memory_t *gliss_mem_copy(gliss_memory_t *memory) {
 	int i,j;
 	memory_64_t *mem = memory, *target;
-	
+
 	/* allocate memory */
 	target = gliss_mem_new();
 	if(target == NULL)
@@ -258,22 +258,22 @@ static memory_page_table_entry_t *mem_search_page(memory_64_t *mem, gliss_addres
 	uint32_t h2;
 	secondary_memory_hash_table_t *secondary_hash_table;
 	memory_page_table_entry_t *pte;
-	
+
 	/* computes the first adress of the page */
 	addr = addr - (addr%MEMORY_PAGE_SIZE);
 	h1 = mem_hash1(addr);
 	secondary_hash_table = mem->primary_hash_table[h1];
-	
+
 	/* if the secondary hash table exists */
 	if(secondary_hash_table) {
 
 		h2 = mem_hash2(addr);
 		pte = secondary_hash_table->pte[h2];
-		
+
 		/* search the page entry */
 		if(pte) {
 			do  {
-				if(pte->addr==addr) 
+				if(pte->addr==addr)
                 	return pte;
 			} while((pte=pte->next)!=0);
 		}
@@ -293,22 +293,22 @@ static secondary_memory_hash_table_t* mem_get_secondary_hash_table(
 {
 	uint32_t h1;
 	secondary_memory_hash_table_t* secondary_hash_table;
-	
+
 	/* try to fetch the secondary hashtable */
 	h1 = mem_hash1(addr);
 	secondary_hash_table = mem->primary_hash_table[h1];
-    
+
 	/* if the secondary hashtable does'nt exists */
 	if(!secondary_hash_table) {
 		/* allocation of the secondary hashtable */
 		secondary_hash_table = (secondary_memory_hash_table_t *)
 			calloc(sizeof(secondary_memory_hash_table_t),1);
-  		
+
 		assertp(secondary_hash_table != NULL,
 			"Failed to allocate memory in mem_get_secondary_hash_table\n");
 		mem->primary_hash_table[h1]=secondary_hash_table;
 	}
-    
+
 	return secondary_hash_table;
 }
 
@@ -322,26 +322,26 @@ static memory_page_table_entry_t *mem_get_page(memory_64_t *mem, gliss_address_t
 	memory_page_table_entry_t *pte;
 	uint32_t h2; /* secondary hash table entry # value */
 	secondary_memory_hash_table_t *secondary_hash_table;
-        
-    
+
+
 	/* serach the page */
 	addr = addr - (addr%MEMORY_PAGE_SIZE);
 	pte = mem_search_page(mem,addr);
-    
+
 	/* if the page doesn't yet exists */
 	if(!pte)  {
 		secondary_hash_table = mem_get_secondary_hash_table(mem, addr);
 		h2 = mem_hash2(addr);
-		
+
 		/* allocation of the page entry descriptor */
 		pte = (memory_page_table_entry_t *)malloc(sizeof(memory_page_table_entry_t));
 		assertp(pte != NULL, "Failed to allocate memory in mem_get_page\n");
 		pte->addr = addr;
-        
+
 		/* allocation of the page */
 		pte->storage = (uint8_t *)calloc(MEMORY_PAGE_SIZE,1);
 		assertp(pte->storage != NULL, "Failed to allocate memory in mem_get_page\n");
-        
+
 		/* adding the memory page to the list of memory page size entry*/
 		pte->next = secondary_hash_table->pte[h2];
 		secondary_hash_table->pte[h2]=pte;
@@ -457,12 +457,12 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 		uint16_t half;
 	} val;
 	uint8_t a;
-	
+
 	/* get page */
     gliss_address_t offset = address % MEMORY_PAGE_SIZE;
     memory_page_table_entry_t *pte=mem_get_page(mem, address);
     uint8_t *p = pte->storage + offset;
-	
+
 	/* aligned ? */
 	if((address & 0x00000001) == 0)
 #		if HOST_ENDIANNESS == TARGET_ENDIANNESS
@@ -501,12 +501,12 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 		uint32_t word;
 	} val;
 	uint8_t a;
-	
+
 	/* get page */
     gliss_address_t offset = address % MEMORY_PAGE_SIZE;
     memory_page_table_entry_t *pte=mem_get_page(mem, address);
     uint8_t *p = pte->storage + offset;
-	
+
 	/* aligned ? */
 	if((address & 0x00000003) == 0)
 #		if HOST_ENDIANNESS == TARGET_ENDIANNESS
@@ -548,12 +548,12 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 		uint64_t dword;
 	} val;
 	uint8_t a;
-	
+
 	/* get page */
     gliss_address_t offset = address % MEMORY_PAGE_SIZE;
     memory_page_table_entry_t *pte=mem_get_page(mem, address);
     uint8_t *p = pte->storage + offset;
-	
+
 	/* aligned ? */
 	if((address & 0x00000007) == 0)
 #		if HOST_ENDIANNESS == TARGET_ENDIANNESS
@@ -666,13 +666,13 @@ void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t
 		uint16_t half;
 	} *p = (union val_t *)&val;
 	uint16_t *q;
-	
+
 	/* compute address */
 	memory_page_table_entry_t *pte;
 	offset = address % MEMORY_PAGE_SIZE;
 	pte = mem_get_page(mem, address);
 	q = (uint16_t *)(pte->storage + offset);
-	
+
 	/* invert ? */
 #	if HOST_ENDIANNESS != TARGET_ENDIANNESS
 	{
@@ -681,7 +681,7 @@ void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t
 		p->bytes[1] = a;
 	}
 #	endif
-	
+
 	/* aligned ? */
 	if((address & 0x00000001) == 0)
 		*q = p->half;
@@ -705,13 +705,13 @@ void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t
 		uint32_t word;
 	} *p = (union val_t *)&val;
 	uint32_t *q;
-	
+
 	/* compute address */
 	memory_page_table_entry_t *pte;
 	offset = address % MEMORY_PAGE_SIZE;
 	pte = mem_get_page(mem, address);
 	q = (uint32_t *)(pte->storage + offset);
-	
+
 	/* invert ? */
 #	if HOST_ENDIANNESS != TARGET_ENDIANNESS
 	{
@@ -723,7 +723,7 @@ void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t
 		p->bytes[2] = a;
 	}
 #	endif
-	
+
 	/* aligned ? */
 	if((address & 0x00000003) == 0)
 		*q = p->word;
@@ -747,13 +747,13 @@ void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t
 		uint64_t dword;
 	} *p = (union val_t *)&val;
 	uint64_t *q;
-	
+
 	/* compute address */
 	memory_page_table_entry_t *pte;
 	offset = address % MEMORY_PAGE_SIZE;
 	pte = mem_get_page(mem, address);
 	q = (uint64_t *)(pte->storage + offset);
-	
+
 	/* invert ? */
 #	if HOST_ENDIANNESS != TARGET_ENDIANNESS
 	{
@@ -771,7 +771,7 @@ void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t
 		p->bytes[4] = a;
 	}
 #	endif
-	
+
 	/* aligned ? */
 	if((address & 0x00000007) == 0)
 		*q = p->dword;

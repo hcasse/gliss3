@@ -1,5 +1,5 @@
 (*
- * $Id: app.ml,v 1.15 2009/09/15 14:49:05 casse Exp $
+ * $Id: app.ml,v 1.16 2009/11/26 09:01:16 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -43,7 +43,7 @@ let rec makedir path =
 				let p = String.rindex path '/' in
 				makedir (String.sub path 0 p)
 			with Not_found -> ());
-			Printf.printf "making %s" path;
+			Printf.printf "creating \"%s\"\n" path;
 			Unix.mkdir path 0o740
 		with Unix.Unix_error (code, _, _) ->
 			raise (Sys_error (Printf.sprintf "cannot create \"%s\": %s" path (Unix.error_message code)))

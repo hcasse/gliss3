@@ -1,5 +1,5 @@
 /*
- * $Id: sim.c,v 1.8 2009/09/15 07:40:09 barre Exp $
+ * $Id: sim.c,v 1.9 2009/11/26 09:01:18 casse Exp $
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -54,10 +54,10 @@ void copy_options_to_gliss_env(gliss_env_t *env, init_options *opt)
 
 	env->argv = opt->argv;
 	env->argv_addr = 0;
-	
+
 	env->envp = opt->envp;
 	env->envp_addr = 0;
-	
+
 	env->auxv = 0;
 	env->auxv_addr = 0;
 
@@ -65,7 +65,7 @@ void copy_options_to_gliss_env(gliss_env_t *env, init_options *opt)
 }
 
 
-/* replace every '\n' by '\0' 
+/* replace every '\n' by '\0'
    after we read argv or envp file
    => there will be 2 '\0' after the last string
    return the number of '\n' replaced, ie the number of "substrings" */
@@ -90,7 +90,7 @@ char *next_multi_string(char *s)
 {
 	while (*s)
 		s++;
-	
+
 	printf("next multi, s=%c[%02X], s+1=%c[%02X]\n", *s, *s, *(s+1), *(s+1));fflush(stdout);
 	return s + 1;
 }
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 	int nb, nb_bis = 0;
 	long file_size = 0;
 
-	
+
 	/* test argument count */
 	if ((argc < 2) || (argc > 4)) {
 		fprintf(stderr, "ERROR: too many or too few arguments\n");
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 		syntax(argv[0]);
 		return 2;
 	}
-	
+
 	/* open the exec file */
 	loader = gliss_loader_open(argv[prog_index]);
 	if(loader == NULL) {
@@ -200,9 +200,9 @@ int main(int argc, char **argv)
 
 	/* find the _start symbol if no start address is given */
 	if ( ! is_start_given)
-	{	
+	{
 		addr_start = 0;
-		
+
 		/* search symbol _start */
 		Elf_sym = gliss_loader_first_sym(loader, &sym_start);
 		while (sym_start >= 0)
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		
+
 		/* check for error */
 		if (addr_start == 0) {
 			fprintf(stderr, "ERROR: cannot find the \"_start\" symbol and no start address is given.\n");
@@ -233,9 +233,9 @@ int main(int argc, char **argv)
 
 	/* find the _exit symbol if no exit address is given */
 	if ( ! is_exit_given)
-	{	
+	{
 		addr_exit = 0;
-		
+
 		/* search symbol _exit */
 		Elf_sym = gliss_loader_first_sym(loader, &sym_exit);
 		while (sym_exit >= 0)
@@ -252,14 +252,14 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		
+
 		/* check for error */
 		if (addr_exit == 0) {
 			fprintf(stderr, "ERROR: cannot find the \"_exit\" symbol and no exit address is given.\n");
 			syntax(argv[0]);
 			return 2;
 		}
-		
+
 		// !!DEBUG!!
 		printf("_exit found at %08X\n", addr_exit);
 	}
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 		fseek(f, 0, SEEK_END);
 		file_size = ftell(f);
 		//!!DEBUG!!
-		printf("argv file size %d\n", file_size);
+		/*printf("argv file size %d\n", file_size);*/
 		rewind(f);
 		/* allocate buffer */
 		argv_str = malloc((file_size + 1) * sizeof(char));
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
-printf("B!\n"); fflush(stdout);	
+printf("B!\n"); fflush(stdout);
 	/* get the envp file and copy it into a buffer */
 	envp_str = 0;
 	strcpy(buffer, argv[prog_index]);
@@ -372,7 +372,7 @@ printf("B!\n"); fflush(stdout);
 			return 1;
 		}
 		strcpy(options.argv[i], c_ptr);
-		
+
 		//!!DEBUG!!
 		printf("argv_str[%d]=(%d)[%s]\n", i, strlen(c_ptr), c_ptr);
 		c_ptr = next_multi_string(c_ptr);
@@ -381,16 +381,16 @@ printf("B!\n"); fflush(stdout);
 	options.argc = nb + 1;
 	if (argv_str)
 		free(argv_str);
-printf("C!\n");fflush(stdout);	
-	
+printf("C!\n");fflush(stdout);
+
 	/* copy default env and add envp */
-	
+
 	/* find default env size and added env size*/
 	nb = 0;
 	while (environ[nb++]);
 	// !!DEBUG!!
 	//printf("%d default env strings\n", nb);
-	
+
 	nb_bis = 0;
 	if (envp_str)
 	{
@@ -421,7 +421,7 @@ printf("C!\n");fflush(stdout);
 	options.envp[nb + nb_bis + 1] = 0;
 	if (envp_str)
 		free(envp_str);
-printf("D!\n");fflush(stdout);	
+printf("D!\n");fflush(stdout);
 
 gliss_loader_close(loader);
 
@@ -431,7 +431,7 @@ gliss_loader_close(loader);
 		fprintf(stderr, "ERROR: no more resources\n");
 		return 2;
 	}
-	
+
 	/* load the image in the platform */
 	if (gliss_load_platform(platform, argv[prog_index]) == -1) {
 		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[i]);
@@ -445,15 +445,15 @@ gliss_loader_close(loader);
 		fprintf(stderr, "ERROR: no more resources\n");
 		return 2;
 	}
-	
+
 	/* make the simulator */
 	sim = gliss_new_sim(state, addr_start, addr_exit);
 	if (sim == NULL) {
 		fprintf(stderr, "ERROR: no more resources\n");
 		return 2;
 	}
-	
-	
+
+
 	/* system initialization (argv, env , auxv) */
 
 	copy_options_to_gliss_env(&init_sys_env, &options);
@@ -464,12 +464,12 @@ gliss_loader_close(loader);
 	}
 	gliss_stack_fill_env(loader, gliss_get_memory(platform, GLISS_MAIN_MEMORY), &init_sys_env);
 	//free(options.argv);
-	//free(options.envp);	
+	//free(options.envp);
 	gliss_registers_fill_env(&init_sys_env, state);
 	gliss_loader_close(loader);
 
-	
-	
+
+
 // !!DEBUG BEGIN!!
 //state->GPR[1] = 0x7ffdfeb0;
 //	printf("entry point given by the loader to the platform then to the state NIA: %08X\n", state->NIA);
@@ -486,7 +486,7 @@ gliss_loader_close(loader);
 		if (gliss_is_sim_ended(sim))
 			break;
 		gliss_step(sim);
-// !!DEBUG BEGIN!!	
+// !!DEBUG BEGIN!!
 //	cpt++;
 	printf("state after instr %d\n", cpt);
 	gliss_dump_state(sim->state, stdout);
@@ -494,15 +494,15 @@ gliss_loader_close(loader);
 //	getchar();
 	//if (cpt > 500)
 		//break;
-// !!DEBUG END!!	
+// !!DEBUG END!!
 	}
-	
-// !!DEBUG BEGIN!!	
+
+// !!DEBUG BEGIN!!
 	printf("state after simulation\n");
 	gliss_dump_state(sim->state, stdout);
 	fflush(stdout);
-// !!DEBUG END!!	
-	
+// !!DEBUG END!!
+
 	/* cleanup */
 	/* this will also delete the associated state and the platform (if no one is locked on it) */
 	gliss_delete_sim(sim);

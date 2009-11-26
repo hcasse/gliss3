@@ -1,5 +1,5 @@
 (*
- * $Id: gep.ml,v 1.38 2009/07/31 09:09:42 casse Exp $
+ * $Id: gep.ml,v 1.39 2009/11/26 09:01:16 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -138,7 +138,7 @@ let make_env info =
 		dict in
 	let add_size_to_inst inst dict =
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
-		("gen_code", Templater.TEXT (fun out -> 
+		("gen_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
@@ -158,11 +158,11 @@ let make_env info =
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	(* for category table for ppc, category is always a number >= 0, let's take -1 for an invalid category (eg. for instr unknown) *)
 	("invalid_category", Templater.TEXT (fun out -> output_string out invalid_category)) ::
-	("gen_pc_incr", Templater.TEXT (fun out -> 
+	("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
-	("gen_init_code", Templater.TEXT (fun out -> 
+	("gen_init_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.get_init_code () ))) ::
@@ -188,7 +188,7 @@ let libadd_re = Str.regexp "^LIBADD=\\(.*\\)"
 	@param m	Module to find. *)
 let find_mod m =
 
-	let rec find_lib paths = 
+	let rec find_lib paths =
 		match paths with
 		| [] ->  raise (Sys_error ("cannot find module " ^ m.aname))
 		| path::tail ->
@@ -231,11 +231,10 @@ let _ =
 		(fun info ->
 			let dict = make_env info in
 
-			Printf.printf "PC=%s, NPC=%s, PPC=%s\n" info.Toc.pc_name info.Toc.npc_name info.Toc.ppc_name;	(* !!DEBUG!! *)
 			(* include generation *)
 
 			List.iter find_mod !modules;
-			
+
 			if not !App.quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "include";
 			if not !App.quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
@@ -243,7 +242,7 @@ let _ =
 			App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 			App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
 			App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
-			
+
 			(* source generation *)
 
 			if not !App.quiet then Printf.printf "creating \"include/\"\n";
@@ -262,11 +261,11 @@ let _ =
 			App.make_template "code_table.h" "src/code_table.h" dict;
 			(* for ppc category table *)
 			App.make_template "category_table.h" "src/category_table.h" dict;
-			
+
 			(* module linking *)
 			List.iter (process_module info) !modules;
 			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.hpath ^ "/mem.h");
-			
+
 			(* generate application *)
 			if !sim then
 				try

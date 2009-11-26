@@ -1,5 +1,5 @@
 (*
- * $Id: toc.ml,v 1.42 2009/07/31 09:09:42 casse Exp $
+ * $Id: toc.ml,v 1.43 2009/11/26 09:01:17 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
@@ -942,8 +942,10 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.NONE -> ()
 
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "U")
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
-	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
+	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
 	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v
 

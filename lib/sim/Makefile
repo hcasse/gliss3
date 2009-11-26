@@ -6,4 +6,7 @@ $(proc)-sim: $(proc)-sim.o
 	$$(CC) $$(LDFLAGS) -o $$@ $$^ $$(LIBADD)
 
 clean:
-	rm -f $(proc)-sim $(proc)-sim.o
+	rm -f $(proc)-sim.o
+
+distclean: clean
+	rm -f $(proc)-sim

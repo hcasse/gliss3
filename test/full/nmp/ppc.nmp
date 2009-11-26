@@ -709,7 +709,11 @@ op branch_instr ( x : branch_instr_action )
    image   = x.image
    syntax  = x.syntax
    action  = { x.action; }
+<<<<<<< ppc.nmp
+   otawa_kind = BRANCH | x.otawa_kind
+=======
    otawa_kind = BRANCH | x.otawa_kind            
+>>>>>>> 1.8
 
 op branch_instr_action  = branch_uncond 
                         | branch_cond

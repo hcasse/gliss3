@@ -450,7 +450,7 @@ op branch_link ( BRANCH_ADDR : IMM24 )
                 NIA = CIA + ( TMP_SWORD << 2 );
                 LR  = CIA + 4;
              }
-	//otawa_kind = if BRANCH_ADDR == 0 then IS_CONTROL else 0 endif
+	otawa_kind = if BRANCH_ADDR == 0 then IS_CONTROL else 0 endif
 
 op branch_link_abs ( BRANCH_ADDR : IMM24 )
    syntax = format ( "bla %s", BRANCH_ADDR.syntax )

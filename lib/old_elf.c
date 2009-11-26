@@ -1,5 +1,5 @@
 /*
- *	$Id: old_elf.c,v 1.11 2009/09/16 10:54:58 casse Exp $
+ *	$Id: old_elf.c,v 1.12 2009/11/26 09:01:17 casse Exp $
  *	old_elf module interface
  *
  *	This file is part of OTAWA
@@ -1027,7 +1027,7 @@ void dump_stack(gliss_address_t a, gliss_state_t *state)
 		bytes[1] = gliss_mem_read8(mem, i+1);
 		bytes[2] = gliss_mem_read8(mem, i+2);
 		bytes[3] = gliss_mem_read8(mem, i+3);
-		printf("%c,%c,%c,%c [0x%008X]\n", bytes[0], bytes[1], bytes[2], bytes[3], word);
+		printf("%c,%c,%c,%c [0x%08X]\n", bytes[0], bytes[1], bytes[2], bytes[3], word);
 		fflush(stdout);
 		i -= 4;
 	}
