@@ -1199,24 +1199,22 @@ let is_setspe loc=
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp=Str.regexp "%[0-9]*[dbxsf]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
+let reg_exp=Str.regexp "%[0-9]*[dbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
 						so we allow this kind of expression here for compatibility *)
 
 (** this function is used to find all references to a parameter in a string passed to a format
 	@param str	The string to treat
-	@return A list of string matching reg_exp
+	@return 	A list of string matching reg_exp
  *)
 let get_all_ref str=
 	let str_list=Str.full_split reg_exp str
 	in
 	let rec temp str_l res_l=
 		match str_l with
-		 []->res_l
-		|e::l->( match e with
-				Str.Text _->temp l res_l
-				|Str.Delim s->temp l (s::res_l)
-			)
-	in
+		| []->res_l
+		| (Str.Text _)::l -> temp l res_l
+		| (Str.Delim s)::l when s = "%%" -> temp l res_l
+		| (Str.Delim s)::l -> temp l (s::res_l) in
 	temp str_list []
 
 (** Create a FORMAT operation and check if it is well written

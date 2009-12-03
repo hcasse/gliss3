@@ -22,11 +22,6 @@
 open Absint
 open Irg
 
-module type DISPLAYABLE = sig
-	type t
-	val output: out_channel -> t -> unit
-end
-
 (* pair hashtable *)
 module PairOrdering = struct
 	type t = string * int
@@ -34,65 +29,6 @@ module PairOrdering = struct
 end
 module PairMap = Map.Make(PairOrdering)
 
-
-(* dump module *)
-module Dump(D: DISPLAYABLE) = struct
-
-	let rec indent n =
-		if n = 0 then () else (print_char '\t'; indent (n - 1))
-
-	let dump_dom n ht stat =
-		try
-			let dom = StatHashtbl.find ht stat in
-			indent (n + 1);
-			D.output stdout dom;
-			print_string "\n"
-		with Not_found -> ()
-
-	let rec dump_result n stack ht name =
-		if List.mem name stack then
-			begin
-				indent n;
-				Printf.printf "goto %s\n" name
-			end
-		else
-			begin
-				indent n;
-				Printf.printf "%s:\n" name;
-				dump_stat (n + 1) (name::stack) ht (get_stat name)
-			end
-
-	and dump_stat n stack ht stat =
-		match stat with
-		| NOP -> ()
-		| SEQ (s1, s2) ->
-			dump_stat n stack ht s1;
-			dump_stat n stack ht s2
-		| IF_STAT (c, s1, s2) ->
-			dump_dom n ht stat;
-			indent n;
-			print_string "if ";
-			print_expr c;
-			print_string " then\n";
-			dump_stat (n + 1) stack ht s1;
-			indent n;
-			print_string "else\n";
-			dump_stat (n + 1) stack ht s2;
-			indent n;
-			print_string "endif\n"
-		| SWITCH_STAT (c, cases, def) ->
-			dump_dom n ht stat
-		| LINE (_, _, stat) -> dump_stat n stack ht stat
-		| EVAL name ->
-			dump_dom n ht stat;
-			dump_result n stack ht name
-		| _ ->
-			dump_dom n ht stat;
-			indent (n - 2);
-			print_statement stat
-
-	let dump = dump_result 1 []
-end
 
 module StatSet = Usedefs.StatSet
 
@@ -149,11 +85,11 @@ let used_locs l =
 	work (RegSet.empty, RegSet.empty) l
 
 
-(** Compute the worst compatibility for each variable reference.
+(** Compute the worst compatibility for each variable reference
+	all over the full program.
 	@param comps	Hashtable of all computed computabilities.
 	@return			Map of (variable reference, worst computability). *)
 let worst_comp comps =
-	let comp stat = Absint.StatHashtbl.find comps stat in
 
 	let process map (id, ix, comp) =
 		try
@@ -168,6 +104,30 @@ let worst_comp comps =
 		PairMap.empty
 
 
+(* !!NOTE!!
+ *
+ * DYNAMIC INFORMATION USAGE
+ *	- assignment to register / temporary that is ever dynamic is not used
+ *		and its dependencies are not used by this assignment
+ *	- condition containing dynamic register / temporary is ever fuzzy
+ *	- dynamic register / temporary does not need any storage
+ *
+ * STATIC INFORMATION USAGE
+ *	- requires a storage
+ *	- does not need fuzzy bit
+ *
+ * FUZZY INFORMATION USAGE
+ *	- requires a storage
+ *	- requires a fuzzy bit
+ *
+ * Usage may be of four kinds:
+ *	- NOT_USED -- code generation not needed
+ *	- USED -- statement is used as itself
+ *	- PROP -- only used to generate the property computation
+ *	- BOTH -- used by itself and by property computation
+ *)
+
+
 (** Compute if statement of the given attribute are used in the
 	generation.
 	@param comps	Result of the computability analysis for
@@ -176,8 +136,8 @@ let worst_comp comps =
 	@param f		Analysis-dependent test function.
 	@return			Set containing used statements. *)
 let build_used comps dus f =
-	let comp stat = Absint.StatHashtbl.find comps stat in
-	let du stat = Absint.StatHashtbl.find dus stat in
+	let comp = Absint.StatHashtbl.find comps in
+	let du = Absint.StatHashtbl.find dus in
 
 	let rec record_use du set (id, idx) =
 		let defs = Usedefs.State.get du id idx in
@@ -190,7 +150,9 @@ let build_used comps dus f =
 		| SETSPE (l, e) ->
 			let ul, uv = used_locs l in
 			let uv = RegSet.union uv (used_vars e) in
-			if Comput.has_dynamic (comp def) uv then set else
+			(* if Comput.has_dynamic (comp def) uv then set else
+			 !!WARNING!! Be careful. Should remove some assignments that
+			 may need to set fuzzy bit. *)
 			List.fold_left (record_use (du def)) (StatSet.add def set) uv
 		| NOP -> set
 		| _ -> failwith "too bad !" in
@@ -254,7 +216,7 @@ let build_used comps dus f =
 	@param used		Used hashtable.
 	@return			Set of used variables with temporary and fuzzy temporary. *)
 let collect_vars info comps used =
-	let comp stat = Absint.StatHashtbl.find comps stat in
+	(*let comp stat = Absint.StatHashtbl.find comps stat in*)
 	let worst = worst_comp comps in
 
 	let declare_fuzzy id ix =
@@ -367,16 +329,16 @@ let collect_vars info comps used =
 *)
 
 (* computability analysis *)
-module CompObs = Observer(Comput.Domain)
+(*module CompObs = Observer(Comput.Domain)
 module CompAna = Forward(CompObs)
 module CompState = Comput.State
-module CompDump = Dump(CompState)
+module CompDump = Dump(CompState)*)
 
 (* use-def analysis *)
-module UsedefsObs = Observer(Usedefs.Problem)
+(*module UsedefsObs = Observer(Usedefs.Problem)
 module UsedefsAna = Forward(UsedefsObs)
 module UsedefsState = Usedefs.State
-module UsedefsDump = Dump(UsedefsState)
+module UsedefsDump = Dump(UsedefsState)*)
 
 (** Transoformation signature. *)
 type vars = (string * string) PairMap.t
@@ -396,7 +358,7 @@ end
 module Make(T: TRANSFORMATION) = struct
 
 	let translate info comps vars used =
-		let comp s = CompObs.get comps s in
+		let comp s = Comput.Obs.get comps s in
 		let var id ix = PairMap.find (id, ix) vars in
 		let used stat = StatSet.mem stat used in
 
@@ -506,20 +468,18 @@ module Make(T: TRANSFORMATION) = struct
 
 		(* def-use analysis *)
 		print_string "* Use-Defs analysis\n";
-		let ctx = UsedefsObs.make () in
-		let dom = UsedefsAna.run ctx "action" in
+		let ctx = Usedefs.Obs.make () in
+		let dom = Usedefs.Ana.run ctx "action" in
 		let du = fst ctx in
-		UsedefsDump.dump du "action";
-		print_char '\t'; UsedefsState.output stdout dom; print_char '\n';
+		Usedefs.Dump.dump du "action" dom;
 		print_string "\n\n";
 
 		(* computability *)
 		print_string "* computability analysis\n";
-		let ctx = CompObs.make inst in
-		let dom = CompAna.run ctx "action" in
+		let ctx = Comput.Obs.make inst in
+		let dom = Comput.Ana.run ctx "action" in
 		let comp = fst ctx in
-		CompDump.dump comp "action";
-		print_char '\t'; CompState.output stdout dom; print_char '\n';
+		Comput.Dump.dump comp "action" dom;
 		print_string "\n\n";
 
 		(* compute used *)
@@ -531,7 +491,10 @@ module Make(T: TRANSFORMATION) = struct
 		let used_vars = collect_vars info comp used in
 
 		(* translate *)
-		let lst = translate info comp used_vars used in
+		(*let lst = translate info comp used_vars used in
+		print_string "-->\n";*)
+
+		(* generate code *)
 
 		Toc.cleanup_temps info;
 		Toc.StringHashtbl.clear info.Toc.attrs

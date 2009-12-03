@@ -19,6 +19,16 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(** The use-def analysis computes for each program points which
+	assignments defines the content of a register or a temporary.
+	The definition below applies for each variable v:
+
+	* domain: set of assignement
+	* initial state: { }
+	* update[v <- e] s = { v <- e }
+	* join(s1, s2) = s1 U s2
+*)
+
 open Irg
 
 let uniq_ids: int Absint.StatHashtbl.t = Absint.StatHashtbl.create 211
@@ -38,6 +48,8 @@ module OrderedStat = struct
 end
 module StatSet = Set.Make(OrderedStat)
 
+
+(** Set of definitions for use-def problem *)
 module DefSet = struct
 	type t = StatSet.t
 	let undef = StatSet.singleton NOP
@@ -49,8 +61,14 @@ module DefSet = struct
 		StatSet.iter (fun e -> output_statement out e; output_string out ", ") s;
 		output_string out " }";
 end
+
+
+(** State for the use-def problem: assign to each register / temporary
+	the set of possible definition statements. *)
 module State = State.Make(DefSet)
 
+
+(** Use-def problem definition *)
 module Problem = struct
 	type init = unit
 	type ctx = unit
@@ -80,3 +98,15 @@ module Problem = struct
 	let disjoin _ stat state = (state, state)
 	let join _ stat s1 s2 = State.join s1 s2
 end
+
+
+(** Observer for the use-def problem *)
+module Obs = Absint.Observer(Problem)
+
+
+(** Analysis for the use-def problem *)
+module Ana = Absint.Forward(Obs)
+
+
+(** Dump module for use-def state *)
+module Dump = Absint.Dump(State)

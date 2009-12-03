@@ -21,7 +21,7 @@
 
 open Irg
 
-(** This module provides an implementation of state for an abstrac
+(** This module provides an implementation of state for an abstract
 	interpretation, that is, the association of a value with
 	a (variale, index) pair index. *)
 

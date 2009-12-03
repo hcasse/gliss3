@@ -58,6 +58,7 @@ let get_stat name =
 	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> stat
 	| _ -> failwith ("no attribute: " ^ name)
 
+
 (** Domain type *)
 module type DOMAIN = sig
 	type init	(** type of initialization data *)
@@ -202,3 +203,80 @@ module Backward (D: DOMAIN) = struct
 
 	process_call [] name (D.null ctx)
 end
+
+
+(** Module type for domains supporting display with Dump module. *)
+module type DISPLAYABLE = sig
+	type t
+	val output: out_channel -> t -> unit
+end
+
+
+(** Module providing display for dumping a state. *)
+module Dump(D: DISPLAYABLE) = struct
+
+	let rec indent n =
+		if n = 0 then () else (print_char '\t'; indent (n - 1))
+
+	let dump_dom n ht stat =
+		try
+			let dom = StatHashtbl.find ht stat in
+			indent (n + 1);
+			D.output stdout dom;
+			print_string "\n"
+		with Not_found -> ()
+
+	let rec dump_result n stack ht name =
+		if List.mem name stack then
+			begin
+				indent n;
+				Printf.printf "goto %s\n" name
+			end
+		else
+			begin
+				indent n;
+				Printf.printf "%s:\n" name;
+				dump_stat (n + 1) (name::stack) ht (get_stat name)
+			end
+
+	and dump_stat n stack ht stat =
+		match stat with
+		| Irg.NOP -> ()
+		| Irg.SEQ (s1, s2) ->
+			dump_stat n stack ht s1;
+			dump_stat n stack ht s2
+		| Irg.IF_STAT (c, s1, s2) ->
+			dump_dom n ht stat;
+			indent n;
+			print_string "if ";
+			Irg.print_expr c;
+			print_string " then\n";
+			dump_stat (n + 1) stack ht s1;
+			indent n;
+			print_string "else\n";
+			dump_stat (n + 1) stack ht s2;
+			indent n;
+			print_string "endif\n"
+		| Irg.SWITCH_STAT (c, cases, def) ->
+			dump_dom n ht stat
+		| Irg.LINE (_, _, stat) -> dump_stat n stack ht stat
+		| Irg.EVAL name ->
+			dump_dom n ht stat;
+			dump_result n stack ht name
+		| _ ->
+			dump_dom n ht stat;
+			indent (n - 2);
+			Irg.print_statement stat
+
+	(** Dump the full analysis result, that is, each result state
+		at the program points.
+		@param ht	Observation result.
+		@param name	Name of the attribute (usually "action")
+		@param out	Final state. *)
+	let dump ht name out =
+		dump_result 1 [] ht name;
+		print_char '\t';
+		D.output stdout out;
+		print_char '\n'
+end
+

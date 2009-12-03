@@ -19,6 +19,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(** Compute for each point of the program the computability of a variable,
+	that is, one of:
+	* STATIC -- statically defined (based only on constants or instruction parameter)
+	* DYNAMIC -- definitively depending on program state
+	* FUZZY -- sometimes static, sometimes dynamic
+
+	The analysis is described below for a variable v (S is the state
+	of other variables):
+	* domain = {STATIC, DYNAMIC, FUZZY}
+	* order: STATIC < FUZZY, DYNAMIC < FUZZY
+	* initial state = DYNAMIC
+	* update[v <- e] s = wc(S[v'] / v' in e)
+	* join(s1, s2) = wc(s1, s2)
+
+	ws (worse computability is computed by):
+	ws(STATIC, STATIC) = STATIC
+	ws(DYNAMIC, DYNAMIC) = DYNAMIC
+	ws(_, _) = FUZZY
+*)
+
+
 open Irg
 
 (** Defines computability of a variable *)
@@ -63,7 +84,9 @@ module ComputeValue = struct
 end
 
 
+(** State of the computability problem. *)
 module State = State.Make(ComputeValue)
+
 
 (** Computability Analysis
 	type: MUST
@@ -155,3 +178,14 @@ let rec has_dynamic comp vars =
 		match State.get comp id ix with
 		| DYNAMIC -> true
 		| _ -> has_dynamic comp tl
+
+
+
+(** Observer for the computability problem. *)
+module Obs = Absint.Observer(Domain)
+
+(** Analysis of the computability problem. *)
+module Ana = Absint.Forward(Obs)
+
+(** Dump module for the computability problem. *)
+module Dump = Absint.Dump(State)

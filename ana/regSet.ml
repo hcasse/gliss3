@@ -2,7 +2,7 @@
  * $Id$
  * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS v2.
  *
  * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,8 @@
 open Irg
 
 (** This module provides an implementation of set for registers
-	including blurred indexed registers. *)
+	including blurred indexed registers.
+	Implements State.VALUE signature. *)
 
 type t = (string * int) list
 

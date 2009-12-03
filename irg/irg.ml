@@ -586,9 +586,9 @@ let rec output_expr out e =
 		output_expr out idx;
 		output_string out "]";
 		(* !!DEBUG!! *)
-		output_string out "(typ=";
+		(*output_string out "(typ=";
 		output_type_expr out t;
-		output_string out ")"
+		output_string out ")"*)
 	| BITFIELD (t, e, l, u) ->
 		output_expr out e;
 		output_string out "<";
@@ -1704,7 +1704,7 @@ let transform_str_list reg_list expr_list spec_params =
 	print_param_list spec_params;
 	print_string "]\nres = ["; print_string (str_list_to_str  res);
 	print_string "]\n";*)
-	
+
 	rec_aux reg_list expr_list spec_params
 
 

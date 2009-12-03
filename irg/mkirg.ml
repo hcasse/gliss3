@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -21,7 +21,7 @@
 
 (* argument list *)
 let nmp = ref ""
-let out = ref "" 
+let out = ref ""
 let insts = ref false
 let options = [ ]
 
@@ -29,7 +29,7 @@ let options = [ ]
 let free_arg arg =
 	if !nmp = "" then nmp := arg else
 	if !out = "" then out := arg else
-	raise (Arg.Bad "only NML and out files required") 
+	raise (Arg.Bad "only NML and out files required")
 let usage_msg = "SYNTAX: gep [options] NML_FILE IRG_FILE\n\tGenerate code for a simulator"
 
 let arg_error msg =
@@ -43,9 +43,10 @@ let _ =
 	if !out = "" then arg_error "one IRG file must be given !\n"
 
 let _ =
-	try	
+	try
 		begin
 			let lexbuf = Lexing.from_channel (open_in !nmp) in
+			Lexer.file := !nmp;
 			Parser.top Lexer.main lexbuf;
 			Irg.save !out
 		end
