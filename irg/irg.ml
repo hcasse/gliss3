@@ -104,7 +104,8 @@ type expr =
 type location =
 	| LOC_NONE												(** null location *)
 	| LOC_REF of type_expr * string * expr * expr * expr	(** (type, memory name, index, lower bit, upper bit) *)
-	| LOC_CONCAT of type_expr * location * location			(** concatenation of locations *)
+	| LOC_EXPR of expr					(** for complex expression such as if or switch, anything that cannot be put in a LOC_REF *)
+	| LOC_CONCAT of type_expr * location * location		(** concatenation of locations *)
 
 
 (** argument of attributes *)
@@ -666,6 +667,10 @@ let rec output_location out loc =
 				output_expr out up;
 				output_string out ">"
 			end
+	| LOC_EXPR(e) ->
+		output_string out "(";
+		output_expr out e;
+		output_string out ")"
 	| LOC_CONCAT (_, l1, l2) ->
 		output_location out l1;
 		output_string out "::";
@@ -1304,14 +1309,16 @@ let rec change_name_of_var_in_location loc var_name new_name =
 			change_name_of_var_in_expr i var_name new_name,
 			change_name_of_var_in_expr l var_name new_name,
 			change_name_of_var_in_expr u var_name new_name)
+	| LOC_EXPR(e) ->
+		LOC_EXPR(change_name_of_var_in_expr e var_name new_name)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
 
 let rec substitute_in_location name op loc =
 (*print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
 print_string "\n\tloc="; print_location loc;		(* !!DEBUG!! *)
-print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
-*)	let get_mode_value sp =
+print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)*)
+	let get_mode_value sp =
 		match sp with
 		AND_MODE(_, _, v, _) -> v
 		| _-> NONE
@@ -1323,48 +1330,74 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)
 	in
 	match loc with
 	LOC_NONE ->
+		(* !!DEBUG!! *)
+		(*print_string "========res=";
+		print_location loc;
+		print_string "\n\n\n";*)
 		loc
+	| LOC_EXPR(e) ->
+		(* !!DEBUG!! *)
+		(*print_string "========res=";
+		print_location (LOC_EXPR(substitute_in_expr name op e));
+		print_string "\n\n\n";*)
+		LOC_EXPR(substitute_in_expr name op e)
 	| LOC_REF(t, s, i, l, u) ->
 		let rec subst_mode_value mv =
 			match mv with
 			REF(n) ->
-				LOC_REF(t, n, i, l, u)
+				LOC_REF(t, n, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 			| ITEMOF(typ, n, idx) ->
-				(* can replace only if loc is "simple" (ie u, l, i = NONE) *)
-				if u=NONE && i=NONE && l=NONE then
-					LOC_REF(typ, n, idx, NONE, NONE)
+				(* can replace only if loc is "simple" (ie i = NONE), we can't express n[idx][i] *)
+				if i=NONE then
+					LOC_REF(typ, n, idx, l, u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (irg.ml::substitute_in_location)"
 			| BITFIELD(typ, n, lb, ub) ->
-				(* do not know how to substitute bitfield of bitfield or itemof *)
-				if u=NONE && l=NONE && i=NONE then
-					(* n should also be a REF so we can transform it into a string *)
-					begin
-					match n with
-					REF(nn) ->
-						LOC_REF(typ, nn, NONE, lb, ub)
-					| _ ->
-						failwith "cannot substitute a var here (BITFIELD, not REF) (irg.ml::substitute_in_location)"
-					end
+				if i=NONE then
+					if u=NONE && l=NONE then
+						(match n with
+						REF(nn) ->
+							LOC_REF(typ, nn, NONE, lb, ub)
+						| _ ->
+							LOC_EXPR(mv)
+						)
+					else
+						LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))
 				else
+					(* we can't express n<lb..ub>[i], it is meaningless *)
 					failwith "cannot substitute a var here (BITFIELD) (irg.ml::substitute_in_location)"
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
-				(* !!DEBUG!! *)
-				(*print_string "!!!ARG!!!\n";
-				print_location loc; print_char '\n';
-				print_expr (get_mode_value op); print_char '\n';*)
-				failwith "\nincorrect type of expr for a mode value (irg.ml::substitute_in_location)"
-
+				if i=NONE then
+					if u=NONE && l=NONE then
+						LOC_EXPR(mv)
+					else
+						LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))
+				else
+					(* how could we express stg like (if .. then .. else .. endif)[i]<l..u>, it would be meaningless most of the time *)
+					failwith "cannot substitute a var here (_) (irg.ml::substitute_in_location)"
 		in
 		(* change if op is a AND_MODE and s refers to it *)
 		(* as mode values, we will accept only those "similar" to a LOC_REF (REF, ITEMOF, BITFIELD, (FIELDOF)) *)
+		(* NO!! we must accept any expression!! *)
 		if (name=s)&&(is_and_mode op) then
-			subst_mode_value (get_mode_value op)
-		else
-			LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
+		begin
+		(* !!DEBUG!! *)
+		(*print_string "========res=";
+		print_location (subst_mode_value (get_mode_value op));
+		print_string "\n\n\n";*)
+			subst_mode_value (get_mode_value op) end
+		else begin
+		(* !!DEBUG!! *)
+		(*print_string "========res=";
+		print_location (LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u));
+		print_string "\n\n\n";*)
+			LOC_REF(t, s, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u) end
 	| LOC_CONCAT(t, l1, l2) ->
+		(*print_string "========res=";
+		print_location (LOC_CONCAT(t, substitute_in_location name op l1, substitute_in_location name op l2));
+		print_string "\n\n\n";*)
 		LOC_CONCAT(t, substitute_in_location name op l1, substitute_in_location name op l2)
 
 
@@ -1374,8 +1407,8 @@ all occurrences of names are translated to refer to the op *)
 let rec substitute_in_stat name op statement =
 (*print_string ("subst_stat name=" ^ name);		(* !!DEBUG!! *)
 print_string "\n\tstat="; print_statement statement;	(* !!DEBUG!! *)
-print_string "spec ="; print_spec op;			(* !!DEBUG!! *)
-*)	match statement with
+print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
+	match statement with
 	NOP ->
 		NOP
 	| SEQ(s1, s2) ->
@@ -1554,23 +1587,53 @@ let rec replace_format_by_attr str_format expr_field spec_type =
 the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params),
 others expressions remain *)
 let rec replace_field_expr_by_param_list expr_field spec_type =
+	let is_and_mode sp =
+		match sp with
+		AND_MODE(_, _, _, _) -> true
+		| _ -> false
+	in
+	let get_mode_value sp =
+		match sp with
+		AND_MODE(_, _, v, _) -> v
+		| _-> NONE
+	in
 	let rec get_param_list_from_format_expr f =
 		(* !!DEBUG!! *)
 		(*print_string "get_pl_from_f_e f=[[";print_expr f; print_string "]]\n";*)
 		match f with
 		FORMAT(_, l) -> l
 		| ELINE (_, _, e) -> get_param_list_from_format_expr e
-		(*| CONST(_, _) -> []*)
 		| _ ->[f]
 	in
 	(* !!DEBUG!! *)
-	(*print_string "####repl_f_e_by_p_l expr=["; print_expr expr_field; print_string "]\n[";print_spec spec_type;print_string "]\n";*)
+	(*print_string "\nrepl_f_e_by_p_l\n\texpr=[["; print_expr expr_field; print_string "]]\n\tspec=[[";print_spec spec_type;print_string "]]\n";*)
 	match expr_field with
 	FIELDOF(_, _, s) ->
-		(*print_string "####rfebpl res = p_l\n";*)
+		(* !!DEBUG!! *)
+		(*print_string "++++++++res=[[";
+		List.iter (fun x -> print_expr x; print_string ", ") (get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s));
+		print_string "]]\n"; flush stdout;*)
 		get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
-	| ELINE (_, _, e) -> replace_field_expr_by_param_list e spec_type
-	| _ -> (*print_string "####rfebpl res_ = [";print_expr expr_field; print_string "]\n";*)[expr_field]
+	| ELINE (_, _, e) ->
+		(* !!DEBUG!! *)
+		(*print_string "++++++++rec (ELINE)\n";*)
+		replace_field_expr_by_param_list e spec_type
+	| REF(_) ->
+		(* if mode, replace by mode value *)
+		if is_and_mode spec_type then
+			begin
+			(* !!DEBUG!! *)
+			(*print_string "warning: a mode param is used directly in a format expr (not with syntax, image or else), are you sure it is ok?\n";*)
+			[get_mode_value spec_type]
+			end
+		else
+			[expr_field]
+	| _ ->
+		(* !!DEBUG!! *)
+		(*print_string "++++++++res=[[";
+		print_expr expr_field;
+		print_string "]]\n"; flush stdout;*)
+		[expr_field]
 
 let get_param_of_spec s =
 	match s with
@@ -1615,7 +1678,14 @@ let rec search_spec_of_name name param_list =
 				spec_from_type t
 			else
 				search_spec_of_name name q
-		| [] -> failwith ("in the given param list, no param was found with name " ^ name ^ " (irg.ml::search_spec_of_name::rec_aux)")
+		| [] ->
+			(* !!DEBUG!! *)
+			print_string "s_s_o_n, name=";
+			print_string name;
+			print_string "\nparams=";
+			print_param_list param_list;
+			print_string "\n";
+			failwith ("in the given param list, no param was found with name " ^ name ^ " (irg.ml::search_spec_of_name::rec_aux)")
 	in
 	rec_aux name param_list
 
@@ -1627,16 +1697,29 @@ avoid same name for different vars if instantiating several params of same type 
 let get_spec_from_expr e spec_params =
 	let rec rec_aux ex p_l =
 		match ex with
-		FIELDOF(_, expre, _) -> (*rec_aux expre spec_params*)
+		FIELDOF(_, expre, _) ->
 			prefix_name_of_params_in_spec (search_spec_of_name expre spec_params) expre
 		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
 		| ELINE (_, _, e) -> rec_aux e p_l
-		| CONST(t_e, c) ->
+		| CONST(_, _) ->
 			UNDEF
-		| _ -> failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
+		| BITFIELD(_, e, _, _) ->
+			(match e with
+			FIELDOF(_, e1, _) ->
+				prefix_name_of_params_in_spec (search_spec_of_name e1 spec_params) e1
+			| REF(n) ->
+				prefix_name_of_params_in_spec (search_spec_of_name n spec_params) n
+			| CONST(_, _) ->
+				UNDEF
+			| _ ->
+				failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux::BITFIELD)"
+			)
+		| _ -> 
+			failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
 	in
 	(* !!DEBUG!! *)
-	(*print_string "get_spec_from_expr, expr="; print_expr e; print_string ", p_l="; print_param_list spec_params;print_char '\n';*)
+	(*print_string "\nget_spec_from_expr\n\texpr=[["; print_expr e; print_string "]]\n\tp_l=[["; print_param_list spec_params;print_string "]]\n";
+	print_string "++++++++res=[["; print_spec (rec_aux e spec_params); print_string "]]\n"; flush stdout;*)
 	rec_aux e spec_params
 
 
@@ -1906,7 +1989,7 @@ let change_format_attr expr_frmt param_list =
 			)*)
 		| REF(s) -> s
 		| ELINE(_, _, e) -> get_str_from_format_expr e
-		| _ -> "[err1357]"
+		| _ -> failwith "wrong argument (irg.ml::change_format_attr::get_str_from_format_expr)"
 	in
 	let rec get_param_from_format_expr f =
 		match f with
@@ -1936,32 +2019,29 @@ let change_format_attr expr_frmt param_list =
 		| _ -> f
 	in
 	(* !!DEBUG!! *)
-	let rec print_e_l e_l =
-		match e_l with
-		[] -> ()
-		| a::b -> print_string " [["; print_expr a; print_string "]]\n"; print_e_l b
-	in
-	(*let l = List.flatten (List.map (fun x -> print_string "cfa::replace [[";print_expr x;print_string "]] get_spec_f_e = "; print_spec (get_spec_from_expr x param_list);
-	print_string "\n"; replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
-	in
-	let res =
-	print_string "new params = "; print_e_l l;
-	print_string "chg_fmt_attr expr_frmt="; print_expr expr_frmt; print_string ", params="; print_param_list param_list;print_char '\n';
-	flush stdout;
-	reduce_frmt (remove_const_param_from_format
+	(*let res = reduce_frmt (remove_const_param_from_format
 		(FORMAT(
 			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
-			(*List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)*)
-			l
+			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
 			)))
 	in
-	print_string "\n\n===========cfa res= [[";print_expr res; print_string "]]\n";
-	flush stdout;*)
+	print_string "\n\nchg_fmt_attr,\n\texpr_frmt=[[";
+	print_expr expr_frmt;
+	print_string "]]\n\tparam_list=[[";
+	print_param_list param_list;
+	print_string "++++++++res=[[";
+	print_expr res;
+	print_string "]]\n";
+	flush stdout;
+	res*)
+	(* !!NO DEBUG!! *)
 	reduce_frmt (remove_const_param_from_format
 		(FORMAT(
 			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
 			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
 			)))
+
+
 
 
 (* replace the type by the spec if the param refers to an op or mode,
