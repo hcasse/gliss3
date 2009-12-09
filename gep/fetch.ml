@@ -729,8 +729,11 @@ let output_all_table_C_decl out num_bits =
 		else
 			if List.exists (fun x -> x=n) isize then
 				Iter.iter
-					(fun a x -> if (get_instruction_length x) <> n then
-						failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.") else true)
+					(fun a x ->
+						if (get_instruction_length x) <> n then
+							failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.")
+						else
+							true)
 					true 
 			else
 				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, not in gliss_isize.")
