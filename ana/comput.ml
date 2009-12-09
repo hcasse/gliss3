@@ -189,3 +189,22 @@ module Ana = Absint.Forward(Obs)
 
 (** Dump module for the computability problem. *)
 module Dump = Absint.Dump(State)
+
+
+(** Analyze for computability the given instruction for the given
+	attribute.
+	@param inst		Instruction to analyze.
+	@param attr		Attribute to handle.
+	@return			((statement, domain) table, exit domain) *)
+let analyze inst attr =
+	let ctx = Obs.make inst in
+	let dom = Ana.run ctx attr in
+	let comp = fst ctx in
+	(comp, dom)
+
+(** Dump the result of the analysis.
+	@param comp		Domain table.
+	@param dom		Exit domain.
+	@param attr		Analyzed attribute. *)
+let dump (comp, dom) attr =
+	Dump.dump comp attr dom;

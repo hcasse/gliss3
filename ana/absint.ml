@@ -214,9 +214,15 @@ end
 
 (** Module providing display for dumping a state. *)
 module Dump(D: DISPLAYABLE) = struct
+	let null_numbers : int StatHashtbl.t = StatHashtbl.create 1
 
 	let rec indent n =
 		if n = 0 then () else (print_char '\t'; indent (n - 1))
+
+	let rec indent_num n stat nums =
+		indent n;
+		try Printf.printf "(%d)" (StatHashtbl.find nums stat)
+		with Not_found -> ()
 
 	let dump_dom n ht stat =
 		try
@@ -226,7 +232,7 @@ module Dump(D: DISPLAYABLE) = struct
 			print_string "\n"
 		with Not_found -> ()
 
-	let rec dump_result n stack ht name =
+	let rec dump_result n stack ht name nums =
 		if List.mem name stack then
 			begin
 				indent n;
@@ -236,36 +242,36 @@ module Dump(D: DISPLAYABLE) = struct
 			begin
 				indent n;
 				Printf.printf "%s:\n" name;
-				dump_stat (n + 1) (name::stack) ht (get_stat name)
+				dump_stat (n + 1) (name::stack) ht (get_stat name) nums
 			end
 
-	and dump_stat n stack ht stat =
+	and dump_stat n stack ht stat nums =
 		match stat with
 		| Irg.NOP -> ()
 		| Irg.SEQ (s1, s2) ->
-			dump_stat n stack ht s1;
-			dump_stat n stack ht s2
+			dump_stat n stack ht s1 nums;
+			dump_stat n stack ht s2 nums
 		| Irg.IF_STAT (c, s1, s2) ->
 			dump_dom n ht stat;
-			indent n;
+			indent_num n stat nums;
 			print_string "if ";
 			Irg.print_expr c;
 			print_string " then\n";
-			dump_stat (n + 1) stack ht s1;
+			dump_stat (n + 1) stack ht s1 nums;
 			indent n;
 			print_string "else\n";
-			dump_stat (n + 1) stack ht s2;
+			dump_stat (n + 1) stack ht s2 nums;
 			indent n;
 			print_string "endif\n"
 		| Irg.SWITCH_STAT (c, cases, def) ->
 			dump_dom n ht stat
-		| Irg.LINE (_, _, stat) -> dump_stat n stack ht stat
+		| Irg.LINE (_, _, stat) -> dump_stat n stack ht stat nums
 		| Irg.EVAL name ->
 			dump_dom n ht stat;
-			dump_result n stack ht name
+			dump_result n stack ht name nums
 		| _ ->
 			dump_dom n ht stat;
-			indent (n - 2);
+			indent_num (n - 2) stat nums;
 			Irg.print_statement stat
 
 	(** Dump the full analysis result, that is, each result state
@@ -274,9 +280,16 @@ module Dump(D: DISPLAYABLE) = struct
 		@param name	Name of the attribute (usually "action")
 		@param out	Final state. *)
 	let dump ht name out =
-		dump_result 1 [] ht name;
+		dump_result 1 [] ht name null_numbers;
 		print_char '\t';
 		D.output stdout out;
 		print_char '\n'
+
+	let dump_numbered ht name out nums =
+		dump_result 1 [] ht name nums;
+		print_char '\t';
+		D.output stdout out;
+		print_char '\n'
+
 end
 

@@ -14,7 +14,8 @@ DOCS = \
 DOCFLAGS = \
 	-I irg -I gep
 
-mkdoc:
-	test -d || mkdir autodoc
-	ocamldoc -html -d autodoc $(DOCFLAGS) $(DOCS)
+autodoc: autodoc-force
 
+autodoc-force:
+	test -d autodoc || mkdir autodoc
+	ocamldoc -html -d autodoc $(DOCFLAGS) $(DOCS)

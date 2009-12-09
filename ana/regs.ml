@@ -30,7 +30,7 @@ end
 module PairMap = Map.Make(PairOrdering)
 
 
-module StatSet = Usedefs.StatSet
+(*module StatSet = Usedefs.StatSet*)
 
 
 (** Build the list of used variables in the given expression.
@@ -135,7 +135,7 @@ let worst_comp comps =
 	@param dus		Result of the def-use analysis for the current instruction.
 	@param f		Analysis-dependent test function.
 	@return			Set containing used statements. *)
-let build_used comps dus f =
+(*let build_used comps dus f =
 	let comp = Absint.StatHashtbl.find comps in
 	let du = Absint.StatHashtbl.find dus in
 
@@ -150,9 +150,9 @@ let build_used comps dus f =
 		| SETSPE (l, e) ->
 			let ul, uv = used_locs l in
 			let uv = RegSet.union uv (used_vars e) in
-			(* if Comput.has_dynamic (comp def) uv then set else
+			if Comput.has_dynamic (comp def) uv then set else
 			 !!WARNING!! Be careful. Should remove some assignments that
-			 may need to set fuzzy bit. *)
+			 may need to set fuzzy bit.
 			List.fold_left (record_use (du def)) (StatSet.add def set) uv
 		| NOP -> set
 		| _ -> failwith "too bad !" in
@@ -207,7 +207,7 @@ let build_used comps dus f =
 		if not used then set else
 		List.fold_left (record_use (du stat)) set uv in
 
-	process_call "action" [] StatSet.empty
+	process_call "action" [] StatSet.empty*)
 
 
 (** Collect all used vars and generates temporaries.
@@ -271,8 +271,30 @@ let collect_vars info comps used =
 	collect_call "action" [] PairMap.empty
 
 (* CODE GENERATION
+
+	REQUIRED RESULTS
+	* computability analysis
+		kind of content of register: STATIC, DYNAMIC, FUZZY
+		static_expr: expr -> BOOL (all used register are static)
+		dynamic_expr: expr -> BOOL (one of used register is dynamic)
+	* fuzzy analysis
+		may have a register a fuzzy value
+		maybe_fuzzy: ID x expr -> BOOL (in one state, it is fuzzy)
+		fuzzname: ID -> ID (name of the associated fuzzy boolean)
+
+	* involvement analysis
+		is a statement involved in the analysis
+		* definition analysis
+			registers defined by a statement
+		* use analysis
+			is statement used according to the analysis requirement
+		* requirement analysis
+			list of register whose definition is required at a program point
+		involved: stat -> BOOL
+		involved(s) = use(s) /\ (def(s) ^ req(s) != {})
+
 	T(s) =
-		{ Tu(s); Ts(s) }
+		{ Ts(s); Tu(s) }
 
 	Ts: stat -> stat
 		problem specific generation (usually canonical calls)
@@ -280,34 +302,62 @@ let collect_vars info comps used =
 	Tu: stat -> stat
 		usage specific generation
 
-		Tu[s = x[CONST k] <- e] =
-			if x not in used(s) then NOP else
-			if static(x[k]) then s else
-			if dynamic(x[k]) then { fuzname(x[k]) <- true } else
-			IF(||(y in used(e) / fuzzy(e)) fuzname(y), {fuzname(x[k]) <- true}, {s, fuzname(x[k]) <- false})
+		Tu[s] =
+			if involved(s) then Tus[s] else NOP
 
-		Tu[x <- e] = Tu[x[CONST 0] <- e]
+		let protect e s1 s2 =
+			let cond = AND{x[i] in e / maybe_fuzzy(x, i)} fuzzname(x)[i] in
+			IF(cond, s1, s2)
 
-		Tu[IF(c, s1, s2)] =
-			if static(c) then IF(c, T(s1, T(s2)) else
-			if dynamic(c) then fuzz(s1, s2) else
-			IF(||(x in used(c)) fuzname(y),
-				fuzz(s1, s2),
-				IF(c, T(s1), T(s2))
+		Tus[x[i] <- e] =
+			let all_fuzzy x =
+					foreach i in 0..|x|-1 do
+						fuzzname(x)[i] <- true
 
+			let assign x i e =
+				SEQ(
+					x[i] <- e,
+					if maybe_fuzzy(x, i) then fuzzname(x)[i] <- false else NOP
+				)
 
-	static(x) (/ s) = kind[s] = STATIC (form kind analysis)
-	static(e) (/ s) = &&(x in used(e)) static(x)
-	dynamic(x) (/ s) = kind[s] = DYNAMIC  (form kind analysis)
-	dynamic(e) (/ s) = &&(x in used(e)) dynamic(x)
-	fuzzy(x) (/ s) = kind[s] = FUZZY  (form kind analysis)
-	fuzname(x) = name of fuzzy boolean variable associated with x
-	used(s) = result from use analysis
-	used(e) = list of variables in expression e
+			let assign_fuzzy x i =
+				fuzzname(x)[i] <- true
 
-	fuzz(s1, s2) = generate code by fuzzing two possibilities
-		{ prolog; T(s1); next; T(s2); epilog; SEQ(x in defs(s1) U defs(s2)) {fuzname(x) <- true} }
-		prolog, next, epilog: analysis dependent generation
+			if not static_expr(i) then
+				all_fuzzy(x)
+			else if static_expr(e) then
+				assign(x, i, e)
+			else if dynamic_expr(e)
+				assign_fuzzy(x, i)
+			else
+				protect(e, assign(x, i, e), assign_fuzzy(x, i)
+
+		Tus[IF(c, s1, s2)] =
+			let join s1 s2 =
+				SEQ(
+					join_begin,
+					Tu[s1],
+					join_next,
+					Tu[s2],
+					join_end
+				)
+
+			if dynamic_expr(c) then
+				join s1 s2
+			else if static_expr(c) then
+				IF(c, Tu[s1], Tu[s2])
+			else
+				protect(c,
+					IF(c, Tu[s1], Tu[s2]),
+					join s1 s2)
+
+		Tus[s1; s2] = Tu[s1]; Tu[s2]
+
+		Tus[ID(e1, ..., en) =
+			let je = join(e1, ..., en) in
+			if dynamic_expr(ej) then NOP else
+			if static_expr(ej) then ID(e1, ..., en) else
+			protect(ej, ID(e1, ..., en))
 
 	ANALYSIS INTERFACE
 		Ts: stat -> stat	analysis dependent generation
@@ -328,17 +378,6 @@ let collect_vars info comps used =
 
 *)
 
-(* computability analysis *)
-(*module CompObs = Observer(Comput.Domain)
-module CompAna = Forward(CompObs)
-module CompState = Comput.State
-module CompDump = Dump(CompState)*)
-
-(* use-def analysis *)
-(*module UsedefsObs = Observer(Usedefs.Problem)
-module UsedefsAna = Forward(UsedefsObs)
-module UsedefsState = Usedefs.State
-module UsedefsDump = Dump(UsedefsState)*)
 
 (** Transoformation signature. *)
 type vars = (string * string) PairMap.t
@@ -467,28 +506,38 @@ module Make(T: TRANSFORMATION) = struct
 		Toc.prepare_call info "action";
 
 		(* def-use analysis *)
-		print_string "* Use-Defs analysis\n";
+		(*print_string "* Use-Defs analysis\n";
 		let ctx = Usedefs.Obs.make () in
 		let dom = Usedefs.Ana.run ctx "action" in
 		let du = fst ctx in
 		Usedefs.Dump.dump du "action" dom;
-		print_string "\n\n";
+		print_string "\n\n";*)
 
 		(* computability *)
 		print_string "* computability analysis\n";
-		let ctx = Comput.Obs.make inst in
-		let dom = Comput.Ana.run ctx "action" in
-		let comp = fst ctx in
-		Comput.Dump.dump comp "action" dom;
+		let comp, dom = Comput.analyze inst "action" in
+		Comput.dump (comp, dom) "action";
+		print_string "\n\n";
+
+		(* compute defs *)
+		print_string "* definition analysis\n";
+		let comp, dom = Def.analyze inst "action" in
+		Def.dump (comp, dom) "action";
+		print_string "\n\n";
+
+		(* Property Dependent analysis *)
+		print_string "* property dependence analysis\n";
+		let comp, dom = PropDep.analyze (fun s -> fst (T.use s)) "action" in
+		PropDep.dump (comp, dom) "action";
 		print_string "\n\n";
 
 		(* compute used *)
-		print_string "* used statement analysis\n";
-		let used = build_used comp du T.use in
+		(*print_string "* used statement analysis\n";
+		let used = build_used comp du T.use in*)
 
 		(* compute used_vars *)
-		print_string "* used variables\n";
-		let used_vars = collect_vars info comp used in
+		(*print_string "* used variables\n";
+		let used_vars = collect_vars info comp used in*)
 
 		(* translate *)
 		(*let lst = translate info comp used_vars used in
