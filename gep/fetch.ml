@@ -284,8 +284,38 @@ let keep_value_on_mask num mask =
 let calcul_value_on_mask sp mask =
 	keep_value_on_mask (Int32.logand (get_int32_value sp) mask) mask
 
+
+
 (* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
 type dec_tree = DecTree of int32 list * Irg.spec list * int32 * int32 * dec_tree list
+
+		
+let print_dec_tree tr =
+	let name_of t =
+		let rec aux l s =
+			match l with
+			[] ->
+				s
+			| a::b ->
+				aux b (if (String.length s)=0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
+		in
+		match t with
+		DecTree(i, s, m, g, d) ->
+			aux i ""
+	in
+	match tr with
+	DecTree(int_l, sl, msk, gm, dt_l) ->
+		begin
+		Printf.printf "================================================================\nPrinting tree, dectree's name : %s\n" (name_of tr);
+		Printf.printf "mask : %lX\n" msk;
+		Printf.printf "global : %lX\n" gm;
+		Printf.printf "spec : ";
+		List.iter (fun x -> Printf.printf "\t%s, mask=%s, val=%s\n" (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)) sl;
+		(*Printf.printf "\n"*)
+		end
+
+let print_dec_tree_list tl =
+	List.iter (fun x -> begin print_char '\n'; print_dec_tree x end) tl
 
 
 (* returns the amount of set bits in a 32 bit number, help to get mask's "length" *)
@@ -310,6 +340,11 @@ let get_global_mask_length dt =
 	DecTree(_, _, _, mg, _) ->
 		get_amount_of_set_bits mg
 
+let get_instr_list dt =
+	match dt with
+	DecTree(_, sl, _, _, _) ->
+		sl
+
 
 (* return a list like [(v_i, i_i),...] 
 the v_is will describe all mask values, i_i will be an associated instruction,
@@ -321,6 +356,9 @@ let create_son_list_of_dec_node dt =
 			(* one instr => terminal node *)
 			[]
 		| a::b ->
+			(* !!DEBUG!! *)
+			(*print_string "\ncreating dec_node son, val_on_mask=";
+			Printf.printf "%lX, spec=%s\n" (calcul_value_on_mask a msk) (Iter.get_name a);*)
 			((calcul_value_on_mask a msk), a)::(aux msk b)
 		)
 	in
@@ -358,12 +396,29 @@ let rec build_dectrees vl msk gm il =
 	| a::b ->
 		match a with
 		(v, sl) ->
-			DecTree(il@[v], sl, Int32.logand (calcul_mask sl Int32.zero) (Int32.lognot gm), calcul_mask sl Int32.zero, [])::(build_dectrees b msk gm il)
+			let dt = DecTree(il@[v], sl, Int32.logand (calcul_mask sl Int32.zero) (Int32.lognot gm), calcul_mask sl Int32.zero, [])(* ::(build_dectrees b msk gm il) *)
+			in
+			(* !!DEBUG!! *)
+			(*print_dec_tree dt;*)
+			dt::(build_dectrees b msk gm il)
 
 let build_sons_of_tree tr =
 	match tr with
 	DecTree(int_l, sl, msk, gm, dt_l) ->
-		build_dectrees (sort_son_list (create_son_list_of_dec_node tr)) msk gm int_l
+		let res = build_dectrees (sort_son_list (create_son_list_of_dec_node tr)) msk gm int_l
+		in
+		(* !!DEBUG!! *)
+		(*Printf.printf "build_sons, %d in father, %d sons\n" (List.length sl) (List.length res);flush stdout;*)
+		if (List.length res) == 1 && (List.length (get_instr_list (List.hd res))) > 1 then
+			begin
+			output_string stderr "ERROR: some instructions seem to have same image.\n";
+			output_string stderr "here is the list: ";
+			List.iter (fun x -> Printf.fprintf stderr "%s, " (Iter.get_name x)) (get_instr_list (List.hd res));
+			output_string stderr "\n";
+			failwith "cannot continue with 2 instructions with same image"
+			end
+		else
+			res
 
 let build_dec_nodes m =
 	let list_of_all_op_specs n =
@@ -379,12 +434,15 @@ let build_dec_nodes m =
 	let rec stop_cond l =
 		match l with
 		[] ->
+			(*print_string "stop_cond=true\n";flush stdout;*)
 			true
 		| a::b ->
 			if node_cond a then
-				stop_cond b
+			(*begin print_string "stop_cond=[rec]\n";flush stdout;*)
+				stop_cond b (*end*)
 			else
-				false
+			(*begin print_string "stop_cond=false\n";flush stdout;*)
+				false (*end*)
 	in
 	let get_sons x =
 		match x with
@@ -408,32 +466,6 @@ let build_dec_nodes m =
 	| _ ->
 		[]
 		
-let print_dec_tree tr =
-	let name_of t =
-		let rec aux l s =
-			match l with
-			[] ->
-				s
-			| a::b ->
-				aux b (if (String.length s)=0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
-		in
-		match t with
-		DecTree(i, s, m, g, d) ->
-			aux i ""
-	in
-	match tr with
-	DecTree(int_l, sl, msk, gm, dt_l) ->
-		begin
-		Printf.printf "Printing tree, dectree's name : %s\n" (name_of tr);
-		Printf.printf "mask : %lX\n" msk;
-		Printf.printf "global : %lX\n" gm;
-		Printf.printf "spec : ";
-		List.iter (fun x -> Printf.printf "\t%s, mask=%s, val=%s\n" (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)) sl;
-		(*Printf.printf "\n"*)
-		end
-
-let print_dec_tree_list tl =
-	List.iter (fun x -> begin print_char '\n'; print_dec_tree x end) tl
 
 let test_build_dec_nodes n =
 	match n with
@@ -752,7 +784,7 @@ let output_all_table_C_decl out num_bits =
 		()
 		
 
-let test_sort n =
+let test_sort _ =
 	let name_of t =
 		let rec aux l s =
 			match l with
@@ -765,14 +797,11 @@ let test_sort n =
 		DecTree(i, s, m, g, d) ->
 			aux i "name:"
 	in
-	let dl = sort_dectree_list (build_dec_nodes 0)
+	let dl = (*sort_dectree_list ( *)build_dec_nodes 0
 	in
 	let aux x =
 		Printf.printf "%s\n" (name_of x)
 	in
-	match n with
-	0 ->
-		List.iter aux dl
-	| _ ->
-		()
+	print_string "let's test!\n";
+	List.iter aux dl
 
