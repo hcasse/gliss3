@@ -575,7 +575,6 @@ let resolve_alias name idx ub lb =
 		match get_alias attrs with
 		| Irg.LOC_NONE -> v
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias (LOC_CONCAT)"
-		| Irg.LOC_EXPR _ -> failwith "bad relocation alias (complex expr)"
 		| Irg.LOC_REF (tr, r, idxp, ubp, lbp) ->
 			let v = set_name r v in
 			let v = if idxp = Irg.NONE then v else shift idxp v in
@@ -863,12 +862,6 @@ let rec prepare_stat info stat =
 			failwith "no location to set (3)"
 		| Irg.LOC_REF (_, r, i, u, l) ->
 			unalias_set info stats r i u l expr
-		| Irg.LOC_EXPR(e) ->
-			(* is it ok? *)
-			(* !!TODO!! testing *)
-			let (st, ex) = prepare_expr info Irg.NOP e 
-			in
-			Irg.SEQ ( Irg.SEQ (st, stats), Irg.SET(loc, expr))
 		| Irg.LOC_CONCAT (t, l1, l2) ->
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
