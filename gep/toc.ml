@@ -853,9 +853,9 @@ let rec prepare_stat info stat =
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 
 	let rec prepare_set stats loc expr =
-		print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
+		(*print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
 		print_string ", expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
-		print_string "stat="; Irg.print_statement stats;			(* !!DEBUG!! *)
+		print_string "stat="; Irg.print_statement stats;*)			(* !!DEBUG!! *)
 		trace "prepare_set 1";
 		match loc with
 		| Irg.LOC_NONE ->
