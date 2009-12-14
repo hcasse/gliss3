@@ -22,8 +22,7 @@ REG_SOURCES = \
 	regSet.ml \
 	state.ml \
 	comput.ml \
-	def.ml \
-	propDep.ml \
+	usedefs.ml \
 	regs.ml
 regs_LIBS = str unix ../irg/irg ../gep/libgep
 $(eval $(call ocaml_prog,regs,$(REG_SOURCES)))

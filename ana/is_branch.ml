@@ -52,10 +52,13 @@ module IsBranchDomain = struct
 
 	let includes d2 d1 = d1 <= d2
 
-	let observe _ d _ = d
+	let observe_in _ _ d = d
+	let observe_out _ _ d = d
 
 	let disjoin _ _ d = (d, d)
 
+	let output c d =
+		output_string c (if d then "true" else "false")
 end
 
 (* IsBranch module *)
