@@ -104,7 +104,6 @@ type expr =
 type location =
 	| LOC_NONE												(** null location *)
 	| LOC_REF of type_expr * string * expr * expr * expr	(** (type, memory name, index, lower bit, upper bit) *)
-	| LOC_EXPR of expr					(** for complex expression such as if or switch, anything that cannot be put in a LOC_REF *)
 	| LOC_CONCAT of type_expr * location * location		(** concatenation of locations *)
 
 
@@ -667,10 +666,6 @@ let rec output_location out loc =
 				output_expr out up;
 				output_string out ">"
 			end
-	| LOC_EXPR(e) ->
-		output_string out "(";
-		output_expr out e;
-		output_string out ")"
 	| LOC_CONCAT (_, l1, l2) ->
 		output_location out l1;
 		output_string out "::";
@@ -732,7 +727,7 @@ let rec output_statement out stat =
 	| SETSPE (loc, exp) ->
 		output_string out "\t\t";
 		output_location out loc;
-		output_string out "=";
+		output_string out "=[[SETSPE]]";
 		output_expr out exp;
 		output_string out ";\n"
 	| LINE (file, line, s) ->
@@ -1309,15 +1304,13 @@ let rec change_name_of_var_in_location loc var_name new_name =
 			change_name_of_var_in_expr i var_name new_name,
 			change_name_of_var_in_expr l var_name new_name,
 			change_name_of_var_in_expr u var_name new_name)
-	| LOC_EXPR(e) ->
-		LOC_EXPR(change_name_of_var_in_expr e var_name new_name)
 	| LOC_CONCAT(t, l1, l2) ->
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
 
 let rec substitute_in_location name op loc =
-(*print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
+print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
 print_string "\n\tloc="; print_location loc;		(* !!DEBUG!! *)
-print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)*)
+print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)
 	let get_mode_value sp =
 		match sp with
 		AND_MODE(_, _, v, _) -> v
@@ -1330,17 +1323,7 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)*)
 	in
 	match loc with
 	LOC_NONE ->
-		(* !!DEBUG!! *)
-		(*print_string "========res=";
-		print_location loc;
-		print_string "\n\n\n";*)
 		loc
-	| LOC_EXPR(e) ->
-		(* !!DEBUG!! *)
-		(*print_string "========res=";
-		print_location (LOC_EXPR(substitute_in_expr name op e));
-		print_string "\n\n\n";*)
-		LOC_EXPR(substitute_in_expr name op e)
 	| LOC_REF(t, s, i, l, u) ->
 		let rec subst_mode_value mv =
 			match mv with
@@ -1349,7 +1332,7 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)*)
 			| ITEMOF(typ, n, idx) ->
 				(* can replace only if loc is "simple" (ie i = NONE), we can't express n[idx][i] *)
 				if i=NONE then
-					LOC_REF(typ, n, idx, l, u)
+					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (irg.ml::substitute_in_location)"
 			| BITFIELD(typ, n, lb, ub) ->
@@ -1359,24 +1342,28 @@ print_string "\nspec ="; print_spec op;			(* !!DEBUG!! *)*)
 						REF(nn) ->
 							LOC_REF(typ, nn, NONE, lb, ub)
 						| _ ->
-							LOC_EXPR(mv)
+							failwith "cannot substitute here (BITFIELD 1), loc_expr removed (irg.ml::substitute_in_location)"
+							(*LOC_EXPR(mv)*)
 						)
 					else
-						LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))
+						failwith "cannot substitute here (BITFIELD 2), loc_expr removed (irg.ml::substitute_in_location)"
+						(*LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))*)
 				else
 					(* we can't express n<lb..ub>[i], it is meaningless *)
-					failwith "cannot substitute a var here (BITFIELD) (irg.ml::substitute_in_location)"
+					failwith "cannot substitute a var here (BITFIELD 3) (irg.ml::substitute_in_location)"
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
 				if i=NONE then
 					if u=NONE && l=NONE then
-						LOC_EXPR(mv)
+						failwith "cannot substitute here (_ 1), loc_expr removed (irg.ml::substitute_in_location)"
+						(*LOC_EXPR(mv)*)
 					else
-						LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))
+						failwith "cannot substitute here (_ 2), loc_expr removed (irg.ml::substitute_in_location)"
+						(*LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))*)
 				else
 					(* how could we express stg like (if .. then .. else .. endif)[i]<l..u>, it would be meaningless most of the time *)
-					failwith "cannot substitute a var here (_) (irg.ml::substitute_in_location)"
+					failwith "cannot substitute a var here (_ 3) (irg.ml::substitute_in_location)"
 		in
 		(* change if op is a AND_MODE and s refers to it *)
 		(* as mode values, we will accept only those "similar" to a LOC_REF (REF, ITEMOF, BITFIELD, (FIELDOF)) *)
@@ -1427,6 +1414,8 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 		else
 			EVALIND(n, attr)
 	| SET(l, e) ->
+		(* !!DEBUG!! *)
+		print_string "substitute_in_stat, SET,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;
 		SET(substitute_in_location name op l, substitute_in_expr name op e)
 	| CANON_STAT(n, el) ->
 		CANON_STAT(n, el)
@@ -1437,6 +1426,8 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 	| SWITCH_STAT(e, es_l, s) ->
 		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
 	| SETSPE(l, e) ->
+		(* !!DEBUG!! *)
+		print_string "substitute_in_stat, SETSPE,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;
 		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
 		LINE(s, i, substitute_in_stat name op st)
