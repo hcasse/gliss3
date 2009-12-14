@@ -231,19 +231,16 @@ let compute_contain attr =
 
 	and process_stat stack stat cont map =
 		let map = Absint.StatMap.add stat cont map in
+		let cont = stat::cont in
 		match stat with
 		| Irg.SEQ (s1, s2) ->
-			let cont = stat::cont in
 			process_stat stack s2 cont (process_stat stack s1 cont map)
 		| Irg.IF_STAT (_, s1, s2) ->
-			let cont = stat::cont in
 			process_stat stack s2 cont (process_stat stack s1 cont map)
 		| Irg.LINE (_, _, stat) ->
-			let cont = stat::cont in
 			process_stat stack stat cont map
-		(* Irg.SWITCH_STAT ... *)
+		(* !!TODO!! SWITCH_STAT *)
 		| EVAL name ->
-			let cont = stat::cont in
 			process_call stack name cont map
 		| _ -> map in
 
@@ -443,171 +440,6 @@ let compute_involved comps conts uds deps =
 	snd (process base)
 
 
-(* !!NOTE!!
- *
- * DYNAMIC INFORMATION USAGE
- *	- assignment to register / temporary that is ever dynamic is not used
- *		and its dependencies are not used by this assignment
- *	- condition containing dynamic register / temporary is ever fuzzy
- *	- dynamic register / temporary does not need any storage
- *
- * STATIC INFORMATION USAGE
- *	- requires a storage
- *	- does not need fuzzy bit
- *
- * FUZZY INFORMATION USAGE
- *	- requires a storage
- *	- requires a fuzzy bit
- *
- * Usage may be of four kinds:
- *	- NOT_USED -- code generation not needed
- *	- USED -- statement is used as itself
- *	- PROP -- only used to generate the property computation
- *	- BOTH -- used by itself and by property computation
- *)
-
-
-(** Compute if statement of the given attribute are used in the
-	generation.
-	@param comps	Result of the computability analysis for
-					the current instruction.
-	@param dus		Result of the def-use analysis for the current instruction.
-	@param f		Analysis-dependent test function.
-	@return			Set containing used statements. *)
-(*let build_used comps dus f =
-	let comp = Absint.StatHashtbl.find comps in
-	let du = Absint.StatHashtbl.find dus in
-
-	let rec record_use du set (id, idx) =
-		let defs = Usedefs.State.get du id idx in
-		StatSet.fold record_set defs set
-
-	and record_set def set =
-		if StatSet.mem def set then set else
-		match def with
-		| SET (l, e)
-		| SETSPE (l, e) ->
-			let ul, uv = used_locs l in
-			let uv = RegSet.union uv (used_vars e) in
-			if Comput.has_dynamic (comp def) uv then set else
-			 !!WARNING!! Be careful. Should remove some assignments that
-			 may need to set fuzzy bit.
-			List.fold_left (record_use (du def)) (StatSet.add def set) uv
-		| NOP -> set
-		| _ -> failwith "too bad !" in
-
-	let rec process_call name stk set =
-		if List.mem name stk then set
-		else process (Absint.get_stat name) (name::stk) set
-
-	and process stat stk set =
-		let set = match stat with
-			| NOP -> set
-			| SEQ (s1, s2) ->
-				let set = process s2 stk (process s1 stk set) in
-				if (StatSet.mem s1 set) || (StatSet.mem s2 set)
-				then StatSet.add stat set
-				else set
-			| EVAL name -> process_call name stk set
-			| EVALIND _ -> failwith "unsupported"
-			| SET (l, e)
-			| SETSPE (l, e) ->
-				record_set stat set
-			| IF_STAT (c, s1, s2) ->
-				let set = process s2 stk (process s1 stk set) in
-				if (StatSet.mem s1 set) || (StatSet.mem s2 set) then
-					let set = StatSet.add stat set in
-					let uv = used_vars c in
-					if Comput.has_dynamic (comp stat) uv
-					then set
-					else List.fold_left (record_use (du stat)) set uv
-				else set
-			| SWITCH_STAT (c, cs, d) ->
-				let (used, set) =
-					List.fold_left
-						(fun (used, set) s ->
-							let set = process s stk set in
-							(used || (StatSet.mem s set), set))
-						(false, set)
-						(d::(snd (List.split cs))) in
-				if not used then set else
-				let set = StatSet.add stat set in
-				let uv = used_vars c in
-				if Comput.has_dynamic (comp stat) uv
-				then set
-				else List.fold_left (record_use (du stat)) set uv
-			| LINE (file, line, s) ->
-				let set = process s stk set in
-				if StatSet.mem s set
-				then StatSet.add stat set
-				else set
-			| _ -> set in
-		let (used, uv) = f stat in
-		if not used then set else
-		List.fold_left (record_use (du stat)) set uv in
-
-	process_call "action" [] StatSet.empty*)
-
-
-(** Collect all used vars and generates temporaries.
-	@param info		Generation information.
-	@param comps	Computabilties hashtable.
-	@param used		Used hashtable.
-	@return			Set of used variables with temporary and fuzzy temporary. *)
-(*let collect_vars info fuzzy =
-	let worst = worst_comp comps in
-
-	let declare_fuzzy id ix =
-		if (PairMap.find (id, ix) worst) = Comput.STATIC then ""
-		else Toc.new_temp info BOOL in
-
-	let check map id ix =
-		match get_symbol id with
-		| REG _
-		| VAR _ ->
-			(try
-				ignore (PairMap.find (id, ix) map);
-				map
-			with Not_found ->
-				PairMap.add (id, ix) (
-						Toc.new_temp info (Sem.type_from_id id),
-						declare_fuzzy id ix
-					) map)
-		| _ -> map in
-
-	let rec collect_loc loc map =
-		match loc with
-		| LOC_NONE -> map
-		| LOC_CONCAT(_, l1, l2) -> collect_loc l1 (collect_loc l2 map)
-		| LOC_REF(_, id, Irg.NONE, _, _) -> check map id 0
-		| LOC_REF(_, id, ix, _, _) ->
-			try check map id (Sem.to_int (Sem.eval_const ix))
-			with Sem.SemError _ -> map in
-
-	let rec collect_call name stk map =
-		if List.mem name stk then map else
-		collect (Absint.get_stat name) (name::stk) map
-
-	and collect stat stk map =
-		if not (StatSet.mem stat used) then map else
-		match stat with
-		| SEQ (s1, s2) -> collect_list [s1; s2] stk map
-		| EVAL name -> collect_call name stk map
-		| EVALIND _ -> failwith "unsupported"
-		| SET (l, _)
-		| SETSPE (l, _) -> collect_loc l map
-		| IF_STAT (c, s1, s2) -> collect_list [s1; s2] stk map
-		| SWITCH_STAT (_, cs, d) -> collect_list (d::(snd (List.split cs))) stk map
-		| LINE (_, _, s) -> collect s stk map
-		| _ -> map
-
-	and collect_list sl stk map =
-		match sl with
-		| [] -> map
-		| s::t -> collect s stk map in
-
-	collect_call "action" [] PairMap.empty*)
-
 (** Transoformation signature. *)
 type vars = (string * string) PairMap.t
 module type TRANSFORMATION = sig
@@ -638,9 +470,12 @@ module Make(T: TRANSFORMATION) = struct
 		Toc.set_inst info inst;
 		Toc.find_recursives info "action";
 		Toc.prepare_call info "action";
-		Absint.number_attr "action";
 
-		let get_stat name = Toc.StringHashtbl.find info.Toc.attrs name in
+		(* move symbols from info IRG map *)
+		Toc.StringHashtbl.iter
+			(fun name stat -> Irg.add_attr (ATTR_STAT (name, stat)))
+			info.Toc.attrs;
+		Absint.number_attr "action";
 
 		(* STEP 1: computability *)
 		print_string "STEP 1: computability analysis\n";
@@ -773,12 +608,19 @@ module Make(T: TRANSFORMATION) = struct
 
 		and trans_call name =
 			let stat = get_stat name in
-			print_statement stat;
 			let stat = trans_stat stat in
 			print_statement stat;
-			Toc.StringHashtbl.replace info.Toc.attrs name stat in
+			Irg.add_attr (ATTR_STAT (name, stat)) in
 
 		trans_call "action";
+		print_string "\n";
+
+		(* move symbols from IRG map to info *)
+		Toc.StringHashtbl.iter
+			(fun name _ ->
+				Toc.StringHashtbl.replace info.Toc.attrs name (get_stat name);
+				Irg.rm_symbol name)
+			info.Toc.attrs;
 
 		(* STEP 7: generate the code *)
 		print_string "STEP 7: generate the code\n\n";
@@ -797,7 +639,7 @@ module WriteTransformer = struct
 	let uniq_id = ref 0
 	let new_id _ =
 		incr uniq_id;
-		Printf.sprintf "__res_%d" !uniq_id
+		Printf.sprintf "__wregs_%d" !uniq_id
 
 	let is_reg name =
 		match get_symbol name with
@@ -815,7 +657,7 @@ module WriteTransformer = struct
 			SEQ (s1, s2)
 		| LOC_REF (_, id, ix, _, _) ->
 			if not (is_reg id) then NOP else
-			CANON_STAT("__add_written", [EINLINE ("__" ^ id); ix])
+			CANON_STAT("__wregs_add", [EINLINE (String.uppercase id); ix])
 
 	let use _ stat =
 		match stat with
@@ -827,24 +669,10 @@ module WriteTransformer = struct
 		let before = new_id () in
 		let second = new_id () in
 		(
-			INLINE (Printf.sprintf "written_copy(%s, _result);" before),
+			INLINE (Printf.sprintf "__wregs_copy(%s, _result);" before),
 			INLINE (Printf.sprintf "%s = _result; _result = %s;" second before),
-			INLINE (Printf.sprintf "written_join(_result, %s); written_free(%s); " second second)
+			INLINE (Printf.sprintf "__wregs_join(_result, %s); __wregs_free(%s); " second second)
 		)
-
-	(*let prolog (info: Toc.info_t) =
-		let rec declare i =
-			if i = 0 then "*_result = written_alloc();"
-			else (Printf.sprintf "*__res_%d, " i) ^ (declare (i - 1)) in
-		let res = INLINE ("written_t " ^ (declare !uniq_id)) in
-		uniq_id := 0;
-		res
-
-	let epilog (info: Toc.info_t) =
-		INLINE "return _result;"
-
-	let translate (info: Toc.info_t) (stat: Irg.stat) (vars: vars) =
-		NOP*)
 
 end
 

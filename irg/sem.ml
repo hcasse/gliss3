@@ -838,6 +838,8 @@ let check_set_stat l e =
 			t
 		| LOC_CONCAT(t, _, _) ->
 			t
+		| LOC_EXPR(e) ->
+			get_type_expr e
 	in
 			(* !!DEBUG!! *)
 			(*print_string "check_set_stat\n";
@@ -1402,6 +1404,7 @@ let get_loc_type loc =
 	| LOC_NONE -> NO_TYPE
 	| LOC_REF (t, _, _, _, _) -> t
 	| LOC_CONCAT (t, _, _) -> t
+	| LOC_EXPR(e) -> get_type_expr e
 
 
 (** Get the type of location reference.
