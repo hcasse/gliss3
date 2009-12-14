@@ -233,6 +233,9 @@ let get_symbol n =
 	@param sym	Symbol to add.
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym =
+
+
+
 	(*
 	transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
 	into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
@@ -699,7 +702,12 @@ let rec output_statement out stat =
 		output_string out ";\n"
 	| CANON_STAT (ch, expr_liste) ->
 		Printf.fprintf out "\t\t\"%s\" (" ch;
-		List.iter (output_expr out) expr_liste ;
+		ignore (List.fold_left
+			(fun f e ->
+				if not f then output_string out ", ";
+				output_expr out e; false)
+			true
+			expr_liste);
 		output_string out ");\n"
 	| ERROR ch ->
 		Printf.fprintf out "\t\t error %s;\n" ch
@@ -1705,7 +1713,7 @@ let get_spec_from_expr e spec_params =
 			| _ ->
 				failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux::BITFIELD)"
 			)
-		| _ -> 
+		| _ ->
 			failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
 	in
 	(* !!DEBUG!! *)

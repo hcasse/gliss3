@@ -58,7 +58,10 @@ module DefSet = struct
 	let join s1 s2 = StatSet.union s1 s2
 	let output out s =
 		output_string out "{ ";
-		StatSet.iter (fun e -> output_statement out e; output_string out ", ") s;
+		ignore(StatSet.fold (fun stat fst ->
+			if not fst then output_string out ", ";
+			Printf.fprintf out "(%d)" (Absint.number_of stat);
+			false) s true);
 		output_string out " }";
 end
 
@@ -87,16 +90,19 @@ module Problem = struct
 				State.set s id 0 (StatSet.singleton stat)
 			| LOC_REF (_, id, ix, _, _) ->
 				try State.set s id (Sem.to_int (Sem.eval_const ix)) (StatSet.singleton stat)
-				with Sem.SemError _ -> State.set_all s id StatSet.empty in
+				with Sem.SemError _ -> State.set_all s id (StatSet.singleton stat) in
 		match stat with
 		| SET (l, e)
 		| SETSPE(l, e) -> set l state
 		| _ -> state
 
 	let includes s1 s2 = State.includes s1 s2
-	let observe _ state stat = state
+	let observe_in _ _ d = d
+	let observe_out _ _ d = d
 	let disjoin _ stat state = (state, state)
 	let join _ stat s1 s2 = State.join s1 s2
+
+	let output = State.output
 end
 
 
@@ -109,4 +115,23 @@ module Ana = Absint.Forward(Obs)
 
 
 (** Dump module for use-def state *)
-module Dump = Absint.Dump(State)
+module Dump = Absint.Dump(Obs)
+
+
+(** Analyze for use-defs chains the given instruction for the given
+	attribute.
+	@param attr		Attribute to handle.
+	@return			((statement, domain) table, exit domain) *)
+let analyze attr =
+	let ctx = Obs.make () in
+	let dom = Ana.run ctx attr in
+	let comp = fst ctx in
+	(comp, dom)
+
+
+(** Dump the result of the analysis.
+	@param comp		Domain table.
+	@param dom		Exit domain.
+	@param attr		Analyzed attribute. *)
+let dump (comp, dom) attr =
+	Dump.dump_numbered comp attr dom;
