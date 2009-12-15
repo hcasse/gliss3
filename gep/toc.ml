@@ -861,6 +861,9 @@ let rec prepare_stat info stat =
 		| Irg.LOC_NONE ->
 			failwith "no location to set (3)"
 		| Irg.LOC_REF (_, r, i, u, l) ->
+			let (stats, i) = prepare_expr info stats i in
+			let (stats, u) = prepare_expr info stats u in
+			let (stats, l) = prepare_expr info stats l in
 			unalias_set info stats r i u l expr
 		| Irg.LOC_CONCAT (t, l1, l2) ->
 			let tmp = new_temp info t in
