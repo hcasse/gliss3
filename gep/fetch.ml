@@ -684,8 +684,8 @@ let output_table_C_decl out dt dl =
 				let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				begin
-				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (Iter.get_name x) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
+				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
 				end
 			else
 				Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons))
