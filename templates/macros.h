@@ -11,18 +11,19 @@ $(foreach memories)
 $(end)
 
 
-/* instruction size macros */
-$(foreach instructions)
+/* instruction size macros, not used anymore, replaced by more efficient and less costly */
+/*$(foreach instructions)
 #define $(PROC)_$(IDENT)_SIZE	$(size)
-$(end)
+$(end)*/
 
 
-/* parameter access macros */
+/* parameter access and instruction size macros */
+#define $(PROC)_UNKNOWN___ISIZE			$(min_instruction_size)
 $(foreach instructions)
 #define $(PROC)_$(IDENT)___IADDR		((inst)->instrinput[0].val.addr)
 #define $(PROC)_$(IDENT)___ISIZE		((inst)->instrinput[1].val.size)
 $(foreach params)
-#define $(PROC)_$(IDENT)_$(PARAM) ((inst)->instrinput[$(INDEX) + 2].val.$(param_type))
+#define $(PROC)_$(IDENT)_$(PARAM)		((inst)->instrinput[$(INDEX) + 2].val.$(param_type))
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */

@@ -166,9 +166,9 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.get_init_code () ))) ::
-	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
-	("PC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.pc_name))) ::
-	("PPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.ppc_name))) ::
+	("NPC_NAME", Templater.TEXT (fun out -> output_string out  ((*String.uppercase*) info.Toc.npc_name))) ::
+	("PC_NAME", Templater.TEXT (fun out -> output_string out  ((*String.uppercase*) info.Toc.pc_name))) ::
+	("PPC_NAME", Templater.TEXT (fun out -> output_string out  ((*String.uppercase*) info.Toc.ppc_name))) ::
 	(App.make_env info maker)
 
 

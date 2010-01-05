@@ -1316,9 +1316,9 @@ let rec change_name_of_var_in_location loc var_name new_name =
 		LOC_CONCAT(t, change_name_of_var_in_location l1 var_name new_name, change_name_of_var_in_location l2 var_name new_name)
 
 let rec substitute_in_location name op loc =
-print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
+(*print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
 print_string "\n\tloc="; print_location loc;		(* !!DEBUG!! *)
-print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)
+print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)*)
 	let get_mode_value sp =
 		match sp with
 		AND_MODE(_, _, v, _) -> v
@@ -1423,7 +1423,7 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 			EVALIND(n, attr)
 	| SET(l, e) ->
 		(* !!DEBUG!! *)
-		print_string "substitute_in_stat, SET,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;
+		(*print_string "substitute_in_stat, SET,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;*)
 		SET(substitute_in_location name op l, substitute_in_expr name op e)
 	| CANON_STAT(n, el) ->
 		CANON_STAT(n, el)
@@ -1435,7 +1435,7 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
 	| SETSPE(l, e) ->
 		(* !!DEBUG!! *)
-		print_string "substitute_in_stat, SETSPE,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;
+		(*print_string "substitute_in_stat, SETSPE,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;*)
 		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
 		LINE(s, i, substitute_in_stat name op st)
