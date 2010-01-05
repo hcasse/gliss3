@@ -665,7 +665,7 @@ let output_table_C_decl out dt dl =
 		in
 		List.find predicate d_l
 	in
-	(* the way the nodes are built implies that a terminal is a node containing spec of 1 instruction, the other nodes being "empty" *)
+	(* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
 	let is_terminal_node d =
 		match d with
 		DecTree(_, s, _, _, _) ->
@@ -684,8 +684,8 @@ let output_table_C_decl out dt dl =
 				let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				begin
-				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (Iter.get_name (get_spec_of_term (get_i_th_son i sons))));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (Iter.get_name x) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
+				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
 				end
 			else
 				Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons))
@@ -706,10 +706,22 @@ let output_table_C_decl out dt dl =
 			produce_decode_ent (i+1)
 			end
 	in
+	(* !!DEBUG!! *)
+	match dt with
+	DecTree(i_l, s_l, lm, gm, ss) ->
+	print_string ("node treated[" ^ (name_of dt) ^ "], spec=["); 
+	List.map (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
+	print_string  "], sons=[";
+	List.map (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
+	print_string "]\n";
 	if is_terminal_node dt then
-		()
+		(* !!DEBUG!! *)
+		print_string ((name_of dt) ^ ": [[terminal node]]\n")
+		(*()*)
 	else
 		begin
+		(* !!DEBUG!! *)
+		print_string ((name_of dt) ^ ": [[normal node]]\n");
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
@@ -726,7 +738,7 @@ let sort_dectree_list d_l =
 		DecTree(i, _, _, _, _) ->
 			i
 	in
-	(* same specification as a standard compare function, x<y means x is "bigger" than y (eg: 12_3 < 13_3_5, "nothing" < x for any x) *)
+	(* same specification as a standard compare function, x>y means x is "bigger" than y (eg: 12_3 < 13_3_5, "nothing" < x for any x) *)
 	let rec comp_int32_list x y =
 		match x with
 		[] ->

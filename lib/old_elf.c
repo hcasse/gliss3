@@ -1044,25 +1044,25 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 		gliss_panic("param error in gliss_registers_fill_env");
 
 	/* r1 will hold the stack pointer */
-	state->GPR[1] = env->stack_pointer;
+//	state->GPR[1] = env->stack_pointer;
 
 	/* argc goes in r3 */
-	state->GPR[3] = env->argc;
+//	state->GPR[3] = env->argc;
 
 	/* r4 recieves the address of argv's pointer array */
-	state->GPR[4] = env->argv_addr;
+//	state->GPR[4] = env->argv_addr;
 
 	/* we do the same with r5 and envp */
-	state->GPR[5] = env->envp_addr;
+//	state->GPR[5] = env->envp_addr;
 
 	/* idem with r6 and auxv */
 	/*state->GPR[6] = env->auxv_addr; !!TODO!! */
 
 	/* r7 contains a termination function pointer, 0 in our case */
-	state->GPR[7] = 0;
+//	state->GPR[7] = 0;
 
 	/* fpscr set to "round to nearest" mode */
-	state->FPSCR = 0;
+//	state->FPSCR = 0;
 
 
 	/* !!DEBUG!! */

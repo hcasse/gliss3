@@ -28,6 +28,91 @@ exception SemErrorWithFun of string * (unit -> unit)
 exception ManyDefaultsInSwitch
 
 
+
+
+(*
+transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
+into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
+before inserting the definition in the table
+*)
+(*let translate_old_style_aliases s =
+	let is_array nm =
+		match get_symbol nm with
+		MEM(_, i, _, _)
+		| REG(_, i, _, _)
+		| VAR(_, i, _) ->
+			i > 1
+		| _ ->
+			false
+	in
+	let get_type_length t =
+		match t with
+		| BOOL -> 1
+		| INT n -> n
+		| CARD n -> n
+		| FIX (n,m) -> n + m
+		| FLOAT (n,m) -> n + m
+		| ENUM l ->
+			let i = List.length l in
+			int_of_float (ceil ((log (float i)) /. (log 2.)))
+		| RANGE (_, m) ->
+			int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
+		| NO_TYPE
+		| STRING
+		| UNKNOW_TYPE ->
+			failwith "length unknown"
+	in
+	let b_o =
+		match get_symbol "bit_order" with
+		UNDEF -> true
+		| LET(_, STRING_CONST id) ->
+			if (String.uppercase id) = "UPPERMOST" then true
+			else if (String.uppercase id) = "LOWERMOST" then false
+			else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
+		| _ -> failwith "'bit_order' must be defined as a string let"
+	in
+	let rec change_alias_attr mem_attr_l n =
+		let t = CARD(32)
+		in
+		let const c =
+			CONST (t, CARD_CONST (Int32.of_int c))
+		in
+		let sub e1 e2 =
+			BINOP (t, SUB, e1, e2)
+		in
+		match mem_attr_l with
+		[] ->
+			[]
+		| a::b ->
+			(match a with
+			ALIAS l ->
+				(match l with
+				LOC_REF(typ, name, i, l, u) ->
+					if is_array name then
+						a::(change_alias_attr b n)
+					else
+						if l=NONE && u=NONE then
+							if b_o then
+								(ALIAS(LOC_REF(typ, name, NONE, i, sub i (sub (const n) (const 1)) (*i-(n-1)*))))::(change_alias_attr b n)
+							else
+								(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
+						else
+							a::(change_alias_attr b n)
+				| _ ->
+					a::(change_alias_attr b n)
+				)
+			| _ ->
+				a::(change_alias_attr b n)
+			)
+	in
+	match s with
+	MEM(name, size, typ, m_a_l) ->
+		MEM(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
+	| REG(name, size, typ, m_a_l) ->
+		REG(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
+	| _ ->
+			s
+*)
 (** False value. *)
 let false_const = (*Irg.*)CARD_CONST Int32.zero
 (** True value. *)
