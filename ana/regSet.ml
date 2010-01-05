@@ -29,6 +29,12 @@ type t = (string * int) list
 
 let empty: t = []
 
+let size id =
+	match Irg.get_symbol id with
+	| REG (_, size, _, _) -> size
+	| VAR (_, size, _) -> size
+	| _ -> failwith "not a register or a variable"
+
 let rec add id ix set =
 	match set with
 	| [] -> [(id, ix)]
@@ -41,11 +47,7 @@ let rec add id ix set =
 
 let add_all id set =
 
-	let m =
-		match Irg.get_symbol id with
-		| REG (_, size, _, _) -> size
-		| VAR (_, size, _) -> size
-		| _ -> failwith "not a register or a variable" in
+	let m = size id in
 
 	let rec add ix set =
 		if ix >= m then set else

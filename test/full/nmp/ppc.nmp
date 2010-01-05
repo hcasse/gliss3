@@ -1,19 +1,19 @@
-// **************************************************************************** 
-//                                   ppc.nmp                                    
-//                              ------------------                              
-//    date            : May 2003                                               
-//    copyright       : Institut de Recherche en Informatique de Toulouse       
-//    author          : Marc Finet                                              
-//    email           : sainrat@irit.fr                        
 // ****************************************************************************
-//                                                                              
-// **************************************************************************** 
-// *                                                                          * 
-// *   This program is free software; you can redistribute it and/or modify   * 
-// *   it under the terms of the GNU General Public License as published by   * 
-// *   the Free Software Foundation; either version 2 of the License, or      * 
-// *   (at your option) any later version.                                    * 
-// *                                                                          * 
+//                                   ppc.nmp
+//                              ------------------
+//    date            : May 2003
+//    copyright       : Institut de Recherche en Informatique de Toulouse
+//    author          : Marc Finet
+//    email           : sainrat@irit.fr
+// ****************************************************************************
+//
+// ****************************************************************************
+// *                                                                          *
+// *   This program is free software; you can redistribute it and/or modify   *
+// *   it under the terms of the GNU General Public License as published by   *
+// *   the Free Software Foundation; either version 2 of the License, or      *
+// *   (at your option) any later version.                                    *
+// *                                                                          *
 // ****************************************************************************
 
 
@@ -36,7 +36,7 @@ include op "nmp/oea_instr.nmp"
 // 1. Definitions                                                            //
 // ========================================================================= //
 
-let proc = "ppc"         
+let proc = "ppc"
 let bit_order = "uppermost" // Be careful ; this is not the convention used in PPC manuals.
 let M_is_little = "MSR & (0x01<<MSR_LE)" // MSR should be correctly initialized in the init rule below
 
@@ -61,11 +61,11 @@ let SO = 0
 
 // 1.1.2 CR indexes (float)
 let FX = 3
-let FEX= 2 
+let FEX= 2
 let VX = 1
 let OX = 0
 
-// 1.1.3 XER indexes 
+// 1.1.3 XER indexes
 let SO_XER = 31
 let OV_XER = 30
 let CA_XER = 29
@@ -278,7 +278,7 @@ reg TMP_M_RES_H1 [ 1 , int ( 32 ) ]
 	alias = TMP_M_RES [ 63 ]
 reg TMP_M_RES_H0 [ 1 , int ( 32 ) ]
 	alias = TMP_M_RES [ 31 ]
-	
+
 // 1.4.3 HalfWord Integer
 
 reg TMP_SHWORD_A1 [ 1 , int ( 8 ) ]
@@ -291,7 +291,7 @@ reg TMP_SHWORD_A0 [ 1 , int ( 8 ) ]
 
 reg TMP_SWORD_A3 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 31 ]
-	
+
 reg TMP_SWORD_A2 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 23 ]
 
@@ -331,7 +331,7 @@ mode IMM16 ( n : int ( 16 ) ) = n
    image  = format ( "%16b", n )
 
 mode LS_COUNT ( NB : card ( 5 ) ) =
-     if NB == 0 then 
+     if NB == 0 then
         32
      else
         NB
@@ -349,7 +349,7 @@ mode SIMM ( n : int ( 14 ) ) = n
 
 mode SIMM5 ( n : int ( 5 ) ) = n
 	syntax = format ( "%d", n )
-	image  = format ( "%5b", n ) 
+	image  = format ( "%5b", n )
 
 mode SIMM16 ( n : int ( 16 ) ) = n
 	syntax = format ( "%d", n )
@@ -382,7 +382,7 @@ macro add_overflow_check(op1,op2,res)= \
           	XER <OV_XER..OV_XER> = 0; \
 		endif; \
 	endif;\
-	
+
 
 macro add_carry_check(op1,op2,res)= \
 	if (op1 >= 0 && op2 >= 0) then \
@@ -506,7 +506,7 @@ macro div_overflow_check(op1,op2) = \
 	else \
 		XER<OV_XER..OV_XER> = 0; \
 	endif; \
- 
+
 macro neg_overflow_check(op1) = \
 	if op1 == 0x80000000 then \
 		XER <OV_XER..OV_XER> = 1; \
@@ -645,7 +645,7 @@ macro xer_read = \
 	((READ_REG << 24) | (BANK_XER << 16)) \
 macro xer_write = \
 	((WRITE_REG << 24) | (BANK_XER << 16)) \
-	
+
 // generic
 macro reg_read(bank, n) = \
 	((READ_REG << 24) | ((bank & 0xFF) << 16) | ((n) & 0xFFFF)) \
@@ -660,7 +660,7 @@ macro reg_write_range(bank, l, u) = \
 
 
 
-		
+
 // ========================================================================= //
 //  2. Instructions                                                          //
 // ========================================================================= //
@@ -681,7 +681,7 @@ op uisa_instr   = uisa_base_instr
 
 op init ()
 	action = {
-    	MSR = 0; 
+    	MSR = 0;
 		MSR<MSR_FP..MSR_FP> = 1;
 		MSR<MSR_PR..MSR_PR> = 0;
 		MSR<MSR_FE1..MSR_FE1> = 0;
@@ -692,7 +692,7 @@ op init ()
 		FPR[10]=0; FPR[11]=0; FPR[12]=0; FPR[13]=0; FPR[14]=0; FPR[15]=0; FPR[16]=0; FPR[17]=0; FPR[18]=0; FPR[19]=0;
 		FPR[20]=0; FPR[21]=0; FPR[22]=0; FPR[23]=0; FPR[24]=0; FPR[25]=0; FPR[26]=0; FPR[27]=0; FPR[28]=0; FPR[29]=0;
 		FPR[30]=0; FPR[31]=0;
-		CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0; 
+		CR[0]=0; CR[1]=0; CR[2]=0; CR[3]=0; CR[4]=0; CR[5]=0; CR[6]=0; CR[7]=0;
 		L2PM = 0;
 		XER = 0;
 		FPSCR = 0;	// Fixed by casse@irit.fr
@@ -709,13 +709,9 @@ op branch_instr ( x : branch_instr_action )
    image   = x.image
    syntax  = x.syntax
    action  = { x.action; }
-<<<<<<< ppc.nmp
    otawa_kind = BRANCH | x.otawa_kind
-=======
-   otawa_kind = BRANCH | x.otawa_kind            
->>>>>>> 1.8
 
-op branch_instr_action  = branch_uncond 
+op branch_instr_action  = branch_uncond
                         | branch_cond
 
 op branch_cond          = branch_cond_mem
@@ -750,13 +746,13 @@ op branch_abs ( BRANCH_ADDR : IMM24 )
             }
    otawa_kind = BRANCH
    otawa_target = BRANCH_ADDR << 2
-			   
+
 op branch_link ( BRANCH_ADDR : IMM24 )
    syntax = format ( "bl %s", BRANCH_ADDR.syntax )
    image  = format ( "010010%24b01", BRANCH_ADDR.image )
    action = {
                 TMP_SWORD = BRANCH_ADDR; // sign extension
-                NIA = CIA + ( TMP_SWORD << 2 ); 
+                NIA = CIA + ( TMP_SWORD << 2 );
                 LR  = CIA + 4;
              }
    otawa_kind = BRANCH | IS_CALL
@@ -780,9 +776,9 @@ op branch_link_abs ( BRANCH_ADDR : IMM24 )
 op branch_cond_mem ( x : bran_cond_action )
    syntax = x.syntax
    image  = x.image
-   action = { 
-               x.action; 
-            } 
+   action = {
+               x.action;
+            }
    otawa_kind = x.otawa_kind
 
 // Conditional Branch Instructions
@@ -791,7 +787,7 @@ op bran_cond_action =   bran_cond_rel
                       | bran_cond_abs
                       | bran_cond_link
                       | bran_cond_link_abs
-                      
+
 op bran_cond_rel ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bc %d,%d,%s", BO, BI, BD.syntax )
    image  = format ( "010000%5b%5b%14b00", BO, BI, BD.image )
@@ -802,7 +798,7 @@ op bran_cond_rel ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = TMP_SWORD - TMP_SWORD1 * 4;
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ !BO<3..3> ) ) ) then
 			TMP_SWORD = BD;
             NIA = CIA + ( TMP_SWORD << 2 );
@@ -827,7 +823,7 @@ op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ ! BO<3..3> ) ) ) then
 			TMP_SWORD = BD;
             NIA = ( TMP_SWORD << 2 );
@@ -841,7 +837,7 @@ op bran_cond_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		endif
    otawa_target = BD << 2
    otawa_used_regs = "USED_REGS"(if !BO<2..2> then ctr_write else NO_REG endif, END_REG)
-            
+
 op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
    syntax = format ( "bcl %d,%d,%s", BO, BI, BD.syntax )
    image  = format ( "010000%5b%5b%14b01", BO, BI, BD.image )
@@ -852,14 +848,14 @@ op bran_cond_link ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ !BO<3..3> ) ) ) then
 			TMP_SWORD = BD;
             NIA = CIA + ( TMP_SWORD << 2 );
 		endif;
 
 		LR = CIA + 4;
-        
+
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
 			BRANCH | IS_CALL
@@ -879,13 +875,13 @@ op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ !BO<3..3> ) ) ) then
 			TMP_SWORD = BD;
             NIA = ( TMP_SWORD << 2 );
 		endif;
 		LR = CIA + 4;
-        
+
 		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
 			BRANCH | IS_CALL
@@ -901,8 +897,8 @@ op bran_cond_link_abs ( BO : card ( 5 ), BI : card ( 5 ), BD : SIMM )
 op branch_cond_reg ( x : bran_cond_reg_action )
    syntax = x.syntax
    image  = x.image
-   action = { 
-               x.action; 
+   action = {
+               x.action;
             }
    otawa_kind = x.otawa_kind
 
@@ -966,11 +962,11 @@ op branch_cond_lr ( BO : card ( 5 ), BI : card ( 5 ) )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ !BO<3..3> ) ) ) then
 			NIA = ( LR & 0xfffffffc );
 		endif;
-		} 
+		}
    otawa_kind = if  ( BO<2..2> & BO<4..4> ) then
 			BRANCH | IS_RETURN
 		else
@@ -988,7 +984,7 @@ op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 		TMP_SWORD = 31 - BI;
 		TMP_SWORD1 = TMP_SWORD/4;
 		TMP_SWORD = (TMP_SWORD - TMP_SWORD1 * 4);
-		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) & 
+		if  ( ( BO<2..2> | ( CTR!=0 ^ BO<1..1> ) ) &
 			  ( BO<4..4> | ( CR[TMP_SWORD1]<TMP_SWORD..TMP_SWORD> ^ !BO<3..3> ) ) ) then
 			NIA = ( LR & 0xfffffffc );
 		endif;
@@ -1000,7 +996,7 @@ op branch_cond_lr_link ( BO : card ( 5 ), BI : card ( 5 ) )
 			BRANCH | IS_RETURN | IS_COND
 		endif
    otawa_target = 0  //target not known until execution
- 
+
 // ------------------------------------------------------------------------- //
 // 2.2 Non Branch Instructions
 // ------------------------------------------------------------------------- //
@@ -1074,7 +1070,7 @@ op lb_zero ( rd : index, ra : REG_IND_ZERO, d : IADDR )
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), END_REG)
 
-               
+
 op lb_zero_indexed ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "lbzx r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00010101110", rd, ra.image, rb.image )
@@ -1088,7 +1084,7 @@ op lb_zero_indexed ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
 
 
 op lb_zero_update ( rd : index, ra : index, d : IADDR )
-   syntax = format ( "lbzu r%d,%s(r%d)", rd, d.syntax, ra ) 
+   syntax = format ( "lbzu r%d,%s(r%d)", rd, d.syntax, ra )
    image  = format ( "100011%5b%5b%16b", rd, ra, d.image )
    action = {
 	       if ((ra==0) || (ra == rd))
@@ -1137,7 +1133,7 @@ op lhw_zero ( rd : index, ra : REG_IND_ZERO, d : IADDR )
 
                TMP_EA = ra + d;
                //GPR [ rd ] = 0;
-             
+
                TMP_SHWORD_A1 = M [ TMP_EA ];
                TMP_SHWORD_A0 = M [ TMP_EA + 1 ];
 
@@ -1147,14 +1143,14 @@ op lhw_zero ( rd : index, ra : REG_IND_ZERO, d : IADDR )
 
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), END_REG)
-               
+
 op lhw_zero_indexed ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "lhzx r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s01000101110", rd, ra.image, rb.image )
    action = {
 
                TMP_EA = ra + rb;
-             
+
                TMP_SHWORD_A1 = M [ TMP_EA ];
                TMP_SHWORD_A0 = M [ TMP_EA + 1 ];
 
@@ -1219,7 +1215,7 @@ op lhw_alg ( rd : index, ra : REG_IND_ZERO, d : IADDR )
                endif;
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), END_REG)
-               
+
 op lhw_alg_indexed ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "lhax r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s01010101110", rd, ra.image, rb.image )
@@ -1250,7 +1246,7 @@ op lhw_alg_update ( rd : index, ra : index, d : IADDR )
                TMP_EA = GPR [ ra ] + d;
                GPR [ rd ] = 0;
                TMP_BYTE = M [ TMP_EA ];
-             
+
                TMP_SHWORD_A1 = M [ TMP_EA ];
                TMP_SHWORD_A0 = M [ TMP_EA + 1 ];
 
@@ -1279,7 +1275,7 @@ op lhw_alg_update_indexed ( rd : index, ra : index, rb : REG_IND )
                TMP_EA = GPR [ ra ] + rb;
                GPR [ rd ] = 0;
                TMP_BYTE = M [ TMP_EA ];
-             
+
                TMP_SHWORD_A1 = M [ TMP_EA ];
                TMP_SHWORD_A0 = M [ TMP_EA + 1 ];
 
@@ -1320,7 +1316,7 @@ op lw_zero ( rd : index, ra : REG_IND_ZERO, d : IADDR )
 
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), END_REG)
-               
+
 op lw_zero_indexed ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "lwzx r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00000101110", rd, ra.image, rb.image )
@@ -1432,13 +1428,13 @@ op int_load_multiple ( rd : index, ra : REG_IND_ZERO, d : IMM16 )
 
                TMP_EA = ra + d;
                TMP_BYTE =  rd;
-               recurs;      
+               recurs;
 
             }
     recurs = {
 
                 if TMP_BYTE <= 31 then
-                   
+
                    TMP_SWORD_A3 = M [ TMP_EA ];
                    TMP_SWORD_A2 = M [ TMP_EA + 1 ];
                    TMP_SWORD_A1 = M [ TMP_EA + 2 ];
@@ -1449,12 +1445,12 @@ op int_load_multiple ( rd : index, ra : REG_IND_ZERO, d : IMM16 )
                    TMP_BYTE = TMP_BYTE + 1;
                    TMP_EA = TMP_EA + 4;
                    recurs; // recursiveness is OK : it is compiled as labels and gotos
-                endif; 
- 
+                endif;
+
              }
     otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write_range(rd, 31), gpr_read(rd), END_REG)
     otawa_kind = LOAD | IS_MULTI
-               
+
 // Integer Load String Instructions
 
 op int_load_string =   lstw_imm
@@ -1536,18 +1532,18 @@ op lstw_index ( rd : index, ra : REG_IND_ZERO, rb : REG_IND )
                endif;
 
            }
-                  
+
 
 // Integer Store Instructions
 op int_store ( x : int_store_action )
    image   = x.image
    syntax  = x.syntax
    action  = { x.action; }
-   otawa_kind = STORE               
+   otawa_kind = STORE
 
 op int_store_action =   int_store_byte
-               | int_store_half_word 
-               | int_store_word 
+               | int_store_half_word
+               | int_store_word
                | int_store_byte_rev   // New
                | int_store_multiple   // New
                | int_store_string     // New
@@ -1572,7 +1568,7 @@ op st_byte ( rs : index, ra : REG_IND_ZERO, d : IADDR )
 
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rs), END_REG)
-               
+
 op st_byte_indexed ( rs : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "stbx r%d,%s,%s", rs, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00110101110", rs, ra.image, rb.image )
@@ -1649,7 +1645,7 @@ op st_half_word ( rs : index, ra : REG_IND_ZERO, d : IADDR )
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rs), END_REG)
 
-               
+
 op st_half_word_indexed ( rs : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "sthx r%d,%s,%s", rs, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s01100101110", rs, ra.image, rb.image )
@@ -1730,7 +1726,7 @@ op st_word ( rs : index, ra : REG_IND_ZERO, d : IADDR )
 
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rs), END_REG)
-               
+
 op st_word_indexed ( rs : index, ra : REG_IND_ZERO, rb : REG_IND )
    syntax = format ( "stwx r%d,%s,%s", rs, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00100101110", rs, ra.image, rb.image )
@@ -1807,8 +1803,8 @@ op sthw_br_index ( rs : index, ra : REG_IND_ZERO, rb : REG_IND )
 		TMP_EA = ra + rb;
 		TMP_SHWORD = GPR [ rs ];
 
-		M [ TMP_EA ]  = TMP_SHWORD_A0; 
-		M [ TMP_EA + 1 ]  = TMP_SHWORD_A1; 
+		M [ TMP_EA ]  = TMP_SHWORD_A0;
+		M [ TMP_EA + 1 ]  = TMP_SHWORD_A1;
 
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_read(rs), END_REG)
@@ -1839,7 +1835,7 @@ op int_store_multiple ( rs : index, ra : REG_IND_ZERO, d : IMM16 )
 		TMP_EA = ra + d;
 		TMP_WORD = rs;
 		recurs;
-// ToDo: TMP_EA must be a multiple of four. Otherwise aljgnment exception or results boundedly undefined			
+// ToDo: TMP_EA must be a multiple of four. Otherwise aljgnment exception or results boundedly undefined
 
 		}
    recurs = {
@@ -1853,12 +1849,12 @@ op int_store_multiple ( rs : index, ra : REG_IND_ZERO, d : IMM16 )
 			TMP_WORD = TMP_WORD + 1;
 			TMP_EA = TMP_EA + 4;
 			recurs;
-		endif; 
- 
+		endif;
+
 		}
    otawa_kind = STORE | IS_MULTI
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rs), gpr_read_range(rs, 31), END_REG)
-               
+
 // Integer Store String Instructions
 
 op int_store_string =   ststw_imm
@@ -1950,7 +1946,7 @@ op int_instr_action =   int_arithmetic
                       | int_compare
                       | int_logical
                       | int_rotate_shift
-                
+
 // Integer Arithmetic Instructions
 
 op int_arithmetic =   int_add
@@ -1972,7 +1968,7 @@ op int_add_action =   add
              | add_extended
              | add_mone_extended
              | add_zero_extended
-                  
+
 
 // Add Instructions
 op add ( rd : index, ra : REG_IND, rb : REG_IND ,Rc : card (1) , Oe : card(1))
@@ -1983,10 +1979,10 @@ op add ( rd : index, ra : REG_IND, rb : REG_IND ,Rc : card (1) , Oe : card(1))
 		TMP_RES = ra + rb;
 		if Oe then
 			add_overflow_check(ra, rb, TMP_RES);
-		endif;               
-        
+		endif;
+
 		GPR[rd] = TMP_RES;
-		
+
 		if Rc then
 			CR7_update(TMP_RES);
        	endif;
@@ -2010,7 +2006,7 @@ op add_imm ( rd : index, ra : REG_IND_ZERO, da : SIMM16 )
             }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), END_REG)
 
-op add_imm_shifted ( rd : index, ra : REG_IND_ZERO, da : SIMM16 ) 
+op add_imm_shifted ( rd : index, ra : REG_IND_ZERO, da : SIMM16 )
    syntax = format ( "addis r%d,%s,%s", rd, ra.syntax, da.syntax)
    image  = format ( "001111%5b%s%s", rd, ra.image, da.image)
    action = {
@@ -2023,7 +2019,7 @@ op add_imm_carry ( rd : index, ra : REG_IND, imm : SIMM16 )
    syntax = format ( "addic r%d,%s,%s", rd, ra.syntax, imm.syntax )
    image  = format ( "001100%5b%s%s", rd, ra.image, imm.image )
    action = {
- 
+
 		TMP_RES = ra + imm;         // Set carry bit
 		add_carry_check(ra, imm, TMP_RES);
 		GPR[rd] = TMP_RES;
@@ -2037,7 +2033,7 @@ op add_imm_carry_record ( rd : index, ra : REG_IND, imm : SIMM16 )
    action = {
 
 		TMP_RES = ra + imm;         // Set carry bit
-		add_carry_check(ra, imm, TMP_RES);		
+		add_carry_check(ra, imm, TMP_RES);
 
 		GPR[rd] = TMP_RES;
 
@@ -2056,7 +2052,7 @@ op add_carrying ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "addc r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00000010100", rd, ra.image, rb.image )
    action = {
- 
+
 		TMP_RES = ra + rb;
 		add_carry_check(ra, rb, TMP_RES);
 		GPR[rd] = TMP_RES;
@@ -2067,12 +2063,12 @@ op add_carry_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "addc. r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00000010101", rd, ra.image, rb.image )
    action = {
- 
-		TMP_RES = ra + rb; 
+
+		TMP_RES = ra + rb;
 		add_carry_check(ra, rb, TMP_RES);
 		GPR[rd] = TMP_RES;
-		
-		CR7_update(TMP_RES);        
+
+		CR7_update(TMP_RES);
         }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, cr_write(7), END_REG)
 
@@ -2080,9 +2076,9 @@ op add_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "addco r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s10000010100", rd, ra.image, rb.image )
    action = {
- 
-		TMP_RES = ra + rb; 
-	
+
+		TMP_RES = ra + rb;
+
 		add_carry_check(ra, rb, TMP_RES);
 		add_overflow_check(ra, rb, TMP_RES);
 
@@ -2094,9 +2090,9 @@ op add_carry_overflow_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "addco. r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s10000010101", rd, ra.image, rb.image )
    action = {
- 
-		TMP_RES = ra + rb; 
-	
+
+		TMP_RES = ra + rb;
+
 		add_carry_check(ra, rb, TMP_RES);
 		add_overflow_check(ra, rb, TMP_RES);
 
@@ -2119,9 +2115,9 @@ op add_extend ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
     	TMP_RES = ra + rb + XER < CA_XER..CA_XER >;
-		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);		
+		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
-		
+
        	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, xer_read, END_REG)
 
@@ -2133,7 +2129,7 @@ op add_extend_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
       	TMP_RES = ra + rb + XER <CA_XER..CA_XER>;
 		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
-		
+
 		CR7_update(TMP_RES);
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, xer_read, cr_write(7), END_REG)
@@ -2159,7 +2155,7 @@ op add_extd_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
       	TMP_RES = ra + rb + XER <CA_XER..CA_XER>;
 		add_carry_check_extended(ra, rb, TMP_RES, XER < CA_XER..CA_XER > );
 		add_overflow_check(ra, rb, TMP_RES);
-	
+
 		GPR[rd] = TMP_RES;
 
 		CR7_update(TMP_RES);
@@ -2177,7 +2173,7 @@ op add_me ( rd : index, ra : REG_IND)
    syntax = format ( "addme r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000111010100", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		add_carry_check_extended(ra,-1,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2188,7 +2184,7 @@ op add_me_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "addme. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000111010101", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		add_carry_check_extended(ra,-1,TMP_RES, XER <CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2201,12 +2197,12 @@ op add_me_overflow ( rd : index, ra : REG_IND)
    syntax = format ( "addmeo r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000010111010100", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		add_carry_check_extended(ra,-1,TMP_RES,XER <CA_XER..CA_XER>);
 		add_overflow_check(ra, -1, TMP_RES);
 		GPR[rd] = TMP_RES;
-		
+
     	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), xer_write, xer_read, END_REG)
 
@@ -2214,7 +2210,7 @@ op add_me_overflow_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "addmeo. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000010111010101", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		add_carry_check_extended(ra,-1,TMP_RES,XER <CA_XER..CA_XER>);
 		add_overflow_check(ra, -1, TMP_RES);
@@ -2235,7 +2231,7 @@ op add_ze ( rd : index, ra : REG_IND)
    syntax = format ( "addze r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000110010100", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
 		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2250,8 +2246,8 @@ op add_ze_cr_update ( rd : index, ra : REG_IND)
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
 		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
-		
-		CR7_update(TMP_RES);            
+
+		CR7_update(TMP_RES);
       	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), xer_write, xer_read, cr_write(7), END_REG)
 
@@ -2272,13 +2268,13 @@ op add_ze_overflow_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "addzeo. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000010110010101", rd, ra.image )
    action = {
-            
+
  		TMP_RES = ra + XER <CA_XER..CA_XER>;
 		add_carry_check_extended(ra,0,TMP_RES,XER<CA_XER..CA_XER>);
 		add_overflow_check(ra,0,TMP_RES);
 		GPR[rd] = TMP_RES;
 
-		CR7_update(TMP_RES);      	
+		CR7_update(TMP_RES);
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), xer_write, xer_read, cr_write(7), END_REG)
 
@@ -2319,7 +2315,7 @@ op sub_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + 1;
-	  	GPR [ rd ] = TMP_RES;	
+	  	GPR [ rd ] = TMP_RES;
 		CR7_update(TMP_RES);
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), cr_write(7), END_REG)
@@ -2344,7 +2340,7 @@ op sub_crup_overen ( rd : index, ra : REG_IND, rb : REG_IND )
       	TMP_RES = ~ra + rb + 1;
 		sub_overflow_check(ra, rb, TMP_RES);
 		GPR[rd]=TMP_RES;
-		CR7_update(TMP_RES);	
+		CR7_update(TMP_RES);
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, cr_write(7), END_REG)
 
@@ -2354,7 +2350,7 @@ op sub_imm_carry_rec ( rd : index, ra : REG_IND, imm : IMM16 )
    syntax = format ( "subfic r%d,%s,%s", rd, ra.syntax, imm.syntax )
    image  = format ( "001000%5b%s%s", rd, ra.image, imm.image )
    action = {
-		
+
 		TMP_RES = ~ra + 1 + imm;
         sub_carry_check(ra,imm,1);
 		GPR[rd] = TMP_RES;
@@ -2373,7 +2369,7 @@ op sub_carrying ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfc r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00000010000", rd, ra.image, rb.image )
    action = {
- 
+
   		TMP_RES = ~ra + rb + 1;
 		sub_carry_check(ra,rb,1);
 		GPR[rd] = TMP_RES;
@@ -2384,8 +2380,8 @@ op sub_carry_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfc. r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00000010001", rd, ra.image, rb.image )
    action = {
- 
-    	TMP_RES = ~ra + rb + 1; 
+
+    	TMP_RES = ~ra + rb + 1;
 
 		sub_carry_check(ra,rb,1);
 		GPR[rd] = TMP_RES;
@@ -2397,8 +2393,8 @@ op sub_carry_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfco r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s10000010000", rd, ra.image, rb.image )
    action = {
- 
-    	TMP_RES = ~ra + rb + 1; 
+
+    	TMP_RES = ~ra + rb + 1;
 
 		sub_carry_check(ra,rb,1);
 		sub_overflow_check(ra,rb,TMP_RES);
@@ -2411,8 +2407,8 @@ op sub_carry_overflow_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfco. r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s10000010001", rd, ra.image, rb.image )
    action = {
- 
-    	TMP_RES = ~ra + rb + 1; 
+
+    	TMP_RES = ~ra + rb + 1;
 
 		sub_carry_check(ra,rb,1);
 		sub_overflow_check(ra,rb,TMP_RES);
@@ -2434,11 +2430,11 @@ op sub_extend ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "subfe r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00100010000", rd, ra.image, rb.image )
    action = {
-		
+
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
-		
+
      	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_read, xer_write, END_REG)
 
@@ -2448,7 +2444,7 @@ op sub_extend_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
 
 		CR7_update(TMP_RES);
@@ -2461,10 +2457,10 @@ op sub_extend_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);
 		sub_overflow_carry_check(ra,rb,XER<CA_XER..CA_XER>,TMP_RES);
     	GPR[rd] = TMP_RES;
-	
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_read, xer_write, END_REG)
 
@@ -2474,11 +2470,11 @@ op sub_extd_overflow_cr_upd ( rd : index, ra : REG_IND, rb : REG_IND )
    action = {
 
 		TMP_RES = ~ra + rb + XER <CA_XER..CA_XER>;
-		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);	
+		sub_carry_check(ra,rb,XER<CA_XER..CA_XER>);
 		sub_overflow_carry_check(ra,rb,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
 
-		CR7_update(TMP_RES);      	
+		CR7_update(TMP_RES);
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_read, xer_write, cr_write(7), END_REG)
 
@@ -2493,7 +2489,7 @@ op sub_me ( rd : index, ra : REG_IND)
    syntax = format ( "subfme r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000111010000", rd, ra.image )
    action = {
-            
+
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2504,7 +2500,7 @@ op sub_me_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "subfme. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000111010001", rd, ra.image )
    action = {
-                        
+
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2529,12 +2525,12 @@ op sub_me_overflow_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "subfmeo. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000010111010001", rd, ra.image )
    action = {
-            
+
      	TMP_RES = ~ra + XER <CA_XER..CA_XER> + 0xffffffff;
 		sub_carry_check(ra,-1,XER<CA_XER..CA_XER>);
 		sub_overflow_carry_check(ra,-1,XER<CA_XER..CA_XER>,TMP_RES);
 		GPR[rd] = TMP_RES;
-	
+
 		CR7_update(TMP_RES);
        	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_write(rd), xer_read, xer_write, cr_write(7), END_REG)
@@ -2550,7 +2546,7 @@ op sub_ze ( rd : index, ra : REG_IND)
    syntax = format ( "subfze r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000110010000", rd, ra.image )
    action = {
-            
+
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
 		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2561,7 +2557,7 @@ op sub_ze_cr_update ( rd : index, ra : REG_IND)
    syntax = format ( "subfze. r%d,%s", rd, ra.syntax )
    image  = format ( "011111%5b%s0000000110010001", rd, ra.image )
    action = {
-            
+
 		TMP_RES = ~ra + XER <CA_XER..CA_XER>;
 		sub_carry_check(ra,0,XER<CA_XER..CA_XER>);
 		GPR[rd] = TMP_RES;
@@ -2619,17 +2615,17 @@ op mult_lw ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "mullw r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00111010110", rd, ra.image, rb.image )
    action = {
- 
+
 		GPR [ rd ] = ra * rb;
 
-       	} 
+       	}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), END_REG)
 
 op mult_lw_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "mullw. r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s00111010111", rd, ra.image, rb.image )
    action = {
-      
+
 		 TMP_RES = ra * rb;
 		 GPR [ rd ] = TMP_RES ;
 		CR7_update(TMP_RES);
@@ -2644,7 +2640,7 @@ op mult_lw_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
      	TMP_RES = ra * rb;
 		mul_overflow_check(ra, rb, TMP_RES );
 		GPR[rd] = TMP_RES;
-		
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, END_REG)
 
@@ -2688,7 +2684,7 @@ op mult_hi ( rd : index, ra : REG_IND, rb : REG_IND )
 		TMP_SDWORD = TMP_SDWORD * rb;
         GPR [ rd ] = TMP_SDWORD < 63..32 >;
 
-        } 
+        }
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), END_REG)
 
 op mult_hi_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
@@ -2701,7 +2697,7 @@ op mult_hi_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 		GPR [ rd ] = TMP_SDWORD < 63..32 >;
 
 		CR7_update(TMP_SDWORD < 63..32 >);
-		} 
+		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), cr_write(7), END_REG)
 
 // Multiply High word unsigned
@@ -2725,12 +2721,12 @@ op mult_hi_us_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
    image  = format ( "011111%5b%s%s00000010111", rd, ra.image, rb.image)
    action = {
 
-        TMP_DWORD = coerce ( card ( 32 ) , ra ); 
+        TMP_DWORD = coerce ( card ( 32 ) , ra );
 	TMP_DWORD = TMP_DWORD * coerce ( card ( 32 ) , rb );
         GPR [ rd ] = TMP_DWORD < 63..32 >;
 
 		CR7_update(TMP_DWORD < 63..32 >);
-		} 
+		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), cr_write(7), END_REG)
 
 // Integer Divide Instructions
@@ -2752,7 +2748,7 @@ op divw ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "divw r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s01111010110", rd, ra.image, rb.image )
    action = {
-	
+
 		if ( rb == 0 || ( ra == 0x80000000 & rb == -1 ) ) then
 			GPR [ rd ] = 0;
 		else
@@ -2784,11 +2780,11 @@ op divw_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
 
 		if ( rb == 0 || ( ra == 0x80000000 & rb == -1 ) ) then
 			TMP_RES = 0;
-			
+
 		else
 	        TMP_RES = ra / rb;
 		endif;
-	
+
 		div_overflow_check(ra,rb);
 		GPR[rd] = TMP_RES;
 
@@ -2821,7 +2817,7 @@ op div_word_unsig =   divwus
                     | divwus_overflow
                     | divwus_overflow_cr_upd
 
- 
+
 op divwus ( rd : index, ra : REG_IND, rb : REG_IND )
    syntax = format ( "divwu r%d,%s,%s", rd, ra.syntax, rb.syntax )
    image  = format ( "011111%5b%s%s01110010110", rd, ra.image, rb.image )
@@ -2846,7 +2842,7 @@ op divwus_cr_update ( rd : index, ra : REG_IND, rb : REG_IND )
 			TMP_RES = coerce ( card ( 32 ) , ra ) / coerce ( card ( 32 ) , rb );
 			GPR [ rd ] = TMP_RES;
 			CR7_update(TMP_RES);
-		endif;		
+		endif;
 
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), cr_write(7), END_REG)
@@ -2865,7 +2861,7 @@ op divwus_overflow ( rd : index, ra : REG_IND, rb : REG_IND )
 		div_overflow_check(coerce ( card ( 32 ) , ra ),
 						   coerce ( card ( 32 ) , rb ));
 		GPR[rd] = TMP_RES;
-		
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_read(ra.value), gpr_read(rb.value), gpr_write(rd), xer_write, END_REG)
 
@@ -3092,7 +3088,7 @@ op or_instr =   simple_or
               | or_imm
               | or_imm_shift
               | or_comp
-   
+
 op simple_or =  or
               | or_cr_update
 
@@ -3103,8 +3099,8 @@ op or ( rs : REG_IND, ra : index, rb : REG_IND )
 
 		GPR [ ra ] = rs | rb;
 
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG)
 
 op or_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "or. r%d,%s,%s", ra, rs.syntax, rb.syntax )
@@ -3114,8 +3110,8 @@ op or_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_RES = rs | rb;
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
-		}  
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)   
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 op or_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
    syntax = format ( "ori r%d,%s,%s", ra, rs.syntax, imm.syntax )
@@ -3153,7 +3149,7 @@ op orc ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = rs | ( ~rb );
 
         }
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG) 
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG)
 
 op orc_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "orc. r%d,%s,%s", ra, rs.syntax, rb.syntax )
@@ -3163,8 +3159,8 @@ op orc_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_RES = rs | ( ~rb );
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 // AND Instructions
 
@@ -3184,7 +3180,7 @@ op and ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = rs & rb;
 
 		}
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG) 
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), END_REG)
 
 op and_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "and. r%d,%s,%s", ra, rs.syntax, rb.syntax )
@@ -3195,8 +3191,8 @@ op and_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 op and_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
    syntax = format ( "andi. r%d,%s,%s", ra, rs.syntax, imm.syntax )
@@ -3208,7 +3204,7 @@ op and_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
 		GPR [ ra ] = rs & TMP_WORD;
 
 		CR7_update(rs & TMP_WORD);
-		}   
+		}
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), cr_write(7), END_REG)
 
 op and_imm_shift ( rs : REG_IND, ra : index, imm : UIMM16 )
@@ -3221,11 +3217,11 @@ op and_imm_shift ( rs : REG_IND, ra : index, imm : UIMM16 )
 		GPR [ ra ] = rs & TMP_WORD;
 
 		CR7_update(rs & TMP_WORD);
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), cr_write(7), END_REG)
 
 op and_comp =   andc
-              | andc_cr_update 
+              | andc_cr_update
 
 op andc ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "andc r%d,%s,%s", ra, rs.syntax, rb.syntax )
@@ -3246,8 +3242,8 @@ op andc_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 // XOR Instructions
 
@@ -3277,8 +3273,8 @@ op xor_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		}  
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG) 
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 op xor_imm ( rs : REG_IND, ra : index, imm : UIMM16 )
    syntax = format ( "xori r%d,%s,%s", ra, rs.syntax, imm.syntax )
@@ -3328,8 +3324,8 @@ op nor_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_RES = ~( rs | rb );
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 // NAND Instructions
 
@@ -3355,8 +3351,8 @@ op nand_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)  
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), cr_write(7), END_REG)
 
 // Equivalent Instructions
 
@@ -3401,7 +3397,7 @@ op extsb ( rs : index, ra : index )
    action = {
 
 		//TMP_SBYTE = GPR [ rs ] < 0..7 >;
-		TMP_SBYTE = GPR [ rs ] < 7..0 >; 	
+		TMP_SBYTE = GPR [ rs ] < 7..0 >;
         GPR [ ra ] = TMP_SBYTE;   // sign extension
 
         }
@@ -3413,7 +3409,7 @@ op extsb_cr_update ( rs : index, ra : index )
    action = {
 
 		//TMP_SBYTE = GPR [ rs ] < 0..7 >;
-		TMP_SBYTE = GPR [ rs ] < 7..0 >; 	
+		TMP_SBYTE = GPR [ rs ] < 7..0 >;
 		GPR [ ra ] = TMP_SBYTE;   // sign extension
 		CR7_update(TMP_SBYTE);
 
@@ -3431,7 +3427,7 @@ op extsh ( rs : index, ra : index )
 		//TMP_SHWORD = GPR [ rs ] < 0..15 >;
 		TMP_SHWORD = GPR [ rs ] < 15..0 >;
 		GPR [ ra ] = TMP_SHWORD; // sign extension
-	
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs), END_REG)
 
@@ -3475,7 +3471,7 @@ op cntlzw ( rs : REG_IND, ra : index )
 		endif;
 		}
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), END_REG)
-                
+
 op cntlzw_cr_update ( rs : REG_IND, ra : index )
    syntax = format ( "cntlzw. r%d, %s", ra, rs.syntax )
    image  = format ( "011111%s%5b0000000000110101", rs.image, ra )
@@ -3483,7 +3479,7 @@ op cntlzw_cr_update ( rs : REG_IND, ra : index )
 		TMP_SBYTE = 31;
 		loop;
 		GPR [ ra ] = TMP_RES;
-		CR7_update(TMP_RES); 
+		CR7_update(TMP_RES);
 		CR[7] <LT..LT> = 0;
 		}
    loop   = {
@@ -3534,10 +3530,10 @@ op rlwinm ( rs : REG_IND, ra : index, sh : index, mb : index, me : index )
 			TMP_WORD = 0xffffffff;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		GPR [ ra ] = ( ( rs <<< sh ) & TMP_WORD );
 
-        }  
+        }
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), END_REG)
 
 op rlwinm_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : index )
@@ -3552,12 +3548,12 @@ op rlwinm_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : ind
 			TMP_WORD = 0xffffffff;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		TMP_RES = ( ( rs <<< sh ) & TMP_WORD );
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-        }  
+        }
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), cr_write(7), END_REG)
 
 op rot_lw_and_mask =   rlwnm
@@ -3567,7 +3563,7 @@ op rlwnm ( rs : REG_IND, ra : index, rb : index, mb : index, me : index )
    syntax = format ( "rlwnm r%d,%s,r%d,%d,%d", ra, rs.syntax, rb, mb, me )
    image  = format ( "010111%s%5b%5b%5b%5b0", rs.image, ra, rb, mb, me )
    action = {
-		
+
 		if (mb<=me) then
 			TMP_WORD = 0;
 			TMP_WORD < (31-mb)..(31-me) > = ~TMP_WORD < (31-mb)..(31-me) >;
@@ -3575,11 +3571,11 @@ op rlwnm ( rs : REG_IND, ra : index, rb : index, mb : index, me : index )
 			TMP_WORD = -1;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		GPR [ ra ] = ( ( rs <<< coerce ( card ( 5 ), GPR [ rb ] < 4..0 > ) ) & TMP_WORD );
 
-		}  
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb), gpr_read(rs.value), END_REG) 
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb), gpr_read(rs.value), END_REG)
 
 op rlwnm_cr_update ( rs : REG_IND, ra : index, rb : index, mb : index, me : index )
    syntax = format ( "rlwnm. r%d,%s,r%d,%d,%d", ra, rs.syntax, rb, mb, me )
@@ -3593,13 +3589,13 @@ op rlwnm_cr_update ( rs : REG_IND, ra : index, rb : index, mb : index, me : inde
 			TMP_WORD = -1;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		TMP_RES = ( ( rs <<< coerce ( card ( 5 ), GPR [ rb ] < 4..0 > ) ) & TMP_WORD );
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		}   
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb), gpr_read(rs.value), cr_write(7), END_REG) 
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb), gpr_read(rs.value), cr_write(7), END_REG)
 
 op rot_lw_imm_mask_ins =   rlwimi
                          | rlwimi_cr_update
@@ -3616,11 +3612,11 @@ op rlwimi ( rs : REG_IND, ra : index, sh : index, mb : index, me : index )
 			TMP_WORD = -1;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		GPR [ ra ] = ( ( rs <<< sh ) & TMP_WORD ) | ( GPR [ ra ] & ~TMP_WORD );
 
-		}  
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(ra), gpr_read(rs.value), END_REG) 
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(ra), gpr_read(rs.value), END_REG)
 
 op rlwimi_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : index )
    syntax = format ( "rlwimi. r%d,%s,%d,%d,%d", ra, rs.syntax, sh, mb, me )
@@ -3634,13 +3630,13 @@ op rlwimi_cr_update ( rs : REG_IND, ra : index, sh : index, mb : index, me : ind
 			TMP_WORD = -1;
 			TMP_WORD < (31-me)-1..(31-mb)+1> = ~TMP_WORD < (31-me)-1..(31-mb)+1 >;
 		endif;
-			
+
 		TMP_RES = ( ( rs <<< sh ) & TMP_WORD ) | ( GPR [ ra ] & ~TMP_WORD );
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
-		} 
-   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(ra), gpr_read(rs.value), cr_write(7), END_REG) 
+		}
+   otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(ra), gpr_read(rs.value), cr_write(7), END_REG)
 
 // Shift Instructions
 
@@ -3658,7 +3654,7 @@ op slw ( rs : REG_IND, ra : index, rb : REG_IND )
    action = {
 
 		if rb < 5..5 > == 0 then
-			GPR [ ra ] = ( rs << coerce ( card ( 5 ), rb < 4..0 > ) ); 
+			GPR [ ra ] = ( rs << coerce ( card ( 5 ), rb < 4..0 > ) );
 		else
 			GPR [ ra ] = 0;
 		endif;
@@ -3672,7 +3668,7 @@ op slw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
    action = {
 
 		if rb < 5..5 > == 0 then
-			TMP_RES = ( rs << coerce ( card ( 5 ), rb < 4..0 > ) ); 
+			TMP_RES = ( rs << coerce ( card ( 5 ), rb < 4..0 > ) );
 		else
 			TMP_RES = 0;
 		endif;
@@ -3695,7 +3691,7 @@ op srw ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_WORD1 = 31 - rb <4..0>;
 		TMP_WORD < TMP_WORD1..0 > = ~TMP_WORD <TMP_WORD1..0>;
  		if rb < 5..5 > == 0 then
-			GPR [ ra ] = ( rs >> coerce ( card ( 5 ), rb < 4..0 > ) ) & TMP_WORD; 
+			GPR [ ra ] = ( rs >> coerce ( card ( 5 ), rb < 4..0 > ) ) & TMP_WORD;
 		else
 			GPR [ ra ] = 0;
 		endif;
@@ -3712,7 +3708,7 @@ op srw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 		TMP_WORD1 = 31 - rb <4..0>;
 		TMP_WORD<TMP_WORD1..0 > = ~TMP_WORD<TMP_WORD1..0>;
 		if rb < 5..5 > == 0 then
-			TMP_RES = ( rs >> coerce ( card ( 5 ), rb < 4..0 > ) ) & TMP_WORD; 
+			TMP_RES = ( rs >> coerce ( card ( 5 ), rb < 4..0 > ) ) & TMP_WORD;
 		else
 			TMP_RES = 0;
 		endif;
@@ -3729,7 +3725,7 @@ op srawi ( rs : REG_IND, ra : index, sh : index )
    syntax = format ( "srawi r%d,%s,%d", ra, rs.syntax, sh )
    image  = format ( "011111%s%5b%5b11001110000", rs.image, ra, sh )
    action = {
-		
+
 		if rs <31..31> == 0 then
 			TMP_WORD = 0;
 			TMP_WORD<31-sh..0>=~TMP_WORD<31-sh..0>;
@@ -3747,11 +3743,11 @@ op srawi ( rs : REG_IND, ra : index, sh : index )
 			else
 				XER<CA_XER..CA_XER>=0;
 			endif;
-		endif;	
-		
+		endif;
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rs.value), xer_write, END_REG)
-               
+
 op srawi_cr_update ( rs : REG_IND, ra : index, sh : index )
    syntax = format ( "srawi. r%d,%s,%d", ra, rs.syntax, sh )
    image  = format ( "011111%s%5b%5b11001110001", rs.image, ra, sh )
@@ -3774,7 +3770,7 @@ op srawi_cr_update ( rs : REG_IND, ra : index, sh : index )
 			else
 				XER<CA_XER..CA_XER>=0;
 			endif;
-		endif;	
+		endif;
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
 
@@ -3788,7 +3784,7 @@ op sraw ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "sraw r%d,%s,%s", ra, rs.syntax, rb.syntax )
    image  = format ( "011111%s%5b%s11000110000", rs.image, ra, rb.image )
    action = {
-		
+
 		TMP_WORD = 0;
 		TMP_WORD1 = rb<4..0>;
 		if rb<5..5> == 0 then
@@ -3803,11 +3799,11 @@ op sraw ( rs : REG_IND, ra : index, rb : REG_IND )
 			XER < CA_XER..CA_XER > = 1;
 		else
 			XER < CA_XER..CA_XER > = 0;
-		endif; 
+		endif;
 
 		}
    otawa_used_regs = "USED_REGS"(gpr_write(ra), gpr_read(rb.value), gpr_read(rs.value), xer_write, END_REG)
-               
+
 op sraw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
    syntax = format ( "sraw. r%d,%s,%s", ra, rs.syntax, rb.syntax )
    image  = format ( "011111%s%5b%s11000110001", rs.image, ra, rb.image )
@@ -3827,7 +3823,7 @@ op sraw_cr_update ( rs : REG_IND, ra : index, rb : REG_IND )
 			XER < CA_XER..CA_XER > = 1;
 		else
 			XER < CA_XER..CA_XER > = 0;
-		endif; 
+		endif;
 
 		GPR [ ra ] = TMP_RES;
 		CR7_update(TMP_RES);
@@ -3862,7 +3858,7 @@ op cr_and ( crbd : index, crba : index, crbb : index)
    syntax = format ( "crand crb%d,crb%d,crb%d", crbd, crba, crbb )
    image  = format ( "010011%5b%5b%5b01000000010", crbd, crba, crbb )
    action = {
-	
+
 		CR_BIT(crbd) = CR_BIT(crba) & CR_BIT(crbb);
 
             }
@@ -3932,8 +3928,8 @@ op mov_cr_field ( crfd : card ( 3 ), crfs : card ( 3 ) )
    image  = format ( "010011%3b00%3b000000000000000000", crfd, crfs )
    action = {
 
-               //CR < (31-(4*crfd)-3)..(31-(4*crfd)) > =  
-               //          CR < (31-(4*crfs)-3)..(31-(4*crfs)) >; 
+               //CR < (31-(4*crfd)-3)..(31-(4*crfd)) > =
+               //          CR < (31-(4*crfs)-3)..(31-(4*crfs)) >;
                CR[7-crfd]=CR[7-crfs];
             }
    otawa_used_regs = "USED_REGS"(cr_read(7-crfs), cr_write(CR_REG(7-crfd)), END_REG)
@@ -3984,7 +3980,7 @@ op mov_to_cr_field ( rs : REG_IND, crm : card ( 8 ) )
                   //TMP_WORD = TMP_WORD | TMP_BYTE;
                   CR[0]=rs<3..0>;
                endif;
-               
+
                //CR = rs & TMP_WORD;
 
              }
@@ -4021,7 +4017,7 @@ op mov_from_cr ( rd : index )
    syntax = format ( "mfcr r%d", rd )
    image  = format ( "011111%5b000000000000000100110", rd )
    action = {
-              //GPR [ rd ] = CR;  
+              //GPR [ rd ] = CR;
               GPR[rd]<4*0+3..4*0>=CR[0];
               GPR[rd]<4*1+3..4*1>=CR[1];
               GPR[rd]<4*2+3..4*2>=CR[2];
@@ -4039,10 +4035,10 @@ op mov_to_spr ( rs : index, spr : card ( 9 ) )
    action = {
 
               	TMP_HWORD = spr;
-	      	TMP_WORD = 0; 
+	      	TMP_WORD = 0;
               	TMP_WORD = TMP_HWORD < 4..0 >;
               	TMP_WORD = TMP_WORD << 5;
-	      	TMP_WORD1 = 0; 
+	      	TMP_WORD1 = 0;
 	      	TMP_WORD1 = TMP_HWORD<8..5>;
               	TMP_WORD = TMP_WORD | ( TMP_WORD1 & 0x0000000f);
 
@@ -4056,7 +4052,7 @@ op mov_to_spr ( rs : index, spr : card ( 9 ) )
 			default : "print" ( "mtspr: rs error." );
 		};
              }
-   otawa_used_regs = "USED_REGS"(gpr_read(rs), 
+   otawa_used_regs = "USED_REGS"(gpr_read(rs),
 	      switch ( spr ) {
 		      case 1 << 5 : xer_write
 		      case 8 << 5: lr_write
@@ -4070,7 +4066,7 @@ op mov_from_spr ( rd : index, spr : card ( 9 ) )
    action = {
 
               	TMP_HWORD = spr;
-		TMP_WORD = 0; 
+		TMP_WORD = 0;
               	TMP_WORD = TMP_HWORD < 4..0 >;
               	TMP_WORD = TMP_WORD << 5;
               	TMP_WORD = TMP_WORD | ( TMP_HWORD < 8..5 > & 0x0000000f);
@@ -4080,12 +4076,12 @@ op mov_from_spr ( rd : index, spr : card ( 9 ) )
 		endif;
 		switch ( TMP_WORD ) {
 			case 1 : GPR[rd]=XER;
-			case 8 : GPR[rd]=LR; 
+			case 8 : GPR[rd]=LR;
 			case 9 : GPR[rd]=CTR;
 			default : "print" ( "mfspr: rd error." );
 		};
 	}
-   otawa_used_regs = "USED_REGS"(gpr_write(rd), 
+   otawa_used_regs = "USED_REGS"(gpr_write(rd),
 	      switch ( spr ) {
 		      case 1 << 5 : xer_read
 		      case 8 << 5: lr_read
@@ -4110,18 +4106,18 @@ op lwarx ( rd: index, ra: REG_IND_ZERO, rb: REG_IND )
 	syntax = format ( "lwarx r%d,%s,%s", rd, ra.syntax, rb.syntax)
 	image  = format ( "011111%5b%s%s00000101000", rd, ra.image, rb.image )
 	action = {
-	
+
 		TMP_EA = ra + rb;
 		TMP_RESERVE = 1;
 		TMP_RESERVE_ADDR = TMP_EA;
-// ToDo: TMP_EA must be a multiple of four. Otherwise aljgnment exception or results boundedly undefined			
+// ToDo: TMP_EA must be a multiple of four. Otherwise aljgnment exception or results boundedly undefined
 		TMP_SWORD_A3 = M [ TMP_EA ];
 		TMP_SWORD_A2 = M [ TMP_EA + 1 ];
 		TMP_SWORD_A1 = M [ TMP_EA + 2 ];
 		TMP_SWORD_A0 = M [ TMP_EA + 3 ];
 
 		GPR [ rd ] = TMP_SWORD;
-		
+
 		}
    otawa_used_regs = "USED_REGS"(gpr_write(rd), gpr_read(ra.value), gpr_read(rb.value), END_REG)
 

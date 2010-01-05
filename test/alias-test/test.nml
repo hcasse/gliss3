@@ -3,8 +3,9 @@
 // 1. Definitions                                                            //
 // ========================================================================= //
 
-let proc = "toto"         
+let proc = "toto"
 let bit_order = "uppermost" // Be careful ; this is not the convention used in PPC manuals.
+let gliss_isize = "32"
 
 // ------------------------------------------------------------------------- //
 // 1.1 Constants                                                             //
@@ -21,11 +22,11 @@ let SO = 0
 
 // 1.1.2 CR indexes (float)
 let FX = 3
-let FEX= 2 
+let FEX= 2
 let VX = 1
 let OX = 0
 
-// 1.1.3 XER indexes 
+// 1.1.3 XER indexes
 let SO_XER = 31
 let OV_XER = 30
 let CA_XER = 29
@@ -263,7 +264,7 @@ mode _F(n:int(6)) = n
 
 
 
-		
+
 // ========================================================================= //
 //  2. Instructions                                                          //
 // ========================================================================= //
@@ -273,11 +274,11 @@ op instruction ( x : allinstr)
   image = x.image
   action = { x.action ; }
 
-op allinstr = opA | opB | tmp_test
+op allinstr = opA | opB | tmp_test | aliased_index
 
 op tmp_test(p: card(8))
 	syntax = format("test %d", p)
-	image = format("10010001 %5b xxxxxxxx xxxxxxxx", p)
+	image = "00000000 00000000 00000000 00000000"
 // !!BUG!! format("10010001 %5b", p) -> p : card(32)
 	action = {
 		v32 = if p < 8 then p else 0 endif ;
@@ -285,9 +286,9 @@ op tmp_test(p: card(8))
 
 op opA(x: card(5), y : card(5), z : card(5))
 	syntax = format("opA %d,%d,%d", x, y, z)
-	image = format("010111111%5b%5b%5b", x, y, z)
+	image = "00000000 00000000 00000000 00000001"
 	action = {
-	
+
 	// test 1, aliased registers refering to parts of a bigger register
 		v32 = 0x12345678;
 		R32s[5] = v32_0;
@@ -298,7 +299,7 @@ op opA(x: card(5), y : card(5), z : card(5))
 		v32_1 = 0xBB;
 		v32_2 = 0xCC;
 		v32_3 = 0xDD;
-		
+
 //		R32s[9] = v32;
 //		R32_01 = 0x1234567890ABCDEF;
 //		R4_0123 = 0xABCD;
@@ -306,7 +307,7 @@ op opA(x: card(5), y : card(5), z : card(5))
 
 op opB()
 	syntax = "opB"
-	image = "000011110000111100001111"
+	image = "00000000 00000000 00000000 00000010"
 	action = {
 	}
 
@@ -318,3 +319,11 @@ op init ()
    action = {
 	R32[0] = 0x12345678;
            }
+
+
+op aliased_index()
+	syntax = "aliased_index"
+	image = "00000000 00000000 00000000 00000011"
+	action = {
+		R32[v32_b] = 0;
+	}

@@ -159,8 +159,11 @@ module Domain = struct
 
 	let join inst _ s1 s2 = State.join s1 s2
 	let includes s1 s2 = State.includes s1 s2
-	let observe ctx s stat = s
+	let observe_in ctx stat s = s
+	let observe_out ctx stat s = s
 	let disjoin _ _ s = (s, s)
+
+	let output = State.output
 
 end
 
@@ -188,7 +191,7 @@ module Obs = Absint.Observer(Domain)
 module Ana = Absint.Forward(Obs)
 
 (** Dump module for the computability problem. *)
-module Dump = Absint.Dump(State)
+module Dump = Absint.Dump(Obs)
 
 
 (** Analyze for computability the given instruction for the given
@@ -201,6 +204,7 @@ let analyze inst attr =
 	let dom = Ana.run ctx attr in
 	let comp = fst ctx in
 	(comp, dom)
+
 
 (** Dump the result of the analysis.
 	@param comp		Domain table.
