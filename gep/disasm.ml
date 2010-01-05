@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -43,16 +43,16 @@ let options = [
 	@param expr	Syntax expression.
 	@raise Error	If there is an unsupported syntax expression. *)
 let rec gen_disasm info inst expr =
-	
+
 	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST text) in
-	
+
 	let format fmt args s i =
 		if s >= i then
 			Irg.NOP
 		else
-			let fmt = String.sub fmt s i in
+			let fmt = String.sub fmt s (i - s) in
 			Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args) in
-	
+
 	let rec scan fmt args s used i =
 		match args with
 		| [] -> format fmt (List.rev used) s (String.length fmt)
@@ -64,8 +64,8 @@ let rec gen_disasm info inst expr =
 			Irg.SEQ (format fmt used s i,
 				Irg.SEQ(
 					process hd,
-					scan fmt args (i + 2) [] (i + 2)))
-	
+					scan fmt tl (i + 2) [] (i + 2)))
+
 	and process expr =
 		match expr with
 		| Irg.FORMAT (fmt, args) ->
@@ -93,7 +93,7 @@ let rec gen_disasm info inst expr =
 			Toc.error_on_expr "bad syntax expression" expr
 		| Irg.ELINE (file, line, e) ->
 			Toc.locate_error file line (gen_disasm info inst) e in
-			
+
 		(* !!DEBUG!! *)
 		(*print_string "gen_disasm:";
 		Irg.print_expr expr;
@@ -107,7 +107,7 @@ let rec gen_disasm info inst expr =
 let disassemble inst out info =
 	info.Toc.out <- out;
 	Toc.set_inst info inst;
-	
+
 	(* get syntax *)
 	let syntax =
 		try
@@ -122,7 +122,7 @@ let disassemble inst out info =
 	let stats = Toc.prepare_stat info (gen_disasm info inst syntax) in
 	Toc.declare_temps info;
 	Toc.gen_stat info stats;
-	Toc.cleanup_temps info;	
+	Toc.cleanup_temps info;
 	Irg.param_unstack params
 
 
@@ -134,15 +134,15 @@ let _ =
 			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 			(fun info ->
 				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE));
-			
+
 				(* generate disassemble source *)
 				let maker = App.maker () in
 				maker.App.get_instruction <- (fun inst dict ->
 					("disassemble", Templater.TEXT (fun out -> disassemble inst out info)) :: dict);
-				let dict = App.make_env info maker in			
+				let dict = App.make_env info maker in
 				if not !App.quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
 				Templater.generate dict "disasm.c" !out;
-				
+
 				(* generate the command *)
 				if !command then
 					begin

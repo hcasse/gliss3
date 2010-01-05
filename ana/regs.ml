@@ -577,6 +577,26 @@ module Make(T: TRANSFORMATION) = struct
 			| LOC_REF(_, id, ix, _, _) ->
 				CANON_STAT ("__f_set", [EINLINE(id); ix]) in
 
+		let rec scan_expr expr =
+			match expr with
+			| COERCE (_, e) -> scan_expr e
+			| FORMAT (_, args)
+			| CANON_EXPR (_, _, args) -> scan_multi args
+			| IF_EXPR (_, e1, e2, e3)
+			| BITFIELD (_, e1, e2, e3) -> scan_multi [e1; e2; e3]
+			| ELINE (_, _, e)
+			| UNOP (_, _, e) -> scan_expr e
+			| BINOP (_, _, e1, e2) -> scan_multi [e1; e2]
+			| SWITCH_EXPR (_, e1, cs, e2) ->
+				scan_multi (e1::e2::(snd (List.split cs)))
+			| REF id ->
+
+			| _ -> ()
+		and scan_multi exprs =
+			List.iter scan_expr exprs in
+(*| 	REF of string
+| 	ITEMOF of type_expr * string * expr*)
+
 		let rec trans_stat stat =
 			seq
 				(try Absint.StatMap.find stat deps with Not_found -> NOP)
