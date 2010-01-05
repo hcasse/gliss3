@@ -726,7 +726,12 @@ let rec prepare_expr info stats expr =
 				(stats, (case, set typ tmp expr) :: cases))
 			(stats, [])
 			cases in
-		(Irg.SEQ(stats, Irg.SWITCH_STAT (cond, cases, set typ tmp def)),
+		(Irg.SEQ(
+			stats,
+			Irg.SWITCH_STAT (
+				cond,
+				cases,
+				if def = Irg.NONE then Irg.NOP else set typ tmp def)),
 		Irg.REF tmp)
 
 	| Irg.ELINE (file, line, expr) ->
