@@ -92,7 +92,7 @@ let get_string_mask_for_param_from_op sp n =
 			failwith "(Decode) can't find name of i_th param of a spec"
 		| a::b ->
 			if i=0 then
-				Irg.get_name a
+				Irg.get_name_param a
 			else
 				get_i_th_param_name (i-1) b
 	in
