@@ -324,10 +324,6 @@ int /* gliss_ident_t should be better */ gliss_fetch(gliss_fetch_t *fetch, gliss
 			k = first_bit_on(j1);
 		code = gliss_mem_read32(fetch->mem, address);
 
-		///* revert bytes if endianness of host and target are not equals */
-		//if (HOST_ENDIANNESS != TARGET_ENDIANNESS)
-		//	code = ((code&0x0FF)<<24)|((code&0x0FF00)<<8)|((code&0x0FF0000)>>8)|((code&0xFF000000)>>24);
-
 		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
