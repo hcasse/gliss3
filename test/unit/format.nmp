@@ -12,7 +12,7 @@ op ops = op1 | op2 | op3
 
 op op1(p: card(1))
 	image = format("0000 000%1b", p)
-	syntax = format("do %s", if p then "push" else "pop" endif)
+	syntax = format("do %% %s", if p then "push" else "pop" endif)
 
 op op2(v: card(1))
 	image = format("1000 000%1b", v)
