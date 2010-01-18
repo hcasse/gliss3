@@ -36,7 +36,7 @@ typedef struct
 
 /* And now the tables */
 
-$(INIT_FETCH_TABLES_32)
+$(INIT_FETCH_TABLES)
 
 
 #if defined(__cplusplus)
