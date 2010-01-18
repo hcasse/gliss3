@@ -117,7 +117,7 @@ let expand_gen_int gi new_size =
 	let msb_to_add = diff / 32 + 1
 	in
 	let rec add_zero_msb l n =
-		if  == 0 then
+		if n == 0 then
 			l
 		else
 			(add_zero_msb l (n - 1)) @ [ Int32.zero ]
