@@ -104,7 +104,7 @@ let get_attr instr name =
 		(* if attr not found => means an empty attr (?) *)
 			raise Not_found
 		| (Irg.ATTR_STAT(nm, s))::t ->
-			if nm = n then
+			if (String.compare nm n) == 0 then
 				STAT(s)
 			else
 				search_attr_in_list n t
@@ -195,7 +195,7 @@ let get_type instr var_name =
 	[] ->
 		raise Not_found
 	| (str, t)::q ->
-		if str = nam then
+		if (String.compare str nam) == 0 then
 			t
 		else
 			search_param_list nam q

@@ -2,6 +2,7 @@ open Irg
 
 
 (* function dealing with instruction instantiation *)
+(* !!WARNING!! ELINE expr are not needed anymore, we simplify them as we treat them *)
 
 
 (**
@@ -17,9 +18,9 @@ let is_attr_recursive sp name =
 		let rec aux al =
 			match al with
 			[] ->
-				failwith ("attribute " ^ name ^ " not found or not a statement (irg.ml::is_attr_recursive)")
+				failwith ("attribute " ^ name ^ " not found or not a statement (instantiate.ml::is_attr_recursive)")
 			| ATTR_STAT(nm, s)::t ->
-				if nm = n then
+				if (String.compare nm n) == 0 then
 					s
 				else
 					aux t
@@ -31,7 +32,7 @@ let is_attr_recursive sp name =
 		| AND_MODE(_, _, _, a_l) ->
 			aux a_l
 		| _ ->
-			failwith "shouldn't happen (irg.ml::is_attr_recursive::get_attr)"
+			failwith "shouldn't happen (instantiate.ml::is_attr_recursive::get_attr)"
 	in
 	(* return true if there is a call to a stat attr whose name is str in the st stat,
 	we look for things like 'EVAL(str)' *)
@@ -42,7 +43,7 @@ let is_attr_recursive sp name =
 		| SEQ(s1, s2) ->
 			(find_occurence str s1) || (find_occurence str s2)
 		| EVAL(s) ->
-			(s = str)
+			((String.compare s str) == 0)
 		| EVALIND(n, attr) ->
 			(* recursivity occurs only when we refer to oneself, 'EVALIND' always refers to another spec *)
 			false
@@ -76,7 +77,7 @@ let get_stat_from_attr_from_spec sp name_attr =
 		(* if attr not found => means an empty attr (?) *)
 			NOP
 		| ATTR_STAT(nm, s)::t ->
-			if nm = n then
+			if (String.compare nm n) == 0 then
 				s
 			else
 				get_attr n t
@@ -88,7 +89,7 @@ let get_stat_from_attr_from_spec sp name_attr =
 		| AND_MODE(_, _, _, attrs) ->
 			get_attr name_attr attrs
 		| _ ->
-			failwith ("trying to access attribute " ^ name_attr ^ " of spec " ^ (name_of sp) ^ " which is neither an OP or a MODE (irg.ml::get_stat_from_attr_from_spec)")
+			failwith ("trying to access attribute " ^ name_attr ^ " of spec " ^ (name_of sp) ^ " which is neither an OP or a MODE (instantiate.ml::get_stat_from_attr_from_spec)")
 
 
 (* symbol substitution is needed *)
@@ -119,7 +120,7 @@ sp = * param op   => Replace_name, or Prefix_name if more than 1 param of sp typ
 		| AND_MODE(n, _, _, _) ->
 			n
 		| _ ->
-			failwith "shouldn't happen? (irg.ml::check_if_prefix_needed::spec_name)"
+			failwith "shouldn't happen? (instantiate.ml::check_if_prefix_needed::spec_name)"
 	in
 	let is_param_of_given_type p =
 		match p with
@@ -153,7 +154,7 @@ sp = * param op   => Replace_name, or Prefix_name if more than 1 param of sp typ
 		| AND_MODE(_, p_l, _, _) ->
 			List.map name_of_param p_l
 		| _ ->
-			failwith "shouldn't happen? (irg.ml::check_if_prefix_needed::get_sp_param_names)"
+			failwith "shouldn't happen? (instantiate.ml::check_if_prefix_needed::get_sp_param_names)"
 	in*)
 	(* return true if a param whose name is in n_l is existing in the given param list *)
 	(*let rec is_name_conflict p_l n_l =
@@ -175,7 +176,7 @@ sp = * param op   => Replace_name, or Prefix_name if more than 1 param of sp typ
 		else
 			Keep_name
 	| _ ->
-		failwith "shouldn't happen? (irg.ml::check_if_prefix_needed)"
+		failwith "shouldn't happen? (instantiate.ml::check_if_prefix_needed)"
 *)
 
 
@@ -191,12 +192,18 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 		print_spec sp;*)
 			NONE
 		| ATTR_EXPR(nm, e)::t ->
-			if nm = n then
+			if (String.compare nm n) == 0 then
+				(* !!DEBUG!! *)
+				(*(print_string "res = [[";
+				Irg.print_expr e;
+				print_string "]]\n";*)
 				e
 			else
 				get_attr n t
 		| _::t -> get_attr n t
 	in
+		(* !!DEBUG!! *)
+		(*print_string ("get_expr_from_attr, name_attr=" ^ name_attr ^ ", spec=" ^ (Irg.name_of sp) ^ "\n");*)
 		match sp with
 		AND_OP(_, _, attrs) ->
 			get_attr name_attr attrs
@@ -205,7 +212,7 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 		| _ ->
 		(* !!DEBUG!! *)
 		(*print_string name_attr;*)
-			failwith "cannot get an expr attribute from not an AND OP or an AND MODE (irg.ml::get_expr_from_attr_from_op_or_mode)"
+			failwith "cannot get an expr attribute from not an AND OP or an AND MODE (instantiate.ml::get_expr_from_attr_from_op_or_mode)"
 
 
 let rec substitute_in_expr name op ex =
@@ -226,7 +233,9 @@ let rec substitute_in_expr name op ex =
 		COERCE(te, substitute_in_expr name op e)
 	| FORMAT(s, e_l) ->
 		(* done by another function which replace everything in one shot *)
-		FORMAT(s, e_l)
+		(* FORMAT(s, e_l) *)
+		(* !!TODO!! apply same treatment to any expr, then reduce formats *)
+		FORMAT(s, List.map (substitute_in_expr name op) e_l)
 	| CANON_EXPR(te, s, e_l) ->
 		CANON_EXPR(te, s, List.map (substitute_in_expr name op) e_l )
 	| REF(s) ->
@@ -243,10 +252,28 @@ let rec substitute_in_expr name op ex =
 	print_string "]\nop =[";
 	print_spec op; print_string "]\n";
 	print_string "res = ["; print_expr (get_expr_from_attr_from_op_or_mode op s2); print_string "]\n\n"; flush stdout;*)
-		if s1 = name then
+		if (String.compare s1 name) == 0 then
+			(* !!DEBUG!! *)
+			begin
+			(*print_string "subst_expr spec={{\n";
+			Irg.print_spec op;
+			print_string "}}\nsubst_expr (then) [[";
+			Irg.print_expr ex;
+			print_string "]] => [[";
+			print_expr (get_expr_from_attr_from_op_or_mode op s2);
+			print_string "]]\n";
+			*)
 			get_expr_from_attr_from_op_or_mode op s2
+			end
 		else
+			(* !!DEBUG!! *)
+			begin
+			(*print_string "subst_expr (else) [[";
+			Irg.print_expr ex;
+			print_string "]]\n";
+			*)
 			FIELDOF(te, s1, s2)
+			end
 	| ITEMOF(te, e1, e2) ->
 		ITEMOF(te, e1, substitute_in_expr name op e2)
 	| BITFIELD(te, e1, e2, e3) ->
@@ -262,7 +289,8 @@ let rec substitute_in_expr name op ex =
 	| CONST(te, c)
 		-> CONST(te, c)
 	| ELINE (file, line, e) ->
-		ELINE (file, line, substitute_in_expr name op e)
+		(* ELINE useless here *)
+		substitute_in_expr name op e
 	| EINLINE _ ->
 		ex
 
@@ -270,11 +298,11 @@ let rec substitute_in_expr name op ex =
 
 let rec change_name_of_var_in_expr ex var_name new_name =
 	let get_name_param s =
-		if s = var_name then
+		if (String.compare s var_name) == 0 then
 			new_name
 		else
-			s in
-
+			s
+	in
 	match ex with
 	NONE ->
 		NONE
@@ -303,7 +331,8 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
 	| ELINE(file, line, e) ->
-		ELINE(file, line, change_name_of_var_in_expr e var_name new_name)
+		(* ELINE no more useful here *)
+		change_name_of_var_in_expr e var_name new_name
 	| EINLINE _ ->
 		ex
 
@@ -314,7 +343,7 @@ let rec change_name_of_var_in_location loc var_name new_name =
 	| LOC_REF(t, s, i, l, u) ->
 		LOC_REF (
 			t,
-			(if s = var_name then new_name else s),
+			(if (String.compare s var_name) == 0 then new_name else s),
 			change_name_of_var_in_expr i var_name new_name,
 			change_name_of_var_in_expr l var_name new_name,
 			change_name_of_var_in_expr u var_name new_name)
@@ -345,10 +374,10 @@ print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)*)
 				LOC_REF(t, n, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 			| ITEMOF(typ, n, idx) ->
 				(* can replace only if loc is "simple" (ie i = NONE), we can't express n[idx][i] *)
-				if i=NONE then
+				if i = NONE then
 					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
-					failwith "cannot substitute a var here (ITEMOF) (irg.ml::substitute_in_location)"
+					failwith "cannot substitute a var here (ITEMOF) (instantiate.ml::substitute_in_location)"
 			| BITFIELD(typ, n, lb, ub) ->
 				if i=NONE then
 					if u=NONE && l=NONE then
@@ -356,28 +385,28 @@ print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)*)
 						REF(nn) ->
 							LOC_REF(typ, nn, NONE, lb, ub)
 						| _ ->
-							failwith "cannot substitute here (BITFIELD 1), loc_expr removed (irg.ml::substitute_in_location)"
+							failwith "cannot substitute here (BITFIELD 1), loc_expr removed (instantiate.ml::substitute_in_location)"
 							(*LOC_EXPR(mv)*)
 						)
 					else
-						failwith "cannot substitute here (BITFIELD 2), loc_expr removed (irg.ml::substitute_in_location)"
+						failwith "cannot substitute here (BITFIELD 2), loc_expr removed (instantiate.ml::substitute_in_location)"
 						(*LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))*)
 				else
 					(* we can't express n<lb..ub>[i], it is meaningless *)
-					failwith "cannot substitute a var here (BITFIELD 3) (irg.ml::substitute_in_location)"
+					failwith "cannot substitute a var here (BITFIELD 3) (instantiate.ml::substitute_in_location)"
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
 				if i=NONE then
 					if u=NONE && l=NONE then
-						failwith "cannot substitute here (_ 1), loc_expr removed (irg.ml::substitute_in_location)"
+						failwith "cannot substitute here (_ 1), loc_expr removed (instantiate.ml::substitute_in_location)"
 						(*LOC_EXPR(mv)*)
 					else
-						failwith "cannot substitute here (_ 2), loc_expr removed (irg.ml::substitute_in_location)"
+						failwith "cannot substitute here (_ 2), loc_expr removed (instantiate.ml::substitute_in_location)"
 						(*LOC_EXPR(BITFIELD(t, mv, substitute_in_expr name op l, substitute_in_expr name op u))*)
 				else
 					(* how could we express stg like (if .. then .. else .. endif)[i]<l..u>, it would be meaningless most of the time *)
-					failwith "cannot substitute a var here (_ 3) (irg.ml::substitute_in_location)"
+					failwith "cannot substitute a var here (_ 3) (instantiate.ml::substitute_in_location)"
 		in
 		(* change if op is a AND_MODE and s refers to it *)
 		(* as mode values, we will accept only those "similar" to a LOC_REF (REF, ITEMOF, BITFIELD, (FIELDOF)) *)
@@ -417,8 +446,18 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 	| EVAL(s) ->
 		EVAL(s)
 	| EVALIND(n, attr) ->
-		if n = name then
+		if (String.compare n name) == 0 then
 		begin
+			(* !!DEBUG!! *)
+			(*print_string "subst_stat (then) [[";
+			Irg.print_statement statement;
+			print_string "]] => [[";
+			if (String.compare attr "action") == 0 then
+				print_string "<ACTION>"
+			else
+				Irg.print_statement (get_stat_from_attr_from_spec op attr);
+			print_string "]]\n";*)
+			
 			if is_attr_recursive op attr then
 				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
 				EVAL(n ^ "_" ^ attr)
@@ -426,6 +465,11 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 				get_stat_from_attr_from_spec op attr
 		end
 		else
+			(* !!DEBUG!! *)
+			(*print_string "subst_stat (else) [[";
+			Irg.print_statement statement;
+			print_string "]]\n";*)
+			
 			EVALIND(n, attr)
 	| SET(l, e) ->
 		(* !!DEBUG!! *)
@@ -459,7 +503,7 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 	| EVAL(str) ->
 		EVAL(str)
 	| EVALIND(v, attr_name) ->
-		if v = var_name then
+		if (String.compare v var_name) == 0 then
 			EVALIND(new_name, attr_name)
 		else
 			EVALIND(v, attr_name)
@@ -532,113 +576,10 @@ let rec prefix_name_of_params_in_spec sp pfx =
 
 
 
-(* str_format is a regexp representing a %... from a format expr
- expr_field is supposed to be an expr of type FIELDOF ("x.syntax") or else corresponding to str_format
- spec_type is the spec of the base of the expr (here : the spec of "x"), has meaning only for some types of expr *)
-let rec replace_format_by_attr str_format expr_field spec_type =
-	(*return the "useful" string from an expr of type format(...) or simple type *)
-	let rec get_str_from_format_expr f =
-	(* !!DEBUG!! *)
-	(*print_string "debug g_str_f_frmt_expr, f = [";
-	print_expr f;
-	print_string "]\n";*)
-		match f with
-		FORMAT(s, _) -> s
-		(*| CONST(STRING, s) ->
-			(match s with
-			STRING_CONST(str) -> str
-			| _ -> failwith "cannot get a string from not a string constant (irg.ml::replace_format_by_attr::get_str_from_format_expr)"
-			)*)
-		| REF(s) -> ""
-		| ELINE (_, _, e) -> get_str_from_format_expr e
-		| _ ->
-			"";
-		(* !!DEBUG!!
-		print_char '['; print_expr f; print_string "]\n";
-		failwith "expression not suitable to get a string from it (irg.ml::replace_format_by_attr::get_str_from_format_expr)"*)
-	in
-	match str_format with
-	Str.Text(t) -> t
-	| Str.Delim(t) ->
-		(match expr_field with
-		(* replace expr like "x.image" "y.syntax" etc *)
-		FIELDOF(_, _, s) ->
-			let new_expr = get_expr_from_attr_from_op_or_mode spec_type s
-			in
-			let new_s = get_str_from_format_expr new_expr
-			in
-			(*  !!DEBUG!! *)
-			(*print_string "debug repl_frmt_by_attr, str_format = ["; print_string t;
-			print_string "]\nexpr_field = ["; print_expr expr_field;
-			print_string "]\ng_e_f_attr_f_op_o_mode s_t s = ["; print_expr new_expr;
-			print_string "]\nnew_s = ["; print_string new_s; print_string "]\n\n";*)
-			if new_s = "" then
-				t
-			else
-				new_s
-		(* replace format by text for string constants *)
-		(*| CONST(STRING, cst) ->
-			(match cst with
-			STRING_CONST(str) -> str
-			| _ -> ""
-			)*)
-		| ELINE (_, _, e) -> replace_format_by_attr str_format e spec_type
-		(* leave unchanged for simple expr of simple types, like "tmp", "x" *)
-		| _ -> t)
 
 
 
-(* replace an "x.image" (x is an op foo) param by the params of the "image" attribute in the "foo" spec
-the attribute in foo is supposed to be a format (returns the parma of the format) or a string const (returns no params),
-others expressions remain *)
-let rec replace_field_expr_by_param_list expr_field spec_type =
-	let is_and_mode sp =
-		match sp with
-		AND_MODE(_, _, _, _) -> true
-		| _ -> false
-	in
-	let get_mode_value sp =
-		match sp with
-		AND_MODE(_, _, v, _) -> v
-		| _-> NONE
-	in
-	let rec get_param_list_from_format_expr f =
-		(* !!DEBUG!! *)
-		(*print_string "get_pl_from_f_e f=[[";print_expr f; print_string "]]\n";*)
-		match f with
-		FORMAT(_, l) -> l
-		| ELINE (_, _, e) -> get_param_list_from_format_expr e
-		| _ ->[f]
-	in
-	(* !!DEBUG!! *)
-	(*print_string "\nrepl_f_e_by_p_l\n\texpr=[["; print_expr expr_field; print_string "]]\n\tspec=[[";print_spec spec_type;print_string "]]\n";*)
-	match expr_field with
-	FIELDOF(_, _, s) ->
-		(* !!DEBUG!! *)
-		(*print_string "++++++++res=[[";
-		List.iter (fun x -> print_expr x; print_string ", ") (get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s));
-		print_string "]]\n"; flush stdout;*)
-		get_param_list_from_format_expr (get_expr_from_attr_from_op_or_mode spec_type s)
-	| ELINE (_, _, e) ->
-		(* !!DEBUG!! *)
-		(*print_string "++++++++rec (ELINE)\n";*)
-		replace_field_expr_by_param_list e spec_type
-	| REF(_) ->
-		(* if mode, replace by mode value *)
-		if is_and_mode spec_type then
-			begin
-			(* !!DEBUG!! *)
-			(*print_string "warning: a mode param is used directly in a format expr (not with syntax, image or else), are you sure it is ok?\n";*)
-			[get_mode_value spec_type]
-			end
-		else
-			[expr_field]
-	| _ ->
-		(* !!DEBUG!! *)
-		(*print_string "++++++++res=[[";
-		print_expr expr_field;
-		print_string "]]\n"; flush stdout;*)
-		[expr_field]
+
 
 let get_param_of_spec s =
 	match s with
@@ -666,66 +607,6 @@ let replace_param_list p_l =
 	in
 	List.flatten (List.map replace_param p_l)
 
-
-let rec search_spec_of_name name param_list =
-	let spec_from_type t =
-		match t with
-		TYPE_ID(n) -> get_symbol n
-		| TYPE_EXPR(t_e) ->
-		(* !!DEBUG!! *)
-		(*print_string "spec_from_type, t="; print_type_expr t_e; print_string ", res=>UNDEF\n";*)
-		UNDEF
-	in
-	let rec rec_aux nam p_l =
-		match p_l with
-		(n, t)::q ->
-			if n = nam then
-				spec_from_type t
-			else
-				search_spec_of_name name q
-		| [] ->
-			(* !!DEBUG!! *)
-			print_string "s_s_o_n, name=";
-			print_string name;
-			print_string "\nparams=";
-			print_param_list param_list;
-			print_string "\n";
-			failwith ("in the given param list, no param was found with name " ^ name ^ " (irg.ml::search_spec_of_name::rec_aux)")
-	in
-	rec_aux name param_list
-
-
-
-(* e is an expr appearing in the params given (supposed to be the params of another spec)
-if e is like "x.image", it returns the spec of "x" where all var names are prefixed by the name of the former param,
-avoid same name for different vars if instantiating several params of same type *)
-let get_spec_from_expr e spec_params =
-	let rec rec_aux ex p_l =
-		match ex with
-		FIELDOF(_, expre, _) ->
-			prefix_name_of_params_in_spec (search_spec_of_name expre spec_params) expre
-		| REF(name) -> prefix_name_of_params_in_spec (search_spec_of_name name spec_params) name
-		| ELINE (_, _, e) -> rec_aux e p_l
-		| CONST(_, _) ->
-			UNDEF
-		| BITFIELD(_, e, _, _) ->
-			(match e with
-			FIELDOF(_, e1, _) ->
-				prefix_name_of_params_in_spec (search_spec_of_name e1 spec_params) e1
-			| REF(n) ->
-				prefix_name_of_params_in_spec (search_spec_of_name n spec_params) n
-			| CONST(_, _) ->
-				UNDEF
-			| _ ->
-				failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux::BITFIELD)"
-			)
-		| _ ->
-			failwith "the given expression cannot refer to any spec (irg.ml::get_spec_from_expr::rec_aux)"
-	in
-	(* !!DEBUG!! *)
-	(*print_string "\nget_spec_from_expr\n\texpr=[["; print_expr e; print_string "]]\n\tp_l=[["; print_param_list spec_params;print_string "]]\n";
-	print_string "++++++++res=[["; print_spec (rec_aux e spec_params); print_string "]]\n"; flush stdout;*)
-	rec_aux e spec_params
 
 
 let rec regexp_list_to_str_list l =
@@ -759,41 +640,92 @@ let rec print_reg_list e_l =
 		end
 
 
-(* the reg_list is supposed to represent an expr from a format (eg : "001101%8b00%d")
-expr_list is the params of the same format (eg : x, z, y.image, TMP_VAR)
-the format is supposed to be an attribute of a spec
-whose params are given in spec_params
-returns a string list where each format has been replaced by the correct image or syntax (or else) *)
-let transform_str_list reg_list expr_list spec_params =
-	let rec rec_aux r_l e_l p_l =
-		match r_l with
-		[] -> []
-		| a::t ->
-			(match e_l with
-			[] -> regexp_list_to_str_list r_l
-			| b::u ->
-				(match a with
-				Str.Text(txt) ->
-					txt::(rec_aux t e_l p_l)
-				(* we suppose everything is well formed, each format has one param, params are given in format's order *)
-				| Str.Delim(txt) ->
-						(replace_format_by_attr a b (get_spec_from_expr b p_l))::(rec_aux t u p_l)
+
+let rec simplify_format_expr ex =
+	let rec reduce f params =
+		match f with
+		[] ->
+			if params = [] then
+				([], [])
+			else
+				failwith "too much params here (instantiate.ml::simplify_format_expr::reduce)"
+		| f1::f_l ->
+			(match f1 with
+			Str.Text(t) ->
+				(* simple text *)
+				let (a, b) = reduce f_l params
+				in
+				(* !!DEBUG!! *)
+				(*print_string ("s_f_e(f1=text) ["^t^"]\n");*)
+				(f1::a, b)
+			| Str.Delim(t) ->
+				(* format *)
+				(match params with
+				[] ->
+					failwith "not enough params here (instantiate.ml::simplify_format_expr::reduce)"
+				| p1::p_l ->
+					(match p1 with
+					FORMAT(s, e_l) ->
+						(* reduce the format, check compatibility type between format and param later *)
+						let new_f1 = string_to_regexp_list s
+						in
+						let (a, b) = reduce f_l p_l
+						in
+						(* !!DEBUG!! *)
+						(*print_string "s_f_e(f1=delim)(p1(frmt)=[[";
+						print_expr p1;
+						print_string ("]]) ["^t^"]\n");*)
+						
+						(new_f1 @ a, e_l @ b)
+					| _ ->
+						let (a, b) = reduce f_l p_l
+						in
+						(* !!DEBUG!! *)
+						(*print_string "s_f_e(f1=delim)(p1(_)=[[";
+						print_expr p1;
+						print_string ("]]) ["^t^"]\n");*)
+						(f1::a, p1::b)
+					)
 				)
 			)
 	in
-	(* !!DEBUG!! *)
-	(*let res = rec_aux reg_list expr_list spec_params
-	in
-	print_string "debud transform_str_list, reg_list = [";
-	print_reg_list reg_list;
-	print_string "]\nexpr_list = [";
-	List.iter (fun x -> print_expr x; print_string ", ") expr_list;
-	print_string "]\nspec params = [";
-	print_param_list spec_params;
-	print_string "]\nres = ["; print_string (str_list_to_str  res);
-	print_string "]\n";*)
-
-	rec_aux reg_list expr_list spec_params
+	match ex with
+	FORMAT(s, e_l) ->
+		let str_format = string_to_regexp_list s
+		in
+		let simpl_e_l = List.map simplify_format_expr e_l
+		in
+		let (new_s, new_e_l) = reduce str_format simpl_e_l
+		in
+		FORMAT((str_list_to_str (regexp_list_to_str_list new_s)), new_e_l)
+	| NONE ->
+		NONE
+	| COERCE(t_e, e) ->
+		COERCE(t_e, simplify_format_expr e)
+	| CANON_EXPR(t_e, s, e_l) ->
+		CANON_EXPR(t_e, s, List.map simplify_format_expr e_l)
+	| REF(s) ->
+		REF (s)
+	| FIELDOF(t_e, e, s) ->
+		FIELDOF(t_e, e, s)
+	| ITEMOF(t_e, e1, e2) ->
+		ITEMOF(t_e, e1, simplify_format_expr e2)
+	| BITFIELD(t_e, e1, e2, e3) ->
+		BITFIELD(t_e, simplify_format_expr e1, simplify_format_expr e2, simplify_format_expr e3)
+	| UNOP(t_e, u, e) ->
+		UNOP(t_e, u, simplify_format_expr e)
+	| BINOP(t_e, b, e1, e2) ->
+		BINOP(t_e, b, simplify_format_expr e1, simplify_format_expr e2)
+	| IF_EXPR(t_e, e1, e2, e3) ->
+		IF_EXPR(t_e, simplify_format_expr e1, simplify_format_expr e2, simplify_format_expr e3)
+	| SWITCH_EXPR(te, e1, ee_l, e2) ->
+		SWITCH_EXPR(te, simplify_format_expr e1, List.map (fun (x,y) -> (simplify_format_expr x, simplify_format_expr y)) ee_l, simplify_format_expr e2)
+	| CONST(t_e, c) ->
+		CONST(t_e, c)
+	| ELINE(file, line, e) ->
+		simplify_format_expr e
+	| EINLINE _ ->
+		ex
 
 
 let rec remove_const_param_from_format f =
@@ -801,7 +733,7 @@ let rec remove_const_param_from_format f =
 		let f =
 			match regexp with
 			Str.Delim(t) -> t
-			| _ -> failwith "shouldn't happen (irg.ml::remove_const_param_from_format::get_length_from_format::f)"
+			| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::get_length_from_format::f)"
 		in
 		let l = String.length f in
 		let new_f =
@@ -836,16 +768,16 @@ let rec remove_const_param_from_format f =
 	let is_string_format regexp =
 		match regexp with
 		Str.Delim(t) ->
-			t = "%s"
+			(String.compare t "%s") == 0
 		| _ ->
-			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_string_format)"
+			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_string_format)"
 	in
 	let is_integer_format regexp =
 		match regexp with
 		Str.Delim(t) ->
-			t = "%d"
+			(String.compare t "%d") == 0
 		| _ ->
-			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_integer_format)"
+			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_integer_format)"
 	in
 	let is_binary_format regexp =
 		match regexp with
@@ -855,14 +787,14 @@ let rec remove_const_param_from_format f =
 			else
 				t.[(String.length t) - 1] = 'b'
 		| _ ->
-			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_binary_format)"
+			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_binary_format)"
 	in
 	let is_float_format regexp =
 		match regexp with
 		Str.Delim(t) ->
-			t = "%f"
+			(String.compare t "%f") == 0
 		| _ ->
-			failwith "shouldn't happen (irg.ml::remove_const_param_from_format::is_float_format)"
+			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_float_format)"
 	in
 	let replace_const_param_in_format_string regexp param =
 		match param with
@@ -875,7 +807,7 @@ let rec remove_const_param_from_format f =
 					if is_binary_format regexp then
 						Str.Text(int32_to_string01 i (get_length_from_format regexp) "")
 					else
-						failwith "bad format, a 32 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+						failwith "bad format, a 32 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| CARD_CONST_64(i) ->
 				if is_integer_format regexp then
 					Str.Text(Int64.to_string i)
@@ -883,18 +815,18 @@ let rec remove_const_param_from_format f =
 					if is_binary_format regexp then
 						Str.Text(int64_to_string01 i (get_length_from_format regexp) "")
 					else
-						failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+						failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| STRING_CONST(s) ->
 				if is_string_format regexp then
 					Str.Text(s)
 				else
-					failwith "bad format, a string constant can be displayed only with \"%s\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+					failwith "bad format, a string constant can be displayed only with \"%s\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| FIXED_CONST(f) ->
 				if is_float_format regexp then
 					(* TODO: check if the output is compatible with C representation of floats *)
 					Str.Text(string_of_float f)
 				else
-					failwith "bad format, a float constant can be displayed only with \"%f\" (irg.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+					failwith "bad format, a float constant can be displayed only with \"%f\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| NULL ->
 				(* wtf!? isn't that supposed to be an error ? in the doubt... let it through *)
 				regexp
@@ -922,7 +854,7 @@ let rec remove_const_param_from_format f =
 				(match p_l with
 				[] ->
 					(* not enough params ! *)
-					failwith "shouldn't happen (irg.ml::remove_const_param_from_format::r_aux)"
+					failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::r_aux)"
 				| t::u ->
 					(replace_const_param_in_format_string a t)::(r_aux b u)
 				)
@@ -936,7 +868,7 @@ let rec remove_const_param_from_format f =
 				[]
 			else
 				(* not enough formats ! *)
-				failwith "shouldn't happen (irg.ml::remove_const_param_from_format::p_aux)"
+				failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
 		| a::b ->
 			(match a with
 			Str.Text(t) ->
@@ -945,7 +877,7 @@ let rec remove_const_param_from_format f =
 				(match p_l with
 				[] ->
 					(* not enough params ! *)
-					failwith "shouldn't happen (irg.ml::remove_const_param_from_format::p_aux)"
+					failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
 				| t::u ->
 					(replace_const_param_in_param a t) @ (p_aux b u)
 				)
@@ -968,83 +900,26 @@ let rec remove_const_param_from_format f =
 		print_string ("remove_const_param_from_format, s=[["^s^"]]----p=\n");
 		print_expr_list p;
 		print_char '\n';*)
-		FORMAT(str_list_to_str (regexp_list_to_str_list (r_aux r_l p)), p_aux r_l p)
+		let new_s = str_list_to_str (regexp_list_to_str_list (r_aux r_l p))
+		in
+		let new_p = p_aux r_l p
+		in
+		if new_p = [] then
+			(* format with no arg => simplified into a string constant *)
+			CONST(STRING, STRING_CONST(new_s))
+		else
+			FORMAT(new_s, new_p)
+		(*FORMAT(str_list_to_str (regexp_list_to_str_list (r_aux r_l p)), p_aux r_l p)*)
 	| ELINE (file, line, e) ->
 			(match e with
 			ELINE(_, _, _) ->
 				remove_const_param_from_format e
 			| _ ->
-				ELINE(file, line, remove_const_param_from_format e)
+				remove_const_param_from_format e
 			)
 	| _ ->
-		failwith "function can be called only for format expressions (irg.ml::remove_const_param_from_format)"
+		f
 
-
-(* instantiate all var in expr_frmt (of type format(ch, p1, p2, ..., pn) )
-the vars to instantiate are given in a list of couples (name of var, spec of the var)
-the vars must have been instantiated to real op (not OR op which have no attribute at all) *)
-let change_format_attr expr_frmt param_list =
-	let rec get_str_from_format_expr f =
-		match f with
-		FORMAT(s, _) -> s
-		(*| CONST(STRING, s) ->
-			(match s with
-			STRING_CONST(str) -> str
-			| _ -> ""
-			)*)
-		| REF(s) -> s
-		| ELINE(_, _, e) -> get_str_from_format_expr e
-		| _ -> failwith "wrong argument (irg.ml::change_format_attr::get_str_from_format_expr)"
-	in
-	let rec get_param_from_format_expr f =
-		match f with
-		FORMAT(_, p) -> p
-		| ELINE(_, _, e) -> get_param_from_format_expr e
-		| _ -> []
-	in
-	let str_frmt = string_to_regexp_list (get_str_from_format_expr expr_frmt)
-	in
-	let param_frmt = get_param_from_format_expr expr_frmt
-	in
-	let rec reduce_frmt f =
-		match f with
-		FORMAT(str, p) ->
-			if p = [] then
-				CONST(STRING, STRING_CONST(str))
-			else
-				f
-		| ELINE (file, line, e) ->
-			(* rough fix for a bug where we obtain a lot of EL imbricated outside a transformed format *)
-			(match e with
-			ELINE(_, _, _) ->
-				reduce_frmt e
-			| _ ->
-				ELINE(file, line, reduce_frmt e)
-			)
-		| _ -> f
-	in
-	(* !!DEBUG!! *)
-	(*let res = reduce_frmt (remove_const_param_from_format
-		(FORMAT(
-			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
-			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
-			)))
-	in
-	print_string "\n\nchg_fmt_attr,\n\texpr_frmt=[[";
-	print_expr expr_frmt;
-	print_string "]]\n\tparam_list=[[";
-	print_param_list param_list;
-	print_string "++++++++res=[[";
-	print_expr res;
-	print_string "]]\n";
-	flush stdout;
-	res*)
-	(* !!NO DEBUG!! *)
-	reduce_frmt (remove_const_param_from_format
-		(FORMAT(
-			str_list_to_str (transform_str_list str_frmt param_frmt param_list),
-			List.flatten (List.map (fun x -> replace_field_expr_by_param_list x (get_spec_from_expr x param_list)) param_frmt)
-			)))
 
 
 
@@ -1090,10 +965,10 @@ let rec instantiate_in_expr ex param_list =
 			aux e q
 	in
 	match ex with
-	FORMAT(_, _) ->
-		change_format_attr ex param_list
+	(*FORMAT(_, _) ->*)
+		(* change_format_attr ex param_list *)
 	| ELINE(a, b, e) ->
-		ELINE(a, b, instantiate_in_expr e param_list)
+		instantiate_in_expr e param_list
 	| _ ->
 	(* !!DEBUG!! *)
 	(*print_string "inst_in_expr , expr = [";
@@ -1182,7 +1057,7 @@ let instantiate_param_list p_l =
 let instantiate_attr sp a params=
 	match a with
 	ATTR_EXPR(n, e) ->
-		ATTR_EXPR(n, instantiate_in_expr e params)
+		ATTR_EXPR(n, remove_const_param_from_format (simplify_format_expr (instantiate_in_expr e params)))
 	| ATTR_STAT(n, s) ->
 		ATTR_STAT(n, instantiate_in_stat s params)
 	| ATTR_USES ->
@@ -1202,7 +1077,7 @@ let add_attr_to_spec sp param =
 		(name, TYPE_ID(s)) ->
 			name
 		| (_, TYPE_EXPR(_)) ->
-			failwith "shouldn't happen (irg.ml::add_attr_to_spec::name_of_param)"
+			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::name_of_param)"
 	in
 	let spec_of_param p =
 	(* !!DEBUG!! *)
@@ -1213,7 +1088,7 @@ let add_attr_to_spec sp param =
 		(name, TYPE_ID(s)) ->
 			get_symbol s
 		| (_, TYPE_EXPR(_)) ->
-			failwith "shouldn't happen (irg.ml::add_attr_to_spec::spec_of_param)"
+			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::spec_of_param)"
 	in
 	(* prefix the name of the attr and all the recursive calls to itself (EVAL(name) => EVAL(pfx ^ name) *)
 	let prefix_recursive_attr a pfx =
@@ -1224,7 +1099,7 @@ let add_attr_to_spec sp param =
 			| SEQ(s1, s2) ->
 				SEQ(aux s1 name, aux s2 name)
 			| EVAL(str) ->
-				if str = name then
+				if (String.compare str name) == 0 then
 					EVAL(pfx ^ "_" ^ name)
 				else
 					EVAL(str)
@@ -1249,18 +1124,18 @@ let add_attr_to_spec sp param =
 		in
 		match a with
 		ATTR_EXPR(n, at) ->
-			failwith "shouldn't happen (irg.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_EXPR)"
+			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_EXPR)"
 		| ATTR_STAT(n, at) ->
 			ATTR_STAT(pfx ^ "_" ^ n, aux at n)
 		| ATTR_USES ->
-			failwith "shouldn't happen (irg.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_USES)"
+			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_USES)"
 	in
 	let compare_attrs a1 a2 =
 		match a1 with
 		ATTR_EXPR(n, _) ->
 			(match a2 with
 			ATTR_EXPR(nn, _) ->
-				if nn=n then
+				if (String.compare nn n) == 0 then
 					true
 				else
 					false
@@ -1269,7 +1144,7 @@ let add_attr_to_spec sp param =
 		| ATTR_STAT(n, _) ->
 			(match a2 with
 			ATTR_STAT(nn, _) ->
-				if nn=n then
+				if (String.compare nn n) == 0 then
 					true
 				else
 					false
@@ -1449,10 +1324,10 @@ let instantiate_instructions name =
 		ATTR_EXPR(n, e) ->
 			(match e with
 			ELINE(_, _, ee) ->
-				if n="syntax" && ee=NONE then
+				if (String.compare n "syntax") == 0 && ee = NONE then
 					true
 				else
-					if n="image" && ee=NONE then
+					if (String.compare n "image") == 0 && ee = NONE then
 						true
 					else
 						false
@@ -1476,9 +1351,9 @@ let instantiate_instructions name =
 			ELINE(f, l, ee) ->
 				(match ee with
 				ELINE(_, _, eee) ->
-					clean_attr (ATTR_EXPR(n, ELINE(f, l, eee)))
+					clean_attr (ATTR_EXPR(n, eee))
 				| _ ->
-					ATTR_EXPR(n, ELINE(f, l, ee))
+					ATTR_EXPR(n, ee)
 				)
 			| _ ->
 				a
@@ -1546,65 +1421,4 @@ let test_instant_param p =
 	end
 	in
 	print_param_list_list (instantiate_param_list [("z",TYPE_EXPR(CARD(5))); ("x",TYPE_ID("_A")); ("y",TYPE_ID("_D"))])
-
-let test_change_frmt name =
-	let sp = get_symbol name
-	in
-	let frmt = get_expr_from_attr_from_op_or_mode sp "syntax"
-	in
-	let params = [("x",TYPE_ID("tutu1")); ("y",TYPE_ID("tata1"))]
-	in
-	print_expr (change_format_attr frmt params)
-
-let test_format name =
-	let sp = get_symbol name
-	in
-	let frmt = get_expr_from_attr_from_op_or_mode sp "syntax"
-	in
-	let spec_params = [("x",TYPE_ID("tutu1"));("y",TYPE_ID("tata1"))]
-	(*get_param_of_spec sp*)
-	in
-	let get_str_from_format_expr f =
-		match f with
-		FORMAT(s, _) -> s
-		| CONST(STRING, s) ->
-			(match s with
-			STRING_CONST(str) -> str
-			| _ -> ""
-			)
-		| REF(s) -> s
-		| _ -> ""
-	in
-	let get_param_from_format_expr f =
-		match f with
-		FORMAT(_, p) -> p
-		| _ -> []
-	in
-	let print_string_list l =
-	begin
-		List.iter (fun x -> begin Printf.printf ":%s;\n" x end) l
-	end
-	in
-	let print_res l =
-	begin
-		Printf.printf "avant:\n";
-		print_string_list (regexp_list_to_str_list (string_to_regexp_list (get_str_from_format_expr frmt)));
-		Printf.printf "après:\n";
-		print_string_list l
-	end
-	in
-	print_res (transform_str_list (string_to_regexp_list (get_str_from_format_expr frmt)) (get_param_from_format_expr frmt) spec_params)
-
-let test_replace_param name =
-	let sp = get_symbol name
-	in
-	let expre = FIELDOF(STRING, (*REF( *) "x" (**), "image")
-	in
-	let rec print_expr_list e_l =
-		List.map (fun x -> begin Printf.printf ":"; print_expr x; print_string ";\n" end) e_l
-	in
-	begin
-		Printf.printf "res test param:\n";
-		print_expr_list (replace_field_expr_by_param_list expre sp)
-	end
 

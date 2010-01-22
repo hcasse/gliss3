@@ -44,8 +44,8 @@ let get_length_from_format f =
 	let l = String.length f in
 	let new_f =
 		if l<=2 then
-		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-			failwith "we shouldn't have something like " ^ f ^ " (fetch.ml::get_length_from_format)"
+		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f or %s *)
+			failwith ("we shouldn't have something like [[" ^ f ^ "]] (fetch.ml::get_length_from_format)")
 		else
 			String.sub f 1 (l-2)
 	in
@@ -735,21 +735,22 @@ let output_table_C_decl out dt dl =
 			end
 	in
 	(* !!DEBUG!! *)
-	match dt with
+	(*match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
 	print_string ("node treated[" ^ (name_of dt) ^ "], spec=["); 
 	List.iter (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
 	print_string  "], sons=[";
 	List.iter (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
-	print_string "]\n";
+	print_string "]\n";*)
 	if is_terminal_node dt then
 		(* !!DEBUG!! *)
-		print_string ((name_of dt) ^ ": [[terminal node]]\n")
-		(*()*)
+		(*print_string ((name_of dt) ^ ": [[terminal node]]\n")*)
+		()
 	else
 		begin
 		(* !!DEBUG!! *)
-		print_string ((name_of dt) ^ ": [[normal node]]\n");
+		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
+		
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
