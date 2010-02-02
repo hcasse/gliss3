@@ -329,28 +329,28 @@ void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
 
 	/* dump all the registers */
 $(foreach registers)$(if !aliased)$(if array)
-//	fprintf(out, "$(name)\n");
-//	for (i = 0; i < $(size); i++)
-//		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
+	fprintf(out, "$(name)\n");
+	for (i = 0; i < $(size); i++)
+		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
 $(else)
-//	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
+	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
 $(end)$(end)$(end)
 
 
-//!!DEBUG!!
-fprintf(out, "NIA = %08X, CIA = %08X, PIA = %08X\n", state->NIA, state->CIA, state->PIA);
-fprintf(out, "LR = %08X, CTR = %08X, L2CR = %08X, L2PM = %08X\n", state->LR, state->CTR, state->L2CR, state->L2PM);
-fprintf(out, "XER = %08X, MSR = %08X\n", state->XER, state->MSR);
-fprintf(out, "GPR\n");
-for (i=0; i<8; i++)
-	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->GPR[i*4], i*4+1, state->GPR[i*4+1], i*4+2, state->GPR[i*4+2], i*4+3, state->GPR[i*4+3]);
-fprintf(out, "CR\n");
-for (i=0; i<2; i++)
-	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->CR[i*4], i*4+1, state->CR[i*4+1], i*4+2, state->CR[i*4+2], i*4+3, state->CR[i*4+3]);
-fprintf(out, "SR\n");
-for (i=0; i<2; i++)
-	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->SR[i*4], i*4+1, state->SR[i*4+1], i*4+2, state->SR[i*4+2], i*4+3, state->SR[i*4+3]);
-fprintf(out, "\n\n");
+//!!DEBUG!! for PPC
+// fprintf(out, "NIA = %08X, CIA = %08X, PIA = %08X\n", state->NIA, state->CIA, state->PIA);
+// fprintf(out, "LR = %08X, CTR = %08X, L2CR = %08X, L2PM = %08X\n", state->LR, state->CTR, state->L2CR, state->L2PM);
+// fprintf(out, "XER = %08X, MSR = %08X\n", state->XER, state->MSR);
+// fprintf(out, "GPR\n");
+// for (i=0; i<8; i++)
+// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->GPR[i*4], i*4+1, state->GPR[i*4+1], i*4+2, state->GPR[i*4+2], i*4+3, state->GPR[i*4+3]);
+// fprintf(out, "CR\n");
+// for (i=0; i<2; i++)
+// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->CR[i*4], i*4+1, state->CR[i*4+1], i*4+2, state->CR[i*4+2], i*4+3, state->CR[i*4+3]);
+// fprintf(out, "SR\n");
+// for (i=0; i<2; i++)
+// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->SR[i*4], i*4+1, state->SR[i*4+1], i*4+2, state->SR[i*4+2], i*4+3, state->SR[i*4+3]);
+// fprintf(out, "\n\n");
 
 }
 
@@ -460,12 +460,12 @@ void $(proc)_step($(proc)_sim_t *sim)
 	/* retrieving next instruction */
 	inst = $(proc)_next(sim);
 
-			// !!BEGIN DEBUG!!
-			char buff[100];
-			$(proc)_disasm(buff, inst);
-			uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
-			printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
-			fflush(stdout);
+			// !!BEGIN DEBUG!! for PPC
+			//char buff[100];
+			//$(proc)_disasm(buff, inst);
+			//uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
+			//printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
+			//fflush(stdout);
 			// !!END DEBUG!!
 
 	/* execute it */

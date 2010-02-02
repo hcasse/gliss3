@@ -358,7 +358,7 @@ let state_macro info name =
 	@param info	Generation information.
 	@param name	Parameter name. *)
 let param_macro info name =
-	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) info.iname name
+	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) (String.uppercase info.iname) name
 
 
 (** Generate the name of a temporary of index i.
@@ -508,7 +508,7 @@ let rec get_alias attrs =
 let resolve_alias name idx ub lb =
 
 	let printv msg (r, i, il, ub, lb, t) =
-		(*Printf.printf "\t%s(%s [" msg r;
+	(*	Printf.printf "\t%s(%s [" msg r;
 		Irg.print_expr i;
 		Printf.printf ":%d] < " il;
 		Irg.print_expr ub;
@@ -516,7 +516,7 @@ let resolve_alias name idx ub lb =
 		Irg.print_expr lb;
 		print_string " > : ";
 		Irg.print_type_expr t;
-		print_string ")\n"*)
+		print_string ")\n";*)
 		() in
 
 	let t = Irg.CARD(32) in
@@ -628,7 +628,13 @@ let unalias_expr name idx ub lb =
 	let field e ub lb tt =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
-
+	(* !!DEBUG!! *)
+	(*print_string "unalias_expr =====================================\nname=["; print_string name;
+	print_string "]\nidx=["; Irg.print_expr idx;
+	print_string "]\nub=["; Irg.print_expr ub;
+	print_string "]\nlb=["; Irg.print_expr lb;
+	print_string "]\n++++++res=[";
+let res =*)
 	match Irg.get_symbol name with
 	| Irg.REG (_, _, tt, _) ->
 		field (concat (il - 1) tt) ubp lbp tt
@@ -636,6 +642,10 @@ let unalias_expr name idx ub lb =
 		field (concat 0 tt) ub lb tt
 	| s ->
 		failwith "unalias_expr"
+(* !!DEBUG!! *)
+(*in Irg.print_expr res;
+print_string "]\n";
+res*)
 
 
 (** Prepare expression for generation.
@@ -831,11 +841,11 @@ let unalias_set info stats name idx ub lb expr =
 	| Irg.REG (_, _, tt, _) ->
 		process tt
 	| Irg.MEM (_, _, tt, _) ->
-		seq stats (set_full i ub lb expr)
+		seq stats (set_full (i) ub lb expr)
 	| Irg.VAR (_, cnt, tt) ->
 		add_var info name cnt tt;
 		seq stats (set_full i ub lb expr)
-	| _ -> failwith "unalias_expr"
+	| _ -> failwith "unalias_set"
 
 
 (* !!TODO!! move to Sem *)
@@ -1503,7 +1513,9 @@ we return an Irg.STAT which has to be transformed, useful to resolve alias
 	@return			an Irg.STAT object representing the sequence of the desired instructions *)
 let gen_pc_increment info =
 	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
-	let size = Irg.EINLINE (Printf.sprintf "((%s_%s_SIZE + 7) >> 3)" (String.uppercase info.proc) (String.uppercase info.iname)) in
+	let i_name = String.uppercase info.iname in
+	let real_name = if String.compare i_name "" == 0 then "UNKNOWN" else i_name in
+	let size = Irg.EINLINE (Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name) in
 	let ppc_stat =
 		if info.ppc_name = "" then
 			Irg.NOP

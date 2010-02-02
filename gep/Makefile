@@ -17,6 +17,7 @@ $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build
 GEP_SOURCES = \
+	generic_int.ml \
 	fetch.ml \
 	decode.ml \
 	gep.ml

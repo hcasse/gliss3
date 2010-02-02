@@ -133,7 +133,8 @@ let get_params maker inst f dict =
 
 let get_instruction maker f dict _ i = f
 	(maker.get_instruction  i
-		(("IDENT", out (fun _ -> Iter.get_name i)) ::
+		(("IDENT", out (fun _ -> String.uppercase (Iter.get_name i))) ::
+		("ident", out (fun _ -> Iter.get_name i)) ::
 		("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
 		("params", Templater.COLL (get_params maker i)) ::
 		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::

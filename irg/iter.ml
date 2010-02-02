@@ -67,7 +67,7 @@ let instr_set = ref [Irg.UNDEF]
 let iter fun_to_iterate init_val =
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
-			instr_set :=  List.map check_coerce (Irg.instantiate_instructions "instruction")
+			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
 		else
 			()
 	in
@@ -184,7 +184,7 @@ let get_params instr =
 	@param instr	the spec whose params will give the vars to instantiate
 	@param e	the expr to reduce *)
 let reduce instr e =
-	Irg.instantiate_in_expr e (get_params instr)
+	Instantiate.instantiate_in_expr e (get_params instr)
 
 (** return the type of a symbol appearing in the spec of an instruction
 	@param instr	spec of the instruction 

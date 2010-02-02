@@ -4,7 +4,7 @@
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2008, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +16,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with OTAWA; if not, write to the Free Software 
+ *	along with OTAWA; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -45,7 +45,7 @@ uint32_t gliss_exp32u(uint32_t v1, uint32_t v2) {
 				res += v1;
 			v2 >>= 1;
 			v1 <<= 1;
-		}	
+		}
 	return res;
 }
 
@@ -71,7 +71,7 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2) {
 				res += v1;
 			v2 >>= 1;
 			v1 <<= 1;
-		}	
+		}
 	return res;
 }
 
@@ -95,7 +95,7 @@ uint64_t gliss_invert64(uint64_t v, uint64_t n)
 {
 	uint64_t res = 0;
 	int i = 0;
-	
+
 	for ( ; i < n ; i++)
 	{
 		res <<= 1;
@@ -132,12 +132,12 @@ uint64_t gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
 /* the read bits are inversed before being assigned to the result, l <= u */
 uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t l) {
 	uint32_t mask = ((1 << (u - l + 1) ) - 1) << l;
-	return (v & ~mask) | gliss_invert32((s << l) & mask, u-l+1);
+	return (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l);
 }
 
 uint64_t gliss_set_field64u_inverted(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = ((1 << (u - l + 1) ) - 1) << l;
-	return (v & ~mask) | gliss_invert64((s << l) & mask, u-l+1);
+	return (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l);
 }
 
 uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l) {

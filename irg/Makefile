@@ -11,6 +11,7 @@ endif
 LIB_SOURCES = \
 	IdMaker.ml \
 	irg.ml \
+	instantiate.ml \
 	lexer.mll \
 	sem.ml \
 	parser.mly \
