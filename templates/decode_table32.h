@@ -89,7 +89,14 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 
 $(else)$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_$(IDENT);
-	res->instrinput = 0;
+	res->instrinput = malloc(sizeof($(proc)_ii_t) * 2);
+
+	/* set size and address */
+	res->instrinput[0].type = $(PROC)_ADDR;
+	res->instrinput[0].val.addr = address;
+	res->instrinput[1].type = $(PROC)_SIZE;
+	res->instrinput[1].val.size = 32;
+
 	return res;
 }
 
