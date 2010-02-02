@@ -134,7 +134,7 @@ $(end)
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	$(proc)_loader_t *loader;
 	if (platform == NULL)
-		return;
+		return -1;
 
 	/* open the file */
 	loader = $(proc)_loader_open(path);
