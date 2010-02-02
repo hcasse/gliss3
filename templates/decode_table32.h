@@ -76,7 +76,7 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 	inst->instrinput[0].type = $(PROC)_ADDR;
 	inst->instrinput[0].val.addr = address;
 	inst->instrinput[1].type = $(PROC)_SIZE;
-	inst->instrinput[1].val.size = 4;
+	inst->instrinput[1].val.size = 32;
 
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
