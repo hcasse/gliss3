@@ -134,7 +134,7 @@ $(end)
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	$(proc)_loader_t *loader;
 	if (platform == NULL)
-		return;
+		return -1;
 
 	/* open the file */
 	loader = $(proc)_loader_open(path);
@@ -461,11 +461,11 @@ void $(proc)_step($(proc)_sim_t *sim)
 	inst = $(proc)_next(sim);
 
 			// !!BEGIN DEBUG!! for PPC
-			//char buff[100];
-			//$(proc)_disasm(buff, inst);
-			//uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
-			//printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
-			//fflush(stdout);
+			char buff[100];
+			$(proc)_disasm(buff, inst);
+			uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
+			printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
+			fflush(stdout);
 			// !!END DEBUG!!
 
 	/* execute it */

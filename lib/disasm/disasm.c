@@ -24,6 +24,7 @@
 #include <gliss/api.h>
 #include <loader.h>
 
+#define gliss_inst_size(inst) ((inst)->instrinput[1].val.size)
 
 typedef struct list_entry_t
 {
@@ -132,6 +133,7 @@ int get_label_from_list(list_entry_t *m, gliss_address_t addr, char **name)
 		else
 			break;
 	}
+	return 0;
 }
 
 void destroy_list(list_entry_t *m)
@@ -158,7 +160,6 @@ int main(int argc, char **argv) {
 	Elf32_Sym *sym;
 	int nb_sect_disasm = 0;
 	gliss_loader_t *loader;
-	int i;
 
 	
 	/* test arguments */
@@ -194,7 +195,7 @@ int main(int argc, char **argv) {
 	}
 	printf("found %d sections to disasemble\n", nb_sect_disasm);
 
-	printf("\nfound %d symbols \n", gliss_loader_count_syms(loader)-1, argv[1]);
+	printf("\nfound %d symbols in the executable %s\n", gliss_loader_count_syms(loader)-1, argv[1]);
 	list_entry_t *list_labels = 0;
 	sym = gliss_loader_first_sym(loader, &sym_it);
 	while (sym_it >= 0)

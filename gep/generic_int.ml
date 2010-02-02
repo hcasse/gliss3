@@ -105,48 +105,64 @@ let rec clean_i32_list l n =
 			[ Int32.logand a (mask_i32 n)]
 		else
 			a :: (clean_i32_list b (n - 32))
-	
 
-	
 
-let zero n =
-	let list_size = n / 32 + (if n mod 32 = 0 then 0 else 1)
+(* add 0s in msb to meet new size *)
+let expand_gen_int gi new_size =
+	let size = gi.length
+	in
+	let diff = new_size - size
+	in
+	(* overestimated but safe and corrected by cleaning afterwards *)
+	let msb_to_add = diff / 32 + 1
+	in
+	let rec add_zero_msb l n =
+		if n == 0 then
+			l
+		else
+			(add_zero_msb l (n - 1)) @ [ Int32.zero ]
 	in
 	{
-		length = n;
-		number = make_Int32_list Int32.zero list_size []
+		length = new_size;
+		number = clean_i32_list (add_zero_msb gi.number msb_to_add) new_size
 	}
 
-let one n =
-	let list_size = n / 32 + (if n mod 32 = 0 then 0 else 1)
-	in
+let zero =
 	{
-		length = n;
-		number = make_Int32_list Int32.zero (list_size-1) [Int32.one]
+		length = 1;
+		number = [ Int32.zero ];
+	}
+
+let one =
+	{
+		length = 1;
+		number = [ Int32.one ];
 	}
 
 let lognot gi =
 	{
 		length = gi.length;
-		number = List.map Int32.lognot gi.number
+		number = clean_i32_list (List.map Int32.lognot gi.number) gi.length;
 	}
 
 let logand gi1 gi2 =
-	if gi1.length != gi2.length then
-		failwith "both arg for and must have same length"
-	else
+	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
+	in
+	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
+	in
 	{
-		length = gi1.length;
-		number = List.map2 Int32.logand gi1.number gi2.number;
+		length = arg1.length;
+		number = List.map2 Int32.logand arg1.number arg2.number;
 	}
 
 let logor gi1 gi2 =
-	if gi1.length != gi2.length then
-		failwith "both arg for or must have same length"
-	else
+	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
+	in
+	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
+	in
 	{
-		length = gi1.length;
-		number = List.map2 Int32.logor gi1.number gi2.number;
+		length = arg1.length;
+		number = List.map2 Int32.logor arg1.number arg2.number;
 	}
 
 let is_equals gi1 gi2 =

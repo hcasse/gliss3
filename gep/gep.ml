@@ -154,7 +154,7 @@ let make_env info =
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 	(* declarations of fetch tables *)
-	("INIT_FETCH_TABLES_32", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out 32)) ::
+	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	(* for category table for ppc, category is always a number >= 0, let's take -1 for an invalid category (eg. for instr unknown) *)
 	("invalid_category", Templater.TEXT (fun out -> output_string out invalid_category)) ::

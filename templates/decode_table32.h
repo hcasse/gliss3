@@ -76,7 +76,7 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 	inst->instrinput[0].type = $(PROC)_ADDR;
 	inst->instrinput[0].val.addr = address;
 	inst->instrinput[1].type = $(PROC)_SIZE;
-	inst->instrinput[1].val.size = 4;
+	inst->instrinput[1].val.size = 32;
 
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
@@ -89,7 +89,14 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 
 $(else)$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->ident = $(PROC)_$(IDENT);
-	res->instrinput = 0;
+	res->instrinput = malloc(sizeof($(proc)_ii_t) * 2);
+
+	/* set size and address */
+	res->instrinput[0].type = $(PROC)_ADDR;
+	res->instrinput[0].val.addr = address;
+	res->instrinput[1].type = $(PROC)_SIZE;
+	res->instrinput[1].val.size = 32;
+
 	return res;
 }
 

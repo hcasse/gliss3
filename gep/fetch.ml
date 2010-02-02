@@ -44,8 +44,8 @@ let get_length_from_format f =
 	let l = String.length f in
 	let new_f =
 		if l<=2 then
-		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-			failwith "we shouldn't have something like " ^ f ^ " (fetch.ml::get_length_from_format)"
+		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f or %s *)
+			failwith ("we shouldn't have something like [[" ^ f ^ "]] (fetch.ml::get_length_from_format)")
 		else
 			String.sub f 1 (l-2)
 	in
@@ -220,6 +220,34 @@ let str01_to_int32 s =
 	else
 		aux s 0 Int32.zero
 
+(** convert the 1st n chars of a string to an int_n 
+the string is supposed to represent a binary number (only 0 and 1) *)
+(*let str_to_int_n s n =
+	let s_size = String.length s
+	in
+	let size = if s_size < n then s_size else n
+	in
+	let char01_to_int_n c =
+		match c with
+		'0' ->
+			Generic_int.zero
+		| '1' ->
+			Generic_int.one
+		| _ ->
+			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int_n)")
+	in
+	let rec aux s n accu =
+		if n = size then
+			accu
+		else
+					(* or instead of add *)
+			aux s (n+1) (Int32.add (Int32.shift_left accu 1) (char01_to_int_n s.[n]))
+	in
+	if size > 32 then
+		failwith "string too long, 32 chars max allowed (fetch.ml::str01_to_int32)"
+	else
+		aux s 0 Int32.zero
+*)
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -707,21 +735,22 @@ let output_table_C_decl out dt dl =
 			end
 	in
 	(* !!DEBUG!! *)
-	match dt with
+	(*match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
 	print_string ("node treated[" ^ (name_of dt) ^ "], spec=["); 
-	List.map (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
+	List.iter (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
 	print_string  "], sons=[";
-	List.map (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
-	print_string "]\n";
+	List.iter (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
+	print_string "]\n";*)
 	if is_terminal_node dt then
 		(* !!DEBUG!! *)
-		print_string ((name_of dt) ^ ": [[terminal node]]\n")
-		(*()*)
+		(*print_string ((name_of dt) ^ ": [[terminal node]]\n")*)
+		()
 	else
 		begin
 		(* !!DEBUG!! *)
-		print_string ((name_of dt) ^ ": [[normal node]]\n");
+		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
+		
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
@@ -760,41 +789,107 @@ let sort_dectree_list d_l =
 		comp_int32_list (name_of y) (name_of x)
 	in
 	List.sort comp_fun d_l
+
+
+
+exception CheckIsizeException
+(* special value for fetch size, represent generic fetch *)
+let fetch_generic = -1
+
 			
-let output_all_table_C_decl out num_bits =
-	(* this function will check if we can generate a fetch ok for n bits,
-	it checks if each instruction is n bits (risc isa) *)
-	let test n =
-		let isize = Irg.get_isize ()
-		in
-		(* n must be a valid instr size (risc isa) or isize must be void (cisc isa) *)
-		if isize = [] then
-			true
-		else
-			if List.exists (fun x -> x=n) isize then
-				Iter.iter
-					(fun a x ->
-						if (get_instruction_length x) <> n then
-							failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, some instructions have incorrect length.")
-						else
-							true)
-					true 
+let output_all_table_C_decl out =
+	let isize = Irg.get_isize ()
+	in
+	let get_min_max_instr_size_from_instr _ =
+		let iter_fun accu inst =
+			let size = get_instruction_length inst
+			in
+			let (min_size, max_size) = accu
+			in
+			if size < min_size then
+				(size, max_size)
 			else
-				failwith ("cannot use "^(string_of_int n)^" bit fetch and decode, not in gliss_isize.")
+				if size > max_size then
+					(min_size, size)
+				else
+					accu
+		in
+		let init_val = List.hd (Irg.get_isize ())
+		in
+		Iter.iter iter_fun (init_val, init_val)
+	in
+	let get_min_max_instr_size_from_isize _ =
+		let min_fun a b_i =
+			if b_i < a then
+				b_i
+			else
+				a
+		in
+		let max_fun a b_i =
+			if b_i > a then
+				b_i
+			else
+				a
+		in
+		(List.fold_left min_fun (List.hd isize) (List.tl isize),
+		 List.fold_left max_fun (List.hd isize) (List.tl isize))
+	in
+	let is_isize _ =
+		isize != []
+	in
+	(* check if all instr have their size in isize *)
+	let check_isize _ =
+		let iter_fun accu inst =
+			let size = get_instruction_length inst
+			in
+			if List.exists (fun x -> x==size) isize then
+				true
+			else
+				raise CheckIsizeException
+		in
+		try
+			Iter.iter iter_fun false
+		with
+		CheckIsizeException ->
+			false
+	in
+	(* list of the specialized fixed fetch size (for RISC ISA), other or variable sizes imply use of generic fetch and decode *)
+	let fetch_sizes = [16; 32; 64]
+	in
+	let get_fetch_size_from_min_max min_max =
+		let (min_size, max_size) = min_max
+		in
+		if min_size == max_size then
+			(* constant size instrs (RISC) *)
+			(try
+				List.find (fun x -> min_size == x) fetch_sizes
+			with
+			Not_found ->
+				(* constant size but not implemented => generic *)
+				fetch_generic)
+		else
+			(* variable size or diff *)
+			fetch_generic
+	in
+	let choose_fetch_size _ =
+		if is_isize () then
+			if check_isize () then
+				get_fetch_size_from_min_max (get_min_max_instr_size_from_isize ())
+			else
+				failwith "isize definition incorrect, some instructions have a size not contained in isize."
+		else
+			get_fetch_size_from_min_max (get_min_max_instr_size_from_instr ())
+	in
+	let fetch_size = choose_fetch_size ()
 	in
 	let aux dl dt =
-		(* TODO: parametrize with num_bits *)
+		(* TODO: parametrize with fetch_size *)
 		output_table_C_decl out dt dl
 	in
-	if test num_bits then
-		begin
-			let dl  = sort_dectree_list (build_dec_nodes 0)
-			in
-			List.iter (aux dl) dl
-		end
-	else
-		()
-		
+	let dl  = sort_dectree_list (build_dec_nodes 0)
+	in
+		List.iter (aux dl) dl
+	
 
 let test_sort _ =
 	let name_of t =
@@ -803,7 +898,7 @@ let test_sort _ =
 			[] ->
 				s
 			| a::b ->
-				aux b (if (String.length s)=0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
+				aux b (if (String.length s) == 0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->

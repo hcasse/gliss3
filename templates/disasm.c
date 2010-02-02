@@ -5,6 +5,7 @@
 #include "../include/$(proc)/api.h"
 #include "../include/$(proc)/id.h"
 #include "../include/$(proc)/macros.h"
+#include "grt.h"
 
 typedef void (*disasm_t)(char *buffer, $(proc)_inst_t *inst);
 
