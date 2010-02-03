@@ -488,9 +488,9 @@ gliss_loader_close(loader);
 		gliss_step(sim);
 // !!DEBUG BEGIN!!
 //	cpt++;
-	printf("state after instr %d\n", cpt);
-	gliss_dump_state(sim->state, stdout);
-	fflush(stdout);
+//	printf("state after instr %d\n", cpt);
+//	gliss_dump_state(sim->state, stdout);
+//	fflush(stdout);
 //	getchar();
 	//if (cpt > 500)
 		//break;

@@ -82,7 +82,7 @@ uint32_t gliss_invert32(uint32_t v, uint32_t n)
 	int i = 0;
 	
 	/* !!DEBUG!! */
-	printf("gliss_invert32(0X%08X, 0X%08X) => ", v, n);
+	//printf("gliss_invert32(0X%08X, 0X%08X) => ", v, n);
 
 	for ( ; i < n ; i++)
 	{
@@ -92,7 +92,7 @@ uint32_t gliss_invert32(uint32_t v, uint32_t n)
 		v >>= 1;
 	}
 	/* !!DEBUG!! */
-	printf("0X%08X\n", res);
+	//printf("0X%08X\n", res);
 	
 	return res;
 }
@@ -103,7 +103,7 @@ uint64_t gliss_invert64(uint64_t v, uint64_t n)
 	int i = 0;
 
 	/* !!DEBUG!! */
-	printf("gliss_invert64(0X%016LX, 0X%016LX) => ", v, n);
+	//printf("gliss_invert64(0X%016LX, 0X%016LX) => ", v, n);
 
 	for ( ; i < n ; i++)
 	{
@@ -113,7 +113,7 @@ uint64_t gliss_invert64(uint64_t v, uint64_t n)
 		v >>= 1;
 	}
 	/* !!DEBUG!! */
-	printf("0X%016LX\n", res);
+	//printf("0X%016LX\n", res);
 	
 	return res;
 }
@@ -135,9 +135,9 @@ uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
 	uint32_t mask = gliss_mask32(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
-	printf("(mask=%08X) ", mask);
-	printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
+	//printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("(mask=%08X) ", mask);
+	//printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
 	
 	return (v & ~mask) | ((s << l) & mask);
 }
@@ -147,8 +147,8 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_set_field64u(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
-	printf("0X%016LX\n", (v & ~mask) | ((s << l) & mask));
+	//printf("gliss_set_field64u(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("0X%016LX\n", (v & ~mask) | ((s << l) & mask));
 	
 	return (v & ~mask) | ((s << l) & mask);
 }
@@ -167,8 +167,8 @@ uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t 
 	uint32_t mask = gliss_mask32(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_set_field32u_inverted(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
-	printf("0X%08X\n", (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l));
+	//printf("gliss_set_field32u_inverted(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("0X%08X\n", (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l));
 	
 	return (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l);
 }
@@ -177,8 +177,8 @@ uint64_t gliss_set_field64u_inverted(uint64_t v, uint64_t s, int32_t u, int32_t 
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_set_field64u_inverted(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
-	printf("0X%016LX\n", (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l));
+	//printf("gliss_set_field64u_inverted(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("0X%016LX\n", (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l));
 	
 	return (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l);
 }
@@ -196,7 +196,7 @@ uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l) {
 uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b, int bit_order)
 {
 	/* !!DEBUG!! */
-	printf("gliss_set_field32u_generic(0X%08X, 0X%08X, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
+	//printf("gliss_set_field32u_generic(0X%08X, 0X%08X, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
 	
 	/* only 1 bit to copy, do not care about bit_order, just do it the most convenient way */
 	if (a == b)
@@ -222,7 +222,7 @@ uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b
 uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b, int bit_order)
 {
 	/* !!DEBUG!! */
-	printf("gliss_set_field64u_generic(0X%016LX, 0X%016LX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
+	//printf("gliss_set_field64u_generic(0X%016LX, 0X%016LX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
 	
 	/* only 1 bit to copy, do not care about bit_order, just do it the most convenient way */
 	if (a == b)
@@ -262,8 +262,8 @@ uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l)
 	uint32_t mask = gliss_mask32(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_field32u(0X%08X, 0X%08X, 0X%08X) => ", v, u, l);
-	printf("0X%08X\n", (v & mask) >> l);
+	//printf("gliss_field32u(0X%08X, 0X%08X, 0X%08X) => ", v, u, l);
+	//printf("0X%08X\n", (v & mask) >> l);
 	
 	return (v & mask) >> l;
 }
@@ -273,8 +273,8 @@ uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l)
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_field64u(0X%016LX, 0X%08X, 0X%08X) => ", v, u, l);
-	printf("0X%016LX\n", (v & mask) >> l);
+	//printf("gliss_field64u(0X%016LX, 0X%08X, 0X%08X) => ", v, u, l);
+	//printf("0X%016LX\n", (v & mask) >> l);
 	
 	return (v & mask) >> l;
 }
@@ -294,8 +294,8 @@ uint32_t gliss_field32u_inverted(uint32_t v, uint32_t u, uint32_t l)
 	uint32_t mask = gliss_mask32(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_field32u_inverted(0X%08X, 0X%08X, 0X%08X) => ", v, u, l);
-	printf("0X%08X\n", gliss_invert32((v & mask) >> l, u-l+1));
+	//printf("gliss_field32u_inverted(0X%08X, 0X%08X, 0X%08X) => ", v, u, l);
+	//printf("0X%08X\n", gliss_invert32((v & mask) >> l, u-l+1));
 	
 	return gliss_invert32((v & mask) >> l, u-l+1);
 }
@@ -305,8 +305,8 @@ uint64_t gliss_field64u_inverted(uint64_t v, uint32_t u, uint32_t l)
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	printf("gliss_field64u_inverted(0X%016LX, 0X%08X, 0X%08X) => ", v, u, l);
-	printf("0X%016LX\n", gliss_invert64((v & mask) >> l, u-l+1));
+	//printf("gliss_field64u_inverted(0X%016LX, 0X%08X, 0X%08X) => ", v, u, l);
+	//printf("0X%016LX\n", gliss_invert64((v & mask) >> l, u-l+1));
 	
 	return gliss_invert64((v & mask) >> l, u-l+1);
 }
@@ -325,7 +325,7 @@ uint64_t gliss_fieldd_inverted(double v, uint32_t u, uint32_t l) {
 uint32_t gliss_field32u_generic(uint32_t v, uint32_t a, uint32_t b, int bit_order)
 {
 	/* !!DEBUG!! */
-	printf("gliss_field32u_generic(0X%08X, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, a, b, bit_order);
+	//printf("gliss_field32u_generic(0X%08X, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, a, b, bit_order);
 	
 	/* only 1 bit to extract, do not care about bit_order, just do it the most convenient way */
 	if (a == b)
@@ -351,7 +351,7 @@ uint32_t gliss_field32u_generic(uint32_t v, uint32_t a, uint32_t b, int bit_orde
 uint64_t gliss_field64u_generic(uint64_t v, uint32_t a, uint32_t b, int bit_order)
 {
 	/* !!DEBUG!! */
-	printf("gliss_field64u_generic(0X%016LX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, a, b, bit_order);
+	//printf("gliss_field64u_generic(0X%016LX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, a, b, bit_order);
 	
 	/* only 1 bit to extract, do not care about bit_order, just do it the most convenient way */
 	if (a == b)
