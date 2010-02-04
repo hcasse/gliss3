@@ -48,13 +48,20 @@ $(proc)_platform_t *$(proc)_new_platform(void) {
 	pf->usage = 0;
 	
 	/* other init */
-	pf->entry = pf->sp = pf->argv = pf->envp = pf->aux = pf->argc = 0;
+	/*pf->entry = pf->sp = pf->argv = pf->envp = pf->aux = pf->argc = 0;*/
+	pf->sys_env = malloc(sizeof($(proc)_env_t));
+	if(pf->sys_env == NULL) {
+		errno = ENOMEM;
+		free(pf);
+		return NULL;
+	}
 
 	/* memory initialization */
 $(foreach memories)
 	pf->mems.named.$(name) = $(proc)_mem_new();
 	if(pf->mems.named.$(name) == NULL) {
-		$(proc)_unlock_platform(pf);
+		free(pf->sys_env);
+		free(pf);
 		return NULL;
 	}
 $(end)
@@ -80,6 +87,21 @@ $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index) {
 		return NULL;
 
 	return platform->mems.array[index];
+}
+
+
+/**
+ * return the system info (argc, argv ...), meaningless
+ * if used when no program loaded
+ * @param	platform	Platform to get system info from.
+ * @return		Requested system info.
+ */
+$(proc)_env_t *$(proc)_get_sys_env($(proc)_platform_t *platform)
+{
+	if (platform == NULL)
+		return NULL;
+
+	return platform->sys_env;
 }
 
 
@@ -119,6 +141,9 @@ $(foreach memories)
 	$(proc)_mem_delete(platform->mems.named.$(name));
 $(end)
 
+	/* free system info */
+	free(platform->sys_env);
+
 	/* free the platform */
 	free(platform);
 	platform = NULL;
@@ -141,11 +166,15 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	if(loader == NULL)
 		return -1;
 
-	/* load in memory */
-	$(proc)_loader_load(loader, $(proc)_get_memory(platform, $(PROC)_MAIN_MEMORY));
+	/* load in platform's memory */
+	$(proc)_loader_load(loader, platform);
 
 	/* initialize system information */
 	platform->entry = $(proc)_loader_start(loader);
+	
+	/* !!TODO!! add argc,argv... init */
+	/* stack initialization */
+	$(proc)_stack_fill_env(loader, platform, platform->sys_env);
 
 	/* close the file */
 	$(proc)_loader_close(loader);
@@ -202,6 +231,9 @@ $(gen_init_code)
 
 	/* Pcs initialization */
 	state->$(NPC_NAME) = platform->entry;
+	
+	/* system registers initialization (argv, envp...) */
+	$(proc)_registers_fill_env(platform->sys_env, state);
 
 	return state;
 }

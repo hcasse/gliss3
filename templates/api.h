@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "id.h"
 #include "mem.h"
+//#include "loader.h"
 
 
 /* return an instruction identifier as a string instead of the $(proc)_ident_t which is not very user friendly */
@@ -74,6 +75,8 @@ typedef struct $(proc)_inst_t {
 #define $(PROC)_MAIN_MEMORY		0
 $(proc)_platform_t *$(proc)_new_platform(void);
 $(proc)_memory_t *$(proc)_get_memory($(proc)_platform_t *platform, int index);
+struct $(proc)_env_t;
+struct $(proc)_env_t *$(proc)_get_sys_env($(proc)_platform_t *platform);
 void $(proc)_lock_platform($(proc)_platform_t *platform);
 void $(proc)_unlock_platform($(proc)_platform_t *platform);
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path);

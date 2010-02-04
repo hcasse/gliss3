@@ -108,7 +108,7 @@ typedef struct
   Elf32_Word	sh_type;		/* Section type */
   Elf32_Word	sh_flags;		/* Section flags */
   Elf32_Addr	sh_addr;		/* Section virtual addr at execution */
-  Elf32_Off		sh_offset;		/* Section file offset */
+  Elf32_Off	sh_offset;		/* Section file offset */
   Elf32_Word	sh_size;		/* Section size in bytes */
   Elf32_Word	sh_link;		/* Link to another section */
   Elf32_Word	sh_info;		/* Additional section information */
@@ -126,10 +126,11 @@ typedef struct
   Elf32_Section	st_shndx;		/* Section index */
 } Elf32_Sym;
 
+#define PT_LOAD	1
 typedef struct
 {
   Elf32_Word	p_type;			/* Segment type */
-  Elf32_Off		p_offset;		/* Segment file offset */
+  Elf32_Off	p_offset;		/* Segment file offset */
   Elf32_Addr	p_vaddr;		/* Segment virtual address */
   Elf32_Addr	p_paddr;		/* Segment physical address */
   Elf32_Word	p_filesz;		/* Segment size in file */
@@ -146,13 +147,13 @@ typedef struct
   Elf32_Half	e_machine;		/* Architecture */
   Elf32_Word	e_version;		/* Object file version */
   Elf32_Addr	e_entry;		/* Entry point virtual address */
-  Elf32_Off	    e_phoff;		/* Program header table file offset */
-  Elf32_Off	    e_shoff;		/* Section header table file offset */
+  Elf32_Off	e_phoff;		/* Program header table file offset */
+  Elf32_Off	e_shoff;		/* Section header table file offset */
   Elf32_Word	e_flags;		/* Processor-specific flags */
   Elf32_Half	e_ehsize;		/* ELF header size in bytes */
-  Elf32_Half	e_phentsize;	/* Program header table entry size */
+  Elf32_Half	e_phentsize;		/* Program header table entry size */
   Elf32_Half	e_phnum;		/* Program header table entry count */
-  Elf32_Half	e_shentsize;	/* Section header table entry size */
+  Elf32_Half	e_shentsize;		/* Section header table entry size */
   Elf32_Half	e_shnum;		/* Section header table entry count */
   Elf32_Half	e_shstrndx;		/* Section header string table index */
 } Elf32_Ehdr;
@@ -165,7 +166,7 @@ typedef struct gliss_loader_t gliss_loader_t;
 /* loader management */
 gliss_loader_t *gliss_loader_open(const char *path);
 void gliss_loader_close(gliss_loader_t *loader);
-void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory);
+void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf);
 gliss_address_t gliss_loader_start(gliss_loader_t *loader);
 
 
@@ -182,31 +183,29 @@ typedef struct auxv_t {
 	} a_un;
 } auxv_t;
 
- /* auxiliary vector types */
- #define AT_NULL			0
- #define AT_IGNORE		1
- #define AT_EXECFD		2
- #define AT_PHDR			3
- #define AT_PHENT		4
- #define AT_PHNUM		5
- #define AT_PAGESZ		6
- #define AT_BASE			7
- #define AT_FLAGS		8
- #define AT_ENTRY		9
- #define AT_DCACHEBSIZE	10
- #define AT_ICACHEBSIZE	11
- #define AT_UCACHEBSIZE	12
+/* auxiliary vector types */
+#define AT_NULL		0
+#define AT_IGNORE	1
+#define AT_EXECFD	2
+#define AT_PHDR		3
+#define AT_PHENT	4
+#define AT_PHNUM	5
+#define AT_PAGESZ	6
+#define AT_BASE		7
+#define AT_FLAGS	8
+#define AT_ENTRY	9
+#define AT_DCACHEBSIZE	10
+#define AT_ICACHEBSIZE	11
+#define AT_UCACHEBSIZE	12
 
 
 typedef struct gliss_env_t
 {
 	int argc;
 
-	/* NULL terminated */
 	char **argv;
 	gliss_address_t argv_addr;
 
-	/* NULL terminated */
 	char **envp;
 	gliss_address_t envp_addr;
 
@@ -214,10 +213,11 @@ typedef struct gliss_env_t
 	gliss_address_t auxv_addr;
 
 	gliss_address_t stack_pointer;
+	gliss_address_t brk_addr;
 } gliss_env_t;
 
-/* system initialization */
-void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_env_t *env);
+/* system initialization (used internally during platform and state initialization) */
+void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env);
 void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
 
 

@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
 	}
 	
 	/* load it */
-	gliss_loader_load(loader, gliss_get_memory(pf, GLISS_MAIN_MEMORY));
+	gliss_loader_load(loader, pf);
 	
 	/* CAUTION: C99 valid declarations, BUT C89 invalid */
 	int i_sect;
