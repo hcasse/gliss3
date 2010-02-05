@@ -151,7 +151,7 @@ $(end)
 
 
 /**
- * Load the given program in the platform.
+ * Load the given program in the platform and initialize stack
  * @param platform	Platform to load in.
  * @param path		Path of the file to load.
  * @return			0 for success, -1 for error (in errno).

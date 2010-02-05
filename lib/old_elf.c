@@ -670,6 +670,12 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	loader->Data = Data;
 	loader->Ehdr = Ehdr;
 	loader->Is_Elf_Little = Is_Elf_Little;
+	
+	/* !!TODO!! after data stored into loader,
+	clean the globals of Elf_Tables (just a shallow clean,
+	real clean will be done by loader when destroyed) */
+	ElfReset();
+	
 	return loader;
 }
 
@@ -678,14 +684,36 @@ gliss_loader_t *gliss_loader_open(const char *path) {
  * Close the given opened file.
  * @param loader	Loader to work on.
  */
-void gliss_loader_close(gliss_loader_t *loader) {
+void gliss_loader_close(gliss_loader_t *loader)
+{
 	assert(loader);
+	gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));
+	
+	/* backup globals */
+	/*backup->Tables = Tables;
+	backup->Text = Text;
+	backup->Data = Data;
+	backup->Ehdr = Ehdr;
+	backup->Is_Elf_Little = Is_Elf_Little;*/
+	
+	/* replace globals by loader's data */
 	Tables = loader->Tables;
 	Text = loader->Text;
 	Data = loader->Data;
 	Ehdr = loader->Ehdr;
 	Is_Elf_Little = loader->Is_Elf_Little;
+
+	/* destroy loader's data */
 	ElfCleanup();
+	
+	/* restore previous globals */
+	/*Tables = backup->Tables;
+	Text = backup->Text;
+	Data = backup->Data;
+	Ehdr = backup->Ehdr;
+	Is_Elf_Little = backup->Is_Elf_Little;*/
+	
+	/* destroy loader */
 	free(loader);
 }
 
@@ -830,16 +858,16 @@ char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
  */
 static gliss_address_t gliss_stack_pointer_init(gliss_loader_t *loader)
 {
-	if (loader == 0)
+	/*if (loader == 0)
 		return 0;
 
 	uint32_t data_max = loader->Data.size + loader->Data.address;
 	uint32_t code_max = loader->Text.size + loader->Text.address;
 	uint32_t addr_max = (data_max > code_max) ? data_max : code_max;
-
+*/
 	/* check if code/data and stack don't overlap */
-	if (addr_max >= STACKADDR_DESCENDING_DEFAULT - STACKSIZE_DEFAULT)
-		return 0;
+/*	if (addr_max >= STACKADDR_DESCENDING_DEFAULT - STACKSIZE_DEFAULT)
+		return 0;*/
 
 	return STACKADDR_DESCENDING_DEFAULT;
 }

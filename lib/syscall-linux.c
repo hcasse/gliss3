@@ -39,6 +39,9 @@
 #include "sysparm.h"
 #include "syscall.h"
 
+/* for access to gliss_env_t (system environment) */
+#include "loader.h"
+
 /* booleans */
 typedef int BOOL;
 #define FALSE 0
@@ -834,27 +837,28 @@ static BOOL gliss_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE;
 
 static BOOL gliss_syscall_brk(gliss_state_t *state)
 {
-	uint32_t new_brk_point;
+	uint32_t new_brk_addr;
 	BOOL success;
+	gliss_env_t *sys_env = gliss_get_sys_env(gliss_platform(state));
 
 	PARM_BEGIN
-		new_brk_point = PARM(0);
+		new_brk_addr = PARM(0);
 	PARM_END
-	success = TRUE;//FALSE;
-	/* !!TODO!!
-	if(verbose) {
-		fprintf(verbose, "new_brk(end=0x%08x)\n", new_brk_point);
-		fprintf(verbose, "brk(end=0x%08x)\n",((emulstate_t *)handler->instance)->brk_point);
+	success = FALSE;
+
+	if(verbose)
+	{
+		fprintf(verbose, "new_brk(end=0x%08x)\n", new_brk_addr);
+		fprintf(verbose, "brk(end=0x%08x)\n", sys_env->brk_addr);
 	}
 
-	if(new_brk_point > ((emulstate_t *)handler->instance)->brk_point)
+	if(new_brk_addr > sys_env->brk_addr)
 	{
-		((emulstate_t *)handler->instance)->brk_point = new_brk_point;
+		sys_env->brk_addr = new_brk_addr;
 		success = TRUE;
 	}
 
-	RETURN(((emulstate_t *)handler->instance)->brk_point);*/
-	RETURN(0);
+	RETURN(sys_env->brk_addr);
 	return success;
 }
 
