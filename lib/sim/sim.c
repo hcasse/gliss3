@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 	int is_start_given = 0;
 	int is_exit_given = 0;
 	int prog_index = 0;
-	Elf32_Sym *Elf_sym = 0;
+	/*Elf32_Sym *Elf_sym = 0;*/
 	int sym_exit = 0, sym_start = 0;
 	FILE *f = 0;
 	/* this buffer should be big enough to hold an executable's name + 5 chars */
