@@ -58,22 +58,6 @@ typedef struct auxv_t {
 	} a_un;
 } auxv_t;
 
-/* auxiliary vector types */
-#define AT_NULL		0
-#define AT_IGNORE	1
-#define AT_EXECFD	2
-#define AT_PHDR		3
-#define AT_PHENT	4
-#define AT_PHNUM	5
-#define AT_PAGESZ	6
-#define AT_BASE		7
-#define AT_FLAGS	8
-#define AT_ENTRY	9
-#define AT_DCACHEBSIZE	10
-#define AT_ICACHEBSIZE	11
-#define AT_UCACHEBSIZE	12
-
-
 typedef struct gliss_env_t
 {
 	int argc;

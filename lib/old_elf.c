@@ -43,7 +43,6 @@
 #endif
 
 
-/*** Symbol constants ***/
 /* ELF definitions */
 typedef uint32_t Elf32_Addr;
 typedef uint16_t Elf32_Half;
@@ -168,7 +167,23 @@ typedef struct
   Elf32_Half	e_shstrndx;		/* Section header string table index */
 } Elf32_Ehdr;
 
+/* auxiliary vector types */
+#define AT_NULL		0
+#define AT_IGNORE	1
+#define AT_EXECFD	2
+#define AT_PHDR		3
+#define AT_PHENT	4
+#define AT_PHNUM	5
+#define AT_PAGESZ	6
+#define AT_BASE		7
+#define AT_FLAGS	8
+#define AT_ENTRY	9
+#define AT_DCACHEBSIZE	10
+#define AT_ICACHEBSIZE	11
+#define AT_UCACHEBSIZE	12
 
+
+/*** symbol constants ***/
 #define ELF32_ST_BIND(i)	((i)>>4)
 #define ELF32_ST_TYPE(i)	((i)&0xf)
 #define ELF32_ST_INFO(b,t)	(((b)<<4)+((t)&0xf))
@@ -178,6 +193,7 @@ typedef struct
 #define STB_WEAK    2
 #define STB_LOPROC 13
 #define STB_HIPROC 15
+
 #define STT_NOTYPE   0
 #define STT_OBJECT   1
 #define STT_FUNC     2
