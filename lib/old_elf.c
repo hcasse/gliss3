@@ -654,8 +654,8 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 
 	/* open the file */
 	TRACE;
-    elf = open(path, O_RDONLY);
-    if(elf == -1)
+	elf = open(path, O_RDONLY);
+	if(elf == -1)
 		return NULL;
 
 	/* allocate handler */
@@ -664,6 +664,8 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	if(loader == NULL) {
 		errno = ENOMEM;
 		close(elf);
+		//!!DEBUG!!
+		printf("loader==NULL\n");
 		return NULL;
 	}
 
@@ -674,6 +676,8 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	assert(Text.secs != NULL);
 	close(elf);
 	if(res != 0) {
+		//!!DEBUG!!
+		printf("res!=0\n");
 		ElfCleanup();
 		free(loader);
 		return NULL;
@@ -686,6 +690,12 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	loader->Data = Data;
 	loader->Ehdr = Ehdr;
 	loader->Is_Elf_Little = Is_Elf_Little;
+	
+	/* !!TODO!! after data stored into loader,
+	clean the globals of Elf_Tables (just a shallow clean,
+	real clean will be done by loader when destroyed) */
+	ElfReset();
+	
 	return loader;
 }
 
@@ -694,27 +704,52 @@ gliss_loader_t *gliss_loader_open(const char *path) {
  * Close the given opened file.
  * @param loader	Loader to work on.
  */
-void gliss_loader_close(gliss_loader_t *loader) {
+void gliss_loader_close(gliss_loader_t *loader)
+{
 	assert(loader);
+	gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));
+	
+	/* backup globals */
+	/*backup->Tables = Tables;
+	backup->Text = Text;
+	backup->Data = Data;
+	backup->Ehdr = Ehdr;
+	backup->Is_Elf_Little = Is_Elf_Little;*/
+	
+	/* replace globals by loader's data */
 	Tables = loader->Tables;
 	Text = loader->Text;
 	Data = loader->Data;
 	Ehdr = loader->Ehdr;
 	Is_Elf_Little = loader->Is_Elf_Little;
+
+	/* destroy loader's data */
 	ElfCleanup();
+	
+	/* restore previous globals */
+	/*Tables = backup->Tables;
+	Text = backup->Text;
+	Data = backup->Data;
+	Ehdr = backup->Ehdr;
+	Is_Elf_Little = backup->Is_Elf_Little;*/
+	
+	/* destroy loader */
 	free(loader);
 }
 
 
 /**
- * Load the opened ELF program into the given memory.
+ * Load the opened ELF program into the given platform (main memory chosen).
  * @param loader	program ELF loader
  * @param memory	memory to load in
  */
-void gliss_loader_load(gliss_loader_t *loader, gliss_memory_t *memory) {
+void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
+{
 	struct data_secs *ptr;
 	struct text_secs *ptr_tex;
 	assert(loader->Text.secs != NULL);
+	/* adapt the next line if you have an harvard mem archi */
+	gliss_memory_t *memory = gliss_get_memory(pf, GLISS_MAIN_MEMORY);
 
 	/* load text part */
 	TRACE;
@@ -915,18 +950,52 @@ void gliss_loader_sym(gliss_loader_t *loader, int sym, gliss_loader_sym_t *data)
  */
 static gliss_address_t gliss_stack_pointer_init(gliss_loader_t *loader)
 {
-	if (loader == 0)
+	/*if (loader == 0)
 		return 0;
 
 	uint32_t data_max = loader->Data.size + loader->Data.address;
 	uint32_t code_max = loader->Text.size + loader->Text.address;
 	uint32_t addr_max = (data_max > code_max) ? data_max : code_max;
-
+*/
 	/* check if code/data and stack don't overlap */
-	if (addr_max >= STACKADDR_DESCENDING_DEFAULT - STACKSIZE_DEFAULT)
-		return 0;
+/*	if (addr_max >= STACKADDR_DESCENDING_DEFAULT - STACKSIZE_DEFAULT)
+		return 0;*/
 
 	return STACKADDR_DESCENDING_DEFAULT;
+}
+
+
+/* MEMORY_PAGE_SIZE gotten from mem.c,
+!!WARNING!! value could change between archis and between systems */
+#define MEMORY_PAGE_SIZE 4096
+
+/**
+ * get the initial value of the brk address
+ * @param	loader	Loader containing code and data size informations.
+ * @return		the initial brk value
+ */
+static gliss_address_t gliss_brk_init(gliss_loader_t *loader)
+{
+	int n = loader->Tables.pgm_hdr_tbl_size;
+	Elf32_Phdr *seg_tbl = loader->Tables.pgm_header_tbl;
+	gliss_address_t brk_init = 0;
+	int i;
+	
+	/* brk will be the highest (vaddr + memsz) value
+	   among all loadable segments */
+	
+	for (i = 0; i < n; i++)
+	{
+		if (seg_tbl[i].p_type == PT_LOAD)
+		{
+			gliss_address_t new_brk = seg_tbl[i].p_vaddr + seg_tbl[i].p_memsz;
+			if (new_brk > brk_init)
+				brk_init = new_brk;
+		}
+	}
+	
+	/* MEMORY_PAGE_SIZE gotten from mem.h */
+	return (brk_init + MEMORY_PAGE_SIZE - 1) & ~(MEMORY_PAGE_SIZE - 1);
 }
 
 
@@ -943,11 +1012,11 @@ static gliss_address_t gliss_stack_pointer_init(gliss_loader_t *loader)
  * system initialization of the stack, program arguments, environment and auxilliar
  * vectors are written in the stack. some key addresses are stored for later register initialization.
  * @param	loader	informations about code and data size.
- * @param	memory	memory containing the stack to initialize.
+ * @param	platform	platform whose memory contains the stack to initialize.
  * @param	env	contains the data to write in the stack, the addresses of written data are stored in it by the function.
  *
  */
-void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_env_t *env)
+void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env)
 {
 	uint32_t size;
 	uint32_t init_size;
@@ -959,8 +1028,13 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_
 	gliss_address_t stack_ptr, align_stack_addr, argv_ptr, envp_ptr, auxv_ptr;
 	auxv_t auxv_null = {AT_NULL, 0};
 
-	if ((memory==0) || (env==0))
+	if ((platform==0) || (env==0))
 		gliss_panic("param error in gliss_stack_fill_env");
+	
+	gliss_memory_t *memory = gliss_get_memory(platform, GLISS_MAIN_MEMORY);
+
+	/* find the brk, useful for later */
+	env->brk_addr = gliss_brk_init(loader);
 
 	/* initialize stack pointer */
 	env->stack_pointer = gliss_stack_pointer_init(loader);
@@ -1136,6 +1210,7 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 		gliss_panic("param error in gliss_registers_fill_env");
 
 /* specific to PPC !!!!WARNING!!!! */
+/* !!TODO!! change it into $(SYS_INIT) or stg like that */
 
 	/* r1 will hold the stack pointer */
 	state->GPR[1] = env->stack_pointer;
@@ -1186,16 +1261,16 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
 	state->GPR[29] = 0Xfff00fff;
 	state->GPR[30] = 0Xfedcfedc;
 	state->GPR[31] = 0Xffeeeeff;
-	state->GPR[32] = 0Xffeddeff;*/
-	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);
+	state->GPR[32] = 0Xffeddeff;
+	gliss_memory_t *mem = gliss_get_memory(gliss_platform(state), GLISS_MAIN_MEMORY);*/
 	/*printf("init\n");
 	printf("sp = %08X[%08X]\n", env->stack_pointer, gliss_mem_read32(mem, env->stack_pointer));
 	printf("argc = %d\n", env->argc);
 	printf("@argv = %08X\n", env->argv_addr);*/
-	char buffer[8000];
+	/*char buffer[8000];
 	int i;
 	gliss_address_t a;
-	/*for (i=0; i<env->argc; i++)
+	for (i=0; i<env->argc; i++)
 	{
 		a = gliss_mem_read32(mem, env->argv_addr + (i<<2));
 		read_string(a, mem, buffer);

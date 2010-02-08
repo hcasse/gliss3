@@ -116,7 +116,6 @@ int main(int argc, char **argv)
 	char *argv_str = 0;
 	char *envp_str = 0;
 	init_options options = {0, 0, 0};
-	gliss_env_t init_sys_env;
 	int i = 0;
 	int nb, nb_bis = 0;
 	long file_size = 0;
@@ -194,7 +193,7 @@ int main(int argc, char **argv)
 	/* open the exec file */
 	loader = gliss_loader_open(argv[prog_index]);
 	if(loader == NULL) {
-		fprintf(stderr, "ERROR: no more resources\n");
+		fprintf(stderr, "ERROR: no more resources (1)\n");
 		return 2;
 	}
 
@@ -420,9 +419,11 @@ gliss_loader_close(loader);
 	/* make the platform */
 	platform = gliss_new_platform();
 	if(platform == NULL)  {
-		fprintf(stderr, "ERROR: no more resources\n");
+		fprintf(stderr, "ERROR: no more resources (2)\n");
 		return 2;
 	}
+	/* initialize system options */
+	copy_options_to_gliss_env(ppc_get_sys_env(platform), &options);
 
 	/* load the image in the platform */
 	if (gliss_load_platform(platform, argv[prog_index]) == -1) {
@@ -434,32 +435,16 @@ gliss_loader_close(loader);
 	/* make the state depending on the platform */
 	state = gliss_new_state(platform);
 	if (state == NULL)  {
-		fprintf(stderr, "ERROR: no more resources\n");
+		fprintf(stderr, "ERROR: no more resources (3)\n");
 		return 2;
 	}
 
 	/* make the simulator */
 	sim = gliss_new_sim(state, addr_start, addr_exit);
 	if (sim == NULL) {
-		fprintf(stderr, "ERROR: no more resources\n");
+		fprintf(stderr, "ERROR: no more resources (4)\n");
 		return 2;
 	}
-
-
-	/* system initialization (argv, env , auxv) */
-
-	copy_options_to_gliss_env(&init_sys_env, &options);
-	loader = gliss_loader_open(argv[prog_index]);
-	if(loader == NULL) {
-		fprintf(stderr, "ERROR: no more resources\n");
-		return 2;
-	}
-	gliss_stack_fill_env(loader, gliss_get_memory(platform, GLISS_MAIN_MEMORY), &init_sys_env);
-	//free(options.argv);
-	//free(options.envp);
-	gliss_registers_fill_env(&init_sys_env, state);
-	gliss_loader_close(loader);
-
 
 
 // !!DEBUG BEGIN!!
@@ -480,9 +465,9 @@ gliss_loader_close(loader);
 		gliss_step(sim);
 // !!DEBUG BEGIN!!
 //	cpt++;
-	printf("state after instr %d\n", cpt);
-	gliss_dump_state(sim->state, stdout);
-	fflush(stdout);
+//	printf("state after instr %d\n", cpt);
+//	gliss_dump_state(sim->state, stdout);
+//	fflush(stdout);
 //	getchar();
 	//if (cpt > 500)
 		//break;

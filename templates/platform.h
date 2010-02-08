@@ -12,13 +12,20 @@ $(end)
 $(end)
 
 /* $(proc)_platform_t structure */
-struct $(proc)_platform_t {
+struct $(proc)_platform_t
+{
 	int usage;
-	$(proc)_address_t entry, sp, argv, envp, aux;
-	int argc;
-	union {
+	
+	/* entry point of the simulated program */
+	$(proc)_address_t entry;
+	/* initial sp, argv, envp ... */
+	$(proc)_env_t *sys_env;
+	
+	union
+	{
 		$(proc)_memory_t *array[0];
-		struct {
+		struct
+		{
 $(foreach memories)
 			$(proc)_memory_t *$(name);
 $(end)

@@ -5,7 +5,7 @@ LIBADD =  $$(shell bash ../src/$(proc)-config --libs)
 all: $(proc)-sim
 
 $(proc)-sim: $(proc)-sim.o
-	$$(CC) $$(LDFLAGS) -o $$@ $$^ $$(LIBADD)
+	$$(CC) $$(CFLAGS) -o $$@ $$^ $$(LIBADD)
 
 clean:
 	rm -f $(proc)-sim.o
