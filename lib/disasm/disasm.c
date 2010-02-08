@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,12 +28,12 @@
 
 typedef struct list_entry_t
 {
-	char *name;
+	const char *name;
 	gliss_address_t addr;
 	struct list_entry_t *next;
 } list_entry_t;
 
-void add_to_list(list_entry_t **m, char *n, gliss_address_t a)
+void add_to_list(list_entry_t **m, const char *n, gliss_address_t a)
 {
 	list_entry_t *e = (list_entry_t *)malloc(sizeof(list_entry_t));
 	if (e == 0)
@@ -111,7 +111,7 @@ void print_list(list_entry_t *l)
  * @param	name	will point to the name if a label exists, NULL otherwise
  * @return	0 if no label exists for the given address, non zero otherwise
 */
-int get_label_from_list(list_entry_t *m, gliss_address_t addr, char **name)
+int get_label_from_list(list_entry_t *m, gliss_address_t addr, const char **name)
 {
 	list_entry_t *e = m;
 	while (e)
@@ -121,13 +121,13 @@ int get_label_from_list(list_entry_t *m, gliss_address_t addr, char **name)
 			*name = 0;
 			return 0;
 		}
-		
+
 		if (e->addr == addr)
 		{
 			*name = e->name;
 			return 1;
 		}
-		
+
 		if (e->next)
 			e = e->next;
 		else
@@ -153,21 +153,21 @@ void destroy_list(list_entry_t *m)
 
 int main(int argc, char **argv) {
 	gliss_platform_t *pf;
-	gliss_sect_t s_it;
-	Elf32_Shdr *s;
-	Elf32_Shdr *s_tab;
-	gliss_sym_t sym_it;
-	Elf32_Sym *sym;
+	int s_it;
+	/*Elf32_Shdr *s;*/
+	gliss_loader_sect_t *s_tab;
+	int sym_it;
+	/*Elf32_Sym *sym;*/
 	int nb_sect_disasm = 0;
 	gliss_loader_t *loader;
 
-	
+
 	/* test arguments */
 	if(argc != 2) {
 		fprintf(stderr, "ERROR: one argument required: the simulated program !\n");
 		return 1;
 	}
-	
+
 	/* we need a loader alone for sections */
 	loader = gliss_loader_open(argv[1]);
 	if (loader == NULL)
@@ -177,41 +177,36 @@ int main(int argc, char **argv) {
 	}
 
 	printf("found %d sections in the executable %s\n", gliss_loader_count_sects(loader)-1, argv[1]);
-	s_tab = (Elf32_Shdr*)malloc(gliss_loader_count_sects(loader) * sizeof(Elf32_Shdr));
+	/*s_tab = (Elf32_Shdr*)malloc(gliss_loader_count_sects(loader) * sizeof(Elf32_Shdr));
 	s = gliss_loader_first_sect(loader, &s_it);
-	while (s_it >= 0)
+	while (s_it >= 0)*/
+	s_tab = (gliss_loader_sect_t *)malloc(gliss_loader_count_sects(loader) * sizeof(gliss_loader_sect_t));
+	for(s_it = 0; s_it < gliss_loader_count_sects(loader); s_it++)
 	{
-		s = gliss_loader_next_sect(loader, &s_it);
-		if (s)
+		gliss_loader_sect_t data;
+		gliss_loader_sect(loader, s_it, &data);
+		if(data.type == GLISS_LOADER_SECT_TEXT)
 		{
-			/* if exec section, keep it to disasemble it */
-			if ((s->sh_type == SHT_PROGBITS) && (s->sh_flags == (SHF_ALLOC | SHF_EXECINSTR)))
-			{
-				s_tab[nb_sect_disasm++] = *s;
-				printf("[X]");
-			}
-			printf("\t%20s\ttype:%08X\tflag:%08X\taddr:%08X\tsize:%08X\n", gliss_loader_name_of_sect(loader, s_it), s->sh_type, s->sh_flags, s->sh_addr, s->sh_size);
+			s_tab[nb_sect_disasm++] = data;
+			printf("[X]");
 		}
+		printf("\t%20s\ttype:%08X\taddr:%08X\tsize:%08X\n", data.name, data.type, data.addr, data.size);
 	}
 	printf("found %d sections to disasemble\n", nb_sect_disasm);
 
 	printf("\nfound %d symbols in the executable %s\n", gliss_loader_count_syms(loader)-1, argv[1]);
 	list_entry_t *list_labels = 0;
-	sym = gliss_loader_first_sym(loader, &sym_it);
-	while (sym_it >= 0)
+	/*sym = gliss_loader_first_sym(loader, &sym_it);*/
+	for(sym_it = 0; sym_it < gliss_loader_count_syms(loader); sym_it++)
 	{
-		sym = gliss_loader_next_sym(loader, &sym_it);
-		if (sym)
+		gliss_loader_sym_t data;
+		gliss_loader_sym(loader, sym_it, &data);
+		if(data.type == GLISS_LOADER_SYM_CODE || data.type == GLISS_LOADER_SYM_DATA)
 		{
-			uint8_t st_type = sym->st_info & 0x0f;
-			if ((st_type == 2) || (st_type == 1)) /* STT_FUNC or STT_OBJECT */
-			{
-				printf("[L]");
-				add_to_list(&list_labels, gliss_loader_name_of_sym(loader, sym_it), sym->st_value);
-			}
-			printf("\t%20s\tvalue:%08X\tsize:%08X\tinfo:%08X\tshndx:%08X\n", gliss_loader_name_of_sym(loader, sym_it), sym->st_value, sym->st_size, sym->st_info, sym->st_shndx);
-			
+			printf("[L]");
+			add_to_list(&list_labels, data.name, data.value);
 		}
+		printf("\t%20s\tvalue:%08X\tsize:%08X\tinfo:%08X\tshndx:%08X\n", data.name, data.value, data.size, data.type, data.sect);
 	}
 
 	/* create the platform */
@@ -221,21 +216,21 @@ int main(int argc, char **argv) {
 		destroy_list(list_labels);
 		return 1;
 	}
-	
+
 	/* load it */
 	gliss_loader_load(loader, gliss_get_memory(pf, GLISS_MAIN_MEMORY));
-	
+
 	/* CAUTION: C99 valid declarations, BUT C89 invalid */
 	int i_sect;
 	gliss_decoder_t *d = gliss_new_decoder(pf);
-	
+
 	/* disassemble the sections */
 	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++)
 	{
-		gliss_address_t adr_start = s_tab[i_sect].sh_addr;
-		gliss_address_t adr_end = s_tab[i_sect].sh_addr + s_tab[i_sect].sh_size;
-		
-		printf("\ndisasm new section, addr=%08X, size=%08X\n", s_tab[i_sect].sh_addr, s_tab[i_sect].sh_size);
+		gliss_address_t adr_start = s_tab[i_sect].addr;
+		gliss_address_t adr_end = s_tab[i_sect].addr + s_tab[i_sect].size;
+
+		printf("\ndisasm new section, addr=%08X, size=%08X\n", s_tab[i_sect].addr, s_tab[i_sect].size);
 
 		while (adr_start < adr_end)
 		{
@@ -243,7 +238,7 @@ int main(int argc, char **argv) {
 			gliss_inst_t *inst = gliss_decode(d, adr_start);
 			gliss_disasm(buff, inst);
 			uint32_t code = gliss_mem_read32(gliss_get_memory(pf, 0), adr_start);
-			char *n;
+			const char *n;
 			if (get_label_from_list(list_labels, adr_start, &n))
 				printf("\n%08X <%s>\n", adr_start, n);
 			printf("%08X:\t%08X\t%s.\n", adr_start, code, buff);
@@ -251,7 +246,7 @@ int main(int argc, char **argv) {
 			adr_start += gliss_inst_size(inst) / 8;
 		}
 	}
-	
+
 	gliss_delete_decoder(d);
 	gliss_unlock_platform(pf);
 	destroy_list(list_labels);

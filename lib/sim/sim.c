@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	int is_exit_given = 0;
 	int prog_index = 0;
 	Elf32_Sym *Elf_sym = 0;
-	gliss_sym_t sym_exit = 0, sym_start = 0;
+	int sym_exit = 0, sym_start = 0;
 	FILE *f = 0;
 	/* this buffer should be big enough to hold an executable's name + 5 chars */
 	char buffer[256];
@@ -204,19 +204,15 @@ int main(int argc, char **argv)
 		addr_start = 0;
 
 		/* search symbol _start */
-		Elf_sym = gliss_loader_first_sym(loader, &sym_start);
-		while (sym_start >= 0)
+		for(sym_start = 0; sym_start < gliss_loader_count_syms(loader); sym_start++)
 		{
-			Elf_sym = gliss_loader_next_sym(loader, &sym_start);
-			if (Elf_sym)
+			gliss_loader_sym_t data;
+			gliss_loader_sym(loader, sym_start, &data);
+			if (strcmp(data.name, "_start") == 0)
 			{
-				c_ptr = gliss_loader_name_of_sym(loader, sym_start);
-				if (strcmp(c_ptr, "_start") == 0)
-				{
-					/* we found _start */
-					addr_start = Elf_sym->st_value;
-					break;
-				}
+				/* we found _start */
+				addr_start = data.value;
+				break;
 			}
 		}
 
@@ -237,19 +233,15 @@ int main(int argc, char **argv)
 		addr_exit = 0;
 
 		/* search symbol _exit */
-		Elf_sym = gliss_loader_first_sym(loader, &sym_exit);
-		while (sym_exit >= 0)
+		for(sym_exit = 0; sym_exit < gliss_loader_count_syms(loader); sym_exit++)
 		{
-			Elf_sym = gliss_loader_next_sym(loader, &sym_exit);
-			if (Elf_sym)
+			gliss_loader_sym_t data;
+			gliss_loader_sym(loader, sym_exit, &data);
+			if (strcmp(data.name, "_exit") == 0)
 			{
-				c_ptr = gliss_loader_name_of_sym(loader, sym_exit);
-				if (strcmp(c_ptr, "_exit") == 0)
-				{
-					/* we found _exit */
-					addr_exit = Elf_sym->st_value;
-					break;
-				}
+				/* we found _exit */
+				addr_exit = data.value;
+				break;
 			}
 		}
 

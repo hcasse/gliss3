@@ -4,7 +4,7 @@
  *
  *	This file is part of OTAWA
  *	Copyright (c) 2008, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,7 +16,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with OTAWA; if not, write to the Free Software 
+ *	along with OTAWA; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef GLISS_OLD_ELF_H
@@ -220,22 +220,43 @@ typedef struct gliss_env_t
 void gliss_stack_fill_env(gliss_loader_t *loader, gliss_memory_t *memory, gliss_env_t *env);
 void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
 
-
-/* section iteration */
-typedef int gliss_sect_t;
+/* section access */
+typedef struct gliss_loader_sect_t {
+	const char *name;
+	gliss_address_t addr;
+	int size;
+	enum {
+		GLISS_LOADER_SECT_UNKNOWN = 0,
+		GLISS_LOADER_SECT_TEXT,
+		GLISS_LOADER_SECT_DATA,
+		GLISS_LOADER_SECT_BSS
+	} type;
+} gliss_loader_sect_t;
 int gliss_loader_count_sects(gliss_loader_t *loader);
-Elf32_Shdr *gliss_loader_first_sect(gliss_loader_t *loader, gliss_sect_t *sect);
-Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect);
-/* the name of an ELF "element" (symbol, section...) cannot be accessed directly from an Elf32_* */
-char *gliss_loader_name_of_sect(gliss_loader_t *loader, gliss_sect_t sect);
+void gliss_loader_sect(gliss_loader_t *loader, int sect, gliss_loader_sect_t *data);
 
-/* symbol iteration */
-typedef int gliss_sym_t;
+/* symbol access */
+typedef struct {
+	const char *name;
+	gliss_address_t value;
+	int size;
+	int sect;
+	enum {
+		GLISS_LOADER_SYM_NO_TYPE,
+		GLISS_LOADER_SYM_DATA,
+		GLISS_LOADER_SYM_CODE
+	} type;
+	enum {
+		GLISS_LOADER_NO_BINDING,
+		GLISS_LOADER_LOCAL,
+		GLISS_LOADER_GLOBAL,
+		GLISS_LOADER_WEAK
+	} bind;
+} gliss_loader_sym_t;
 int gliss_loader_count_syms(gliss_loader_t *loader);
-Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym);
-Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym);
 /* the name of an ELF "element" (symbol, section...) cannot be accessed directly from an Elf32_* */
-char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym);
+/*const char *gliss_loader_name_of_sym(gliss_loader_t *loader, int sym);*/
+void gliss_loader_sym(gliss_loader_t *loader, int sym, gliss_loader_sym_t *data);
 
 
 

@@ -42,6 +42,26 @@
 #	define TRACE
 #endif
 
+
+/*** Symbol constants ***/
+#define ELF32_ST_BIND(i)	((i)>>4)
+#define ELF32_ST_TYPE(i)	((i)&0xf)
+#define ELF32_ST_INFO(b,t)	(((b)<<4)+((t)&0xf))
+
+#define STB_LOCAL   0
+#define STB_GLOBAL  1
+#define STB_WEAK    2
+#define STB_LOPROC 13
+#define STB_HIPROC 15
+#define STT_NOTYPE   0
+#define STT_OBJECT   1
+#define STT_FUNC     2
+#define STT_SECTION  3
+#define STT_FILE     4
+#define STT_LOPROC  13
+#define STT_HIPROC  15
+
+
 /*********************** ELF loader ********************************/
 
 typedef struct tables {
@@ -734,6 +754,7 @@ int gliss_loader_count_sects(gliss_loader_t *loader)
 	return loader->Tables.sechdr_tbl_size;
 }
 
+#if 0
 Elf32_Shdr *gliss_loader_first_sect(gliss_loader_t *loader, gliss_sect_t *sect)
 {
 	/* initialize the iterator (starts at 0) */
@@ -757,11 +778,46 @@ Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect)
 
 	return &loader->Tables.sec_header_tbl[++(*sect)];
 }
+#endif
 
-char *gliss_loader_name_of_sect(gliss_loader_t *loader, gliss_sect_t sect)
-{
-	return loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
+
+void gliss_loader_sect(gliss_loader_t *loader, int sect, gliss_loader_sect_t *data) {
+	Elf32_Shdr *s;
+
+	/* get the section */
+	assert(sect < loader->Tables.sechdr_tbl_size);
+	s = &loader->Tables.sec_header_tbl[sect];
+
+	/* fill address and size */
+	data->addr = s->sh_addr;
+	data->size = s->sh_size;
+
+	/* get the type */
+	switch(s->sh_type) {
+	case SHT_PROGBITS:
+		if(s->sh_flags & SHF_ALLOC) {
+			if(s->sh_flags & SHF_EXECINSTR)
+				data->type = GLISS_LOADER_SECT_TEXT;
+			else
+				data->type = GLISS_LOADER_SECT_DATA;
+		}
+		else
+			data->type = GLISS_LOADER_SECT_BSS;
+		break;
+	default:
+		data->type = GLISS_LOADER_SECT_UNKNOWN;
+		break;
+	}
+
+	/* get the name */
+	data->name = loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
 }
+
+/*const char *gliss_loader_name_of_sect(gliss_loader_t *loader, int sect)
+{
+	assert(sect < loader->Tables.sechdr_tbl_size);
+	return loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
+}*/
 
 
 /* symbol iteration */
@@ -773,6 +829,7 @@ int gliss_loader_count_syms(gliss_loader_t *loader)
 	return loader->Tables.sec_header_tbl[i].sh_size / loader->Tables.sec_header_tbl[i].sh_entsize;
 }
 
+#if 0
 Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 {
 	/* initialize the iterator (starts at 0) */
@@ -799,9 +856,44 @@ Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 	return &loader->Tables.sym_tbl[++(*sym)];
 }
 
-char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
+const char *gliss_loader_name_of_sym(gliss_loader_t *loader, int sym)
 {
+	assert(sym < gliss_loader_count_syms(loader));
 	return loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
+}
+#endif
+
+
+void gliss_loader_sym(gliss_loader_t *loader, int sym, gliss_loader_sym_t *data) {
+	assert(sym < gliss_loader_count_syms(loader));
+	Elf32_Sym *s;
+
+	/* get the descriptor */
+	assert(sym < gliss_loader_count_syms(loader));
+	s = &loader->Tables.sym_tbl[sym];
+
+	/* get name */
+	data->name = loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
+
+	/* get value and section */
+	data->value = s->st_value;
+	data->sect = s->st_shndx;
+	data->size = s->st_size;
+
+	/* get the binding */
+	switch(ELF32_ST_BIND(s->st_info)) {
+	case STB_LOCAL: data->bind = GLISS_LOADER_LOCAL; break;
+	case STB_GLOBAL: data->bind = GLISS_LOADER_GLOBAL; break;
+	case STB_WEAK: data->bind = GLISS_LOADER_WEAK; break;
+	default: data->bind = GLISS_LOADER_NO_BINDING; break;
+	}
+
+	/* get the type */
+	switch(ELF32_ST_TYPE(s->st_info)) {
+	case STT_FUNC: data->type = GLISS_LOADER_SYM_CODE; break;
+	case STT_OBJECT: data->type = GLISS_LOADER_SYM_DATA; break;
+	default: data->type = GLISS_LOADER_SYM_NO_TYPE; break;
+	}
 }
 
 
