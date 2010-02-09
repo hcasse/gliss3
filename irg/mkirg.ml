@@ -23,7 +23,7 @@
 let nmp = ref ""
 let out = ref ""
 let insts = ref false
-let options = [ ]
+let options = []
 
 (* argument decoding *)
 let free_arg arg =

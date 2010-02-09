@@ -31,11 +31,11 @@ let keyword id =
 		|REG _->REG !line
 		|VAR _->VAR !line
 		|RESOURCE _->RESOURCE !line
-		|TYPE _->TYPE !line	
+		|TYPE _->TYPE !line
 		|_->e
 	with Not_found -> (ID id)
 
-let keywords = [ 
+let keywords = [
 	("__attr",		ATTR);
 	("action",      ACTION);
 	("alias",       ALIAS);
@@ -50,6 +50,7 @@ let keywords = [
 	("enum",        ENUM);
 	("error",       ERROR);
 	("exception",   EXCEPTION 0);
+	("extend",		EXTEND);
 	("fix",        	FIX);
 	("float",       FLOAT);
 	("format",      FORMAT);
@@ -140,10 +141,10 @@ let id		= letter alpha*
 (**)
 let num=decint|hexint|binint
 (**)
- 
+
 rule main = parse
 
-	delim		{ main lexbuf } 
+	delim		{ main lexbuf }
 |	newline		{ incr line; main lexbuf }
 |	"//"		{ eof_comment lexbuf }
 |	"/*"		{ comment lexbuf }
@@ -176,9 +177,9 @@ rule main = parse
 |	"<="		{ LEQ }
 |	"<"		{
 			 if dotdot lexbuf lexbuf.lex_last_pos false
-				then 
+				then
 					begin bitfld := true; BIT_LEFT end
-				else 
+				else
 					LT
 			}
 |	">"     	{ bitfld := false; GT }

@@ -34,12 +34,14 @@ let template = ref ""
 let do_func = ref false
 let attr = ref ""
 let def = ref "0"
+let extends: string list ref = ref []
 let options = [
 	("-o", Arg.Set_string out, "output file");
 	("-a", Arg.Set_string attr, "name of the attribute");
 	("-t", Arg.Set_string template, "template file");
 	("-f", Arg.Set do_func, "generate functions from expression");
-	("-d", Arg.Set_string def, "default value")
+	("-d", Arg.Set_string def, "default value");
+	("-e", Arg.String (fun arg -> extends := arg::!extends), "extension files")
 ]
 
 
@@ -89,6 +91,16 @@ let _ =
 			options
 			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a user attribute."
 			(fun info ->
+
+				(* download the extensions *)
+				List.iter
+					(fun file ->
+						Lexer.file := file;
+						let lexbuf = Lexing.from_channel (open_in file) in
+						Parser.top Lexer.main lexbuf)
+					!extends;
+
+				(* perform generation *)
 				if !template = "" then raise (CommandError "an template must specified with '-t'") else
 				if !attr = "" then raise (CommandError "an attribute name must specified with '-a'") else
 				let maker = App.maker () in

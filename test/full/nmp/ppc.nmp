@@ -4213,4 +4213,7 @@ op twi ( to: card(5), ra: REG_IND, b: SIMM16 )
 		}
 	otawa_used_regs = "USED_REGS"(gpr_read(ra.value), END_REG)
 
+extend twi
+	my_attribute = to
+
 // End PowerPc755 Description

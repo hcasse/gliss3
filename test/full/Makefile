@@ -20,6 +20,9 @@ NMP =\
 
 all: lib ppc-disasm ppc-sim
 
+ppc.irg: ppc.nml
+	../../irg/mkirg $< $@
+
 ppc.nml: $(NMP)
 	../../gep/gliss-nmp2nml.pl $< $@
 

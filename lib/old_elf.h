@@ -45,36 +45,6 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf);
 gliss_address_t gliss_loader_start(gliss_loader_t *loader);
 
 
-/* stack and environment */
-
-/* auxiliary vector */
-/* struct's size = 2 words (64 bits) */
-typedef struct auxv_t {
-	int	a_type;
-	union {
-		long a_val;
-		void *a_ptr;
-		void (*a_fcn)();
-	} a_un;
-} auxv_t;
-
-typedef struct gliss_env_t
-{
-	int argc;
-
-	char **argv;
-	gliss_address_t argv_addr;
-
-	char **envp;
-	gliss_address_t envp_addr;
-
-	auxv_t *auxv;
-	gliss_address_t auxv_addr;
-
-	gliss_address_t stack_pointer;
-	gliss_address_t brk_addr;
-} gliss_env_t;
-
 /* system initialization (used internally during platform and state initialization) */
 void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env);
 void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
