@@ -1034,9 +1034,19 @@ let rec gen_expr info (expr: Irg.expr) =
 		in
 		(* stop printing after the expr and the bounds, a closing parens or the bit_order param has to be added apart *)
 		let output_field_common_C_code sufx a b arg3 b_o =
+			(* !!DEBUG!! *)
+			(*print_string "bitf_to_C, typ=[["; Irg.print_type_expr typ;
+			print_string "]], expr=[["; Irg.print_expr expr;
+			print_string "]], Sem.type_expr=[["; Irg.print_type_expr (Sem.get_type_expr expr);
+			print_string ("]], type_to_mem=[[" ^ (type_to_mem (convert_type typ)));
+			print_string ("]], sufx=[[" ^ sufx ^ "]]\n");*)
+			
 			out info.proc;
 			out "_field";
-			out (type_to_mem (convert_type typ));
+			(*out (type_to_mem (convert_type typ));*)
+			(* !!DEBUG!! *)
+			(* we should take the type of the operand to avoid some bugs *)
+			out (type_to_mem (convert_type (Sem.get_type_expr expr)));
 			out sufx;
 			out "(";
 			gen_expr info expr;
@@ -1214,7 +1224,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.INT _, Irg.RANGE _
  		| Irg.INT _, Irg.ENUM _ -> trans ()
 		| Irg.CARD _, Irg.BOOL -> trans ()
-		| Irg.CARD n, Irg.INT m when n > m -> explicit_cast typ n
+		| Irg.CARD n, Irg.INT m when n >= m -> explicit_cast typ n
 		| Irg.CARD n, Irg.INT m when m > n -> mask n
 		| Irg.CARD _, Irg.INT _ -> trans ()
 		| Irg.CARD n, Irg.CARD m when n < m -> mask n

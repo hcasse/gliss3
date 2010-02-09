@@ -594,6 +594,12 @@ let rec output_expr out e =
 		output_string out ")"*)
 	| BITFIELD (t, e, l, u) ->
 		output_expr out e;
+		
+		(* !!DEBUG!! *)
+		(*output_string out "[[";
+		output_type_expr out t;
+		output_string out "]]";*)
+		
 		output_string out "<";
 		output_expr out l;
 		output_string out "..";
