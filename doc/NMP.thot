@@ -1,148 +1,179 @@
-NMP Specification
-J. Barre, H. Cassé
-{casse, barre}@irit.fr
+@use dokuwiki
+@TITLE=NMP Manual for GLISS V2
+@AUTHORS=H. Cassé <hugues.casse@laposte.net>, J. Barre <barre@irit.fr>
+@VERSION=0.1
+@LANG=en_EN
+@ENCODING=UTF-8
 
-%!Encoding: utf-8
-%!Options: --toc --enum-title --css-sugar
-%!Style: greenred/default.css
-%!postproc(xhtml): EXAMPLE:(.*) <div class="header"><b>EXAMPLE:</b>\1</div>
-%!postproc(xhtml): !!TODO!!		<img src="pix/todo.png"/>
+This document describes the NMP language used in the GLISS tool.
+This language is freely derivated from the Sim-NML language and extended
+with useful features.
 
-This document describes the NMP language used in the GLISS tool. This language is freely derivated from the Sim-NML language and extended with useful features.
 
-= NMP Syntax =
+====== NMP Syntax ======
 
-This sections described the lexical conventions used as a base of the syntactic representation of the NMP language.
+This sections described the lexical conventions used as a base of the syntactic
+representation of the NMP language.
 
-== Notation ==
+===== Notation =====
 
 All along this document, the NMP syntax is described using EBNF (Extended Backus-Naur Form):
 
-'''
+<code>
 Item ::= Form1 | Form2 | ...
-'''
+</code>
 
-The expression above describes the syntactic ''Item'' as having several alternative forms ''Form1'', ''Form2'', etc. Each form is a sequence of symbols that may be constant string between quotes or other syntactic items.
+The expression above describes the syntactic ''Item'' as having several alternative forms
+''Form1'', ''Form2'', etc. Each form is a sequence of symbols
+that may be constant string between quotes or other syntactic items.
 
 The sequence supports also grouping between parenthesis. Symbols or group of symbols may be suffixed by ''*'' (repetition 0 of more times), ''+'' (repetition once or more time) and ''?'' (optional item). The group may also encode alternatives by separating them with pipes ''|''.
 
 To represent lexical items, we also use some regular expression syntax:
-- ''[abc]'', brackets represents a set of possible character whose equivalent EBNF is ''"a' | "b" | "c"'',
-- ''[a-z]'', range represents all character between ''a'' and ''z'' (in EBNF, "a" | "b" | ... | "z"),
-- ''[^abc]'', circumflex accent represents a set complement, that is, all characters exception ''a'', ''b'' and ''c''. 
+  * ''[abc]'', brackets represents a set of possible character whose equivalent EBNF is ''"a' | "b" | "c"'',
+  * ''[a-z]'', range represents all character between ''a'' and ''z'' (in EBNF, "a" | "b" | ... | "z"),
+  * ''[^abc]'', circumflex accent represents a set complement, that is, all characters exception ''a'', ''b'' and ''c''.
 
 
-== Basic Lexical Items ==
+===== Basic Lexical Items =====
 
-An NMP code is composed of ASCII characters (no support is provided for other text encoding for now). Blanks are usually ignored except in strings and new line character is not meaningful except in comments:
+An NMP code is composed of ASCII characters (no support is provided
+or other text encoding for now). Blanks are usually ignored except in strings
+and new line character is not meaningful except in comments:
 
-'''
+<code>
 blanks ::= " " | "\t" | "\n"
-'''
+</code>
 
 So are the comments that starts with double ''/'' and end at the end of the current line:
 
-'''
+<code>
 comment ::= "/" "/" [^\n]* "\n"
-'''
+</code>
 
-== Identifiers and Keywords ==
+===== Identifiers and Keywords =====
 
-NMP uses the same identifier form as C. The identifiers are used to name most of all elements of NMP: constants, types, memories, operations, modes and attributes.
+NMP uses the same identifier form as C. The identifiers are used to name
+most of all elements of NMP: constants, types, memories, operations,
+modes and attributes.
 
-'''
+<code>
 Identifier ::= [a-zA-Z_] [a-zA-Z_0-9]*
-'''
- 
-Some identifier are reserved and known as keywords. They must **not** be used to name NMP elements. The list is given below.
+</code>
 
-'''
-_attr, action, alias, bool, card, case, coerce, default, else, endif, enum, error,
-exception, false, fix, float, format, if, image, initial, int, let, macro, mode, not,
-op, ports, reg, resource, switch, syntax, then, true, type, uses, var, volatile
-'''
+Some identifier are reserved and known as keywords. They must **not*
+be used to name NMP elements. The list is given below in the array below:
 
-== Litteral Values ==
+| _attr | action | alias | bool |
+| card | case | coerce | default |
+| else | endif | enum | error |
+| exception | false | fix | float |
+| format | if | image | initial |
+| int | let | macro | mode |
+| not | op | ports | reg |
+| resource | switch | syntax | then |
+| true | type | uses | var |
+| volatile |  |  |  |
 
-The litterals values represents constants used in the specification fo NMP elements and in computation expressions. There are basically 4 kind of litteral values: boolean, integer, float and string.
-'''
+
+===== Litteral Values =====
+
+The litterals values represents constants used in the specification of NMP elements
+and in computation expressions. There are basically 4 kind of litteral values:
+boolean, integer, float and string.
+<code>
 Litteral ::= Boolean | Integer | Real | String
-'''
+</code>
 
 A boolean is simply the value ''true'' or ''false''.
-'''
+<code>
 Boolean ::= "true" | "false"
-'''
+</code>
 
-An integer litteral accepts several forms according the encoding base. Without prefix, decimal base is used. ''0x'' prefix is used for prefixing hexadecimal integer and ''0b'' for binary integer.
-'''
+An integer litteral accepts several forms according the encoding base.
+Without prefix, decimal base is used. ''0x'' prefix is used for prefixing
+hexadecimal integer and ''0b'' for binary integer.
+<code>
 Integer ::= [1-9] [0-9]+
           | "0" ("x" | "X") [0-9a-fA-F]+
           | "0" ("b" | "B") [01]+
-'''
+</code>
 
-A real number is composed by an integer part followed, possibly followed by a fractional part and an exponent part.
-'''
+A real number is composed by an integer part followed, possibly followed
+by a fractional part and an exponent part.
+<code>
 Real ::= [0-9]+ "." [0-9]+
         | [0-9]+ ("e" | "E") ("+" | "-")? [0-9]+
         | [0-9]+ "." [0-9]+ ("e" | "E") ("+" | "-")? [0-9]+
-'''
+</code>
 
-Finally, a string starts with a quote, contains a sequence of character and ends with a quote. Special character or embedding of a quote is performed by prefixing them with anti-slash ''\''.
-'''
+Finally, a string starts with a quote, contains a sequence of character
+and ends with a quote. Special character or embedding of a quote is performed
+by prefixing them with anti-slash ''\''.
+<code>
 String ::= "\"" ([^\] | "\" [^])* "\""
-'''
+</code>
 
-== Preprocessing ==
+===== Preprocessing =====
 
-Before parsing of the NMP code, a phase of preprocessing is performed. This preprocessing may be used to include external file in the main one or to reduce typing effort using macro expressions.
+Before parsing of the NMP code, a phase of preprocessing is performed.
+This preprocessing may be used to include external file in the main one
+or to reduce typing effort using macro expressions.
 
 The macro command has the following syntax:
-'''
+<code>
 Macro ::= "macro" "(" (Identifier ("," Identifier)*)? ")" ([^\n] | "\\" "\n") "\n"
-'''
-The macro is remplaced through the code by the body text following its parameters. This text ends at the first encountered new line but may spans over several line if newline are prefixed with ''\''. The macro may accept several parameters separated by commas. When the macro is invoked, one argument must be given for each parameter that will be replaced by the actual value in the body.
+</code>
 
-There are two forms of inclusion. The first one replaces the include command by the file given in the string:
-'''
+The macro is remplaced through the code by the body text following
+its parameters. This text ends at the first encountered new line but may
+span over several line if newline are prefixed with ''\''. The macro accepts
+several parameters separated by commas. When the macro is invoked,
+one argument must be given for each parameter that will be replaced
+by the actual value in the body.
+
+There are two forms of inclusion. The first one replaces the include command
+by the file given in the string:
+<code>
 Include ::= "include" String
-'''
+</code>
 
 The second one delays the inclusion to the end of the current file.
-'''
+<code>
 DelayedInclude ::= "include" ("-" | "_")? "op" String
-'''
+</code>
 
-!!TODO!! what's about "-" or "_" ?
+FIXME what's about "-" or "_" ?
 
-The given path given in the inclusion command may be absolute or relative to the current directory.
-
-
-= Types =
+The given path given in the inclusion command may be absolute or relative
+to the current directory.
 
 
-= Constants =
+====== Types ======
 
 
-= Registers and Memories =
+====== Constants ======
+
+
+====== Registers and Memories ======
 
 NMP provides different ways to represent the state of processor:
 memories, registers and variables.
 
 
-== Register ==
+===== Register =====
 
 An NMP register matches the concept of lonely register or register
 bank in a processor. A register represents a small memory that may
 be read or written by the processor. It is part of the processor state.
 
 
-=== Declaration ===
+==== Declaration ====
 
 The syntax to declare a register is given below:
-'''
-Register ::= reg id: Identifier '[' size: Expr ',' type: TypeExpr ' ]' Attributes 
-'''
+<code>
+Register ::= reg id: Identifier '[' size: Expr ',' type: TypeExpr ' ]' Attributes
+</code>
 
 
 A register is accessed throughout the statement and expression thanks
@@ -155,25 +186,25 @@ The ''type'' argument gives the type of each register item.
 
 In the example below, we have a lonely status register called ''SR''
 and a register bank named ''R'':
-'''
+<code>
 let R_SIZE = 16
 reg SR[1, card(32)]
 reg R[R_SIZE, card(32)]
-'''
+</code>
 
 
-=== Attributes ===
+==== Attributes ====
 
 The attributes allows to tune the behaviour of a register. They are
 composed as a sequence of attributes:
-'''
+<code>
 Attributes ::= Attribute*
 Attribute ::=
   'alias' AliasLocation
 | 'initial' '=' Expr
-| 'volatile' '=' Expr 
-| '__attr' GenAttr 
-'''
+| 'volatile' '=' Expr
+| '__attr' GenAttr
+</code>
 
 The ''initial'' attributes allows to define the value of the register
 at the start of execution (the expression must evaluates to a constant).
@@ -187,77 +218,77 @@ The ''alias'' keyword is used not to define an actual register but
 an anlias on another register. The location follows the same rules as
 the set statement and gives a different view of the target register.
 The location must follows the rules below:
-'''
+<code>
 AliasLocation ::=
   id: Identifier
 | id: Identifier '[' index: Expr ']'
 | id: Identifier '<' up: Expr '..' low: Expr '>'
-'''
+</code>
 
 The alias may be a simple identifier of another register: it works like
 a renaming of the existing register or a type conversion if both
 registers have not the same type. In the example below, ''FLT'' allows
 to have a float view of the integer ''INT''.
-'''
+<code>
 reg INT[1, card(32)]
 reg FLT[1, float(24, 8)] alias INT
-'''
+</code>
 
 
 With an index, it allows to access to a subpart of an existing register
 bank, possibly mapping bigger or smaller registers to the target
-registers. In the example below, a register bank may be viewed 
+registers. In the example below, a register bank may be viewed
 as a collection of 16 words with ''RL'' or as a collection of 32 half-words
 with ''rh''.
 bank
-'''
+<code>
 reg RL[16, card(32)]
 reg RH[32, card(16)] alias RH[0]
-'''
+</code>
 
 
 Finally, the last notation allows to access part of another register
 using the usual bit field notation (both upper and lower bit expression
 must evaluates to constants). A part of the x86 family register is given
 in the example below:
-'''
+<code>
 reg AX[1, card(16)]
 reg AL[1, card(8)] alias AX<7..0>
 reg AH[1, card(8)] alias AX<15..8>
-'''
+</code>
 
 
-The ''__attr'' keyword is used to pass any type of information to
+The ''_ _attr'' keyword is used to pass any type of information to
 the NMP description. The following values are currently supported:
-|| Value | Description |
-| ''__attr(pc)''  | design the PC register |
-| ''__attr(ppc)'' | design the previous PC |
-| ''__attr(npc)'' | design the next PC |
-| ''__attr(sp)''  | design the current stack pointer |
-| ''__attr(lr)''  | design the link register |
+^ Value ^ Description ^
+| ''_ _attr(pc)''  | design the PC register |
+| ''_ _attr(ppc)'' | design the previous PC |
+| ''_ _attr(npc)'' | design the next PC |
+| ''_ _attr(sp)''  | design the current stack pointer |
+| ''_ _attr(lr)''  | design the link register |
 
 
-= Operation, Modes and Attributes =
+====== Operation, Modes and Attributes ======
 
-== Image attribute ==
+===== Image attribute =====
 
 The image attribute allows to describe the binary code of an instruction. The code is represented by a string containing basically "0" and "1" matching the actual bits of the instruction code. To make it easier to read and write, GLISS V2 extends this encoding with spaces or tabulations, to make pack of bits and with "X", to represent a bit whose value is ignored to encode the instruction.
 
 From a syntactic point of view, this attribute is represented either by a simple string or using the ''format'' special function as in the example below:
 
 EXAMPLE: format usage
-'''
+<code>
 op AddImm(ra: card(4), rb: ZeroReg, imm: int(16))
 	image = format("1111 XX00 %4b %s %16b", ra, rb, imm)
-'''
+</code>
 
 This example shows also the use of percent "%" expressions working like the ''printf'' C function. Currently, there are only two forms:
-- ''%nb'' represents //n// bits whose value is taken from the matching argument in the ''format'' argument list,
-- ''%s'' is used to insert the image provided by an argument of type **mode**: the actual number of bits depends on the argument mode.
+  * ''%nb'' represents //n// bits whose value is taken from the matching argument in the ''format'' argument list,
+  * ''%s'' is used to insert the image provided by an argument of type **mode**: the actual number of bits depends on the argument mode.
 
 
 The example above creates the following code:
-|| bits | description |
+^ bits ^ description ^
 | 31-28 | four bits at ''1111'' |
 | 27-26 | two ignored bits |
 | 25-24 | two bits at ''00'' |
@@ -266,6 +297,9 @@ The example above creates the following code:
 | 15-0 | 16 bits provided by the ''imm'' parameter |
 
 
-= Expressions =
+====== Expressions ======
 
-= Statements =
+====== Statements ======
+
+
+

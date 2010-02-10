@@ -1,10 +1,8 @@
 .PHONY: NMP
 
-#NMP: NMP.html
-#	htmldoc  $< --book -t htmlsep -d NMP
+all: NMP.html gliss.html
 
-all: NMP.html manual.html
+%.html: %.thot
+	../../thot/thot.py -t html $<
 
-%.html: %.t2t
-	./txt2tags -t xhtml -i $< -o $@
-
+gliss.html: $(wildcard gliss-*.thot)
