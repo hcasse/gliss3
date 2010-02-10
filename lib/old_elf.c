@@ -1167,7 +1167,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gl
 	int num_arg, num_env, num_aux, i, j, len;
 	gliss_address_t addr_str;
 	gliss_address_t stack_ptr, align_stack_addr, argv_ptr, envp_ptr, auxv_ptr;
-	auxv_t auxv_null = {AT_NULL, 0};
+	gliss_auxv_t auxv_null = {AT_NULL, 0};
 
 	if ((platform==0) || (env==0))
 		gliss_panic("param error in gliss_stack_fill_env");

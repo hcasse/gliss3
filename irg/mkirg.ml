@@ -45,9 +45,7 @@ let _ =
 let _ =
 	try
 		begin
-			let lexbuf = Lexing.from_channel (open_in !nmp) in
-			Lexer.file := !nmp;
-			Parser.top Lexer.main lexbuf;
+			IrgUtil.load !nmp;
 			Irg.save !out
 		end
 	with

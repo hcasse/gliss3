@@ -9,6 +9,7 @@ OCAML_LDFLAGS+=-g
 endif
 
 LIB_SOURCES = \
+	config.ml \
 	IdMaker.ml \
 	irg.ml \
 	instantiate.ml \
@@ -16,13 +17,17 @@ LIB_SOURCES = \
 	sem.ml \
 	parser.mly \
 	iter.ml \
-	main.ml
+	irgUtil.ml
 $(eval $(call ocaml_byte_code_lib,irg,$(LIB_SOURCES)))
 
-print_irg_LIBS=str irg
+print_irg_LIBS=unix str irg
 $(eval $(call ocaml_prog,print_irg,print_irg.ml))
 
-mkirg_LIBS=str irg
+mkirg_LIBS=unix str irg
 $(eval $(call ocaml_prog,mkirg,mkirg.ml))
+
+config.ml:
+	echo "let install_dir = \"$(PREFIX)\"" > config.ml
+	echo "let source_dir = \"$(PWD)/..\"" >> config.ml
 
 include ../Makefile.tail

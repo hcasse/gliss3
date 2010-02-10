@@ -46,10 +46,10 @@ $(proc)_platform_t *$(proc)_new_platform(void) {
 	}
 	/* the new platform is not locked yet */
 	pf->usage = 0;
-	
+
 	/* other init */
 	/*pf->entry = pf->sp = pf->argv = pf->envp = pf->aux = pf->argc = 0;*/
-	pf->sys_env = malloc(sizeof($(proc)_env_t));
+	pf->sys_env = calloc(1, sizeof($(proc)_env_t));
 	if(pf->sys_env == NULL) {
 		errno = ENOMEM;
 		free(pf);
@@ -171,7 +171,7 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 
 	/* initialize system information */
 	platform->entry = $(proc)_loader_start(loader);
-	
+
 	/* !!TODO!! add argc,argv... init */
 	/* stack initialization */
 	$(proc)_stack_fill_env(loader, platform, platform->sys_env);
@@ -231,7 +231,7 @@ $(gen_init_code)
 
 	/* Pcs initialization */
 	state->$(NPC_NAME) = platform->entry;
-	
+
 	/* system registers initialization (argv, envp...) */
 	$(proc)_registers_fill_env(platform->sys_env, state);
 

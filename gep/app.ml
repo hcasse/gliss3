@@ -220,17 +220,7 @@ let make_env info maker =
  *)
 let process file f =
 	try
-		(* is it an IRG file ? *)
-		(if Filename.check_suffix file ".irg" then
-				Irg.load file
-
-		(* else an NML file *)
-		else
-			begin
-				Lexer.file := file;
-				let lexbuf = Lexing.from_channel (open_in file) in
-				Parser.top Lexer.main lexbuf;
-			end);
+		IrgUtil.load file;
 		let info = Toc.info () in
 		f info
 	with

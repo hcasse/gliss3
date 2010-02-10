@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,7 +28,7 @@ let options = [ ("-i", Arg.Set insts, "display list of generated instructions") 
 (* argument decoding *)
 let free_arg arg =
 	if !input = "" then input := arg else
-	raise (Arg.Bad "only one NML/IRG file required") 
+	raise (Arg.Bad "only one NML/IRG file required")
 let usage_msg = "SYNTAX: gep [options] NML/IRG_FILE\n\tOutput the content of an NML or IRG file."
 let _ =
 	Arg.parse options free_arg usage_msg;
@@ -40,20 +40,9 @@ let _ =
 
 
 let _ =
-	try	
+	try
 		begin
-		
-			(* opent the file *)
-			(if Filename.check_suffix !input ".irg" then
-                                Irg.load !input
-			else
-			        begin
-				        Lexer.file := !input;
-				        let lexbuf = Lexing.from_channel (open_in !input) in
-				        Parser.top Lexer.main lexbuf
-                                end);
-			
-			(* display output *)
+			IrgUtil.load !input;
 			if !insts then
 				Iter.iter
 					(fun _ spec -> Printf.printf "%d:%s -> \n" (Iter.get_id spec) (Iter.get_name spec); Irg.print_spec spec)

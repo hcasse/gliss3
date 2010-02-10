@@ -72,14 +72,14 @@ typedef struct $(proc)_inst_t {
 } $(proc)_inst_t;
 
 /* auxiliary vector */
-typedef struct auxv_t {
+typedef struct $(proc)_auxv_t {
 	int	a_type;
 	union {
 		long a_val;
 		void *a_ptr;
 		void (*a_fcn)();
 	} a_un;
-} auxv_t;
+} $(proc)_auxv_t;
 
 /* environment description */
 typedef struct $(proc)_env_t
@@ -92,7 +92,7 @@ typedef struct $(proc)_env_t
 	char **envp;
 	$(proc)_address_t envp_addr;
 
-	auxv_t *auxv;
+	$(proc)_auxv_t *auxv;
 	$(proc)_address_t auxv_addr;
 
 	$(proc)_address_t stack_pointer;

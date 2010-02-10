@@ -960,8 +960,9 @@ let get_isize _ =
 	| _ ->
 		failwith "gliss_isize must be defined as a string constant (let gliss_size = \"...\")"
 
-(* a few functions dealing with spec parameters *)
-
+(** Get the type of a parameter.
+	@param p	Parameter.
+	@return		Parameter type. *)
 let get_type_param p =
 	match p with
 	(str, TYPE_ID(n)) ->
@@ -969,11 +970,16 @@ let get_type_param p =
 	| _ ->
 		"[err741]"
 
+(** Get the parameter name.
+	@param p	Parameter.
+	@return		Parameter name. *)
 let get_name_param p =
 	match p with
 	(str, _) ->
 		str
 
+(** Display a parameter.
+	@param p	Parameter to display. *)
 let print_param p =
 	match p with
 	(str, TYPE_ID(n)) ->
@@ -985,6 +991,9 @@ let print_param p =
 		print_string ") "
 		end
 
+
+(** Display a parameter list.
+	@param l	List of parameters. *)
 let rec print_param_list l =
 begin
 	match l with
@@ -998,6 +1007,27 @@ begin
 end
 
 
+(**	Run nmp2nml on the given file.
+	@param file	File to run on.
+	@return		NMP output. *)
+let run_nmp2nml file =
+
+	(* find the command *)
+	let cmd =
+		let cmd = Config.source_dir ^ "/gep/gliss-nmp2nml.pl" in
+		Printf.printf "-> %s\n" cmd;
+		if Sys.file_exists cmd then cmd else
+		let cmd = Config.install_dir ^ "/bin/gliss-nmp2nml.pl" in
+		Printf.printf "-> %s\n" cmd;
+		if Sys.file_exists cmd then cmd else
+		begin
+			Printf.fprintf stderr "ERROR: cannot find gliss-nmp2nml.pl to process %s\n" file;
+			exit 1
+		end in
+
+	(* run it *)
+	Unix.open_process_in (Printf.sprintf "%s %s" cmd file)
+
 
 (**	Save the current IRG definition to a file.
 	@param path			Path of the file to save to.
@@ -1007,7 +1037,7 @@ let save path =
 	Marshal.to_channel out (syms, pos_table) []
 
 
-(** Load an IRG description from a file.
+(** Load an NML description either NMP, NML or IRG.
 	@param 	path		Path of the file to read from.
 	@raise	Sys_error	If there is an error during the read. *)
 let load path =
@@ -1018,3 +1048,4 @@ let load path =
 	StringHashtbl.clear pos_table;
 	StringHashtbl.iter (fun key spec -> StringHashtbl.add syms key spec) new_syms;
 	StringHashtbl.iter (fun key pos -> StringHashtbl.add pos_table key pos) new_pt
+

@@ -1,4 +1,4 @@
-CLEAN=include src disasm sim ppc.nml
+CLEAN=include src disasm sim ppc.nml ppc.irg
 GFLAGS=-m \
 	sysparm:sysparm-reg32 \
 	-m loader:old_elf \
@@ -20,14 +20,11 @@ NMP =\
 
 all: lib ppc-disasm ppc-sim
 
-ppc.irg: ppc.nml
+ppc.irg: nmp/ppc.nmp
 	../../irg/mkirg $< $@
 
-ppc.nml: $(NMP)
-	../../gep/gliss-nmp2nml.pl $< $@
-
-src include: ppc.nml
-	../../gep/gep $(GFLAGS) ppc.nml	 -S
+src include: ppc.irg
+	../../gep/gep $(GFLAGS) $<	 -S
 
 lib: src src/config.h src/disasm.c
 	(cd src; make)
@@ -42,8 +39,8 @@ src/config.h: config.tpl
 	test -d src || mkdir src
 	cp config.tpl src/config.h
 
-src/disasm.c:
-	../../gep/gliss-disasm ppc.nml -o $@ -c
+src/disasm.c: ppc.irg
+	../../gep/gliss-disasm $< -o $@ -c
 
 clean:
 	rm -rf $(CLEAN)
