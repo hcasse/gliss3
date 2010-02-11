@@ -287,8 +287,8 @@ let rec type_to_printf_format t =
 	| UINT16 -> "%04X"
 	| INT32 -> "%08X"
 	| UINT32 -> "%08X"
-	| INT64 -> "%016X"
-	| UINT64 -> "%016X"
+	| INT64 -> "%016LX"
+	| UINT64 -> "%016LX"
 	| FLOAT -> "%f"
 	| DOUBLE -> "%f"
 	| LONG_DOUBLE -> "%f"
@@ -960,9 +960,10 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.NONE -> ()
 
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "U")
+	(* some card const should be translated with suffix U or UL, ULL ?? *)
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "")
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
 	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
 	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v

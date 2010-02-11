@@ -1270,9 +1270,6 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
 	int syscall_num;
 	BOOL ret = FALSE;
 
-// !!DEBUG!!
-verbose = stdout;
-
 	syscall_num = GLISS_SYSCALL_CODE(inst, state);
 	if(verbose)
 		fprintf(verbose, "got a system call (number : %u; name : %s)\n", syscall_num, gliss_get_syscall_name(syscall_num));

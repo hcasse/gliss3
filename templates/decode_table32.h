@@ -58,10 +58,17 @@ static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
 
 static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode($(proc)_address_t address, uint32_t code_inst)
 {
-	$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
-	res->ident = $(PROC)_UNKNOWN;
-	res->instrinput = 0;
-	return res;
+	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
+	inst->ident = $(PROC)_UNKNOWN;
+	inst->instrinput = malloc(sizeof($(proc)_ii_t) * 2);
+
+	/* set size and address */
+	inst->instrinput[0].type = $(PROC)_ADDR;
+	inst->instrinput[0].val.addr = address;
+	inst->instrinput[1].type = $(PROC)_SIZE;
+	inst->instrinput[1].val.size = 32;
+
+	return inst;
 }
 
 $(foreach instructions)

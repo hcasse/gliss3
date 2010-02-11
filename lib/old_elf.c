@@ -42,6 +42,151 @@
 #	define TRACE
 #endif
 
+
+/*** Symbol constants ***/
+/* ELF definitions */
+typedef uint32_t Elf32_Addr;
+typedef uint16_t Elf32_Half;
+typedef uint32_t Elf32_Off;
+typedef uint16_t Elf32_Section;
+typedef uint32_t Elf32_Word;
+
+#define EI_MAG0		0		/* File identification byte 0 index */
+#define ELFMAG0		0x7f		/* Magic number byte 0 */
+
+#define EI_MAG1		1		/* File identification byte 1 index */
+#define ELFMAG1		'E'		/* Magic number byte 1 */
+
+#define EI_MAG2		2		/* File identification byte 2 index */
+#define ELFMAG2		'L'		/* Magic number byte 2 */
+
+#define EI_MAG3		3		/* File identification byte 3 index */
+#define ELFMAG3		'F'		/* Magic number byte 3 */
+
+/* Conglomeration of the identification bytes, for easy testing as a word.  */
+#define	ELFMAG		"\177ELF"
+#define	SELFMAG		4
+
+#define EI_CLASS	4		/* File class byte index */
+#define ELFCLASSNONE	0		/* Invalid class */
+#define ELFCLASS32	1		/* 32-bit objects */
+#define ELFCLASS64	2		/* 64-bit objects */
+
+#define EI_DATA		5		/* Data encoding byte index */
+#define ELFDATANONE	0		/* Invalid data encoding */
+#define ELFDATA2LSB	1		/* 2's complement, little endian */
+#define ELFDATA2MSB	2		/* 2's complement, big endian */
+
+#define EI_VERSION	6		/* File version byte index */
+					/* Value must be EV_CURRENT */
+
+#define EI_PAD		7		/* Byte index of padding bytes */
+
+/* Legal values for e_type (object file type).  */
+
+#define ET_NONE		0		/* No file type */
+#define ET_REL		1		/* Relocatable file */
+#define ET_EXEC		2		/* Executable file */
+#define ET_DYN		3		/* Shared object file */
+#define ET_CORE		4		/* Core file */
+#define	ET_NUM		5		/* Number of defined types.  */
+#define ET_LOPROC	0xff00		/* Processor-specific */
+#define ET_HIPROC	0xffff		/* Processor-specific */
+
+#define SHT_NULL	0		/* Section header table entry unused */
+#define SHT_PROGBITS	1		/* Program data */
+#define SHT_SYMTAB	2		/* Symbol table */
+#define SHT_STRTAB	3		/* String table */
+#define SHT_RELA	4		/* Relocation entries with addends */
+#define SHT_HASH	5		/* Symbol hash table */
+#define SHT_DYNAMIC	6		/* Dynamic linking information */
+#define SHT_NOTE	7		/* Notes */
+#define SHT_NOBITS	8		/* Program space with no data (bss) */
+#define SHT_REL		9		/* Relocation entries, no addends */
+#define SHT_SHLIB	10		/* Reserved */
+#define SHT_DYNSYM	11		/* Dynamic linker symbol table */
+#define	SHT_NUM		12		/* Number of defined types.  */
+
+#define SHF_WRITE	(1 << 0)	/* Writable */
+#define SHF_ALLOC	(1 << 1)	/* Occupies memory during execution */
+#define SHF_EXECINSTR	(1 << 2)	/* Executable */
+#define SHF_MASKPROC	0xf0000000	/* Processor-specific */
+
+typedef struct
+{
+  Elf32_Word	sh_name;		/* Section name (string tbl index) */
+  Elf32_Word	sh_type;		/* Section type */
+  Elf32_Word	sh_flags;		/* Section flags */
+  Elf32_Addr	sh_addr;		/* Section virtual addr at execution */
+  Elf32_Off	sh_offset;		/* Section file offset */
+  Elf32_Word	sh_size;		/* Section size in bytes */
+  Elf32_Word	sh_link;		/* Link to another section */
+  Elf32_Word	sh_info;		/* Additional section information */
+  Elf32_Word	sh_addralign;		/* Section alignment */
+  Elf32_Word	sh_entsize;		/* Entry size if section holds table */
+} Elf32_Shdr;
+
+typedef struct
+{
+  Elf32_Word	st_name;		/* Symbol name (string tbl index) */
+  Elf32_Addr	st_value;		/* Symbol value */
+  Elf32_Word	st_size;		/* Symbol size */
+  unsigned char	st_info;		/* Symbol type and binding */
+  unsigned char	st_other;		/* No defined meaning, 0 */
+  Elf32_Section	st_shndx;		/* Section index */
+} Elf32_Sym;
+
+#define PT_LOAD	1
+typedef struct
+{
+  Elf32_Word	p_type;			/* Segment type */
+  Elf32_Off	p_offset;		/* Segment file offset */
+  Elf32_Addr	p_vaddr;		/* Segment virtual address */
+  Elf32_Addr	p_paddr;		/* Segment physical address */
+  Elf32_Word	p_filesz;		/* Segment size in file */
+  Elf32_Word	p_memsz;		/* Segment size in memory */
+  Elf32_Word	p_flags;		/* Segment flags */
+  Elf32_Word	p_align;		/* Segment alignment */
+} Elf32_Phdr;
+
+#define EI_NIDENT (16)
+typedef struct
+{
+  unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
+  Elf32_Half	e_type;			/* Object file type */
+  Elf32_Half	e_machine;		/* Architecture */
+  Elf32_Word	e_version;		/* Object file version */
+  Elf32_Addr	e_entry;		/* Entry point virtual address */
+  Elf32_Off	e_phoff;		/* Program header table file offset */
+  Elf32_Off	e_shoff;		/* Section header table file offset */
+  Elf32_Word	e_flags;		/* Processor-specific flags */
+  Elf32_Half	e_ehsize;		/* ELF header size in bytes */
+  Elf32_Half	e_phentsize;		/* Program header table entry size */
+  Elf32_Half	e_phnum;		/* Program header table entry count */
+  Elf32_Half	e_shentsize;		/* Section header table entry size */
+  Elf32_Half	e_shnum;		/* Section header table entry count */
+  Elf32_Half	e_shstrndx;		/* Section header string table index */
+} Elf32_Ehdr;
+
+
+#define ELF32_ST_BIND(i)	((i)>>4)
+#define ELF32_ST_TYPE(i)	((i)&0xf)
+#define ELF32_ST_INFO(b,t)	(((b)<<4)+((t)&0xf))
+
+#define STB_LOCAL   0
+#define STB_GLOBAL  1
+#define STB_WEAK    2
+#define STB_LOPROC 13
+#define STB_HIPROC 15
+#define STT_NOTYPE   0
+#define STT_OBJECT   1
+#define STT_FUNC     2
+#define STT_SECTION  3
+#define STT_FILE     4
+#define STT_LOPROC  13
+#define STT_HIPROC  15
+
+
 /*********************** ELF loader ********************************/
 
 typedef struct tables {
@@ -670,12 +815,12 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 	loader->Data = Data;
 	loader->Ehdr = Ehdr;
 	loader->Is_Elf_Little = Is_Elf_Little;
-	
+
 	/* !!TODO!! after data stored into loader,
 	clean the globals of Elf_Tables (just a shallow clean,
 	real clean will be done by loader when destroyed) */
 	ElfReset();
-	
+
 	return loader;
 }
 
@@ -687,15 +832,15 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 void gliss_loader_close(gliss_loader_t *loader)
 {
 	assert(loader);
-	gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));
-	
+	/*gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));*/
+
 	/* backup globals */
 	/*backup->Tables = Tables;
 	backup->Text = Text;
 	backup->Data = Data;
 	backup->Ehdr = Ehdr;
 	backup->Is_Elf_Little = Is_Elf_Little;*/
-	
+
 	/* replace globals by loader's data */
 	Tables = loader->Tables;
 	Text = loader->Text;
@@ -705,14 +850,14 @@ void gliss_loader_close(gliss_loader_t *loader)
 
 	/* destroy loader's data */
 	ElfCleanup();
-	
+
 	/* restore previous globals */
 	/*Tables = backup->Tables;
 	Text = backup->Text;
 	Data = backup->Data;
 	Ehdr = backup->Ehdr;
 	Is_Elf_Little = backup->Is_Elf_Little;*/
-	
+
 	/* destroy loader */
 	free(loader);
 }
@@ -769,6 +914,7 @@ int gliss_loader_count_sects(gliss_loader_t *loader)
 	return loader->Tables.sechdr_tbl_size;
 }
 
+#if 0
 Elf32_Shdr *gliss_loader_first_sect(gliss_loader_t *loader, gliss_sect_t *sect)
 {
 	/* initialize the iterator (starts at 0) */
@@ -792,11 +938,46 @@ Elf32_Shdr *gliss_loader_next_sect(gliss_loader_t *loader, gliss_sect_t *sect)
 
 	return &loader->Tables.sec_header_tbl[++(*sect)];
 }
+#endif
 
-char *gliss_loader_name_of_sect(gliss_loader_t *loader, gliss_sect_t sect)
-{
-	return loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
+
+void gliss_loader_sect(gliss_loader_t *loader, int sect, gliss_loader_sect_t *data) {
+	Elf32_Shdr *s;
+
+	/* get the section */
+	assert(sect < loader->Tables.sechdr_tbl_size);
+	s = &loader->Tables.sec_header_tbl[sect];
+
+	/* fill address and size */
+	data->addr = s->sh_addr;
+	data->size = s->sh_size;
+
+	/* get the type */
+	switch(s->sh_type) {
+	case SHT_PROGBITS:
+		if(s->sh_flags & SHF_ALLOC) {
+			if(s->sh_flags & SHF_EXECINSTR)
+				data->type = GLISS_LOADER_SECT_TEXT;
+			else
+				data->type = GLISS_LOADER_SECT_DATA;
+		}
+		else
+			data->type = GLISS_LOADER_SECT_BSS;
+		break;
+	default:
+		data->type = GLISS_LOADER_SECT_UNKNOWN;
+		break;
+	}
+
+	/* get the name */
+	data->name = loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
 }
+
+/*const char *gliss_loader_name_of_sect(gliss_loader_t *loader, int sect)
+{
+	assert(sect < loader->Tables.sechdr_tbl_size);
+	return loader->Tables.sec_name_tbl + loader->Tables.sec_header_tbl[sect].sh_name;
+}*/
 
 
 /* symbol iteration */
@@ -808,6 +989,7 @@ int gliss_loader_count_syms(gliss_loader_t *loader)
 	return loader->Tables.sec_header_tbl[i].sh_size / loader->Tables.sec_header_tbl[i].sh_entsize;
 }
 
+#if 0
 Elf32_Sym *gliss_loader_first_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 {
 	/* initialize the iterator (starts at 0) */
@@ -834,9 +1016,44 @@ Elf32_Sym *gliss_loader_next_sym(gliss_loader_t *loader, gliss_sym_t *sym)
 	return &loader->Tables.sym_tbl[++(*sym)];
 }
 
-char *gliss_loader_name_of_sym(gliss_loader_t *loader, gliss_sym_t sym)
+const char *gliss_loader_name_of_sym(gliss_loader_t *loader, int sym)
 {
+	assert(sym < gliss_loader_count_syms(loader));
 	return loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
+}
+#endif
+
+
+void gliss_loader_sym(gliss_loader_t *loader, int sym, gliss_loader_sym_t *data) {
+	assert(sym < gliss_loader_count_syms(loader));
+	Elf32_Sym *s;
+
+	/* get the descriptor */
+	assert(sym < gliss_loader_count_syms(loader));
+	s = &loader->Tables.sym_tbl[sym];
+
+	/* get name */
+	data->name = loader->Tables.symstr_tbl + loader->Tables.sym_tbl[sym].st_name;
+
+	/* get value and section */
+	data->value = s->st_value;
+	data->sect = s->st_shndx;
+	data->size = s->st_size;
+
+	/* get the binding */
+	switch(ELF32_ST_BIND(s->st_info)) {
+	case STB_LOCAL: data->bind = GLISS_LOADER_LOCAL; break;
+	case STB_GLOBAL: data->bind = GLISS_LOADER_GLOBAL; break;
+	case STB_WEAK: data->bind = GLISS_LOADER_WEAK; break;
+	default: data->bind = GLISS_LOADER_NO_BINDING; break;
+	}
+
+	/* get the type */
+	switch(ELF32_ST_TYPE(s->st_info)) {
+	case STT_FUNC: data->type = GLISS_LOADER_SYM_CODE; break;
+	case STT_OBJECT: data->type = GLISS_LOADER_SYM_DATA; break;
+	default: data->type = GLISS_LOADER_SYM_NO_TYPE; break;
+	}
 }
 
 
@@ -888,10 +1105,10 @@ static gliss_address_t gliss_brk_init(gliss_loader_t *loader)
 	Elf32_Phdr *seg_tbl = loader->Tables.pgm_header_tbl;
 	gliss_address_t brk_init = 0;
 	int i;
-	
+
 	/* brk will be the highest (vaddr + memsz) value
 	   among all loadable segments */
-	
+
 	for (i = 0; i < n; i++)
 	{
 		if (seg_tbl[i].p_type == PT_LOAD)
@@ -901,7 +1118,7 @@ static gliss_address_t gliss_brk_init(gliss_loader_t *loader)
 				brk_init = new_brk;
 		}
 	}
-	
+
 	/* MEMORY_PAGE_SIZE gotten from mem.h */
 	return (brk_init + MEMORY_PAGE_SIZE - 1) & ~(MEMORY_PAGE_SIZE - 1);
 }
@@ -938,7 +1155,7 @@ void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gl
 
 	if ((platform==0) || (env==0))
 		gliss_panic("param error in gliss_stack_fill_env");
-	
+
 	gliss_memory_t *memory = gliss_get_memory(platform, GLISS_MAIN_MEMORY);
 
 	/* find the brk, useful for later */
