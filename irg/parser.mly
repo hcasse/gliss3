@@ -749,12 +749,8 @@ Expr :
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID
-		{ 	if Irg.is_defined $1
-				then
-					eline (Irg.REF $1)
-				else
-					raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-	 	}
+		{ Sem.test_data $1 false; eline (Irg.REF $1) }
+
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
 			if not (Irg.is_defined $1) then

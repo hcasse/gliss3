@@ -1048,4 +1048,3 @@ let load path =
 	StringHashtbl.clear pos_table;
 	StringHashtbl.iter (fun key spec -> StringHashtbl.add syms key spec) new_syms;
 	StringHashtbl.iter (fun key pos -> StringHashtbl.add pos_table key pos) new_pt
-

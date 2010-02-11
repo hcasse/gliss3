@@ -728,15 +728,27 @@ let get_add_sub e1 e2 bop=
 	and t2=get_type_expr e2
 	in
 	match (t1,t2) with
-	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
-	|(FLOAT (m,n),FLOAT (m2,n2)) when m2=m && n2=n-> BINOP (FLOAT (m,n), bop,e1,e2)
-	|(FIX (m,n),FIX (m2,n2)) when m2=m && n2=n->BINOP (FIX (m,n), bop,e1,e2)
-	|(INT n, INT n2) when n2=n-> BINOP (INT (n),bop, e1,e2)
-	|(CARD n,CARD n2) when n2=n->BINOP(CARD (n),bop,e1,e2)
-	|(INT m, CARD n)->BINOP(INT ((max m n)),bop,e1,e2)
-	|(CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
-	|(INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
-	|(CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
+
+	(* unknown type *)
+	| ((UNKNOW_TYPE,_)
+	| (_,UNKNOW_TYPE)) ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+
+	(* without coercition *)
+	| (FLOAT (m,n), FLOAT (m2,n2)) when m2 = m && n2 = n ->
+		BINOP (FLOAT (m,n), bop,e1,e2)
+	| (FIX (m,n), FIX (m2,n2)) when m2 = m && n2 = n->
+		BINOP (FIX (m,n), bop, e1, e2)
+	| (INT n, INT n2) when n2 = n ->
+		BINOP (INT (n), bop, e1, e2)
+	| (CARD n,CARD n2) when n2 = n ->
+		BINOP(CARD (n), bop, e1, e2)
+
+	(* coercition required *)
+	| (INT m, CARD n) -> BINOP(INT ((max m n)),bop,e1,e2)
+	| (CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
+	| (INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
+	| (CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
 	|_->failwith "internal error : get_add_sub"
 
 (** Create a mult/div/mod with a correct type in function of its operands.
@@ -803,11 +815,9 @@ let rec get_concat e1 e2=
 	@return	A BINOP expression.
 	@raise SemErrorWithFun	Raised when the type of the operands is not compatible with the operation
 *)
-let rec get_binop e1 e2 bop=
-	let t1=get_type_expr e1
-	and t2=get_type_expr e2
-	in
-	(* add coerce when needed, typically when one operand is int and the other one card or int *)
+let rec get_binop e1 e2 bop =
+	let t1=get_type_expr e1 in
+	let t2=get_type_expr e2 in
 	let add_auto_coerce binop_expr =
 		let check_type_expr_for_binop e1 e2 =
 			let t1 = get_type_expr e1
@@ -1573,3 +1583,33 @@ let have_attribute id attr=
 	else
 	temp id attr true
 *)
+
+
+
+
+(** Test if the symbol exists and is a data symbol
+	(constant, memory, variable, register, parameter)
+	@param name		Name of the symbol.
+	@param indexed	Test if the data is indexed.
+	@raise			SemError if either the symbol does not exists,
+					or it is not data. *)
+let test_data name indexed =
+	match Irg.get_symbol name with
+	| Irg.UNDEF -> raise (SemError (Printf.sprintf "the identifier \"%s\" is undefined" name))
+
+	(* never indexed *)
+	| Irg.LET _
+	| Irg.PARAM _
+	| Irg.ATTR _
+	| Irg.ENUM_POSS _ ->
+		if indexed
+		then raise (SemError (Printf.sprintf "data \"%s\" can not be indexed" name))
+		else ()
+
+	(* may be indexed *)
+	| Irg.MEM _				(* for compatibility with GLISS v1 *)
+	| Irg.REG _
+	| Irg.VAR _ -> ()
+	| _ -> raise (SemError (Printf.sprintf "the indefifier \"%s\" does not design a data" name))
+
+
