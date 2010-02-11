@@ -848,7 +848,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 void gliss_loader_close(gliss_loader_t *loader)
 {
 	assert(loader);
-	gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));
+	/*gliss_loader_t *backup = malloc(sizeof(gliss_loader_t));*/
 
 	/* backup globals */
 	/*backup->Tables = Tables;

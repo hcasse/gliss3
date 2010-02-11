@@ -287,8 +287,8 @@ let rec type_to_printf_format t =
 	| UINT16 -> "%04X"
 	| INT32 -> "%08X"
 	| UINT32 -> "%08X"
-	| INT64 -> "%016X"
-	| UINT64 -> "%016X"
+	| INT64 -> "%016LX"
+	| UINT64 -> "%016LX"
 	| FLOAT -> "%f"
 	| DOUBLE -> "%f"
 	| LONG_DOUBLE -> "%f"
@@ -960,9 +960,10 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.NONE -> ()
 
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "U")
+	(* some card const should be translated with suffix U or UL, ULL ?? *)
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "")
 	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "ULL"
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
 	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
 	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v
@@ -1034,9 +1035,19 @@ let rec gen_expr info (expr: Irg.expr) =
 		in
 		(* stop printing after the expr and the bounds, a closing parens or the bit_order param has to be added apart *)
 		let output_field_common_C_code sufx a b arg3 b_o =
+			(* !!DEBUG!! *)
+			(*print_string "bitf_to_C, typ=[["; Irg.print_type_expr typ;
+			print_string "]], expr=[["; Irg.print_expr expr;
+			print_string "]], Sem.type_expr=[["; Irg.print_type_expr (Sem.get_type_expr expr);
+			print_string ("]], type_to_mem=[[" ^ (type_to_mem (convert_type typ)));
+			print_string ("]], sufx=[[" ^ sufx ^ "]]\n");*)
+			
 			out info.proc;
 			out "_field";
-			out (type_to_mem (convert_type typ));
+			(*out (type_to_mem (convert_type typ));*)
+			(* !!DEBUG!! *)
+			(* we should take the type of the operand to avoid some bugs *)
+			out (type_to_mem (convert_type (Sem.get_type_expr expr)));
 			out sufx;
 			out "(";
 			gen_expr info expr;
@@ -1214,7 +1225,7 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.INT _, Irg.RANGE _
  		| Irg.INT _, Irg.ENUM _ -> trans ()
 		| Irg.CARD _, Irg.BOOL -> trans ()
-		| Irg.CARD n, Irg.INT m when n > m -> explicit_cast typ n
+		| Irg.CARD n, Irg.INT m when n >= m -> explicit_cast typ n
 		| Irg.CARD n, Irg.INT m when m > n -> mask n
 		| Irg.CARD _, Irg.INT _ -> trans ()
 		| Irg.CARD n, Irg.CARD m when n < m -> mask n
