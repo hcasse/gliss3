@@ -1,25 +1,25 @@
-// **************************************************************************** 
-//                              uisa_fp_instr.nmp                               
-//                              ------------------                              
-//    date            : May 2003                                               
-//    copyright       : Institut de Recherche en Informatique de Toulouse       
-//    author          : Daniel Gracia-Perez & Marc Finet
-//    email           : sainrat@irit.fr                        
 // ****************************************************************************
-                                                                              
-// **************************************************************************** 
-// *                                                                          * 
-// *   This program is free software; you can redistribute it and/or modify   * 
-// *   it under the terms of the GNU General Public License as published by   * 
-// *   the Free Software Foundation; either version 2 of the License, or      * 
-// *   (at your option) any later version.                                    * 
-// *                                                                          * 
+//                              uisa_fp_instr.nmp
+//                              ------------------
+//    date            : May 2003
+//    copyright       : Institut de Recherche en Informatique de Toulouse
+//    author          : Daniel Gracia-Perez & Marc Finet
+//    email           : sainrat@irit.fr
+// ****************************************************************************
+
+// ****************************************************************************
+// *                                                                          *
+// *   This program is free software; you can redistribute it and/or modify   *
+// *   it under the terms of the GNU General Public License as published by   *
+// *   the Free Software Foundation; either version 2 of the License, or      *
+// *   (at your option) any later version.                                    *
+// *                                                                          *
 // ****************************************************************************
 
 // ************************************************************************* //
 //                               uisa_fp description                         //
 // ************************************************************************* //
-// This file contains the nMP description of the floating-point 
+// This file contains the nMP description of the floating-point
 // instructions of the PowerPC and the associated constants, macros, ...
 
 // ========================================================================= //
@@ -174,7 +174,7 @@ macro FPlaunchexcept = \
 
 macro FP_SET_ROUNDING_MODE = \
 	if FP_RN == FP_RN_TONEAREST then \
-		fpi_setround(FPI_TONEAREST); \
+		fpi_setround(@"FPI_TONEAREST"); \
 	else \
 		if FP_RN == FP_RN_TOWARDZERO then \
 			fpi_setround(FPI_TOWARDZERO); \
@@ -229,10 +229,10 @@ macro isMZERO64(x) = \
 
 macro isINF64(x) = \
 	( FP_SIGN64(x) == 0 && FP_EXP64(x) == 2047 && FP_FRAC64(x) == 0 ) \
-		
+
 macro isMINF64(x) = \
 	( FP_SIGN64(x) == 1 && FP_EXP64(x) == 2047 && FP_FRAC64(x) == 0 ) \
-		
+
 macro isNORM64(x) = \
 	( FP_SIGN64(x) == 0 && FP_EXP64(x) > 0 && FP_EXP64(x) < 2047 ) \
 
@@ -241,10 +241,10 @@ macro isMNORM64(x) = \
 
 macro isDNORM64(x) = \
 	( FP_SIGN64(x) == 0 && FP_EXP64(x) == 0 && FP_FRAC64(x) != 0 ) \
-		
+
 macro isMDNORM64(x) = \
 	( FP_SIGN64(x) == 1 && FP_EXP64(x) == 0 && FP_FRAC64(x) != 0 ) \
-	
+
 macro setFPSCR(x) = \
 	FPSCR <x..x> = 1 \
 
@@ -339,7 +339,7 @@ macro setFPRF64(x) = \
 			endif; \
 		endif; \
 	endif; \
-	
+
 macro FP_COPY_FLAGS = \
 	if fpi_testexcept(FPI_INEXACT) then \
 		setFPSCR(FP_XX); \
@@ -511,7 +511,7 @@ op ufp_l_single ( frd : index, ra : REG_IND_ZERO, d : IADDR )
    action = {
 
 		FP_SET_ROUNDING_MODE;
-		
+
 		TMP_EA = ra + d;
 
 		TMP_FLOTS_A3 = M [ TMP_EA ];
@@ -950,7 +950,7 @@ op ufp_add_double ( frd : index, fra : index, frb : index )
 			"launch_exception"("instr",PROGRAM);
 		endif;
 		}
-   
+
 op ufp_add_dbl_cr_update ( frd : index, fra : index, frb : index )
    syntax = format ( "fadd. fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111111%5b%5b%5b00000101011", frd, fra, frb )
@@ -978,7 +978,7 @@ op ufp_add_single ( frd : index, fra : index, frb : index )
    syntax = format ( "fadds fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111011%5b%5b%5b00000101010", frd, fra, frb )
    action = {
-			
+
 		FP_SET_ROUNDING_MODE;
 		FP_SET_ALL_EXCEPTIONS;
 		TMP_FLOTS = FPR[fra] + FPR[frb];
@@ -995,7 +995,7 @@ op ufp_add_single ( frd : index, fra : index, frb : index )
 		endif;
 
     	}
-   
+
 op ufp_add_sgl_cr_update ( frd : index, fra : index, frb : index )
    syntax = format ( "fadds. fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111011%5b%5b%5b00000101011", frd, fra, frb )
@@ -1030,7 +1030,7 @@ op  ufp_subtract( x : ufp_subtract_action )
 op ufp_subtract_action =   ufp_sub_double
                          | ufp_sub_dbl_cr_update
                          | ufp_sub_single
-                         | ufp_sub_sgl_cr_update 
+                         | ufp_sub_sgl_cr_update
 
 op ufp_sub_double ( frd : index, fra : index, frb : index )
    syntax = format ( "fsub fr%d,fr%d,fr%d", frd, fra, frb )
@@ -1047,7 +1047,7 @@ op ufp_sub_double ( frd : index, fra : index, frb : index )
 				setFPSCR(FP_VXISI);
 			endif;
 		endif;
-		if FPSCR<FP_FEX..FP_FEX> then 
+		if FPSCR<FP_FEX..FP_FEX> then
 			"launch_exception"("instr",PROGRAM);
 		endif;
       	}
@@ -1056,7 +1056,7 @@ op ufp_sub_dbl_cr_update ( frd : index, fra : index, frb : index )
    syntax = format ( "fsub. fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111111%5b%5b%5b00000101001", frd, fra, frb )
    action = {
- 
+
    		FP_SET_ROUNDING_MODE;
 		FP_SET_ALL_EXCEPTIONS;
 		TMP_FLOT = FPR [ fra ] - FPR [ frb ];
@@ -1068,7 +1068,7 @@ op ufp_sub_dbl_cr_update ( frd : index, fra : index, frb : index )
 				setFPSCR(FP_VXISI);
 			endif;
 		endif;
-		if FPSCR<FP_FEX..FP_FEX> then 
+		if FPSCR<FP_FEX..FP_FEX> then
 			"launch_exception"("instr",PROGRAM);
 		else
 			CR6_update();
@@ -1079,7 +1079,7 @@ op ufp_sub_single ( frd : index, fra : index, frb : index )
    syntax = format ( "fsubs fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111011%5b%5b%5b00000101000", frd, fra, frb )
    action = {
- 
+
 		FP_SET_ROUNDING_MODE;
 		FP_SET_ALL_EXCEPTIONS;
 		TMP_FLOTS = FPR[fra] - FPR[frb];
@@ -1100,7 +1100,7 @@ op ufp_sub_sgl_cr_update ( frd : index, fra : index, frb : index )
    syntax = format ( "fsubs. fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111011%5b%5b%5b00000101001", frd, fra, frb )
    action = {
- 
+
 		FP_SET_ROUNDING_MODE;
 		FP_SET_ALL_EXCEPTIONS;
 		TMP_FLOTS = FPR[fra] - FPR[frb];
@@ -1174,7 +1174,7 @@ op ufp_mult_dbl_cr_update ( frd : index, fra : index, frc : index )
 		else
 			CR6_update();
 		endif;
-	
+
 		}
 
 op ufp_mult_single ( frd : index, fra : index, frc : index )
@@ -1233,7 +1233,7 @@ op ufp_divide_action =   ufp_div_double
                        | ufp_div_dbl_cr_update
                        | ufp_div_single
                        | ufp_div_sgl_cr_update
-         
+
 op ufp_div_double ( frd : index, fra : index, frb : index )
    syntax = format ( "fdiv fr%d,fr%d,fr%d", frd, fra, frb )
    image  = format ( "111111%5b%5b%5b00000100100", frd, fra, frb )
@@ -1364,7 +1364,7 @@ op ufp_mult_add_dbl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1390,7 +1390,7 @@ op ufp_mult_addd_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1417,7 +1417,7 @@ op ufp_mult_add_sgl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1443,7 +1443,7 @@ op ufp_mult_adds_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1471,7 +1471,7 @@ op ufp_mult_nadd_dbl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1496,7 +1496,7 @@ op ufp_mult_naddd_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1524,7 +1524,7 @@ op ufp_mult_nadd_sgl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1550,7 +1550,7 @@ op ufp_mult_nadds_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1579,7 +1579,7 @@ op ufp_mult_sub_dbl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1606,7 +1606,7 @@ op ufp_mult_subd_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1634,7 +1634,7 @@ op ufp_mult_sub_sgl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1661,7 +1661,7 @@ op ufp_mult_subs_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1688,7 +1688,7 @@ op ufp_mult_nsub_dbl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1714,7 +1714,7 @@ op ufp_mult_nsubd_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1734,7 +1734,7 @@ op ufp_mult_nsub_sgl ( frd : index, fra : index, frb : index, frc : index )
    syntax = format ( "fnmsubs fr%d,fr%d,fr%d,fr%d", frd, fra, frc, frb )
    image  = format ( "111011%5b%5b%5b%5b111100", frd, fra, frb, frc )
    action = {
- 
+
 		FP_SET_ROUNDING_MODE;
 		FP_SET_ALL_EXCEPTIONS;
 		TMP_FLOTS = -((FPR[fra] * FPR[frc])-FPR[frb]);
@@ -1743,7 +1743,7 @@ op ufp_mult_nsub_sgl ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1768,7 +1768,7 @@ op ufp_mult_nsubs_cr_upd ( frd : index, fra : index, frb : index, frc : index )
 			if isSNAN64(FPR[fra]) || isSNAN64(FPR[frb]) || isSNAN64(FPR[frc]) then
 				setFPSCR(FP_VXSNAN);
 			else
-				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) || 
+				if (((isINF64(FPR[fra]) || isMINF64(FPR[fra])) && isZERO64(FPR[frc])) ||
 					((isINF64(FPR[frc]) || isMINF64(FPR[frc])) && isZERO64(FPR[fra]))) then
 					setFPSCR(FP_VXIMZ);
 				else
@@ -1811,7 +1811,7 @@ op ufp_cmp_ord ( crfd : card ( 3 ), fra : index, frb : index )
 				else
 					TMP_BYTE = 0b0010;
 				endif;
-			endif; 
+			endif;
 		endif;
 		FPSCR<15..12>=TMP_BYTE<3..0>;
 		CR[(7-crfd)] < LT..SO > = TMP_BYTE <3..0>;
@@ -1828,7 +1828,7 @@ op ufp_cmp_ord ( crfd : card ( 3 ), fra : index, frb : index )
 			setFPSCR(FP_VXVC);
 			setFPSCR(FP_FX);
 		endif;
-			
+
         }
 
 op ufp_cmp_unord ( crfd : card ( 3 ), fra : index, frb : index )
@@ -1838,7 +1838,7 @@ op ufp_cmp_unord ( crfd : card ( 3 ), fra : index, frb : index )
 
         if isNAN64(FPR[fra]) || isNAN64(FPR[frb]) then
 			TMP_BYTE = 0b0001;
-		else 
+		else
 			if FPR [ fra ] < FPR [ frb ] then
             	TMP_BYTE = 0b1000;
             else
@@ -1998,7 +1998,7 @@ op ufp_rsp ( frd : index, frb : index )
 			"launch_exception"("instr",PROGRAM);
 		endif;
 		}
-		
+
 op ufp_rsp_cr_update ( frd : index, frb : index )
    syntax = format ( "frsp. fr%d,fr%d", frd, frb )
    image  = format ( "111111%5b00000%5b00000011001", frd, frb )
@@ -2062,7 +2062,7 @@ op ufp_ctiw_cr_update ( frd : index, frb : index )
 		endif;
 		if FPSCR<FP_FEX..FP_FEX> then
 			"launch_exception"("instr",PROGRAM);
-		else	
+		else
 			CR6_update();
 		endif;
    }
@@ -2102,11 +2102,11 @@ op ufp_ctiwz_cr_update ( frd : index, frb : index )
 		endif;
 		if FPSCR<FP_FEX..FP_FEX> then
 			"launch_exception"("instr",PROGRAM);
-		else	
+		else
 			CR6_update();
 		endif;
    }
-   
+
 // 2.2.5 Floating-Point Status and Control Register Instructions
 // -------------------------------------------------------------
 // MCRFS, MFFSx, MTFSB0x, MTFSB1x, MTFSFx, MTFSFIx
@@ -2134,7 +2134,7 @@ op ufp_mov_cr_fs ( crfd: card ( 3 ), crfs: card ( 3 ) )
 	image  = format ( "111111%3b00%3b000000000010000000", crfd, crfs )
 	action = {
 		CR[7-crfd]=FPSCR<31-(4*crfs)..28-(4*crfs)>;
-		if crfs == 0 then	
+		if crfs == 0 then
 			FPSCR<31..31>=0;
 			FPSCR<28..28>=0;
 		endif;
@@ -2164,7 +2164,7 @@ op ufp_movf_fsx ( frd: index )
 	image  = format ( "111111%5b000000000010010001111", frd )
 	action = {
 		FPR[frd]<31..0>=FPSCR;
-		CR6_update();				
+		CR6_update();
 		}
 
 op ufp_movt_fsb0 ( crbd: index )
@@ -2209,7 +2209,7 @@ op ufp_movt_fsf ( fm: card ( 8 ), frb: FREG_IND )
 	syntax = format ( "mtfsf %d,%s", fm, frb.syntax )
 	image  = format ( "1111110%8b0%s10110001110", fm, frb.image )
 	action = {
-		} 
+		}
 
 op ufp_movt_fsfx ( fm: card ( 8 ), frb: FREG_IND )
 	syntax = format ( "mtfsf. %d,%s", fm, frb.syntax )
