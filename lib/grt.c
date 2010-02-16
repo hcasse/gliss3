@@ -118,14 +118,16 @@ uint64_t gliss_invert64(uint64_t v, uint64_t n)
 	return res;
 }
 
-uint32_t gliss_invertf(float v, uint32_t n)
+float gliss_invertf(float v, uint32_t n)
 {
-	return gliss_invert32(*(uint32_t *)&v, n);
+	*((uint32_t *)&v) = gliss_invert32(*(uint32_t *)&v, n);
+	return v;
 }
 
-uint64_t gliss_invertd(double v, uint32_t n)
+double gliss_invertd(double v, uint32_t n)
 {
-	return gliss_invert64(*(uint64_t *)&v, n);
+	*((uint64_t *)&v) = gliss_invert64(*(uint64_t *)&v, n);
+	return v;
 }
 
 
@@ -147,48 +149,52 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
 
 	/* !!DEBUG!! */
-	//printf("gliss_set_field64u(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
-	//printf("0X%016LX\n", (v & ~mask) | ((s << l) & mask));
+	//printf("gliss_set_field64u(0X%016llX, 0X%016llX, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("0X%016llX\n", (v & ~mask) | ((s << l) & mask));
 	
 	return (v & ~mask) | ((s << l) & mask);
 }
 
-uint32_t gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
-	return gliss_set_field32u(*(uint32_t *)&v, s, u, l);
+float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
+	*((uint32_t *)&v) = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
+	return v;
 }
 
-uint64_t gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
-	return gliss_set_field64u(*(uint64_t *)&v, s, u, l);
+double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
+	*((uint64_t *)&v) = gliss_set_field64u(*((uint64_t *)&v), s, u, l);
+	return v;
 }
 
 
 /* the read bits are inversed before being assigned to the result, l <= u */
 uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t l) {
-	uint32_t mask = gliss_mask32(u - l + 1) << l;
+	uint32_t mask = gliss_mask32(u - l + 1);
 
 	/* !!DEBUG!! */
 	//printf("gliss_set_field32u_inverted(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
 	//printf("0X%08X\n", (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l));
 	
-	return (v & ~mask) | (gliss_invert32(s & mask, u-l+1) << l);
+	return (v & ~(mask << l)) | (gliss_invert32(s, u-l+1) << l);
 }
 
 uint64_t gliss_set_field64u_inverted(uint64_t v, uint64_t s, int32_t u, int32_t l) {
-	uint64_t mask = gliss_mask64(u - l + 1) << l;
+	uint64_t mask = gliss_mask64(u - l + 1);
 
 	/* !!DEBUG!! */
-	//printf("gliss_set_field64u_inverted(0X%016LX, 0X%016LX, 0X%08X, 0X%08X) => ", v, s, u, l);
-	//printf("0X%016LX\n", (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l));
+	//printf("gliss_set_field64u_inverted(0X%016llX, 0X%016llX, 0X%08X, 0X%08X) => ", v, s, u, l);
+	//printf("0X%016llX\n", (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l));
 	
-	return (v & ~mask) | (gliss_invert64(s & mask, u-l+1) << l);
+	return (v & ~(mask << l)) | (gliss_invert64(s, u-l+1) << l);
 }
 
-uint32_t gliss_set_fieldf_inverted(float v, uint32_t s, int32_t u, int32_t l) {
-	return gliss_set_field32u_inverted(*(uint32_t *)&v, s, u, l);
+float gliss_set_fieldf_inverted(float v, uint32_t s, int32_t u, int32_t l) {
+	*((uint32_t *)&v) = gliss_set_field32u_inverted(*((uint32_t *)&v), s, u, l);
+	return v;
 }
 
-uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l) {
-	return gliss_set_field64u_inverted(*(uint64_t *)&v, s, u, l);
+double gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l) {
+	*((uint64_t *)&v) = gliss_set_field64u_inverted(*((uint64_t *)&v), s, u, l);
+	return v;
 }
 
 
@@ -222,7 +228,7 @@ uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b
 uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b, int bit_order)
 {
 	/* !!DEBUG!! */
-	//printf("gliss_set_field64u_generic(0X%016LX, 0X%016LX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
+	//printf("gliss_set_field64u_generic(0X%016llX, 0X%016llX, 0X%08X, 0X%08X, %d) ==> \\\\\\\n++++", v, s, a, b, bit_order);
 	
 	/* only 1 bit to copy, do not care about bit_order, just do it the most convenient way */
 	if (a == b)
@@ -245,14 +251,16 @@ uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b
 	}
 }
 
-uint32_t gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order)
+float gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order)
 {
-	return gliss_set_field32u_generic(*(uint32_t *)&v, s, a, b, bit_order);
+	*((uint32_t *)&v) = gliss_set_field32u_generic(*((uint32_t *)&v), s, a, b, bit_order);
+	return v;
 }
 
-uint64_t gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order)
+double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order)
 {
-	return gliss_set_field64u_generic(*(uint64_t *)&v, s, a, b, bit_order);
+	*((uint64_t *)&v) = gliss_set_field64u_generic(*((uint64_t *)&v), s, a, b, bit_order);
+	return v;
 }
 
 
@@ -313,11 +321,11 @@ uint64_t gliss_field64u_inverted(uint64_t v, uint32_t u, uint32_t l)
 
 
 uint32_t gliss_fieldf_inverted(float v, uint32_t u, uint32_t l) {
-	return gliss_field32u(*(uint32_t *)&v, u, l);
+	return gliss_field32u_inverted(*(uint32_t *)&v, u, l);
 }
 
 uint64_t gliss_fieldd_inverted(double v, uint32_t u, uint32_t l) {
-	return gliss_field64u(*(uint64_t *)&v, u, l);
+	return gliss_field64u_inverted(*(uint64_t *)&v, u, l);
 }
 
 

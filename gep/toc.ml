@@ -1300,13 +1300,31 @@ let rec gen_stat info stat =
 		let transform_expr sufx a b arg3 b_o =
 			let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o))
 			in
+			let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx)
+			in
 			if lo = Irg.NONE then
 				expr
 			else
+				(* !!DEBUG!! *)
+				(*begin
+				print_string "set_field, typ=";Irg.print_type_expr typ;print_string (", id=" ^ id);
+				if idx = Irg.NONE then
+					begin print_string ", REF{";Irg.print_expr (Irg.REF id); print_string "},type=";
+					Irg.print_type_expr (Sem.get_type_expr (Irg.REF id)) end
+				else
+					begin print_string ", ITM{";Irg.print_expr (Irg.ITEMOF (typ, id, idx)); print_string "},type=";
+					Irg.print_type_expr (Sem.get_type_expr (Irg.ITEMOF(typ,id,idx))) end;
+				print_string ",  expr=...";(*Irg.print_expr expr;*) print_string ",typ(expr)="; Irg.print_type_expr (Sem.get_type_expr expr);
+				print_string (", typ->%%d=" ^ (type_to_mem (convert_type typ)));
+				print_string "\n";*)
+
 				Irg.CANON_EXPR (
 					typ,
 					Printf.sprintf "%s_set_field%s%s"
-						info.proc (type_to_mem (convert_type typ)) sufx,
+					(* !!DEBUG!! we'd better use the type of the expr which is gonna be bit-manipulated *)
+					(* this expr is REF(id) or ITEMOF(typ, id, idx) *)
+						info.proc (type_to_mem (convert_type (Sem.get_type_expr e))) sufx,
+						(*info.proc (type_to_mem (convert_type typ)) sufx,*)
 					if arg3 then
 					[	if idx = Irg.NONE then Irg.REF id
 						else Irg.ITEMOF (typ, id, idx);
@@ -1322,7 +1340,7 @@ let rec gen_stat info stat =
 						a;
 						b
 					]
-				)
+				) (* !!DEBUG!! *)(*end*)
 		in
 		(* !!DEBUG!! *)
 		(*print_string "field up=";Irg.print_expr up;

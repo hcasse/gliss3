@@ -86,8 +86,8 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l);
 #define gliss_set_field64(v, s, u, l) ((int64_t)gliss_set_field64u(v, s, u, l))
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l);
-uint32_t gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l);
-uint64_t gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l);
+float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l);
+double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l);
 
 #define gliss_set_field8_inverted(v, s, u, l) ((int8_t)gliss_set_field32u_inverted(v, s, u, l))
 #define gliss_set_field8u_inverted(v, s, u, l) gliss_set_field32u_inverted(v, s, l, u)
@@ -97,8 +97,8 @@ uint64_t gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l);
 uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t l);
 #define gliss_set_field64_inverted(v, s, u, l) ((int64_t)gliss_set_field64u_inverted(v, s, u, l))
 uint64_t gliss_set_field64u_inverted(uint64_t v, uint64_t s, int32_t u, int32_t l);
-uint32_t gliss_set_fieldf_inverted(float v, uint32_t s, int32_t u, int32_t l);
-uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l);
+float gliss_set_fieldf_inverted(float v, uint32_t s, int32_t u, int32_t l);
+double gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l);
 
 #define gliss_set_field8_generic(v, s, a, b, bo) ((int8_t)gliss_set_field32u_generic(v, s, a, b, bo))
 #define gliss_set_field8u_generic(v, s, a, b, bo) gliss_set_field32u_generic(v, s, a, b, bo)
@@ -108,8 +108,8 @@ uint64_t gliss_set_fieldd_inverted(double v, uint64_t s, int32_t u, int32_t l);
 uint32_t gliss_set_field32u_generic(uint32_t v, uint32_t s, int32_t a, int32_t b, int bit_order);
 #define gliss_set_field64_generic(v, s, a, b, bo) ((int64_t)gliss_set_field64u_generic(v, s, a, b, bo))
 uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b, int bit_order);
-uint32_t gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order);
-uint64_t gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order);
+float gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order);
+double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order);
 
 /* field */
 #define gliss_field8(v, u, l) gliss_field32u(v, u, l)

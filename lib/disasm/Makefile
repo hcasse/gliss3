@@ -1,9 +1,11 @@
 
-CFLAGS=-I../include -I../src
+CFLAGS=-I../include -I../src -g
 LIBADD += $$(shell bash ../src/$(proc)-config --libs)
 
+all: $(proc)-disasm
+
 $(proc)-disasm: $(proc)-disasm.o
-	$$(CC) $$(LDFLAGS) -o $$@ $$^ $$(LIBADD)
+	$$(CC) $$(CFLAGS) -o $$@ $$^ $$(LIBADD)
 
 clean:
 	rm -rf $(proc)-disasm.o
