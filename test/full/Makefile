@@ -23,6 +23,9 @@ all: lib ppc-disasm ppc-sim
 ppc.irg: nmp/ppc.nmp
 	../../irg/mkirg $< $@
 
+ppc.nml: nmp/ppc.nmp
+	../../gep/gliss-nmp2nml.pl $< > $@
+
 src include: ppc.irg
 	../../gep/gep $(GFLAGS) $<	 -S
 
