@@ -27,6 +27,7 @@ type gmod = {
 	mutable aname: string;		(** actual name *)
 	mutable path: string;		(** path to the module *)
 	mutable libadd: string;		(** linkage options *)
+	mutable cflags: string;		(** library compilation option *)
 }
 
 
@@ -38,6 +39,7 @@ let new_mod _iname _aname = {
 		aname = _aname;
 		path = "";
 		libadd = "";
+		cflags = "";
 	}
 
 (** list of modules *)
@@ -96,6 +98,7 @@ let get_module f dict m =
 		("is_mem", Templater.BOOL (fun _ -> m.iname = "mem")) ::
 		("PATH", App.out (fun _ -> m.path)) ::
 		("LIBADD", App.out (fun _ -> m.libadd)) ::
+		("CFLAGS", App.out (fun _ -> m.cflags)) ::
 		dict
 	)
 
@@ -184,6 +187,11 @@ let link src dst =
 let libadd_re = Str.regexp "^LIBADD=\\(.*\\)"
 
 
+(** regular expression for CFLAGS *)
+let cflags_re = Str.regexp "^CFLAGS=\\(.*\\)"
+
+
+
 (** Find a module and set the path.
 	@param m	Module to find. *)
 let find_mod m =
@@ -199,7 +207,9 @@ let find_mod m =
 	let rec read_lines input =
 		let line = input_line input in
 		if Str.string_match libadd_re line 0 then
-			m.libadd <- Str.matched_group 1 line;
+			m.libadd <- Str.matched_group 1 line
+		else if Str.string_match cflags_re line 0 then
+			m.cflags <- Str.matched_group 1 line;
 		read_lines input in
 
 	find_lib paths;

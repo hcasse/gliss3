@@ -206,6 +206,7 @@ rule main = parse
 |	"%"		{ PERCENT }
 |	"~"		{ TILD }
 |	"^"		{ CIRC }
+|	"@"		{ AROBAS }
 
 |	eof		{ EOF }
 |	_ as v		{ raise (BadChar v) }
