@@ -81,6 +81,7 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 %token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
 %token	  ATTR
 %token		EXTEND
+%token		AROBAS
 
 %right	EQ
 %left	DOUBLE_COLON
@@ -903,6 +904,8 @@ Expr :
 		{ eline (Irg.IF_EXPR (Sem.check_if_expr $4 $6, $2, $4, $6)) }
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
 		{ eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6)) }
+|	AROBAS STRING_CONST
+		{ eline (Irg.EINLINE $2) }
 |	Constant
 		{ eline (Irg.CONST (fst $1, snd $1)) }
 ;
