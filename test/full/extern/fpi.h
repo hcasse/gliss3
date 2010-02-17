@@ -4,7 +4,7 @@
  *
  *	This file is part of GLISS2
  *	Copyright (c) 2009, IRIT UPS.
- * 
+ *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
@@ -16,12 +16,13 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with GLISS2; if not, write to the Free Software 
+ *	along with GLISS2; if not, write to the Free Software
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef GLISS_PPC_FPI_H
 #define GLISS_PPC_FPI_H
 
+#include <fenv.h>
 #include "../include/gliss/api.h"
 
 #if defined(__cplusplus)

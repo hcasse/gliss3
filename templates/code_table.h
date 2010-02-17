@@ -12,6 +12,8 @@ extern  "C"
 #include "../include/$(proc)/api.h"
 #include "../include/$(proc)/macros.h"
 
+/* module headers */
+$(foreach modules)$(CODE_HEADER)$(end)
 
 $(foreach modules)$(if is_mem)
 #include "../include/$(proc)/$(name).h"
@@ -34,7 +36,7 @@ static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *i
 
 $(foreach instructions)
 static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst)
-{	
+{
 	$(gen_code)
 }
 

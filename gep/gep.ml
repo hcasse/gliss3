@@ -23,11 +23,12 @@ open Lexing
 
 (** module structure *)
 type gmod = {
-	mutable iname: string;		(** interface name *)
-	mutable aname: string;		(** actual name *)
-	mutable path: string;		(** path to the module *)
-	mutable libadd: string;		(** linkage options *)
-	mutable cflags: string;		(** library compilation option *)
+	mutable iname: string;				(** interface name *)
+	mutable aname: string;				(** actual name *)
+	mutable path: string;				(** path to the module *)
+	mutable libadd: string;				(** linkage options *)
+	mutable cflags: string;				(** library compilation option *)
+	mutable code_header: string;		(** to put on code header *)
 }
 
 
@@ -40,6 +41,7 @@ let new_mod _iname _aname = {
 		path = "";
 		libadd = "";
 		cflags = "";
+		code_header = "";
 	}
 
 (** list of modules *)
@@ -99,6 +101,7 @@ let get_module f dict m =
 		("PATH", App.out (fun _ -> m.path)) ::
 		("LIBADD", App.out (fun _ -> m.libadd)) ::
 		("CFLAGS", App.out (fun _ -> m.cflags)) ::
+		("CODE_HEADER", App.out (fun _ -> m.code_header)) ::
 		dict
 	)
 
@@ -191,6 +194,10 @@ let libadd_re = Str.regexp "^LIBADD=\\(.*\\)"
 let cflags_re = Str.regexp "^CFLAGS=\\(.*\\)"
 
 
+(** regular expression for CODE_HEADER *)
+let code_header_re = Str.regexp "^CODE_HEADER=\\(.*\\)"
+
+
 
 (** Find a module and set the path.
 	@param m	Module to find. *)
@@ -209,7 +216,9 @@ let find_mod m =
 		if Str.string_match libadd_re line 0 then
 			m.libadd <- Str.matched_group 1 line
 		else if Str.string_match cflags_re line 0 then
-			m.cflags <- Str.matched_group 1 line;
+			m.cflags <- Str.matched_group 1 line
+		else if Str.string_match code_header_re line 0 then
+			m.code_header <- m.code_header ^ (Str.matched_group 1 line) ^ "\n";
 		read_lines input in
 
 	find_lib paths;
