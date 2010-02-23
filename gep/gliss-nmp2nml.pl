@@ -67,11 +67,11 @@ if ($ARGV[1]){
 open(FICHIER,$nom_fichier) or &nMP_erreur("File '$nom_fichier` not found !\n");
 
 # ajoute les macros predefinies pour les flottants 
-@list_macro_fp=("fpi_setround","fpi_getround",                      # fonction d'arrondit
-    "FPI_TONEAREST","FPI_UPWARD","FPI_DOWNWARD","FPI_TOWARDZERO",   # valeurs d'arrondi
-    "fpi_clearexcept","fpi_raiseexcept","fpi_testexcept",           # fonction d'exception
-    "FPI_ALLEXCEPT","FPI_INEXACT","FPI_DIVBYZERO","FPI_UNDERFLOW",  # valeurs d'exception
-    "FPI_OVERFLOW","FPI_INVALID");                                  # cont'd
+#@list_macro_fp=("fpi_setround","fpi_getround",                      # fonction d'arrondit
+#    "FPI_TONEAREST","FPI_UPWARD","FPI_DOWNWARD","FPI_TOWARDZERO",   # valeurs d'arrondi
+#    "fpi_clearexcept","fpi_raiseexcept","fpi_testexcept",           # fonction d'exception
+#    "FPI_ALLEXCEPT","FPI_INEXACT","FPI_DIVBYZERO","FPI_UNDERFLOW",  # valeurs d'exception
+#    "FPI_OVERFLOW","FPI_INVALID");                                  # cont'd
 
 &parse_file(\*FICHIER,$nom_fichier);
 print STDERR "nmp2nml succeeded, $nb_line_parsed line(s) parsed, $nb_lines_written line(s) written, $nb_macro_subtitions macro substitution(s) done !\n";
