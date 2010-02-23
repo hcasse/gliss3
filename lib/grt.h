@@ -35,19 +35,15 @@
 #define gliss_mask32(n)	((n) == 32 ? (-1L) : (1L << (n)) - 1)
 #define gliss_mask64(n)	((n) == 64 ? (-1LL) : (1LL << (n)) - 1)
 
-#define gliss_rotate_left32(v, r, n) \
-	((((uint32_t)(v) << ((r) % (n))) | ((v) >> ((n) - (r) % (n)))) & gliss_mask32(n))
+uint32_t gliss_rotate_left32(uint32_t v, int r, int n);
 #define gliss_rotate_left8(v, r, n) gliss_rotate_left32(v, r, n)
 #define gliss_rotate_left16(v, r, n) gliss_rotate_left32(v, r, n)
-#define gliss_rotate_left64(v, r, n) \
-	((((uint64_t)(v) << ((r) % (n))) | ((v) >> ((n) - (r) % (n)))) & gliss_mask64(n))
+uint64_t gliss_rotate_left64(uint64_t v, int r, int n);
 
-#define gliss_rotate_right32(v, r, n) \
-	((((uint32_t)(v) << ((n) - (r) % (n))) | ((v) >> ((r) % (n)))) & gliss_mask32(n))
+uint32_t gliss_rotate_right32(uint32_t v, int r, int n);
 #define gliss_rotate_right8(v, r, n) gliss_rotate_right32(v, r, n)
 #define gliss_rotate_right16(v, r, n) gliss_rotate_right32(v, r, n)
-#define gliss_rotate_right64(v, r, n) \
-	((((uint64_t)(v) << ((n) - (r) % (n))) | ((v) >> ((r) % (n)))) & gliss_mask64(n))
+uint64_t gliss_rotate_right64(uint64_t v, int r, int n);
 
 /* concatenation */
 #define gliss_concat32(v1, v2, n1, n2)  ((((uint32_t)(v1) << n2) | ((v2) & gliss_mask32(n2))))

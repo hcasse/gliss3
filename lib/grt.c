@@ -23,6 +23,38 @@
 #include "error.h"
 #include "grt.h"
 
+
+uint32_t gliss_rotate_left32(uint32_t v, int r, int n)
+{
+	r = r % n;
+	int len = n - r;
+	uint32_t mask = gliss_mask32(len);
+	return (((v & mask) << r) | ((v & ~mask) >> len));
+}
+
+uint64_t gliss_rotate_left64(uint64_t v, int r, int n)
+{
+	r = r % n;
+	int len = n - r;
+	uint64_t mask = gliss_mask64(len);
+	return (((v & mask) << r) | ((v & ~mask) >> len));
+}
+
+uint32_t gliss_rotate_right32(uint32_t v, int r, int n)
+{
+	r = r % n;
+	uint32_t mask = gliss_mask32(r);
+	return (((v & mask) << (n - r)) | ((v & ~mask) >> r));
+}
+
+uint64_t gliss_rotate_right64(uint64_t v, int r, int n)
+{
+	r = r % n;
+	uint64_t mask = gliss_mask64(r);
+	return (((v & mask) << (n - r)) | ((v & ~mask) >> r));
+}
+
+
 int32_t gliss_exp32(int32_t v1, int32_t v2) {
 	if(v1 >= 0)
 		return gliss_exp32u(v1, v2);
