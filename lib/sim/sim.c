@@ -458,7 +458,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 	/* initialize system options */
-	copy_options_to_gliss_env(ppc_get_sys_env(platform), &options);
+	copy_options_to_gliss_env(gliss_get_sys_env(platform), &options);
 
 	/* load the image in the platform */
 	if (gliss_load_platform(platform, argv[prog_index]) == -1) {

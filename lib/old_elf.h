@@ -46,8 +46,10 @@ gliss_address_t gliss_loader_start(gliss_loader_t *loader);
 
 
 /* system initialization (used internally during platform and state initialization) */
-void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env);
-void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
+/*void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env);
+void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);*/
+/* compute the initial brk value */
+gliss_address_t gliss_brk_init(gliss_loader_t *loader);
 
 /* section access */
 typedef struct gliss_loader_sect_t {
