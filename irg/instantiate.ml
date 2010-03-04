@@ -616,7 +616,29 @@ let rec regexp_list_to_str_list l =
 	| Str.Delim(txt)::b -> txt::(regexp_list_to_str_list b)
 
 let string_to_regexp_list s =
-	Str.full_split (Str.regexp "%[0-9]*[dbxsf]") s
+	let process_double_percent e =
+		match e with
+		Str.Text(t) ->
+			e
+		| Str.Delim(t) ->
+			if (String.compare t "%%") == 0 then
+				Str.Text("%%")
+			else
+				e
+	in
+	let res = List.map process_double_percent (Str.full_split (Str.regexp "%[0-9]*[dbxsf]\|%%") s)
+	in
+	(* !!DEBUG!! *)
+	(*print_string ("string_to_regexp_list(" ^ s ^ ")=[");
+	List.iter
+		(fun x ->
+			match x with
+			Str.Text(t) -> print_string ("[T]"^t)
+			| Str.Delim(t)-> print_string ("[D]"^t) )
+		res;
+	print_string "]\n";*)
+	res
+	
 
 let str_list_to_str l =
 	String.concat "" l
@@ -643,6 +665,18 @@ let rec print_reg_list e_l =
 
 let rec simplify_format_expr ex =
 	let rec reduce f params =
+		(* !!DEBUG!! *)
+		(*print_string "simpl_frmt_expr, str_list=[";
+		List.iter
+			(fun x ->
+				match x with
+				Str.Text(t) -> print_string ("[T]"^t)
+				| Str.Delim(t)->print_string ("[D]"^t) )
+			f;
+		print_string "] params=[";
+		List.iter (fun x -> Irg.print_expr x; print_string "; " ) params;
+		print_string "]\n";*)
+		
 		match f with
 		[] ->
 			if params = [] then
@@ -691,7 +725,13 @@ let rec simplify_format_expr ex =
 	in
 	match ex with
 	FORMAT(s, e_l) ->
-		let str_format = string_to_regexp_list s
+		let str_format =
+		(* !!DEBUG!! *)
+		(*print_string ("simplify_format, frmt(" ^ s ^ "; ");
+		List.iter (fun x -> Irg.print_expr x; print_string "; ") e_l;
+		print_string ")\n";*)
+		
+		string_to_regexp_list s
 		in
 		let simpl_e_l = List.map simplify_format_expr e_l
 		in
