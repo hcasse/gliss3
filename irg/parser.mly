@@ -22,6 +22,18 @@
 
 %{
 let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
+
+let get_spec_extend x =
+	let sym = Irg.get_symbol x in
+		(match sym with
+		| Irg.AND_MODE (_, pars, _, _)
+		| Irg.AND_OP (_, pars, _) ->
+			Irg.param_stack pars;
+			sym
+		| Irg.UNDEF ->
+			raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" x))
+		| _ ->
+			raise (Irg.IrgError (Printf.sprintf "can not extend %s" x)))
 %}
 
 %token<string>	ID
@@ -353,7 +365,7 @@ OpSpec:
 
 
 /* external attribute */
-ExtendSpec:
+/*ExtendSpec:
 	ExtendHeader AttrDefList
 		{
 			Irg.attr_unstack $2;
@@ -385,7 +397,49 @@ ExtendHeader:
 				raise (Irg.IrgError (Printf.sprintf "can not extend %s" $2)));
 			sym
 		}
+;*/
+
+
+/* trying to extend several ops at same time */
+ExtendSpec:
+	ExtendHeader AttrDefList
+		{
+			let extend_spec s =
+				match s with
+				| Irg.AND_MODE (id, pars, expr, attrs) ->
+				List.iter Irg.add_param pars;
+					Irg.param_unstack pars;
+					Irg.rm_symbol id;
+					Irg.add_symbol id (Irg.AND_MODE (id, pars, expr, attrs @ $2))
+				| Irg.AND_OP (id, pars, attrs) ->
+				List.iter Irg.add_param pars;
+					Irg.param_unstack pars;
+					Irg.rm_symbol id;
+					Irg.add_symbol id (Irg.AND_OP (id, pars, attrs @ $2));
+					
+					print_string "[[";
+					Irg.print_spec (Irg.get_symbol id);
+					print_string "]]"
+				| _ ->
+					()
+			in
+			Irg.attr_unstack $2;
+			List.iter extend_spec $1
+		}
 ;
+
+
+ExtendHeader:
+	EXTEND IDCommaList	{ List.map get_spec_extend $2 }
+;
+
+
+IDCommaList:
+	ID	{ [$1] }
+|	IDCommaList COMMA ID
+		{ $3::$1 }
+;
+/**/
 
 
 Identifier_Or_List:
