@@ -417,9 +417,10 @@ ExtendSpec:
 					Irg.rm_symbol id;
 					Irg.add_symbol id (Irg.AND_OP (id, pars, attrs @ $2));
 					
-					print_string "[[";
+					(* !!DEBUG!! *)
+					(*print_string "[[";
 					Irg.print_spec (Irg.get_symbol id);
-					print_string "]]"
+					print_string "]]"*)
 				| _ ->
 					()
 			in
