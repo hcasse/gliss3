@@ -742,7 +742,7 @@ let rec output_statement out stat =
 		output_string out "\t\t";
 		output_location out loc;
 		(* !!DEBUG!! *)
-		(* output_string out "=[[SETSPE]]"; *)
+		output_string out "=";(*"=[[SETSPE]]";*)
 		output_expr out exp;
 		output_string out ";\n"
 	| LINE (file, line, s) ->

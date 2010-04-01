@@ -353,7 +353,7 @@ let rec change_name_of_var_in_location loc var_name new_name =
 let rec substitute_in_location name op loc =
 (*print_string ("subst_location\n\tname=" ^ name);		(* !!DEBUG!! *)
 print_string "\n\tloc="; print_location loc;		(* !!DEBUG!! *)
-print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)*)
+print_string "\nspec ="; print_spec op; flush stdout;*)			(* !!DEBUG!! *)
 	let get_mode_value sp =
 		match sp with
 		AND_MODE(_, _, v, _) -> v
@@ -397,8 +397,14 @@ print_string "\nspec ="; print_spec op; flush stdout;			(* !!DEBUG!! *)*)
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
+				(* !!DEBUG!! *)
+				(*print_string "[["; Irg.print_expr mv; print_string "]]\n";*)
+				
 				if i=NONE then
 					if u=NONE && l=NONE then
+						(* LOC_REF(t, s, 0, 0, 0) <=> REF(s) *)
+						(* check type ? *)
+						
 						failwith "cannot substitute here (_ 1), loc_expr removed (instantiate.ml::substitute_in_location)"
 						(*LOC_EXPR(mv)*)
 					else
