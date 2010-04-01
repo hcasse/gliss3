@@ -10,7 +10,7 @@ OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS)
 DISTCLEAN = lib$(proc).a
 
-CFLAGS += -g3 $(foreach modules)$(CFLAGS)$(end)
+CFLAGS += -g3 $(foreach modules)$(CFLAGS)$(end) -O3
 
 all: lib$(proc).a
 

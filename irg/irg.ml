@@ -594,12 +594,12 @@ let rec output_expr out e =
 		output_string out ")"*)
 	| BITFIELD (t, e, l, u) ->
 		output_expr out e;
-		
+
 		(* !!DEBUG!! *)
 		(*output_string out "[[";
 		output_type_expr out t;
 		output_string out "]]";*)
-		
+
 		output_string out "<";
 		output_expr out l;
 		output_string out "..";
@@ -639,8 +639,10 @@ let rec output_expr out e =
 		output_string out "default: ";
 		output_expr out def;
 		output_string out " }"
-	| ELINE (_, _, e) ->
-		output_expr out e
+	| ELINE (file, line, e) ->
+		Printf.fprintf out "(%s:%d: " file line;
+		output_expr out e;
+		output_string out ")"
 	| CONST (_,c) ->
 		output_const out c
 	| EINLINE s ->

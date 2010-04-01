@@ -60,11 +60,14 @@ let rec gen_disasm info inst expr =
 			if i >= (String.length fmt) then format fmt used s i else
 			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
 			if i + 1 >= String.length fmt then format fmt used s i else
-			if fmt.[i + 1] != 's' then scan fmt tl s (hd::used) (i + 2) else
-			Irg.SEQ (format fmt used s i,
-				Irg.SEQ(
-					process hd,
-					scan fmt tl (i + 2) [] (i + 2)))
+			if fmt.[i + 1] != 's' then
+				if fmt.[i + 1] = '%' then scan fmt args s used (i + 2)
+				else scan fmt tl s (hd::used) (i + 2)
+			else
+				Irg.SEQ (format fmt used s i,
+					Irg.SEQ(
+						process hd,
+						scan fmt tl (i + 2) [] (i + 2)))
 
 	and process expr =
 		match expr with
@@ -79,6 +82,10 @@ let rec gen_disasm info inst expr =
 				c,
 				List.map (fun (c, e) -> (c, process e)) cases,
 				if def <> Irg.NONE then process def else Irg.NOP)
+		(*| Irg.REF id ->
+			(match Irg.symbol id with
+			| LET _ | PARAM _  | _ -> expr
+			| _ -> Toc.error_on_expr (Printf.sprintf "\"%s\" forbidden in syntax attribute" id) expr)*)
 		| Irg.NONE
 		| Irg.CANON_EXPR _
 		| Irg.REF _
@@ -92,6 +99,7 @@ let rec gen_disasm info inst expr =
 		| Irg.EINLINE _ ->
 			Toc.error_on_expr "bad syntax expression" expr
 		| Irg.ELINE (file, line, e) ->
+			Printf.printf "%s: %d:\n" file line;
 			Toc.locate_error file line (gen_disasm info inst) e in
 
 		(* !!DEBUG!! *)
