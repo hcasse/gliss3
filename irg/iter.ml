@@ -94,8 +94,8 @@ let iter fun_to_iterate init_val =
 	rec_iter fun_to_iterate init_val !instr_set [] []
 	end
 
-(** return an attr from an instruction specification
-	@param instr	spec of the instrution
+(** return an attr from an instruction or mode specification
+	@param instr	spec of the instrution or the mode
 	@param name	name of the attr to return *)
 let get_attr instr name =
 	let rec search_attr_in_list n a_l =
@@ -117,6 +117,8 @@ let get_attr instr name =
 	in
 	match instr with
 	Irg.AND_OP(_, _, a_l) ->
+		search_attr_in_list name a_l
+	| Irg.AND_MODE(_, _, _, a_l) ->
 		search_attr_in_list name a_l
 	| _ ->
 		assert false

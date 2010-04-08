@@ -15,8 +15,8 @@ LIB_SOURCES = \
 	instantiate.ml \
 	lexer.mll \
 	sem.ml \
-	parser.mly \
 	iter.ml \
+	parser.mly \
 	irgUtil.ml
 $(eval $(call ocaml_byte_code_lib,irg,$(LIB_SOURCES)))
 

@@ -71,7 +71,10 @@ let get_string_mask_for_param_from_op sp n =
 		| Irg.ELINE (_, _, ee) ->
 			get_name_of_param ee
 		| _ ->
-			failwith "(Decode) can't find the base name of smtg not a fieldof or ref (for the moment)"
+			(* !!DEBUG!! *)
+			(*print_string "trouble with:";
+			Irg.print_expr e;*)
+			failwith "(Decode) bad parameter in image format"
 	in
 	let get_rank_of_named_param n =
 		let rec aux nn i p_l =
@@ -80,7 +83,13 @@ let get_string_mask_for_param_from_op sp n =
 				failwith ("(Decode) can't find rank of param "^nn^" in the format params")
 			| a::b ->
 				if nn=(get_name_of_param a) then
+					(* !!DEBUG!! *)
+					(*begin
+					Printf.printf "get_ranked_of_named_param:[[%d]]\n" i;*)
+					
 					i
+					(* !!DEBUG!! *)
+					(*end*)
 				else
 					aux nn (i+1) b
 		in
@@ -92,11 +101,21 @@ let get_string_mask_for_param_from_op sp n =
 			failwith "(Decode) can't find name of i_th param of a spec"
 		| a::b ->
 			if i=0 then
+				(* !!DEBUG!! *)
+				(*begin
+				print_string ("get_i_th_param_name:[["^(Irg.get_name_param a)^"]]\n");
+				Irg.print_spec sp;*)
+				
 				Irg.get_name_param a
+				(* !!DEBUG!! *)
+				(*end*)
 			else
 				get_i_th_param_name (i-1) b
 	in
+	(* !!DEBUG!! *)
+	(*Irg.print_spec sp;
+	print_string ("[["^str_params^"]]\n");
+	Irg.print_param_list (Iter.get_params sp);
+	print_string "n="; Printf.printf "%d\n" n;*)
+	
 	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp)))
-
-
-

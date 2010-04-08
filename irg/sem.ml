@@ -1006,7 +1006,11 @@ let check_if_expr e1 e2=
 	| (FIX _,FIX _)
 	| (STRING, STRING)
 		-> t1
-	| _ -> raise_type_error_two_operand t1 t2
+	| _ -> 
+	(* !!DEBUG!! *)
+	print_string "e1="; Irg.print_expr e1; print_string "#e2="; Irg.print_expr e2; print_string "#\n";
+	
+	raise_type_error_two_operand t1 t2
 
 
 (** Get the interval value of an integer type.

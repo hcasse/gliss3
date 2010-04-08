@@ -790,13 +790,43 @@ Expr :
 		{
 		if Irg.is_defined $1
 			then
-				eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1,$3))
-
-				(*if Sem.have_attribute $1 $3
-					then
-						Irg.FIELDOF (Irg.UNKNOW_TYPE,Irg.REF $1,$3)
-					else
-						raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))*)
+				(*begin
+				print_string ("$1=[["^$1^"]]\n");
+				Irg.print_spec (Irg.get_symbol $1);*)
+				match (Irg.get_symbol $1) with
+					(* we should get a previously stacked param *)
+					Irg.PARAM(_, t) ->
+					(match t with
+						Irg.TYPE_ID(name) ->
+						(try
+							let sp = Irg.get_symbol name in
+							let params =
+								match sp with
+									Irg.AND_MODE(_, p_l, _, _) -> p_l
+									| Irg.AND_OP(_, p_l, _) -> p_l
+									| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
+							in
+							(match Iter.get_attr sp $3 with
+								Iter.EXPR(e) ->
+									(try
+										(* stack sp params, get type & unstack'em (maybe recursive ?) *)
+										Irg.param_stack params;
+										let tt = Sem.get_type_expr e in
+										Irg.param_unstack params;
+										eline (Irg.FIELDOF (tt, $1, $3))
+									with Sem.SemError _ ->
+										Irg.param_unstack params;
+										eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1, $3)))
+								| _ ->
+									raise (Sem.SemError (Printf.sprintf " %s doesn't have an expression attribute named %s\n" $1 $3)))
+						with Not_found ->
+							raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))	
+						)
+						| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
+					)
+					| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
+				(*end*)
+				(*eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1,$3))*)
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
@@ -854,6 +884,21 @@ Expr :
 						raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
 			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
+
+|	Expr BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
+		{
+			(* generic bitfield expr *)
+			(* !!DEBUG!! *)
+			(* for the moment.. *)
+			try
+				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
+				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
+				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
+				eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), $1, $3, $5))
+			with Sem.SemError _ ->
+				eline (Irg.BITFIELD (Sem.get_type_expr $1, $1, $3, $5))
+		}
+
 |	Expr PLUS Expr
 		{
 			Sem.get_binop $1 $3 Irg.ADD

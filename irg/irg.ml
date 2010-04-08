@@ -577,7 +577,11 @@ let rec output_expr out e =
 		let _ = List.fold_left print_arg true args in
 		output_string out ")"
 	| FIELDOF(t, e, n) ->
-		(*output_expr out e;*)
+		(* !!DEBUG!! *)
+		(*output_string out "(";
+		output_type_expr out t;
+		output_string out ":]";*)
+		
 		output_string out e;
 		output_string out ".";
 		output_string out n
@@ -744,7 +748,7 @@ let rec output_statement out stat =
 		output_string out "\t\t";
 		output_location out loc;
 		(* !!DEBUG!! *)
-		(* output_string out "=[[SETSPE]]"; *)
+		output_string out "=";(*"=[[SETSPE]]";*)
 		output_expr out exp;
 		output_string out ";\n"
 	| LINE (file, line, s) ->
