@@ -814,19 +814,21 @@ Expr :
 										let tt = Sem.get_type_expr e in
 										Irg.param_unstack params;
 										eline (Irg.FIELDOF (tt, $1, $3))
-									with Sem.SemError _ ->
+									with
+										Sem.SemError _
+										| Irg.Symbol_not_found _ ->
 										Irg.param_unstack params;
 										eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1, $3)))
 								| _ ->
 									raise (Sem.SemError (Printf.sprintf " %s doesn't have an expression attribute named %s\n" $1 $3)))
 						with Not_found ->
-							raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))	
+							raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))
+							| _ -> eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1, $3))
 						)
 						| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
 					)
 					| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
 				(*end*)
-				(*eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1,$3))*)
 			else
 				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
