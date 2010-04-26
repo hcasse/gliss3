@@ -809,7 +809,7 @@ Expr :
 							(match Iter.get_attr sp $3 with
 								Iter.EXPR(e) ->
 									(try
-										(* stack sp params, get type & unstack'em (maybe recursive ?) *)
+										(* stack sp params, get type & unstack'em (should be recursive ?) *)
 										Irg.param_stack params;
 										let tt = Sem.get_type_expr e in
 										Irg.param_unstack params;
@@ -896,6 +896,7 @@ Expr :
 				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
 				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
 				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
+				(* !!TODO!! check type (only scalar allowed) and length if possible *)
 				eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), $1, $3, $5))
 			with Sem.SemError _ ->
 				eline (Irg.BITFIELD (Sem.get_type_expr $1, $1, $3, $5))
