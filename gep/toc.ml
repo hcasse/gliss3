@@ -1588,7 +1588,8 @@ let gen_action info name =
 	declare_temps info;
 
 	(* PCs incrementation *)
-	gen_stat info (gen_pc_increment info);
+	(* !!DEBUG!! deactivated for the moment as it gives problems with leon *)
+	(*gen_stat info (gen_pc_increment info);*)
 
 	(* generate the code *)
 	gen_call info name;

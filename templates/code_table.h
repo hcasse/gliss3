@@ -31,7 +31,8 @@ $(end)
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst)
 {
 	/* do nothing */
-	$(gen_pc_incr)
+	/* !!DEBUG!! deactivated due to issues with leon */
+	/* $(gen_pc_incr) */
 }
 
 $(foreach instructions)
