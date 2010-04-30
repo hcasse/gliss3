@@ -28,15 +28,13 @@ $(end)
 
 
 #define $(PROC)__SIZE	$(min_instruction_size)
-static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst)
-{
-	/* do nothing */
-	$(gen_pc_incr)
+static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
+	/* must not be executed ! */
+	$(proc)_execute_unknown(state, $(PROC)_$(NPC_NAME));
 }
 
 $(foreach instructions)
-static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst)
-{
+static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
 	$(gen_code)
 }
 

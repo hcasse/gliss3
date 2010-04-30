@@ -538,3 +538,13 @@ void $(proc)_delete_sim($(proc)_sim_t *sim)
 	/* delete the sim */
 	free(sim);
 }
+
+
+/**
+ * Get the address of the current instruction
+ * @param sim	Simulator to work with.
+ * @return		Address of the current instruction.
+ */
+$(proc)_address_t  $(proc)_current_inst($(proc)_sim_t *sim) {
+	return sim->state->$(NPC_NAME);
+}

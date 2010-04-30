@@ -1,8 +1,8 @@
 /*
- * $Id: sim.c,v 1.9 2009/11/26 09:01:18 casse Exp $
- * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
+ * Simulator base file.
+ * Copyright (c) 2010, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS V2.
  *
  * OGliss is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,24 +19,73 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <gliss/api.h>
+#include <gliss/macros.h>
 #include <loader.h>
 
 
 
 
 
-void syntax(char *prog_name)
-{
-	fprintf(stderr, "\nSyntax is: %s <exec_name> [-start=<hexa_address>] [-exit=<hexa_address>]\n"
+/**
+ * Display usage of the command.
+ * @param prog_name	Program name.
+ */
+void usage(const char *prog_name) {
+	fprintf(stderr, "SYNTAX: %s <exec_name> OPTIONS\n\n"
+			"OPTIONS may be a combination of \n"
+			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
+			"  -h, -help : display usage message\n"
+			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
+			"  -v, -verbose : display simulated instructions\n"
 			"\n"
 			"if args or env strings must be passed to the simulated program,\n"
 			"put them in <exec_name>.argv or <exec_name>.envp,\n"
 			"one arg or env string on each line, whitespaces will not be ignored,\n"
-			"a single '\\n' must be added on the last line of these files\n", prog_name);
+			"a single '\\n' must be added on the last line of these files\n\n", prog_name);
+}
+
+
+/**
+ * Display error.
+ * @param fmt		Format string.
+ * @param args		Format arguments.
+ */
+void error_args(const char *fmt, va_list args) {
+	fprintf(stderr, "ERROR: ");
+	vfprintf(stderr, fmt, args);
+}
+
+
+/**
+ * Display error.
+ * @param fmt		Format string.
+ * @param ...		Format arguments.
+ */
+void error(const char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	error_args(fmt, args);
+	va_end(args);
+}
+
+
+/**
+ * Display a syntax error.
+ * @param prog_name		Program name.
+ * @param fmt			Format string.
+ * @param ...			Format arguments.
+ */
+void syntax_error(char *prog_name, const char *fmt, ...) {
+	va_list args;
+	usage(prog_name);
+	va_start(args, fmt);
+	error_args(fmt, args);
+	va_end(args);
 }
 
 extern char **environ;
@@ -67,7 +116,7 @@ void copy_options_to_gliss_env(gliss_env_t *env, init_options *opt)
 void free_options(init_options *opt)
 {
 	int i = 0;
-	
+
 	if (opt->argv)
 	{
 		for (i = 0; opt->argv[i]; i++)
@@ -137,74 +186,59 @@ int main(int argc, char **argv)
 	int i = 0;
 	int nb, nb_bis = 0;
 	long file_size = 0;
+	int verbose = 0;
 
+	/* scan arguments */
+	for(i = 1; i < argc; i++) {
 
-	/* test argument count */
-	if ((argc < 2) || (argc > 4)) {
-		fprintf(stderr, "ERROR: too many or too few arguments\n");
-		syntax(argv[0]);
-		return 1;
-	}
+		/* -h or -help options */
+		if(strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "-h") == 0)  {
+			usage(argv[0]);
+			return 0;
+		}
 
+		/* -v or -verbose option */
+		else if(strcmp(argv[i], "-verbose") == 0 || strcmp(argv[i], "-v") == 0)
+			verbose = 1;
 
-	/* get the start address */
-	i = 0;
-	for ( ; i<argc; i++)
-		if (strncmp(argv[i], "-start=", 7) == 0)
-			break;
+		/* -start= option */
+		else if(strncmp(argv[i], "-start=", 7) == 0) {
+			is_start_given = i;
+			addr_start = strtoul(argv[i] + 7, &c_ptr, 16);
+			if(*c_ptr != '\0') {
+				syntax_error(argv[0],  "bad start address specified : %s, only hexadecimal address accepted\n", argv[i]);
+				return 2;
+			}
+		}
 
-	is_start_given = i;
-	if (i == argc)
-		is_start_given = 0;
+		/* -exit= option */
+		else if(strncmp(argv[i], "-exit=", 6) == 0) {
+			is_exit_given = i;
+			addr_exit = strtoul(argv[is_exit_given] + 6, &c_ptr, 16);
+			if(*c_ptr == '\0') {
+				syntax_error(argv[0], "bad exit address specified : %s, only hexadecimal address accepted\n", argv[i]);
+				return 2;
+			}
+		}
 
-	if (is_start_given)
-	{
-		addr_start = strtoul(argv[is_start_given] + 7, &c_ptr, 16);
-		if (addr_start == 0) {
-			fprintf(stderr, "ERROR: bad start address specified : %s, only hexadecimal address accepted\n", argv[is_start_given]);
-			syntax(argv[0]);
+		/* option ? */
+		else if(argv[i][0] == '-') {
+			syntax_error(argv[0], "unknown option: %s\n", argv[i]);
 			return 2;
 		}
-		// !!DEBUG!!
-		//printf("start given: %08X\n", addr_start);
-	}
-	else
-		addr_start = 0;
 
-
-	/* get the exit address */
-	i = 0;
-	for ( ; i<argc; i++)
-		if (strncmp(argv[i], "-exit=", 6) == 0)
-			break;
-
-	is_exit_given = i;
-	if (i == argc)
-		is_exit_given = 0;
-
-	if (is_exit_given)
-	{
-		addr_exit = strtoul(argv[is_exit_given] + 6, &c_ptr, 16);
-		if (addr_exit == 0) {
-			fprintf(stderr, "ERROR: bad exit address specified : %s, only hexadecimal address accepted\n", argv[is_exit_given]);
-			syntax(argv[0]);
+		/* free argument */
+		else if(prog_index != 0) {
+			syntax_error(argv[0], "garbage argument: %s\n", argv[i]);
 			return 2;
 		}
-		// !!DEBUG!!
-		//printf("exit given: %08X\n", addr_exit);
-	}
-	else
-		addr_exit = 0;
-
-	/* find the program name */
-	prog_index = 0;
-	for (i=1; i<argc; i++)
-		/* the program name is the only remaining argument */
-		if ((i != is_start_given) && (i != is_exit_given))
+		else
 			prog_index = i;
-	if (prog_index == 0) {
-		fprintf(stderr, "ERROR: no program name given\n");
-		syntax(argv[0]);
+	}
+
+	/* exec available ? */
+	if(prog_index == 0) {
+		syntax_error(argv[0], "no executable given !");
 		return 2;
 	}
 
@@ -235,8 +269,7 @@ int main(int argc, char **argv)
 
 		/* check for error */
 		if (addr_start == 0) {
-			fprintf(stderr, "ERROR: cannot find the \"_start\" symbol and no start address is given.\n");
-			syntax(argv[0]);
+			syntax_error(argv[0], "ERROR: cannot find the \"_start\" symbol and no start address is given.\n");
 			return 2;
 		}
 
@@ -264,8 +297,7 @@ int main(int argc, char **argv)
 
 		/* check for error */
 		if (addr_exit == 0) {
-			fprintf(stderr, "ERROR: cannot find the \"_exit\" symbol and no exit address is given.\n");
-			syntax(argv[0]);
+			syntax_error(argv[0], "ERROR: cannot find the \"_exit\" symbol and no exit address is given.\n");
 			return 2;
 		}
 
@@ -296,14 +328,12 @@ int main(int argc, char **argv)
 		/* allocate buffer */
 		argv_str = malloc((file_size + 1) * sizeof(char));
 		if (argv_str == 0) {
-			fprintf(stderr, "ERROR: cannot allocate memory\n");
-			syntax(argv[0]);
+			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
 		/* copy the file */
 		if (fread(argv_str, sizeof(char), file_size, f) != file_size) {
-			fprintf(stderr, "ERROR: cannot read the whole option file\n");
-			syntax(argv[0]);
+			error("ERROR: cannot read the whole option file\n");
 			return 1;
 		}
 		argv_str[file_size] = '\0';
@@ -311,8 +341,7 @@ int main(int argc, char **argv)
 		//printf("argv file read [%s]\n", argv_str);
 		/* close the file */
 		if (fclose(f)) {
-			fprintf(stderr, "ERROR: cannot close the option file\n");
-			syntax(argv[0]);
+			error("ERROR: cannot close the option file\n");
 			return 1;
 		}
 	}
@@ -332,21 +361,18 @@ int main(int argc, char **argv)
 		/* allocate buffer */
 		envp_str = malloc((file_size + 1) * sizeof(char));
 		if (envp_str == 0) {
-			fprintf(stderr, "ERROR: cannot allocate memory\n");
-			syntax(argv[0]);
+			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
 		/* copy the file */
 		if (fread(envp_str, sizeof(char), file_size, f) != file_size) {
-			fprintf(stderr, "ERROR: cannot read the whole option file\n");
-			syntax(argv[0]);
+			error("ERROR: cannot read the whole option file\n");
 			return 1;
 		}
 		envp_str[file_size] = '\0';
 		/* close the file */
 		if (fclose(f)) {
-			fprintf(stderr, "ERROR: cannot close the option file\n");
-			syntax(argv[0]);
+			error("ERROR: cannot close the option file\n");
 			return 1;
 		}
 	}
@@ -366,8 +392,7 @@ int main(int argc, char **argv)
 	}
 	options.argv = malloc((nb + 2) * sizeof(char *));
 	if (options.argv == 0) {
-		fprintf(stderr, "ERROR: cannot allocate memory\n");
-		syntax(argv[0]);
+		error("ERROR: cannot allocate memory\n");
 		return 1;
 	}
 	c_ptr = argv_str;
@@ -377,8 +402,7 @@ int main(int argc, char **argv)
 	{
 		options.argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
 		if (options.argv[i] == 0) {
-			fprintf(stderr, "ERROR: cannot allocate memory\n");
-			syntax(argv[0]);
+			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
 		strcpy(options.argv[i], c_ptr);
@@ -413,8 +437,7 @@ int main(int argc, char **argv)
 	/* copy envs */
 	options.envp = malloc((nb + nb_bis + 1) * sizeof(char *));
 	if (options.envp == 0) {
-		fprintf(stderr, "ERROR: cannot allocate memory\n");
-		syntax(argv[0]);
+		error("ERROR: cannot allocate memory\n");
 		return 1;
 	}
 
@@ -423,21 +446,19 @@ int main(int argc, char **argv)
 	{
 		options.envp[i] = malloc(sizeof(char) * (strlen(environ[i]) + 1));
 		if (options.envp[i] == 0) {
-			fprintf(stderr, "ERROR: cannot allocate memory\n");
-			syntax(argv[0]);
+			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
 		strcpy(options.envp[i], environ[i]);
 	}
-		
+
 	/* then added env */
 	c_ptr = envp_str;
 	for (i = nb; i < nb + nb_bis; i++)
 	{
 		options.envp[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
 		if (options.envp[i] == 0) {
-			fprintf(stderr, "ERROR: cannot allocate memory\n");
-			syntax(argv[0]);
+			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
 		strcpy(options.envp[i], c_ptr);
@@ -462,11 +483,10 @@ int main(int argc, char **argv)
 
 	/* load the image in the platform */
 	if (gliss_load_platform(platform, argv[prog_index]) == -1) {
-		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[i]);
-		syntax(argv[0]);
+		error("ERROR: cannot load the given executable : %s.\n", argv[i]);
 		return 2;
 	}
-	
+
 	/* free argv and envp once copied to simulator's memory */
 	free_options(&options);
 
@@ -495,12 +515,14 @@ int main(int argc, char **argv)
 
 // !!DEBUG END!!
 
-	/* perform the simulation */
-	while(1)
-	{
-		if (gliss_is_sim_ended(sim))
-			break;
-		gliss_step(sim);
+	/* full speed simulation */
+	if(!verbose) {
+		while(1)
+		{
+			if (gliss_is_sim_ended(sim))
+				break;
+			gliss_step(sim);
+		}
 // !!DEBUG BEGIN!!
 //	cpt++;
 //	printf("state after instr %d\n", cpt);
@@ -510,6 +532,20 @@ int main(int argc, char **argv)
 	//if (cpt > 500)
 		//break;
 // !!DEBUG END!!
+	}
+
+	/* verbose simulation */
+	else {
+		gliss_inst_t *inst;
+		while(1) {
+			if (gliss_is_sim_ended(sim))
+				break;
+			inst = gliss_decode(sim->decoder, gliss_current_inst(sim));
+			gliss_disasm(buffer, inst);
+			fprintf(stderr, "%08x: %s\n", gliss_current_inst(sim),  buffer);
+			gliss_free_inst(inst);
+			gliss_step(sim);
+		}
 	}
 
 // !!DEBUG BEGIN!!

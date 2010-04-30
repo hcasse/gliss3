@@ -1,8 +1,7 @@
 /*
- *	$Id: syscall-linux.c,v 1.4 2009/09/15 14:49:05 casse Exp $
  *	syscall-linux module implementation
  *
- *	This file is part of OTAWA
+ *	This file is part of GLISS V2
  *	Copyright (c) 2009, IRIT UPS.
  *
  *	GLISS is free software; you can redistribute it and/or modify

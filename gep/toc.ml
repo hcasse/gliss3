@@ -291,7 +291,7 @@ let rec type_to_printf_format t =
 	| UINT64 -> "%016LX"
 	| FLOAT -> "%f"
 	| DOUBLE -> "%f"
-	| LONG_DOUBLE -> "%f"
+	| LONG_DOUBLE -> "%Lf"
 	| CHAR_PTR -> "%s"
 
 
@@ -1041,7 +1041,7 @@ let rec gen_expr info (expr: Irg.expr) =
 			print_string "]], Sem.type_expr=[["; Irg.print_type_expr (Sem.get_type_expr expr);
 			print_string ("]], type_to_mem=[[" ^ (type_to_mem (convert_type typ)));
 			print_string ("]], sufx=[[" ^ sufx ^ "]]\n");*)
-			
+
 			out info.proc;
 			out "_field";
 			(*out (type_to_mem (convert_type typ));*)
