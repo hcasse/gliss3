@@ -34,12 +34,12 @@
 #include <sys/types.h>
 #include <sys/times.h>
 
-#include "../include/gliss/mem.h"
-#include "sysparm.h"
-#include "syscall.h"
+#include <gliss/mem.h>
+#include <gliss/sysparm.h>
+#include <gliss/syscall.h>
 
 /* for access to gliss_env_t (system environment) */
-#include "loader.h"
+#include <gliss/loader.h>
 
 /* booleans */
 typedef int BOOL;

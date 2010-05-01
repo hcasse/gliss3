@@ -25,7 +25,7 @@
 #include <string.h>
 #include <gliss/api.h>
 #include <gliss/macros.h>
-#include <loader.h>
+#include <gliss/loader.h>
 
 
 

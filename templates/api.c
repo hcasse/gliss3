@@ -5,7 +5,8 @@
 #include <errno.h>
 #include "../include/$(proc)/api.h"
 #include "platform.h"
-#include "env.h"
+#include "../include/$(proc)/env.h"
+#include "../include/$(proc)/macros.h"
 
 
 

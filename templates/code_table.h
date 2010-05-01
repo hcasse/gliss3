@@ -9,17 +9,14 @@ extern  "C"
 {
 #endif
 
-#include "../include/$(proc)/api.h"
-#include "../include/$(proc)/macros.h"
+#include <$(proc)/api.h>
+#include <$(proc)/macros.h>
 
 /* module headers */
 $(foreach modules)$(CODE_HEADER)$(end)
 
-$(foreach modules)$(if is_mem)
-#include "../include/$(proc)/$(name).h"
-$(else)
-#include "$(name).h"
-$(end)
+$(foreach modules)
+#include <$(proc)/$(name).h>
 $(end)
 
 /* TODO: add some error messages when malloc fails */

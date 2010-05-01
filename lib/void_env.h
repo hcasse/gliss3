@@ -1,7 +1,7 @@
 #ifndef GLISS_LINUX_ENV_H
 #define GLISS_LINUX_ENV_H
 
-#include "target/api.h"
+#include "api.h"
 #include "loader.h"
 
 #if defined(__cplusplus)

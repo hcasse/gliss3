@@ -6,6 +6,8 @@
 
 #include "inst_size.h"
 
+#include "inst_size_table.h"
+
 #define gliss_error(e) fprintf(stderr, (e))
 
 

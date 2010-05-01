@@ -235,7 +235,7 @@ let find_mod m =
 	@param m	Module to process. *)
 let process_module info m =
 	let source = info.Toc.spath ^ "/" ^ m.iname ^ ".c" in
-	let header = info.Toc.spath ^ "/" ^ m.iname ^ ".h" in
+	let header = info.Toc.hpath ^ "/" ^ m.iname ^ ".h" in
 	if not !App.quiet then Printf.printf "creating \"%s\"\n" source;
 	App.replace_gliss info (m.path ^ "/" ^ m.aname ^ ".c") source;
 	if not !App.quiet then Printf.printf "creating \"%s\"\n" header;
@@ -267,9 +267,6 @@ let _ =
 			if not !App.quiet then Printf.printf "creating \"include/\"\n";
 			App.makedir "src";
 
-			link
-				(info.Toc.hpath)
-				(info.Toc.spath ^ "/target");
 			App.make_template "Makefile" "src/Makefile" dict;
 			App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
 			App.make_template "api.c" "src/api.c" dict;
@@ -283,7 +280,6 @@ let _ =
 
 			(* module linking *)
 			List.iter (process_module info) !modules;
-			Unix.rename (info.Toc.spath ^ "/mem.h") (info.Toc.hpath ^ "/mem.h");
 
 			(* generate application *)
 			if !sim then

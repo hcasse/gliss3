@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include "error.h"
+#include "../include/gliss/error.h"
 
 /**
  * Display the message and abort the simulator.

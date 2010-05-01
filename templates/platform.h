@@ -7,7 +7,7 @@ $(foreach modules)
 $(if is_mem)
 #include "../include/$(proc)/mem.h"
 $(else)
-#include "$(name).h"
+#include "../include/$(proc)/$(name).h"
 $(end)
 $(end)
 
@@ -15,12 +15,12 @@ $(end)
 struct $(proc)_platform_t
 {
 	int usage;
-	
+
 	/* entry point of the simulated program */
 	$(proc)_address_t entry;
 	/* initial sp, argv, envp ... */
 	$(proc)_env_t *sys_env;
-	
+
 	union
 	{
 		$(proc)_memory_t *array[0];

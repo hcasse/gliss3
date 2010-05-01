@@ -2,11 +2,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-/* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
+#include <gliss/fetch.h>
+#include <gliss/decode.h> /* api.h will be in it, for fetch functions, decode_table.h also */
+#include <gliss/config.h> /* for memory endiannesses */
 
-#include "fetch.h"
-#include "decode.h" /* api.h will be in it, for fetch functions, decode_table.h also */
-#include "config.h" /* for memory endiannesses */
+#include "decode_table.h"
 
 #define gliss_error(e) fprintf(stderr, (e))
 

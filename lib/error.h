@@ -23,7 +23,7 @@
 #ifndef GLISS_ERROR_H
 #define GLISS_ERROR_H
 
-#include "../include/gliss/api.h"
+#include "api.h"
 
 #if defined(__cplusplus)
     extern  "C" {
