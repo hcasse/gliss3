@@ -250,60 +250,35 @@ int main(int argc, char **argv)
 	}
 
 	/* find the _start symbol if no start address is given */
-	if ( ! is_start_given)
-	{
-		addr_start = 0;
-
-		/* search symbol _start */
-		for(sym_start = 0; sym_start < gliss_loader_count_syms(loader); sym_start++)
-		{
-			gliss_loader_sym_t data;
-			gliss_loader_sym(loader, sym_start, &data);
-			if (strcmp(data.name, "_start") == 0)
-			{
-				/* we found _start */
-				addr_start = data.value;
-				break;
-			}
-		}
-
-		/* check for error */
-		if (addr_start == 0) {
-			syntax_error(argv[0], "ERROR: cannot find the \"_start\" symbol and no start address is given.\n");
-			return 2;
-		}
-
-		// !!DEBUG!!
-		//printf("_start found at %08X\n", addr_start);
-	}
+	if(!is_start_given)
+		addr_start = gliss_loader_start(loader);
+	if(verbose)
+		printf("START=%08x\n", addr_start);
 
 	/* find the _exit symbol if no exit address is given */
-	if ( ! is_exit_given)
-	{
-		addr_exit = 0;
+	if (!is_exit_given) {
+		int found = 0;
 
 		/* search symbol _exit */
-		for(sym_exit = 0; sym_exit < gliss_loader_count_syms(loader); sym_exit++)
-		{
+		for(sym_exit = 0; sym_exit < gliss_loader_count_syms(loader); sym_exit++) {
 			gliss_loader_sym_t data;
 			gliss_loader_sym(loader, sym_exit, &data);
-			if (strcmp(data.name, "_exit") == 0)
-			{
+			if(strcmp(data.name, "_exit") == 0) {
 				/* we found _exit */
 				addr_exit = data.value;
+				found = 1;
 				break;
 			}
 		}
 
 		/* check for error */
-		if (addr_exit == 0) {
+		if(!found) {
 			syntax_error(argv[0], "ERROR: cannot find the \"_exit\" symbol and no exit address is given.\n");
 			return 2;
 		}
-
-		// !!DEBUG!!
-		//printf("_exit found at %08X\n", addr_exit);
 	}
+	if(verbose)
+		printf("EXIT=%08x\n", addr_exit);
 
 	options.argv = options.envp = 0;
 

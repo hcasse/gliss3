@@ -188,13 +188,15 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 }
 
 float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
-	*((uint32_t *)&v) = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
-	return v;
+	float x;	/* workaround bug in GCC 4.4.1 */
+	*((uint32_t *)&x) = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
+	return x;
 }
 
 double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
-	*((uint64_t *)&v) = gliss_set_field64u(*((uint64_t *)&v), s, u, l);
-	return v;
+	double x;	/* workaround bug in GCC 4.4.1 */
+	*((uint64_t *)&x) = gliss_set_field64u(*((uint64_t *)&v), s, u, l);
+	return x;
 }
 
 
@@ -283,16 +285,22 @@ uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b
 	}
 }
 
-float gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order)
-{
-	*((uint32_t *)&v) = gliss_set_field32u_generic(*((uint32_t *)&v), s, a, b, bit_order);
-	return v;
+float gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order) {
+	union {
+		float f;
+		uint32_t i;
+	} x;		/* workaround for bug in GCC 4.4.1 */
+	x.i = ppc_set_field32u_generic(*((uint32_t *)&v), s, a, b, bit_order);
+	return x.f;
 }
 
-double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order)
-{
-	*((uint64_t *)&v) = gliss_set_field64u_generic(*((uint64_t *)&v), s, a, b, bit_order);
-	return v;
+double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order) {
+	union {
+		double d;
+		uint64_t i;
+	} x;		/* workaround for bug in GCC 4.4.1 */
+	x.i = ppc_set_field64u_generic(*(uint64_t *)&v, s, a, b, bit_order);
+	return x.d;
 }
 
 
