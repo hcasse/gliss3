@@ -9,7 +9,7 @@
 
 @include gliss-intro.thot
 @include gliss-tuto.thot
-
+@include gliss-mods.thot
 
 
 

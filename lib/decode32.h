@@ -10,9 +10,6 @@ extern  "C"
 #endif
 
 
-#include "decode_table.h"
-
-
 #define GLISS_DECODE_STATE
 #define GLISS_DECODE_INIT(s)
 #define GLISS_DECODE_DESTROY(s)

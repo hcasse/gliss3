@@ -1,7 +1,7 @@
 #ifndef GLISS_LINUX_ENV_H
 #define GLISS_LINUX_ENV_H
 
-#include "target/api.h"
+#include "api.h"
 #include "loader.h"
 
 #if defined(__cplusplus)
@@ -18,9 +18,9 @@
 
 /* system initialization (used internally during platform and state initialization) */
 void gliss_stack_fill_env(gliss_loader_t *loader,
- gliss_platform_t *platform, 
+ gliss_platform_t *platform,
  gliss_env_t *env);
-void gliss_registers_fill_env(gliss_env_t *env, 
+void gliss_registers_fill_env(gliss_env_t *env,
 gliss_state_t *state);
 
 #if defined(__cplusplus)

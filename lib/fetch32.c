@@ -2,10 +2,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-/* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
+#include <gliss/mem.h>
+#include <gliss/fetch.h>
 
-#include "../include/gliss/mem.h"
-#include "fetch.h"
+#include "fetch_table.h" /* or ../include/gliss/ ? */
 
 #define gliss_error(e) fprintf(stderr, (e))
 /* we should pass the next option on command line */

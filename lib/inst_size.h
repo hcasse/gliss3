@@ -10,9 +10,6 @@ extern  "C"
 #endif
 
 
-#include "inst_size_table.h"
-
-
 #define GLISS_INST_SIZE_STATE
 #define GLISS_INST_SIZE_INIT(s)
 #define GLISS_INST_SIZE_DESTROY(s)

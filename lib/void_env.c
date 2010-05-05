@@ -1,6 +1,6 @@
-#include "env.h"
-#include "config.h"
-#include "loader.h"
+#include <gliss/env.h>
+#include <gliss/config.h>
+#include <gliss/loader.h>
 
 
 

@@ -1,8 +1,7 @@
 /*
- *	$Id: syscall-linux.c,v 1.4 2009/09/15 14:49:05 casse Exp $
  *	syscall-linux module implementation
  *
- *	This file is part of OTAWA
+ *	This file is part of GLISS V2
  *	Copyright (c) 2009, IRIT UPS.
  *
  *	GLISS is free software; you can redistribute it and/or modify
@@ -35,12 +34,12 @@
 #include <sys/types.h>
 #include <sys/times.h>
 
-#include "../include/gliss/mem.h"
-#include "sysparm.h"
-#include "syscall.h"
+#include <gliss/mem.h>
+#include <gliss/sysparm.h>
+#include <gliss/syscall.h>
 
 /* for access to gliss_env_t (system environment) */
-#include "loader.h"
+#include <gliss/loader.h>
 
 /* booleans */
 typedef int BOOL;

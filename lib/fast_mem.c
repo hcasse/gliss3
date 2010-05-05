@@ -37,7 +37,7 @@
 
 #define little	0
 #define big		1
-#include "config.h"
+#include "../include/gliss/config.h"
 
 /**
  * @def gliss_address_t

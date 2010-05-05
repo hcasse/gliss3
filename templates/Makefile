@@ -10,7 +10,7 @@ OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS)
 DISTCLEAN = lib$(proc).a
 
-CFLAGS += -g3 $(foreach modules)$(CFLAGS)$(end) -O3
+CFLAGS += -g3 $(foreach modules)$(CFLAGS)$(end) -O3 -I../include
 
 all: lib$(proc).a
 
@@ -19,7 +19,7 @@ lib$(proc).a: $$(OBJECTS)
 	ranlib $$@
 
 clean:
-	rm -rf $$(CLEAN)
+	-rm -rf $$(CLEAN)
 
 distclean: clean
-	rm -rf $$(DISTCLEAN)
+	-rm -rf $$(DISTCLEAN)

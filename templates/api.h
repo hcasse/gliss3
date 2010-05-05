@@ -137,6 +137,7 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
 int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
+$(proc)_address_t  $(proc)_current_inst($(proc)_sim_t *sim);
 
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);

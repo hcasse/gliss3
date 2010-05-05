@@ -9,11 +9,8 @@ extern  "C"
 {
 #endif
 
-#include "../include/gliss/api.h"
+#include "api.h"
 #include "config.h"
-
-#include "fetch_table.h" /* or ../include/gliss/ ? */
-
 
 #define GLISS_FETCH_STATE
 #define GLISS_FETCH_INIT(s)

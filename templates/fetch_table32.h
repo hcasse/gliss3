@@ -9,7 +9,7 @@ extern  "C"
 {
 #endif
 
-#include "../include/$(proc)/id.h"
+#include <$(proc)/id.h>
 
 
 /* data structures */

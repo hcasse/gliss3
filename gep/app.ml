@@ -238,8 +238,7 @@ let process file f =
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
 	| Toc.Error msg ->
-		Printf.fprintf stderr "ERROR: %s\n" msg;
-		exit 4
+		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
 	| Toc.PreError f ->
 		output_string stderr "ERROR: ";
 		f stderr;
@@ -248,7 +247,7 @@ let process file f =
 	| Sys_error msg ->
 		Printf.eprintf "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
-		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path
+		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
 	(*| Failure e ->
 		Lexer.display_error e; exit 3*)
 

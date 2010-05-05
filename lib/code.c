@@ -2,12 +2,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-/* #include <math.h>  needed for affiche_valeur_binaire (which is not well coded) */
-
-#include "fetch.h"
-#include "decode.h" /* api.h will be in it, for fetch functions, decode_table.h also */
-#include "config.h" /* for memory endiannesses */
-#include "code.h"
+#include <gliss/fetch.h>
+#include <gliss/decode.h> /* api.h will be in it, for fetch functions, decode_table.h also */
+#include <gliss/config.h> /* for memory endiannesses */
+#include <gliss/code.h>
 
 #include "code_table.h"
 

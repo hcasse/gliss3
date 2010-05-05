@@ -23,8 +23,8 @@
 #define GLISS_OLD_ELF_H
 
 #include "grt.h"
-#include "../include/gliss/mem.h"
-#include "../include/gliss/api.h"
+#include "mem.h"
+#include "api.h"
 
 #if defined(__cplusplus)
     extern  "C" {

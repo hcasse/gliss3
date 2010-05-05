@@ -291,7 +291,7 @@ let rec type_to_printf_format t =
 	| UINT64 -> "%016LX"
 	| FLOAT -> "%f"
 	| DOUBLE -> "%f"
-	| LONG_DOUBLE -> "%f"
+	| LONG_DOUBLE -> "%Lf"
 	| CHAR_PTR -> "%s"
 
 
@@ -1041,7 +1041,7 @@ let rec gen_expr info (expr: Irg.expr) =
 			print_string "]], Sem.type_expr=[["; Irg.print_type_expr (Sem.get_type_expr expr);
 			print_string ("]], type_to_mem=[[" ^ (type_to_mem (convert_type typ)));
 			print_string ("]], sufx=[[" ^ sufx ^ "]]\n");*)
-			
+
 			out info.proc;
 			out "_field";
 			(*out (type_to_mem (convert_type typ));*)
@@ -1551,7 +1551,7 @@ let gen_pc_increment info =
 		else
 			(* PPC = PC *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.pc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.pc_name))
 	in
 	let npc_stat =
 		if info.npc_name = "" then
@@ -1559,17 +1559,17 @@ let gen_pc_increment info =
 		else
 			(* NPC = NPC + (size of current instruction) *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(info.npc_name), size))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String .uppercase info.npc_name), size))
 	in
 	let pc_stat =
 		if info.npc_name = "" then
 			(* PC = PC + (size of current instruction) *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(info.pc_name), size))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String.uppercase info.pc_name), size))
 		else
 			(* PC = NPC *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(info.npc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.npc_name))
 	in
 	Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
 

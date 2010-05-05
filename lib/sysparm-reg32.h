@@ -23,7 +23,7 @@
 #define GLISS_SYSPARM_REG32_H
 
 #include <stdint.h>
-#include "config.h"
+#include <gliss/config.h>
 
 #if defined(__cplusplus)
     extern  "C" {

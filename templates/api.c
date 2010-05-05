@@ -5,7 +5,8 @@
 #include <errno.h>
 #include "../include/$(proc)/api.h"
 #include "platform.h"
-#include "env.h"
+#include "../include/$(proc)/env.h"
+#include "../include/$(proc)/macros.h"
 
 
 
@@ -230,7 +231,7 @@ $(end)
 $(gen_init_code)
 
 	/* Pcs initialization */
-	state->$(NPC_NAME) = platform->entry;
+	state->$(npc_name) = platform->entry;
 
 	/* system registers initialization (argv, envp...) */
 	$(proc)_registers_fill_env(platform->sys_env, state);
@@ -439,7 +440,7 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	if (exit_addr)
 		sim->addr_exit = exit_addr;
 	if (start_addr)
-		sim->state->$(NPC_NAME) = start_addr;
+		sim->state->$(npc_name) = start_addr;
 
 
 	return sim;
@@ -467,7 +468,7 @@ $(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
 	/* the macros allowing register access refer always to a state called "state" */
 	/*state = sim->state;*/
 	// !!DEBUG!!
-	addr_next_inst = sim->state->$(NPC_NAME);
+	addr_next_inst = sim->state->$(npc_name);
 
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
@@ -516,7 +517,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 int $(proc)_is_sim_ended($(proc)_sim_t *sim)
 {
 	/* we want to stop right before the exit address */
-	return (sim->addr_exit == sim->state->$(NPC_NAME));
+	return (sim->addr_exit == sim->state->$(npc_name));
 }
 
 
@@ -537,4 +538,14 @@ void $(proc)_delete_sim($(proc)_sim_t *sim)
 
 	/* delete the sim */
 	free(sim);
+}
+
+
+/**
+ * Get the address of the current instruction
+ * @param sim	Simulator to work with.
+ * @return		Address of the current instruction.
+ */
+$(proc)_address_t  $(proc)_current_inst($(proc)_sim_t *sim) {
+	return sim->state->$(npc_name);
 }
