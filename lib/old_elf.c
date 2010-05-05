@@ -917,9 +917,29 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
  * @param loader	Used loader.
  * @return			entry point address.
  */
-gliss_address_t gliss_loader_start(gliss_loader_t *loader) {
+gliss_address_t gliss_loader_start(gliss_loader_t *loader)
+{
 	assert(loader);
-	return loader->Text.txt_addr;
+	/*return loader->Text.txt_addr;*/
+	
+	/* in the leon executables tested, the e_entry (which gives Text.txt_addr) points towards
+	   the beginning of the code, not the _start, let's try to correct it  */
+	
+	int found = 0;
+	int sym_start;
+
+	/* search symbol _start */
+	for (sym_start = 0; sym_start < gliss_loader_count_syms(loader); sym_start++)
+	{
+		gliss_loader_sym_t data;
+		gliss_loader_sym(loader, sym_start, &data);
+		if (strcmp(data.name, "_start") == 0)
+			/* we found _start */
+			return data.value;
+	}
+	/* no _start found, default to e_entry */
+	if (!found)
+		return loader->Text.txt_addr;
 }
 
 
