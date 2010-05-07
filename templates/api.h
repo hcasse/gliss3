@@ -133,11 +133,11 @@ $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state);
 
 /* simulation functions */
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_addr, $(proc)_address_t exit_addr);
-$(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim);
+$(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
 int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
-$(proc)_address_t  $(proc)_current_inst($(proc)_sim_t *sim);
+$(proc)_address_t  $(proc)_next_addr($(proc)_sim_t *sim);
 
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);

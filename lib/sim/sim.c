@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 #include <gliss/api.h>
 #include <gliss/macros.h>
 #include <gliss/loader.h>
@@ -40,6 +41,7 @@ void usage(const char *prog_name) {
 			"OPTIONS may be a combination of \n"
 			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
 			"  -h, -help : display usage message\n"
+			"	-s : display statistics\n"
 			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
 			"  -v, -verbose : display simulated instructions\n"
 			"\n"
@@ -187,6 +189,9 @@ int main(int argc, char **argv)
 	int nb, nb_bis = 0;
 	long file_size = 0;
 	int verbose = 0;
+	int stats = 0;
+	int inst_cnt = 0;
+	struct timeval start_time, end_time, delay;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -220,6 +225,10 @@ int main(int argc, char **argv)
 				return 2;
 			}
 		}
+
+		/* -s option */
+		else if(strcmp(argv[i], "-s") == 0)
+			stats = 1;
 
 		/* option ? */
 		else if(argv[i][0] == '-') {
@@ -490,6 +499,10 @@ int main(int argc, char **argv)
 
 // !!DEBUG END!!
 
+	/* measure time */
+	if(stats)
+		gettimeofday(&start_time, NULL);
+
 	/* full speed simulation */
 	if(!verbose) {
 		while(1)
@@ -497,6 +510,7 @@ int main(int argc, char **argv)
 			if (gliss_is_sim_ended(sim))
 				break;
 			gliss_step(sim);
+			inst_cnt++;
 		}
 // !!DEBUG BEGIN!!
 //	cpt++;
@@ -515,11 +529,12 @@ int main(int argc, char **argv)
 		while(1) {
 			if (gliss_is_sim_ended(sim))
 				break;
-			inst = gliss_decode(sim->decoder, gliss_current_inst(sim));
+			inst = gliss_next_inst(sim);
 			gliss_disasm(buffer, inst);
-			fprintf(stderr, "%08x: %s\n", gliss_current_inst(sim),  buffer);
+			fprintf(stderr, "%08x: %s\n", gliss_next_addr(sim),  buffer);
 			gliss_free_inst(inst);
 			gliss_step(sim);
+			inst_cnt++;
 		}
 	}
 
@@ -528,6 +543,20 @@ int main(int argc, char **argv)
 //	gliss_dump_state(sim->state, stdout);
 //	fflush(stdout);
 // !!DEBUG END!!
+
+	/* produce statistics */
+	if(stats) {
+		double time;
+		if(gettimeofday(&end_time, NULL) < 0) {
+			fprintf(stderr, "ERROR: can not get time ?\n");
+			return 1;
+		}
+		timersub(&end_time, &start_time, &delay);
+		time = delay.tv_sec + (double)delay.tv_usec * 10E-6;
+		printf("Simulated instructions = %d\n", inst_cnt);
+		printf("Time = %f ms\n", time * 1000);
+		printf("Rate = %f i/s\n", inst_cnt / time);
+	}
 
 	/* cleanup */
 //	free_options(&options);

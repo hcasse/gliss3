@@ -115,29 +115,11 @@ let get_source f dict source =
 let make_env info =
 
 	let min_size =
-		Iter.iter (fun min inst ->
-			let size = Fetch.get_instruction_length inst in
-			if size < min then size else min)
-			1024 in
-	let invalid_category = "-1"
-	in
-	let get_category i =
-		try
-		(match Iter.get_attr i "category" with
-		Iter.EXPR(e) ->
-			(try
-				let c = Sem.eval_const e
-				in
-				match c with
-				Irg.STRING_CONST(s) ->
-					s
-				| _ ->
-					failwith "the attribute named \"category\" is defined as a number in a string constant (like \"4\" or \"8\")"
-			with Sem.SemError _ -> failwith "the attribute named \"category\" should be a constant")
-		| Iter.STAT(s) ->
-			failwith "the attribute named \"category\" mustn't be a statement but an expression.")
-		with Not_found -> (* attribute "category" doesn't exist, return invalid category *)
-			invalid_category
+		Iter.iter
+			(fun min inst ->
+				let size = Fetch.get_instruction_length inst
+				in if size < min then size else min)
+			1024
 	in
 	let add_mask_32_to_param inst idx _ _ dict =
 		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
@@ -149,10 +131,8 @@ let make_env info =
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
 			Toc.gen_action info "action")) ::
-		(* ppc category, will return the value of the category attribute in ppc description, could be extended to other procs *)
-		("category", Templater.TEXT (fun out -> Printf.fprintf out "%s" (get_category inst) )) ::
-		dict in
-
+		dict
+	in
 	let maker = App.maker() in
 	maker.App.get_params <- add_mask_32_to_param;
 	maker.App.get_instruction <- add_size_to_inst;
@@ -162,8 +142,6 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
-	(* for category table for ppc, category is always a number >= 0, let's take -1 for an invalid category (eg. for instr unknown) *)
-	("invalid_category", Templater.TEXT (fun out -> output_string out invalid_category)) ::
 	("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
@@ -174,8 +152,11 @@ let make_env info =
 			Toc.gen_stat info (Toc.get_init_code () ))) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
+	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::
 	("PC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.pc_name))) ::
+	("pc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.pc_name))) ::
 	("PPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.ppc_name))) ::
+	("ppc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.ppc_name))) ::
 	(App.make_env info maker)
 
 
@@ -274,10 +255,7 @@ let _ =
 			App.make_template "platform.h" "src/platform.h" dict;
 			App.make_template "fetch_table32.h" "src/fetch_table.h" dict;
 			App.make_template "decode_table32.h" "src/decode_table.h" dict;
-			App.make_template "inst_size_table.h" "src/inst_size_table.h" dict;
 			App.make_template "code_table.h" "src/code_table.h" dict;
-			(* for ppc category table *)
-			App.make_template "category_table.h" "src/category_table.h" dict;
 
 			(* module linking *)
 			List.iter (process_module info) !modules;

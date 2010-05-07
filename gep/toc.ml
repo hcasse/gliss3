@@ -127,6 +127,7 @@ type info_t = {
 	mutable pc_name: string;			(** name of the register used as PC (marked as __attr(pc)) *)
 	mutable ppc_name: string;		(** name of the register used as previous instruction PC (marked as __attr(ppc)) *)
 	mutable npc_name: string;		(** name of the register used as next instruction PC (marked as __attr(npc)) *)
+	mutable indent: int;			(** identation level *)
 }
 
 
@@ -199,9 +200,15 @@ let info _ =
 			attrs = StringHashtbl.create 211;
 			pc_name = pc;
 			npc_name = get_attr_regs "npc";
-			ppc_name = get_attr_regs "ppc"
+			ppc_name = get_attr_regs "ppc";
+			indent = 1;
 		}
 
+
+(** Reset indenting.
+	@param info		Information structure. *)
+let indent_reset info =
+	info.indent <- 1
 
 (** Set the current instruction.
 	@param info		Current generation information.
@@ -495,6 +502,18 @@ let rec get_alias attrs =
 	| _::tl -> get_alias tl
 
 
+(** Get the unaliased memory name.
+	@param name		Memory name.
+	@return			Unaliased memory name. *)
+let rec unaliased_mem_name name =
+	match Irg.get_symbol name with
+	| Irg.MEM (_, _, _, attrs) ->
+		(match get_alias attrs with
+		| Irg.LOC_NONE -> name
+		| Irg.LOC_REF (_, n, _, _, _) -> unaliased_mem_name n
+		| _ -> failwith "no concat !")
+	| _ -> failwith "not memory !"
+
 
 (** Perform alias resolution, that is, translate a state read/write into
 	a tuple of unaliased states.
@@ -659,7 +678,7 @@ let rec prepare_expr info stats expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 	let unalias name idx =
 		match Irg.get_symbol name with
-		| Irg.REG _ | Irg.MEM _ ->
+		| Irg.REG _ ->
 			(*!!DEBUG!!*)
 			(*print_string "---prepare_expr(unalias), name=";
 			print_string name;
@@ -875,11 +894,13 @@ let rec prepare_stat info stat =
 		match loc with
 		| Irg.LOC_NONE ->
 			failwith "no location to set (3)"
-		| Irg.LOC_REF (_, r, i, u, l) ->
+		| Irg.LOC_REF (t, r, i, u, l) ->
 			let (stats, i) = prepare_expr info stats i in
 			let (stats, u) = prepare_expr info stats u in
 			let (stats, l) = prepare_expr info stats l in
-			unalias_set info stats r i u l expr
+			(match Irg.get_symbol r with
+			| Irg.MEM _ -> seq stats (Irg.SET ((Irg.LOC_REF (t, r, i, u, l)), expr))
+			| _ -> unalias_set info stats r i u l expr)
 		| Irg.LOC_CONCAT (t, l1, l2) ->
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
@@ -992,7 +1013,7 @@ let rec gen_expr info (expr: Irg.expr) =
 			out "_mem_read";
 			out (type_to_mem (convert_type typ));
 			out "(";
-			out (state_macro info name);
+			out (state_macro info (unaliased_mem_name name));
 			out ", ";
 			gen_expr info idx;
 			out ")"
@@ -1266,6 +1287,16 @@ let rec gen_expr info (expr: Irg.expr) =
 let rec gen_stat info stat =
 	trace "gen_stat 1";
 	let out = output_string info.out in
+	let line f =
+		for i = 1 to info.indent do
+			out "\t"
+		done;
+		f();
+		out "\n" in
+	let indented f =
+		info.indent <- info.indent + 1;
+		f ();
+		info.indent <- info.indent - 1 in
 
 	let iter_args args =
 		ignore(List.fold_left
@@ -1381,81 +1412,86 @@ let rec gen_stat info stat =
 		gen_stat info s1; gen_stat info s2
 
 	| Irg.SET (Irg.LOC_REF(typ, id, idx, lo, up), expr) ->
-		out "\t";
-		(match Irg.get_symbol id with
-		| Irg.VAR _ ->
-			out id;
-			if idx <> Irg.NONE then
-				(out "["; gen_expr info idx; out "]");
-			out " = ";
-			gen_expr info (set_field typ id idx lo up expr);
-			out ";\n"
-		| Irg.REG _ ->
-			out (state_macro info id);
-			if idx <> Irg.NONE then
-				(out "["; gen_expr info idx; out "]");
-			out " = ";
-			gen_expr info (set_field typ id idx lo up expr);
-			out ";\n"
-		| Irg.MEM _ ->
-			out (Printf.sprintf "%s_mem_write%s(" info.proc
-				(type_to_mem (convert_type typ)));
-			out (state_macro info id);
-			out ", ";
-			gen_expr info idx;
-			out ", ";
-			gen_expr info (set_field typ id Irg.NONE lo up expr);
-			out ");\n"
-		| s ->
-			Printf.printf "==> %s\n" id;
-			Irg.print_spec s;
-			failwith "gen stat 1")
+		line (fun _ ->
+			match Irg.get_symbol id with
+			| Irg.VAR _ ->
+				out id;
+				if idx <> Irg.NONE then
+					(out "["; gen_expr info idx; out "]");
+				out " = ";
+				gen_expr info (set_field typ id idx lo up expr);
+				out ";"
+			| Irg.REG _ ->
+				out (state_macro info id);
+				if idx <> Irg.NONE then
+					(out "["; gen_expr info idx; out "]");
+				out " = ";
+				gen_expr info (set_field typ id idx lo up expr);
+				out ";"
+			| Irg.MEM _ ->
+				out (Printf.sprintf "%s_mem_write%s(" info.proc
+					(type_to_mem (convert_type typ)));
+				out (state_macro info (unaliased_mem_name id));
+				out ", ";
+				gen_expr info idx;
+				out ", ";
+				gen_expr info (set_field typ id Irg.NONE lo up expr);
+				out ");"
+			| s ->
+				Printf.printf "==> %s\n" id;
+				Irg.print_spec s;
+				failwith "gen stat 1")
+
 	| Irg.SET _ ->
 		failwith "should have been removed"
 
 	| Irg.CANON_STAT (name, args) ->
-		out "\t";
-		out name;
-		out "(";
-		iter_args args;
-		out ");\n"
+		line (fun _ ->
+			out name;
+			out "(";
+			iter_args args;
+			out ");")
 
 	| Irg.ERROR msg ->
-		Printf.fprintf info.out "\t%s_error(\"%s\");\n"
-			info.proc
-			(cstring msg)
+		line (fun _ ->
+			Printf.fprintf info.out "%s_error(\"%s\");"
+				info.proc
+				(cstring msg))
 
 	| Irg.IF_STAT (cond, tpart, epart) ->
-		out "\tif(";
-		gen_expr info cond;
-		out ") {\n";
-		gen_stat info tpart;
-		out "\t}\n";
+		line (fun _ ->
+			out "if(";
+			gen_expr info cond;
+			out ") {");
+		indented (fun _ -> gen_stat info tpart);
+		line (fun _ -> out "}");
 		if not (is_nop epart) then
 			begin
-				out "\telse {\n";
-				gen_stat info epart;
-				out "\t}\n"
+				line (fun _ -> out "else {");
+				indented (fun _ -> gen_stat info epart);
+				line (fun _ -> out "}")
 			end
 
 	| Irg.SWITCH_STAT (cond, cases, def) ->
-		out "\tswitch(";
-		gen_expr info cond;
-		out ") {\n";
+		line (fun _ ->
+			out "switch(";
+			gen_expr info cond;
+			out ") {");
 		List.iter
 			(fun (case, stat) ->
-				out "\t case ";
-				gen_expr info case;
-				out ":\n";
-				gen_stat info stat;
-				out "\tbreak;\n")
+				line (fun _ ->
+					out "case ";
+					gen_expr info case;
+					out ":");
+				indented (fun _ -> gen_stat info stat);
+				line (fun _ -> out "break;"))
 			cases;
 		if def <> Irg.NOP then
 			begin
-				out "\tdefault:\n";
-				gen_stat info def; (*stat;*)
+				line (fun _ -> out "default:");
+				indented (fun _ -> gen_stat info def)
 			end;
-		out "\t}\n"
+		line (fun _ -> out "}")
 
 	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
@@ -1464,9 +1500,7 @@ let rec gen_stat info stat =
 		gen_call info name
 
 	| Irg.INLINE s ->
-		out "\t";
-		out s;
-		out "\n"
+		line (fun _ -> out s)
 
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
@@ -1476,7 +1510,7 @@ and gen_call info name =
 
 	(* recursive call ? *)
 	if 	List.mem_assoc name info.calls then
-		Printf.fprintf info.out "\tgoto %s;\n" (List.assoc name info.calls)
+		(Printf.fprintf info.out "goto %s;\n" (List.assoc name info.calls))
 
 	(* normal call *)
 	else
@@ -1486,7 +1520,7 @@ and gen_call info name =
 			if List.mem name info.recs then
 				begin
 					let lab = new_label info in
-					Printf.fprintf info.out "\t%s:\n" lab;
+					Printf.fprintf info.out "%s:\n" lab;
 					info.calls <- (name, lab)::info.calls
 				end;
 			gen_stat info stat;
@@ -1579,6 +1613,7 @@ let gen_pc_increment info =
 	@param info		Generation information.
 	@param name		Name of the attribute. *)
 let gen_action info name =
+	info.indent <- 1;
 
 	(* prepare statements *)
 	find_recursives info name;
