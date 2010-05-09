@@ -529,9 +529,9 @@ int main(int argc, char **argv)
 		while(1) {
 			if (gliss_is_sim_ended(sim))
 				break;
-			inst = gliss_decode(sim->decoder, gliss_current_inst(sim));
+			inst = gliss_next_inst(sim);
 			gliss_disasm(buffer, inst);
-			fprintf(stderr, "%08x: %s\n", gliss_current_inst(sim),  buffer);
+			fprintf(stderr, "%08x: %s\n", gliss_next_addr(sim),  buffer);
 			gliss_free_inst(inst);
 			gliss_step(sim);
 			inst_cnt++;

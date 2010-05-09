@@ -220,9 +220,6 @@ $(proc)_state_t *$(proc)_new_state($(proc)_platform_t *platform)
 	/* locking it */
 	$(proc)_lock_platform(state->platform);
 
-	//!!DEBUG!!
-	//printf("new_state, before init code, NIA=%08X\n", state->NIA);
-
 	/* memory initialization */
 $(foreach memories)
 	state->$(NAME) = state->platform->mems.named.$(name);
@@ -230,9 +227,15 @@ $(end)
 	/* proper state initialization (from the op init) */
 $(gen_init_code)
 
-	/* Pcs initialization */
-	state->$(npc_name) = platform->entry;
+	/* PC initialization */
+	state->$(pc_name) = platform->entry;
 
+$(if has_npc)
+	/* if there is a NPC and a RISC ISA we can initialize it easily,
+	 * if CISC, we cannot really know here */
+	/* !!TODO!! find something better for CISC ISA (increment NPC in nmp?) */
+	state->$(npc_name) = state->$(pc_name) + $(min_instruction_size);
+$(end)
 	/* system registers initialization (argv, envp...) */
 	$(proc)_registers_fill_env(platform->sys_env, state);
 
@@ -368,23 +371,6 @@ $(foreach registers)$(if !aliased)$(if array)
 $(else)
 	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
 $(end)$(end)$(end)
-
-
-//!!DEBUG!! for PPC
-// fprintf(out, "NIA = %08X, CIA = %08X, PIA = %08X\n", state->NIA, state->CIA, state->PIA);
-// fprintf(out, "LR = %08X, CTR = %08X, L2CR = %08X, L2PM = %08X\n", state->LR, state->CTR, state->L2CR, state->L2PM);
-// fprintf(out, "XER = %08X, MSR = %08X\n", state->XER, state->MSR);
-// fprintf(out, "GPR\n");
-// for (i=0; i<8; i++)
-// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->GPR[i*4], i*4+1, state->GPR[i*4+1], i*4+2, state->GPR[i*4+2], i*4+3, state->GPR[i*4+3]);
-// fprintf(out, "CR\n");
-// for (i=0; i<2; i++)
-// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->CR[i*4], i*4+1, state->CR[i*4+1], i*4+2, state->CR[i*4+2], i*4+3, state->CR[i*4+3]);
-// fprintf(out, "SR\n");
-// for (i=0; i<2; i++)
-// 	fprintf(out, "\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\t[%2d]=%08X\n", i*4, state->SR[i*4], i*4+1, state->SR[i*4+1], i*4+2, state->SR[i*4+2], i*4+3, state->SR[i*4+3]);
-// fprintf(out, "\n\n");
-
 }
 
 
@@ -411,7 +397,7 @@ $(proc)_platform_t *$(proc)_platform($(proc)_state_t *state)
  * Create a new simulator structure with the given state
  * @param	state	the state on which we intend to simulate
  * @param	start_addr	the beginning of the execution (useful for executables compiled with no _start symbol),
- *				if null we leave the NPC in its previous state given by the loader
+ *				if null we leave the PC in its previous state given by the loader
  * @param	exit_addr	the explicitly given last instruction address to simulate, if null we will stop running in another way
  */
 $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_addr, $(proc)_address_t exit_addr)
@@ -440,7 +426,7 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	if (exit_addr)
 		sim->addr_exit = exit_addr;
 	if (start_addr)
-		sim->state->$(npc_name) = start_addr;
+		sim->state->$(pc_name) = start_addr;
 
 
 	return sim;
@@ -450,29 +436,19 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 /**
  * Return the next instruction to be executed by the given simulator
  *
- * !!WARNING!! we assume the address is given by the NPC,
- * we must do otherwise if there is no NPC declared
+ * this instruction is pointed by the PC
  *
  * @param	sim	the simulator which we simulate within
  * @return		the next instruction to be executed, fully decoded
  */
-$(proc)_inst_t *$(proc)_next($(proc)_sim_t *sim)
+$(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
 {
-	/*$(proc)_state_t *state;*/
-	$(proc)_address_t addr_next_inst;
-
 	if (sim == NULL)
 		return NULL;
 
-	/* retrieving address of the next instruction */
-	/* the macros allowing register access refer always to a state called "state" */
-	/*state = sim->state;*/
-	// !!DEBUG!!
-	addr_next_inst = sim->state->$(npc_name);
-
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
-	return $(proc)_decode(sim->decoder, addr_next_inst);
+	return $(proc)_decode(sim->decoder, sim->state->$(pc_name));
 }
 
 
@@ -491,15 +467,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 		return;
 
 	/* retrieving next instruction */
-	inst = $(proc)_next(sim);
-
-			// !!BEGIN DEBUG!! for PPC
-			/*char buff[100];
-			$(proc)_disasm(buff, inst);
-			uint32_t code = $(proc)_mem_read32($(proc)_get_memory(sim->state->platform, 0), sim->state->NIA);
-			printf("@%08X:\t%08X\t%s\n", sim->state->NIA, code, buff);
-			fflush(stdout);*/
-			// !!END DEBUG!!
+	inst = $(proc)_next_inst(sim);
 
 	/* execute it */
 	$(proc)_execute(sim->state, inst);
@@ -517,7 +485,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 int $(proc)_is_sim_ended($(proc)_sim_t *sim)
 {
 	/* we want to stop right before the exit address */
-	return (sim->addr_exit == sim->state->$(npc_name));
+	return (sim->addr_exit == sim->state->$(pc_name));
 }
 
 
@@ -542,10 +510,11 @@ void $(proc)_delete_sim($(proc)_sim_t *sim)
 
 
 /**
- * Get the address of the current instruction
+ * Get the address of the next instruction to be executed,
+ * indicated by PC
  * @param sim	Simulator to work with.
  * @return		Address of the current instruction.
  */
-$(proc)_address_t  $(proc)_current_inst($(proc)_sim_t *sim) {
-	return sim->state->$(npc_name);
+$(proc)_address_t  $(proc)_next_addr($(proc)_sim_t *sim) {
+	return sim->state->$(pc_name);
 }
