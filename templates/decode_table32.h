@@ -3,14 +3,14 @@
 #ifndef GLISS_$(PROC)_INCLUDE_$(PROC)_DECODE_TABLE_H
 #define GLISS_$(PROC)_INCLUDE_$(PROC)_DECODE_TABLE_H
 
+#include <assert.h>
+#include <$(proc)/api.h>
+#include <$(proc)/macros.h>
 
 #if defined(__cplusplus)
 extern  "C"
 {
 #endif
-
-#include <$(proc)/api.h>
-#include <$(proc)/macros.h>
 
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, (e))
@@ -63,9 +63,9 @@ static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode($(proc)_address_t address, u
 	inst->instrinput = malloc(sizeof($(proc)_ii_t) * 2);
 
 	/* set size and address */
-	inst->instrinput[0].type = $(PROC)_ADDR;
+	$(if !GLISS_NO_PARAM)inst->instrinput[0].type = $(PROC)_ADDR;$(end)
 	inst->instrinput[0].val.addr = address;
-	inst->instrinput[1].type = $(PROC)_SIZE;
+	$(if !GLISS_NO_PARAM)inst->instrinput[1].type = $(PROC)_SIZE;$(end)
 	inst->instrinput[1].val.size = 32;
 
 	return inst;
@@ -75,21 +75,26 @@ $(foreach instructions)
 static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, uint32_t code_inst)
 {
 	$(if has_param)uint32_t mask;
-	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
+	$(if GLISS_ONE_MALLOC)
+		$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) + sizeof($(proc)_ii_t) * ($(num_params) + 2));
+		inst->instrinput = ($(proc)_ii_t *)(inst + 1);
+	$(else)
+		$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t));
+		inst->instrinput = malloc(sizeof($(proc)_ii_t) * ($(num_params) + 2));
+	$(end)
 	inst->ident = $(PROC)_$(IDENT);
-	inst->instrinput = malloc(sizeof($(proc)_ii_t) * ($(num_params) + 2));
 
 	/* set size and address */
-	inst->instrinput[0].type = $(PROC)_ADDR;
+	$(if !GLISS_NO_PARAM)inst->instrinput[0].type = $(PROC)_ADDR;$(end)
 	inst->instrinput[0].val.addr = address;
-	inst->instrinput[1].type = $(PROC)_SIZE;
+	$(if !GLISS_NO_PARAM)inst->instrinput[1].type = $(PROC)_SIZE;$(end)
 	inst->instrinput[1].val.size = 32;
 
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
 	mask = $(mask_32)UL;
 	$(PROC)_$(IDENT)_$(PARAM) = valeur_sur_mask_bloc(code_inst, mask); /* res->instrinput[$(INDEX)].val.$(param_type) */
-	inst->instrinput[$(INDEX) + 2].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;
+	$(if !GLISS_NO_PARAM)inst->instrinput[$(INDEX) + 2].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;$(end)
 	$(end)
 	return inst;
 }
@@ -99,9 +104,9 @@ $(else)$(proc)_inst_t *res = malloc(sizeof($(proc)_inst_t));
 	res->instrinput = malloc(sizeof($(proc)_ii_t) * 2);
 
 	/* set size and address */
-	res->instrinput[0].type = $(PROC)_ADDR;
+	$(if !GLISS_NO_PARAM)res->instrinput[0].type = $(PROC)_ADDR;$(end)
 	res->instrinput[0].val.addr = address;
-	res->instrinput[1].type = $(PROC)_SIZE;
+	$(if !GLISS_NO_PARAM)res->instrinput[1].type = $(PROC)_SIZE;$(end)
 	res->instrinput[1].val.size = 32;
 
 	return res;
@@ -120,6 +125,15 @@ static $(proc)_decode_function_t *$(proc)_decode_table[] =
 };
 
 
+/* free a dynamically allocated instruction, we try not to free an already freed or NULL pointer */
+void $(proc)_free_inst($(proc)_inst_t *inst) {
+	assert(inst);
+	$(if !GLISS_ONE_MALLOC)
+		if (inst->instrinput)
+			free(inst->instrinput);
+	$(end)
+	free(inst);
+}
 
 #if defined(__cplusplus)
 }

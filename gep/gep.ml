@@ -81,11 +81,14 @@ let sim = ref false
 let memory = ref "fast_mem"
 let size = ref 0
 let sources : string list ref = ref []
+let switches: (string * bool) list ref = ref []
 let options = [
 	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
 	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
 	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
-	("-S", Arg.Set sim, "generate the simulator application")
+	("-S", Arg.Set sim, "generate the simulator application");
+	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
+	("-on", Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
 ]
 
 
@@ -250,6 +253,9 @@ let _ =
 		"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 		(fun info ->
 			let dict = make_env info in
+			let dict = List.fold_left
+				(fun d (n, v) -> App.add_switch n v d)
+				dict !switches in
 
 			(* include generation *)
 

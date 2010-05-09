@@ -212,6 +212,15 @@ let make_env info maker =
 	[]
 
 
+(* Activate a switch.
+	@param name		Switch name.
+	@param value	Value of the switch.
+	@param dict		Dictionnary to activate in.
+	@return			Result dictionnary. *)
+let add_switch name value dict =
+	(name, Templater.BOOL (fun _ -> value))::dict
+
+
 (**
  * Load a NMP file and launch the given function on it
  * (and capture and display all exceptions).
@@ -283,7 +292,7 @@ let run args help f =
 	let free_arg arg =
 		if !nmp = ""
 		then nmp := arg
-		else Printf.fprintf stderr "WARNING: only one NML file required, %s ignored" arg in
+		else Printf.fprintf stderr "WARNING: only one NML file required, %s ignored\n" arg in
 	Arg.parse (options @ args) free_arg help;
 	if !nmp = "" then
 		begin

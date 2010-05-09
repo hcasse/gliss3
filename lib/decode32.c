@@ -33,19 +33,6 @@ struct gliss_decoder_t
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address);
 
 
-/* free a dynamically allocated instruction, we try not to free an already freed or NULL pointer */
-void gliss_free_inst(gliss_inst_t *inst)
-{
-	if (inst)
-	{
-		if (inst->instrinput)
-			free(inst->instrinput);
-		free(inst);
-	}
-	inst = 0;
-}
-
-
 /* initialization and destruction of gliss_decode_t object */
 
 static int number_of_decoder_objects = 0;
