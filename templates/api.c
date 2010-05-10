@@ -234,8 +234,9 @@ $(if has_npc)
 	/* if there is a NPC and a RISC ISA we can initialize it easily,
 	 * if CISC, we cannot really know here */
 	/* !!TODO!! find something better for CISC ISA (increment NPC in nmp?) */
-	state->$(npc_name) = state->$(pc_name) + $(min_instruction_size);
+	state->$(npc_name) = state->$(pc_name) + ($(min_instruction_size) >> 3);
 $(end)
+
 	/* system registers initialization (argv, envp...) */
 	$(proc)_registers_fill_env(platform->sys_env, state);
 
