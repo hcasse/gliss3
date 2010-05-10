@@ -25,7 +25,7 @@ exception Error of string
 exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
 
-let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)	(* !!DEBUG!! *)
+let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)
 
 
 (* KNOWN BUGS
@@ -972,21 +972,17 @@ let rec gen_expr info (expr: Irg.expr) =
 		| Irg.EXP -> (false, Printf.sprintf "%s_exp%s" info.proc (type_to_mem(convert_type t)))
 		| Irg.CONCAT -> (false, Printf.sprintf "%s_concat%s" info.proc (type_to_mem(convert_type t)))
 		| _ -> (false, "") in
-		(*!!DEBUG!!*)
-	(*print_string "--gen_expr, ";
-	Irg.print_expr expr;
-	print_char '\n';
-	flush stdout;*)
+
 	match expr with
 	| Irg.NONE -> ()
 
 	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
 	(* some card const should be translated with suffix U or UL, ULL ?? *)
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> out ((Int32.to_string v) ^ "")
-	| Irg.CONST (_, Irg.CARD_CONST v) -> out (Int32.to_string v)
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
-	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> out (Int64.to_string v); out "LL"
-	| Irg.CONST (_, Irg.STRING_CONST s) -> out "\""; out (cstring s); out "\""
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> Printf.fprintf info.out "0x%lxLU" v
+	| Irg.CONST (_, Irg.CARD_CONST v) -> Printf.fprintf info.out "%ldL" v
+	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> Printf.fprintf info.out "0x%LxLLU" v
+	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> Printf.fprintf info.out "%LdLL" v
+	| Irg.CONST (_, Irg.STRING_CONST s) -> Printf.fprintf info.out "\"%s\"" (cstring s)
 	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v
 
 	| Irg.REF name ->

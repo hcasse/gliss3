@@ -75,7 +75,7 @@ let do_bool dict id =
 		  BOOL f -> f ()
 		| _ -> failwith (id ^ " is not a boolean"))
 	with Not_found ->
-		failwith (id ^ " is undefined !")
+		false
 
 
 }
