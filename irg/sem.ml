@@ -544,21 +544,22 @@ and get_type_expr exp=
 	print_string "\n";*)
 	(**)
 	match exp with
-		 NONE->NO_TYPE
-		|COERCE(t,_)->t
-		|FORMAT (_,_)->STRING
-		|CANON_EXPR (t,_,_) ->t
-		|REF id->get_type_ident id
-		|FIELDOF (t,_,_)->t
-		|ITEMOF (t,_,_)->t
-		|BITFIELD (t,_,_,_)->t
-		|UNOP (t,_,_)->t
-		|BINOP (t,_,_,_)->t
-		|IF_EXPR (t,_,_,_)->t
-		|SWITCH_EXPR (t,_,_,_)->t
-		|CONST (t,_)->t
-		|ELINE (_, _, e) -> get_type_expr e
-		|EINLINE _ -> NO_TYPE
+	| NONE->NO_TYPE
+	| COERCE(t, _) -> t
+	| FORMAT (_, _) -> STRING
+	| CANON_EXPR (t, _, _) -> t
+	| REF id -> get_type_ident id
+	| FIELDOF (t, _, _) -> t
+	| ITEMOF (t, _, _) -> t
+	| BITFIELD (t, _, _, _) -> t
+	| UNOP (t, _, _) -> t
+	| BINOP (t, _, _, _) -> t
+	| IF_EXPR (t, _, _, _) -> t
+	| SWITCH_EXPR (t, _, _, _) -> t
+	| CONST (t,_)->t
+	| ELINE (_, _, e) -> get_type_expr e
+	| EINLINE _ -> NO_TYPE
+	| CAST(size, _) -> CARD(size)
 
 
 (** Give the bit length of a type expression
@@ -639,13 +640,69 @@ let get_unop e uop=
 			|(NEG,CARD n)->UNOP(INT n,uop,e)	(*for the negation of a CARD, the type is INT *)
 			|_->UNOP (t,uop,e))
 
+
+
+(** Perform automatic-coercition between numeric types, coercing to bigger type.
+	@param e1	First expression.
+	@param e2	Second expression.
+	@return		(coerced first expression, coerced second expression) *)
+let num_auto_coerce e1 e2 =
+	let t1 = get_type_expr e1 in
+	let t2 = get_type_expr e2 in
+	if t1 = t2 then (e1, e2) else
+	match t1, t2 with
+
+	(* BOOL base *)
+	| BOOL, INT _
+	| BOOL, CARD _
+	| BOOL, FLOAT _
+	| BOOL, RANGE _
+	| BOOL, ENUM _ -> (COERCE(t2, e1), e2)
+
+	(* INT base *)
+	| INT _, BOOL -> (e1, COERCE(t1, e2))
+	| INT n1, INT n2 ->
+		if n1 > n2 then (e1, COERCE(t1, e2))
+		else (COERCE(t2, e1), e2)
+	| INT n1, CARD n2 ->
+		if n1 >= n2 then (e1, COERCE(t1, e2))
+		else (COERCE(INT(n2), e1), COERCE(INT(n2), e2))
+	| INT _, FLOAT _ -> (COERCE(t2, e1), e2)
+	| INT _, RANGE _ -> (e1, COERCE(t1, e2))
+	| INT _, ENUM _ -> (e1, COERCE(t1, e2))
+
+	(* CARD base *)
+	| CARD _, BOOL -> (e1, COERCE(t1, e2))
+	| CARD n1, INT n2 ->
+		if n1 <= n2 then (COERCE(t2, e1), e2)
+		else (COERCE(INT(n1), e1), COERCE(INT(n1), e2))
+	| CARD n1, CARD n2 ->
+		if n1 < n2 then (COERCE(t2, e1), e2)
+		else (e1, COERCE(t1, e2))
+	| CARD _, FLOAT _ -> (COERCE(t2, e1), e2)
+	| CARD _, RANGE _ -> (e1, COERCE(t1, e2))
+	| CARD _, ENUM _ -> (e1, COERCE(t1, e2))
+
+	(* FLOAT base *)
+	| FLOAT _, BOOL
+	| FLOAT _, INT _
+	| FLOAT _, CARD _ -> (e1, COERCE(t1, e2))
+	| FLOAT (n1, m1), FLOAT (n2, m2) ->
+		if n1 + m1 > n2 + m2 then (e1, COERCE(t1, e2))
+		else (COERCE(t2, e1), e2)
+	| FLOAT _, RANGE _
+	| FLOAT _, ENUM _ -> (e1, COERCE(t1, e2))
+
+	| _ -> raise (SemError "forbidden operation")
+
+
 (** Check the matching of a binary operation and the type of its operands.
 	@param t1	First type to check.
 	@param t2	Second type to check
 	@param bop	Operation to check.
 	@return	True if they match, false else.
 *)
-let check_binop_type t1 t2 bop =
+(*let check_binop_type t1 t2 bop =
 	if(t1=NO_TYPE ||t2=NO_TYPE)
 	then false
 	else
@@ -680,14 +737,7 @@ let check_binop_type t1 t2 bop =
 			 |(INT _,FLOAT _))->true
 			|_->false)
 	|EXP-> (t1!=BOOL)&&(t2!=BOOL)&&(t1!=STRING)&&(t2!=STRING)
-	|(LSHIFT|RSHIFT|LROTATE|RROTATE)-> (*(match (t1,t2) with
-						((CARD _,CARD _)
-						 |(INT _,CARD _)
-						 |(FLOAT _, CARD _)
-						 |(FIX _, CARD _))->true
-						|_->false)*)
-
-					(* needed for compatibility *)
+	|(LSHIFT|RSHIFT|LROTATE|RROTATE)->
 					(match t1 with
 					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
 									(CARD _|INT _)->true
@@ -706,13 +756,7 @@ let check_binop_type t1 t2 bop =
 									(BOOL|CARD _|INT _|FIX _|FLOAT _)->true
 									|_->false)
 					|_->false)
-	|CONCAT-> true
-		 (*(match t1 with
-					(CARD _|INT _)->(match t2 with
-									(CARD _|INT _)->true
-									|_->false)
-					|_->false)*)
-
+	|CONCAT-> true*)
 
 
 (** Create an add/sub with a correct type in function of its operands.
@@ -721,35 +765,16 @@ let check_binop_type t1 t2 bop =
 	@param e2	Second operand.
 	@param bop	ADD/SUB
 	@return	An ADD/SUB expression
-	@raise Failure	Raised when the type of the operands are not compatible with the operation
-*)
-let get_add_sub e1 e2 bop=
-	let t1=get_type_expr e1
-	and t2=get_type_expr e2
-	in
-	match (t1,t2) with
-
-	(* unknown type *)
-	| ((UNKNOW_TYPE,_)
-	| (_,UNKNOW_TYPE)) ->
+	@raise Failure	Raised when the type of the operands are not compatible with the operation *)
+let get_add_sub e1 e2 bop =
+	match (get_type_expr e1, get_type_expr e2) with
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
 		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		let (e1, e2) = num_auto_coerce e1 e2 in
+		BINOP (get_type_expr e1, bop, e1, e2)
 
-	(* without coercition *)
-	| (FLOAT (m,n), FLOAT (m2,n2)) when m2 = m && n2 = n ->
-		BINOP (FLOAT (m,n), bop,e1,e2)
-	| (FIX (m,n), FIX (m2,n2)) when m2 = m && n2 = n->
-		BINOP (FIX (m,n), bop, e1, e2)
-	| (INT n, INT n2) when n2 = n ->
-		BINOP (INT (n), bop, e1, e2)
-	| (CARD n,CARD n2) when n2 = n ->
-		BINOP(CARD (n), bop, e1, e2)
-
-	(* coercition required *)
-	| (INT m, CARD n) -> BINOP(INT ((max m n)),bop,e1,e2)
-	| (CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
-	| (INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
-	| (CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
-	|_->failwith "internal error : get_add_sub"
 
 (** Create a mult/div/mod with a correct type in function of its operands.
 	This function is used in get_binop.
@@ -760,23 +785,24 @@ let get_add_sub e1 e2 bop=
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
 let get_mult_div_mod e1 e2 bop=
-	let t1=get_type_expr e1
-	and t2=get_type_expr e2
-	in
+	let t1 = get_type_expr e1
+	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, bop,e1,e2)
-	|(FLOAT (m,n),FLOAT (m2,n2)) when m=m2 && n=n2-> BINOP (FLOAT (m,n), bop,e1,e2)
-	|(FIX (m,n),FIX (m2,n2))when m=m2 && n=n2->BINOP (FIX (m,n), bop,e1,e2)
-	|(INT n, INT n2) when n=n2-> BINOP (INT (n),bop, e1,e2)
-	|(CARD n,CARD n2) when n=n2->BINOP (CARD (n),bop,e1,e2)
-	|(INT m, CARD n)->BINOP (INT ((max m n)),bop,e1,e2)
-	|(CARD m,INT n)-> BINOP (INT ((max m n)),bop, e1, e2)
-	|(INT m, INT n)->BINOP (INT ((max m n)), bop, e1,e2)
-	|(CARD m, CARD n)->BINOP (INT ((max m n)), bop, e1,e2)
-	|((FLOAT (m,n),INT _)|(INT _,FLOAT (m,n))|(FLOAT(m,n),CARD _)|(CARD _,FLOAT(m,n)))->BINOP (FLOAT(m,n), bop,e1,e2)
-	|((FIX (m,n),INT _)|(INT _,FIX (m,n))|(FIX(m,n),CARD _)|(CARD _,FIX(m,n)))->BINOP (FIX(m,n), bop,e1,e2)
-	|_->failwith "internal error : get_mult_div_mod"
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		let (e1, e2) = num_auto_coerce e1 e2 in
+		BINOP (get_type_expr e1, bop, e1, e2)
 
+
+(** Convert given type to raw card.
+	@param e	Expression to convert. *)
+let to_card e =
+	match get_type_expr e with
+	| FLOAT _
+	| FIX _ -> CAST(get_type_length (get_type_expr e), e)
+	| _ -> e
 
 
 (** Create a concat with a correct type in function of its operands.
@@ -786,27 +812,110 @@ let get_mult_div_mod e1 e2 bop=
 	@return	A CONCAT expression
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
-let rec get_concat e1 e2=
+let rec get_concat e1 e2 =
+	(* TODO convert arguments to card *)
+	try
+		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
+		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
+	with Failure "length unknown" ->
+		let dsp= fun _->
+			(print_string "op 1 : "; print_expr e1;print_string " type : "; print_type_expr (get_type_expr e1); print_string "\n";
+			print_string "op 2 : "; print_expr e2;print_string " type : "; print_type_expr (get_type_expr e2); print_string "\n") in
+		raise (SemErrorWithFun ("unable to concatenate these operandes",dsp))
 
-	(*let t1=get_type_expr e1
-	and t2=get_type_expr e2
-	in
 
+(** Check types in comparison.
+	@param bop	Operator.
+	@param e1	First operand.
+	@param e2	Second operand.
+	@return		Checked expression. *)
+let get_compare bop e1 e2 =
+	let t1 = get_type_expr e1
+	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	  ((UNKNOW_TYPE,_)|(_,UNKNOW_TYPE))->BINOP (UNKNOW_TYPE, CONCAT,e1,e2)
-	|(CARD m, CARD n) -> BINOP (CARD (n+m), CONCAT,e1,e2)
-(*	|(INT m,_)->	get_concat (cast (CARD m) e1) e2
-	|(_,INT n)->	get_concat e1 (cast (CARD n) e2)	*)
-	|_->failwith "internal error : get_concat"*)
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		let (e1, e2) = num_auto_coerce e1 e2 in
+		BINOP (BOOL, bop, e1, e2)
 
-	try(
-	let length=(get_length_from_expr e1)+(get_length_from_expr e2)
-	in
-	Irg.BINOP (CARD length,CONCAT,e1,e2)
-	) with Failure "length unknown"-> let dsp= fun _->(print_string "op 1 : "; print_expr e1;print_string " type : "; print_type_expr (get_type_expr e1); print_string "\n";
-							   print_string "op 2 : "; print_expr e2;print_string " type : "; print_type_expr (get_type_expr e2); print_string "\n")
-					in
-					raise (SemErrorWithFun ("unable to concatenate these operandes",dsp))
+
+(** Convert an expression to boolean.
+	@param e	Expression to convert.
+	@return		Converted expression. *)
+let to_bool e =
+	match get_type_expr e with
+	| UNKNOW_TYPE
+	| BOOL -> e
+	| _ -> COERCE(BOOL, e)
+
+
+(** Convert an expression to condition.
+	@param e	Expression to convert.
+	@return		Converted expression. *)
+let to_cond e =
+	match get_type_expr e with
+	| UNKNOW_TYPE
+	| _ -> e
+
+
+(** Check type for a logic operation.
+	@param bop	Operator.
+	@param e1	First operand.
+	@param e2	Second operand.
+	@return		Checked expression. *)
+let get_logic bop e1 e2 =
+	let t1 = get_type_expr e1
+	and t2 = get_type_expr e2 in
+	match (t1,t2) with
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		BINOP (BOOL, bop, to_cond e1, to_cond e2)
+
+
+(** Check type for a binary operation.
+	@param bop	Operator.
+	@param e1	First operand.
+	@param e2	Second operand.
+	@return		Checked expression. *)
+let get_bin bop e1 e2 =
+	(* TODO convert arguments to card *)
+	let t1 = get_type_expr e1
+	and t2 = get_type_expr e2 in
+	match (t1,t2) with
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		let s1 = get_type_length t1 in
+		let s2 = get_type_length t2 in
+		let e1, e2 =
+			if t1 = t2 then (to_card e1, to_card e2) else
+			if t1 < t2 then (COERCE(CARD s2, e1), e2)
+			else (to_card e1, COERCE(CARD s1, to_card e2)) in
+		BINOP(CARD(max s1 s2), bop, e1, e2)
+
+
+(** Check type for a shift operations.
+	@param bop	Operator.
+	@param e1	First operand.
+	@param e2	Second operand.
+	@return		Checked expression. *)
+let get_shift bop e1 e2 =
+	(* TODO convert arguments to card *)
+	let t1 = get_type_expr e1
+	and t2 = get_type_expr e2 in
+	match (t1,t2) with
+	| UNKNOW_TYPE, _
+	| _, UNKNOW_TYPE ->
+		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| _, _ ->
+		let s = get_type_length t1 in
+		BINOP(CARD(s), bop, to_card e1, e2)
+
 
 (** Create a binary operation with a correct type in function of its operands.
 	@param e1	First operand.
@@ -816,104 +925,51 @@ let rec get_concat e1 e2=
 	@raise SemErrorWithFun	Raised when the type of the operands is not compatible with the operation
 *)
 let rec get_binop e1 e2 bop =
-	let t1=get_type_expr e1 in
-	let t2=get_type_expr e2 in
-	let add_auto_coerce binop_expr =
-		let check_type_expr_for_binop e1 e2 =
-			let t1 = get_type_expr e1
-			in
-			let t2 = get_type_expr e2
-			in
-			(* !!DEBUG!! *)
-			(*print_string "add_auto_coerce\n";
-			print_string "\t"; print_type_expr t1; print_string " : "; print_expr e1; print_char '\n';
-			print_string "\t"; print_type_expr t2; print_string " : "; print_expr e2; print_char '\n';*)
-			match t1 with
-			INT(n1) ->
-				(match t2 with
-				INT(n2) ->
-					if n1 > n2 then
-						begin
-						(* !!DEBUG!! *)
-						(*Printf.printf "\tcoerce e2 -> INT(%d)\n" n1;*)
-						(e1, COERCE(INT(n1), e2))
-						end
-					else
-						begin
-						(* !!DEBUG!! *)
-						(*Printf.printf "\tcoerce e1 -> INT(%d)\n" n2;*)
-						(COERCE(INT(n2), e1), e2)
-						end
 
-				| CARD(n2) ->
-					if n1 < n2 then
-						begin
-						(* !!DEBUG!! *)
-						(*Printf.printf "\tcoerce e1 -> INT(%d)\n" n2;*)
-						(COERCE(INT(n2), e1), e2)
-						end
-					else
-						(e1, e2)
-				| _ ->
-					(e1, e2)
-				)
-			| CARD(n1) ->
-				(match t2 with
-				INT(n2) ->
-					if n1 > n2 then
-						begin
-						(* !!DEBUG!! *)
-						(*Printf.printf "\tcoerce e2 -> INT(%d)\n" n1;*)
-						(e1, COERCE(INT(n1), e2))
-						end
-					else
-						(e1, e2)
-				| _ ->
-					(e1, e2)
-				)
-			| _ ->
-				(e1, e2)
-		in
-		match binop_expr with
-			BINOP(t, b, e1, e2) ->
-				let (ne1, ne2) = check_type_expr_for_binop e1 e2
-				in
-				BINOP(t, b, ne1, e2)
-			| _ -> binop_expr
-	in
+	let aff _ =
+		let t1 = get_type_expr e1 in
+		let t2 = get_type_expr e2 in
+		print_string "(";
+		print_expr e1;
+		print_string ") -";
+		print_type_expr t1;
+		print_string "- ";
+		print_string (string_of_binop bop);
+		print_string " ";
+		print_string "(";
+		print_expr e2;
+		print_string ") -";
+		print_type_expr t2;
+		print_string "-";
+		print_string "\n" in
 
-	if( not (check_binop_type t1 t2 bop))
-	then 	(
-
-			let aff=fun _->(
-						print_string "(";
-						print_expr e1;
-						print_string ") -";
-						print_type_expr t1;
-						print_string "- ";
-						print_string (string_of_binop bop);
-						print_string " ";
-						print_string "(";
-						print_expr e2;
-						print_string ") -";
-						print_type_expr t2;
-						print_string "-";
-						print_string "\n"
-					 )
-			in
-			raise (SemErrorWithFun ("This binary operation is semantically incorrect",aff))
-		)
-	else
-		Irg.ELINE (!(Lexer.file),!(Lexer.line),
+	try
+		Irg.ELINE (!Lexer.file, !Lexer.line,
 			match bop with
-	 		(ADD|SUB)-> add_auto_coerce (get_add_sub e1 e2 bop)
-			|(MUL|DIV|MOD)-> add_auto_coerce (get_mult_div_mod  e1 e2 bop)
-			|EXP-> add_auto_coerce (BINOP (t1,bop,e1,e2))	(* A changer (le type)  *)
-			|(LSHIFT|RSHIFT|LROTATE|RROTATE)-> add_auto_coerce (BINOP(t1,bop,e1,e2))
-			|(LT|GT|LE|GE|EQ|NE)-> add_auto_coerce (BINOP(BOOL,bop,e1,e2))
-			|(AND|OR)-> add_auto_coerce (BINOP(BOOL,bop,e1,e2))
-			|(BIN_AND|BIN_OR|BIN_XOR)-> add_auto_coerce (BINOP(t1, bop, e1,e2))
-			|CONCAT-> add_auto_coerce (get_concat e1 e2))
+	 		| ADD
+	 		| SUB -> get_add_sub e1 e2 bop
+			| MUL
+			| DIV
+			| MOD -> get_mult_div_mod  e1 e2 bop
+			| EXP -> BINOP (NO_TYPE, bop, e1, e2)	(* A changer (le type)  *)
+			| LSHIFT
+			| RSHIFT
+			| LROTATE
+			| RROTATE -> get_shift bop e1 e2
+			| LT
+			| GT
+			| LE
+			| GE
+			| EQ
+			| NE -> get_compare bop e1 e2
+			| AND
+			| OR -> get_logic bop e1 e2
+			| BIN_AND
+			| BIN_OR
+			| BIN_XOR -> get_bin bop e1 e2
+			| CONCAT-> get_concat e1 e2)
+	with SemError msg ->
+		raise (SemErrorWithFun (msg, aff))
 
 
 (** coerce, eventually, the rvalue in a SET or SETSPE statement if needed,
@@ -1006,10 +1062,10 @@ let check_if_expr e1 e2=
 	| (FIX _,FIX _)
 	| (STRING, STRING)
 		-> t1
-	| _ -> 
+	| _ ->
 	(* !!DEBUG!! *)
 	print_string "e1="; Irg.print_expr e1; print_string "#e2="; Irg.print_expr e2; print_string "#\n";
-	
+
 	raise_type_error_two_operand t1 t2
 
 

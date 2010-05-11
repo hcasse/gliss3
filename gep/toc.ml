@@ -27,6 +27,8 @@ exception LocError of string * int * (out_channel -> unit)
 
 let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)
 
+(** Threshold which integer as suffixed under *)
+let int_threshold = Int32.of_int 255
 
 (* KNOWN BUGS
 	reg r[1, t] alias rp[i]	is not rightly generated
@@ -263,6 +265,39 @@ let rec convert_type t =
 		so let's patch it up for the moment, uint32 should be the least worst choice *)
 		UINT32
 	| _ -> unsupported_type t
+
+
+(** Compute the size of type in bits.
+	@param t	Type to size.
+	@return		Size of the type. *)
+let type_size t =
+	match t with
+	| Irg.BOOL -> 1
+	| Irg.INT n -> n
+	| Irg.CARD n -> n
+	| Irg.FLOAT (n, m) -> n + m
+	| Irg.RANGE (_, m) ->
+		int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))
+	| Irg.UNKNOW_TYPE -> 32
+	| _ -> unsupported_type t
+
+
+(** Compute size of a C type (in bits).
+	@param t	C type.
+	@return		Size ib bits. *)
+let ctype_size t =
+	match t with
+	| INT8			-> 8
+	| UINT8			-> 8
+	| INT16			-> 16
+	| UINT16		-> 16
+	| INT32			-> 32
+	| UINT32		-> 32
+	| INT64			-> 64
+	| UINT64		-> 64
+	| FLOAT			-> 32
+	| DOUBLE		-> 64
+	| _				-> failwith "ctype_size"
 
 
 (** Convert a C type to a string.
@@ -770,6 +805,10 @@ let rec prepare_expr info stats expr =
 	| Irg.EINLINE _ ->
 		(stats, expr)
 
+	| Irg.CAST(size, expr) ->
+		let stats, expr = prepare_expr info stats expr in
+		(stats, Irg.CAST(size, expr))
+
 and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	List.fold_left
 		(fun (stats, args) arg ->
@@ -965,316 +1004,381 @@ and prepare_call info name =
 let rec gen_expr info (expr: Irg.expr) =
 	let out = output_string info.out in
 
-	let get_function op t =
-		match op with
-		| Irg.LROTATE -> (true, Printf.sprintf "%s_rotate_left%s" info.proc (type_to_mem(convert_type t)))
-		| Irg.RROTATE -> (true, Printf.sprintf "%s_rotate_right%s" info.proc (type_to_mem(convert_type t)))
-		| Irg.EXP -> (false, Printf.sprintf "%s_exp%s" info.proc (type_to_mem(convert_type t)))
-		| Irg.CONCAT -> (false, Printf.sprintf "%s_concat%s" info.proc (type_to_mem(convert_type t)))
-		| _ -> (false, "") in
-
 	match expr with
 	| Irg.NONE -> ()
-
-	| Irg.CONST (_, Irg.NULL) -> failwith "null constant"
-	(* some card const should be translated with suffix U or UL, ULL ?? *)
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST v) -> Printf.fprintf info.out "0x%lxLU" v
-	| Irg.CONST (_, Irg.CARD_CONST v) -> Printf.fprintf info.out "%ldL" v
-	| Irg.CONST (Irg.CARD _, Irg.CARD_CONST_64 v) -> Printf.fprintf info.out "0x%LxLLU" v
-	| Irg.CONST (_, Irg.CARD_CONST_64 v) -> Printf.fprintf info.out "%LdLL" v
-	| Irg.CONST (_, Irg.STRING_CONST s) -> Printf.fprintf info.out "\"%s\"" (cstring s)
-	| Irg.CONST (_, Irg.FIXED_CONST v) -> Printf.fprintf info.out "%f" v
-
-	| Irg.REF name ->
-		(match Irg.get_symbol name with
-		| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst))
-		| Irg.VAR _ -> out name
-		| Irg.REG _ -> out (state_macro info name)
-		| Irg.MEM _ -> out (state_macro info name)
-		| Irg.PARAM _ -> out (param_macro info name)
-		| Irg.ENUM_POSS (_, _, v, _) -> out (Int32.to_string v)
-		| s ->
-			out name (*failwith "expression form must have been removed")*) )
-
-	| Irg.ITEMOF (_, name, idx) ->
-		(match Irg.get_symbol name with
-		| Irg.VAR _ ->
-			out name;
-			out "[";
-			gen_expr info idx;
-			out "]"
-		| Irg.REG _ -> out (state_macro info name); out "["; gen_expr info idx; out "]"
-		| Irg.MEM (_, _, typ, _)  ->
-			out info.proc;
-			out "_mem_read";
-			out (type_to_mem (convert_type typ));
-			out "(";
-			out (state_macro info (unaliased_mem_name name));
-			out ", ";
-			gen_expr info idx;
-			out ")"
-		| _ -> failwith "invalid itemof")
-
-	| Irg.BITFIELD (typ, expr, lo, up) ->
-		let rec is_const e =
-			(* !!DEBUG!! *)
-			(*print_string "is_const ";
-			Irg.print_expr e;
-			print_string " => ";*)
-			match e with
-			Irg.CONST(_, _) ->
-				(* !!DEBUG!! *)
-				(*print_string "true\n";*)
-				true
-			| Irg.ELINE(_, _, ee) ->
-				is_const ee
-			| _ ->
-				(* !!DEBUG!! *)
-				(*print_string "false\n";*)
-				false
-		in
-		(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10000000000000!) *)
-		let const_val e =
-			match e with
-			Irg.CARD_CONST(i32) ->
-				Int32.to_int i32
-			| Irg.CARD_CONST_64(i64) ->
-				Int64.to_int i64
-			| _ ->
-					failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)"
-		in
-		let bitorder_to_int bo =
-			match bo with
-			LOWERMOST ->
-				0
-			| UPPERMOST ->
-				1
-		in
-		(* stop printing after the expr and the bounds, a closing parens or the bit_order param has to be added apart *)
-		let output_field_common_C_code sufx a b arg3 b_o =
-			(* !!DEBUG!! *)
-			(*print_string "bitf_to_C, typ=[["; Irg.print_type_expr typ;
-			print_string "]], expr=[["; Irg.print_expr expr;
-			print_string "]], Sem.type_expr=[["; Irg.print_type_expr (Sem.get_type_expr expr);
-			print_string ("]], type_to_mem=[[" ^ (type_to_mem (convert_type typ)));
-			print_string ("]], sufx=[[" ^ sufx ^ "]]\n");*)
-
-			out info.proc;
-			out "_field";
-			(*out (type_to_mem (convert_type typ));*)
-			(* !!DEBUG!! *)
-			(* we should take the type of the operand to avoid some bugs *)
-			out (type_to_mem (convert_type (Sem.get_type_expr expr)));
-			out sufx;
-			out "(";
-			gen_expr info expr;
-			out ", ";
-			gen_expr info a;
-			out ", ";
-			gen_expr info b;
-			if arg3 then
-				begin
-				out ", ";
-				out (string_of_int b_o);
-				out ")"
-				end
-			else
-				out ")"
-		in
-		(* !!DEBUG!! *)
-		(*print_string "field up=";Irg.print_expr up;
-		print_string ", lo=";Irg.print_expr lo;*)
-		(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
-		if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
-			output_field_common_C_code "" lo up false 0
-		else
-			begin
-			let bo = bitorder_to_int info.bito
-			in
-			(* 2 const => we can decide right now if inversion is to be done or not *)
-			if (is_const lo) && (is_const up) then
-				begin
-				(* !!DEBUG!! *)
-				(*print_string "[<rien>/inv]";*)
-				if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
-					if bo != 0 then
-						output_field_common_C_code "_inverted" up lo false 0
-					else
-						output_field_common_C_code "" up lo false 0
-				else
-					if bo != 0 then
-						output_field_common_C_code "" lo up false 0
-					else
-						output_field_common_C_code "_inverted" lo up false 0
-				end
-			else
-				output_field_common_C_code "_generic" lo up true bo;
-				(* !!DEBUG!! *)
-				(*print_string "[gen]"*)
-			end;
-		(* !!DEBUG!! *)
-		(*print_string "\n"*)
-
-	| Irg.UNOP (_, op, e) ->
-		convert_unop info.out op;
-		gen_expr info e
-
-	| Irg.BINOP (t, op, e1, e2) ->
-		let size, fname = get_function op t in
-		if fname = "" then
-			begin
-				out "(";
-				gen_expr info e1;
-				out " ";
-				convert_binop info.out op;
-				out " ";
-				gen_expr info e2;
-				out ")"
-			end
-		else
-			begin
-				out fname;
-				out "(";
-				gen_expr info e1;
-				out ", ";
-				gen_expr info e2;
-				if size then begin
-					out ", ";
-					Printf.fprintf info.out "%d" (Sem.get_type_length t);
-				end;
-				out ")"
-			end
-
-	| Irg.COERCE (typ, expr) ->
-		let int_floor v minimum =
-			if v < minimum then
-				minimum
-			else
-				v
-		in
-		let type_C_length t =
-			let tc = convert_type t
-			in
-			match tc with
-			  INT8 -> 8
-			| UINT8 -> 8
-			| INT16 -> 16
-			| UINT16 -> 16
-			| INT32 -> 32
-			| UINT32 -> 32
-			| INT64 -> 64
-			| UINT64 -> 64
-			| FLOAT -> 32
-			| DOUBLE -> 64
-			| LONG_DOUBLE -> 80
-			| CHAR_PTR -> assert false
-		in
-		let sign_ext shift_val =
-			if shift_val = 0 then
-				gen_expr info expr
-			else
-				begin
-				out "((";
-				gen_expr info expr;
-				Printf.fprintf info.out " << (%d)) >> (%d))" shift_val shift_val
-				end
-		in
-		let mask m =
-			gen_expr info expr;
-			out " & 0x";
-			if m=64 then
-			(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
-				output_string info.out "FFFFFFFFFFFFFFFFULL"
-			else
-				Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
-		let approx_C_type t =
-			type_to_string (convert_type t)
-		in
-		let explicit_cast t n =
-			out "(((";
-			out (approx_C_type t);
-			out ")(";
-			gen_expr info expr;
-			out "))";
-			out " & 0x";
-			if n=64 then
-			(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
-				output_string info.out "FFFFFFFFFFFFFFFFULL"
-			else
-				Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one n) Int64.one);
-			out ")"
-		in
-		let apply pref suff = out pref; gen_expr info expr; out suff in
-		let trans _ = gen_expr info expr in
-		let otyp = Sem.get_type_expr expr in
-		let to_range lo up =
-			apply (Printf.sprintf "%s_check_range(" info.proc) (Printf.sprintf  ", %ld, %ld)" lo up) in
-		let to_enum vals =
-			apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
-		let coerce fn =
-			apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
-
-		(* !!DEBUG!! *)
-		(*print_string "toc.gen_expr(coerce( ";
-		Irg.print_type_expr typ;
-		print_string " , ";
-		Irg.print_expr expr;
-		print_string " : ";
-		Irg.print_type_expr otyp;
-		print_string " )\n";*)
-
-		if typ = otyp then gen_expr info expr else
-		(match (typ, otyp) with
-		| Irg.BOOL, Irg.INT _
-		| Irg.BOOL, Irg.CARD _
-		| Irg.BOOL, Irg.FLOAT _
-		| Irg.BOOL, Irg.RANGE _
-		| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? : 1 : 0"
-		| Irg.INT _, Irg.BOOL -> trans ()
-		| Irg.INT n, Irg.INT m when n > m -> sign_ext ((int_floor (type_C_length (Irg.INT m)) 32) - m)
-		| Irg.INT n, Irg.INT m when m > n -> (* truncate *) mask n
-		| Irg.INT _, Irg.INT _ -> trans ()
-		| Irg.INT n, Irg.CARD m when n > m -> mask m
-		| Irg.INT n, Irg.CARD m when n < m -> mask n
-		| Irg.INT _, Irg.CARD _ -> trans ()
-		| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"
-		| Irg.INT 64, Irg.FLOAT (52, 12) -> coerce "dtoi"
-		| Irg.INT _, Irg.RANGE _
- 		| Irg.INT _, Irg.ENUM _ -> trans ()
-		| Irg.CARD _, Irg.BOOL -> trans ()
-		| Irg.CARD n, Irg.INT m when n >= m -> explicit_cast typ n
-		| Irg.CARD n, Irg.INT m when m > n -> mask n
-		| Irg.CARD _, Irg.INT _ -> trans ()
-		| Irg.CARD n, Irg.CARD m when n < m -> mask n
-		| Irg.CARD n, Irg.CARD m when n > m -> mask m
-		| Irg.CARD _, Irg.CARD _ -> trans ()
-		| Irg.CARD 32, Irg.FLOAT (23, 9) -> coerce "ftou"
-		| Irg.CARD 64, Irg.FLOAT (52, 12) -> coerce "dtou"
-		| Irg.CARD _, Irg.RANGE _
-		| Irg.CARD _, Irg.ENUM _ -> trans ()
-		| Irg.FLOAT (23, 9), Irg.INT 32 -> coerce "itof"
-		| Irg.FLOAT (23, 9), Irg.CARD 32 -> coerce "utof"
-		| Irg.FLOAT (52, 12), Irg.INT 64 -> coerce "itod"
-		| Irg.FLOAT (52, 12), Irg.CARD 64 -> coerce "itod"
-		| Irg.RANGE (lo, up), _ -> to_range lo up
-		| Irg.ENUM vals, _ -> to_enum vals
-		| _ -> error_on_expr "unsupported coercition" expr)
-
+	| Irg.CONST (typ, cst) -> gen_const info typ cst
+	| Irg.REF name -> gen_ref info name
+	| Irg.ITEMOF (_, name, idx) -> gen_itemof info name idx
+	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up
+	| Irg.UNOP (t, op, e) -> gen_unop info t op e
+	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2
+	| Irg.COERCE (typ, sube) -> coerce info typ sube
 	| Irg.CANON_EXPR (_, name, args) ->
-		out name;
-		out "(";
+		Printf.fprintf info.out "%s(" name;
 		ignore (List.fold_left
 			(fun com arg -> if com then out ", "; gen_expr info arg; true)
 			false args);
 		out ")"
 	| Irg.EINLINE s ->
 		out s
-
-	| Irg.ELINE (file, line, expr) -> gen_expr info expr
+	| Irg.ELINE (file, line, expr) ->
+		(try gen_expr info expr
+		with PreError f -> raise (LocError (file, line, f)))
 	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
 	| Irg.IF_EXPR _
 	| Irg.SWITCH_EXPR _
 	| Irg.FIELDOF _ -> failwith "should have been reduced"
+	| Irg.CAST (size, expr) -> gen_cast info size expr
+
+
+(** Apply a mask for a type that does not match a C type.
+	@param info	Generation information.
+	@param t	Result type.
+	@param f	Function displaying the expression. *)
+and mask info t f =
+	match t with
+	| Irg.CARD _ when (ctype_size (convert_type t)) <> (type_size t) ->
+		Printf.fprintf info.out "__GLISS_MASK(%d, " (type_size t);
+		f ();
+		Printf.fprintf info.out ")"
+	| _ ->
+		f ()
+
+
+(** Apply a sign extension for a type that does not match a C type.
+	@param info	Generation information.
+	@param t	Result type.
+	@param f	Function displaying the expression. *)
+and exts info t f =
+	match t with
+	| Irg.INT _ when (ctype_size (convert_type t)) <> (type_size t) ->
+		let shift = (ctype_size (convert_type t)) - (type_size t) in
+		Printf.fprintf info.out "__GLISS_EXTS(%d, " shift;
+		f ();
+		Printf.fprintf info.out ")"
+	| _ ->
+		f ()
+
+
+(** Generate a constant.
+	@param info		Generation information.
+	@param typ		Constant type.
+	@param cst		Constant. *)
+and gen_const info typ cst =
+	match typ, cst with
+	| _, Irg.NULL -> failwith "null constant"
+	| Irg.CARD _, Irg.CARD_CONST v ->
+		if (Int32.compare v Int32.zero) < 0 then
+			Printf.fprintf info.out "0x%lxLU" v
+		else if (Int32.compare (Int32.abs v) int_threshold) < 0 then
+			Printf.fprintf info.out "%ld" v
+		else
+			Printf.fprintf info.out "%ldLU" v
+	| _, Irg.CARD_CONST v ->
+		if (Int32.compare (Int32.abs v) int_threshold) < 0 then
+			Printf.fprintf info.out "%ld" v
+		else
+			Printf.fprintf info.out "%ldL" v
+	| Irg.CARD _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "0x%LxLLU" v
+	| _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "%LdLL" v
+	| _, Irg.STRING_CONST s -> Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.FIXED_CONST v -> Printf.fprintf info.out "%f" v
+
+
+(** Generate a reference to a state item.
+	@param name		Name of the state item. *)
+and gen_ref info name =
+	match Irg.get_symbol name with
+	| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst))
+	| Irg.VAR _ -> output_string info.out name
+	| Irg.REG _ -> output_string info.out (state_macro info name)
+	| Irg.MEM _ -> output_string info.out (state_macro info name)
+	| Irg.PARAM _ -> output_string info.out (param_macro info name)
+	| Irg.ENUM_POSS (_, _, v, _) -> output_string info.out (Int32.to_string v)
+	| s -> output_string info.out name (*failwith "expression form must have been removed")*)
+
+
+(** Generate ITEMOF expression, r[idx].
+	@param info		Generation information.
+	@param name		Name of the state item.
+	@param idx		Index. *)
+and gen_itemof info name idx =
+	match Irg.get_symbol name with
+	| Irg.VAR _ ->
+		Printf.fprintf info.out "%s[" name;
+		gen_expr info idx;
+		output_string info.out "]"
+	| Irg.REG _ ->
+		Printf.fprintf info.out "%s[" (state_macro info name);
+		gen_expr info idx;
+		output_string info.out "]"
+	| Irg.MEM (_, _, typ, _)  ->
+		Printf.fprintf info.out "%s_mem_read%s(%s, "
+			info.proc
+			(type_to_mem (convert_type typ))
+			(state_macro info (unaliased_mem_name name));
+		gen_expr info idx;
+		output_string info.out ")"
+	| _ -> failwith "invalid itemof"
+
+
+(** Generate code for unary operation.
+	@param info		Generation information.
+	@param t		Type of result.
+	@param op		Operation.
+	@param e		Operand. *)
+and gen_unop info t op e =
+	match op with
+	| Irg.NOT		-> Printf.fprintf info.out "!"; gen_expr info e
+	| Irg.BIN_NOT	-> mask info t (fun _ -> Printf.fprintf info.out "~"; gen_expr info e)
+	| Irg.NEG		-> mask info t (fun _ -> Printf.fprintf info.out "-"; gen_expr info e)
+
+
+(** Generate code for binary operation.
+	@param info		Generation information.
+	@param t		Type of result.
+	@param op		Operation.
+	@param op1		First operand
+	@param e2		Second operand. *)
+and gen_binop info t op e1 e2 =
+	let out pref sep suff =
+		output_string info.out pref;
+		gen_expr info e1;
+		output_string info.out sep;
+		gen_expr info e2;
+		output_string info.out suff in
+	match op with
+	| Irg.ADD 		-> mask info t (fun _ -> out "(" " + " ")")
+	| Irg.SUB 		-> mask info t (fun _ -> out "(" " - " ")")
+	| Irg.MUL 		-> mask info t (fun _ -> out "(" " * " ")")
+	| Irg.DIV 		-> mask info t (fun _ -> out "(" " / " ")")
+	| Irg.MOD 		-> mask info t (fun _ -> out "(" " % " ")")
+	| Irg.EXP		->
+		mask info t (fun _ -> out (Printf.sprintf "%s_exp%s(" info.proc (type_to_mem(convert_type t))) ", " ")")
+	| Irg.LSHIFT	->  mask info t (fun _ -> out "(" " << " ")")
+	| Irg.RSHIFT	-> out "(" " >> " ")"
+	| Irg.LROTATE	->
+		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+	| Irg.RROTATE	->
+		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+	| Irg.LT		-> out "(" " < " ")"
+	| Irg.GT		-> out "(" " > " ")"
+	| Irg.LE		-> out "(" " <= " ")"
+	| Irg.GE		-> out "(" " >= " ")"
+	| Irg.EQ		-> out "(" " == " ")"
+	| Irg.NE		-> out "(" " != " ")"
+	| Irg.AND		-> out "(" " && " ")"
+	| Irg.OR		-> out "(" " || " ")"
+	| Irg.BIN_AND	-> exts info t (fun _ -> out "(" " & " ")")
+	| Irg.BIN_OR	-> exts info t (fun _ -> out "(" " | " ")")
+	| Irg.BIN_XOR	-> exts info t (fun _ -> out "(" " ^ " ")")
+	| Irg.CONCAT	-> out (Printf.sprintf "%s_concat%s(" info.proc (type_to_mem(convert_type t))) ", " ")"
+
+
+(** Generate code for coercition.
+	@param typ	Type to coerce to.
+	@param expr	Expression to coerce. *)
+and coerce info typ expr =
+	let int_floor v minimum =
+		if v < minimum then minimum
+		else v in
+
+	let type_C_length t =
+		let tc = convert_type t in
+		match tc with
+		  INT8 -> 8
+		| UINT8 -> 8
+		| INT16 -> 16
+		| UINT16 -> 16
+		| INT32 -> 32
+		| UINT32 -> 32
+		| INT64 -> 64
+		| UINT64 -> 64
+		| FLOAT -> 32
+		| DOUBLE -> 64
+		| LONG_DOUBLE -> 80
+		| CHAR_PTR -> assert false in
+
+	let sign_ext shift_val =
+		if shift_val = 0 then gen_expr info expr
+		else begin
+			output_string info.out "((";
+			gen_expr info expr;
+			Printf.fprintf info.out " << (%d)) >> (%d))" shift_val shift_val
+		end in
+
+	let mask m =
+		gen_expr info expr;
+		output_string info.out " & 0x";
+		if m = 64 then
+		(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
+			output_string info.out "FFFFFFFFFFFFFFFFULL"
+		else
+			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one m) Int64.one) in
+
+	let approx_C_type t =
+		type_to_string (convert_type t) in
+
+	let explicit_cast t n =
+		output_string info.out "(((";
+		output_string info.out (approx_C_type t);
+		output_string info.out ")(";
+		gen_expr info expr;
+		output_string info.out "))";
+		output_string info.out " & 0x";
+		if n=64 then
+		(* cannot calculate this value with Int64 and the given algorithm, 1<<64 is too big *)
+			output_string info.out "FFFFFFFFFFFFFFFFULL"
+		else
+			Printf.fprintf info.out "%LXULL" (Int64.sub (Int64.shift_left Int64.one n) Int64.one);
+		output_string info.out ")" in
+
+	let apply pref suff = output_string info.out pref; gen_expr info expr; output_string info.out suff in
+	let trans _ = gen_expr info expr in
+	let otyp = Sem.get_type_expr expr in
+	let to_range lo up =
+		apply (Printf.sprintf "%s_check_range(" info.proc) (Printf.sprintf  ", %ld, %ld)" lo up) in
+	let to_enum vals =
+		apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
+	let coerce fn =
+		apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
+
+	if typ = otyp then gen_expr info expr else
+	(match (typ, otyp) with
+	| Irg.BOOL, Irg.INT _
+	| Irg.BOOL, Irg.CARD _
+	| Irg.BOOL, Irg.FLOAT _
+	| Irg.BOOL, Irg.RANGE _
+	| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? 1 : 0)"
+	| Irg.INT _, Irg.BOOL -> trans ()
+	| Irg.INT n, Irg.INT m when n > m -> sign_ext ((int_floor (type_C_length (Irg.INT m)) 32) - m)
+	| Irg.INT n, Irg.INT m when m > n -> (* truncate *) mask n
+	| Irg.INT _, Irg.INT _ -> trans ()
+	| Irg.INT n, Irg.CARD m when n > m -> gen_expr info expr
+	| Irg.INT n, Irg.CARD m when n < m -> mask n
+	| Irg.INT _, Irg.CARD _ -> trans ()
+	| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"
+	| Irg.INT 64, Irg.FLOAT (52, 12) -> coerce "dtoi"
+	| Irg.INT _, Irg.RANGE _
+	| Irg.INT _, Irg.ENUM _ -> trans ()
+	| Irg.CARD _, Irg.BOOL -> trans ()
+	| Irg.CARD n, Irg.INT m when n >= m -> explicit_cast typ n
+	| Irg.CARD n, Irg.INT m when m > n -> mask n
+	| Irg.CARD _, Irg.INT _ -> trans ()
+	| Irg.CARD n, Irg.CARD m when n < m -> mask n
+	| Irg.CARD n, Irg.CARD m when n > m -> gen_expr info expr
+	| Irg.CARD _, Irg.CARD _ -> trans ()
+	| Irg.CARD 32, Irg.FLOAT (23, 9) -> coerce "ftou"
+	| Irg.CARD 64, Irg.FLOAT (52, 12) -> coerce "dtou"
+	| Irg.CARD _, Irg.RANGE _
+	| Irg.CARD _, Irg.ENUM _ -> trans ()
+	| Irg.FLOAT (23, 9), _
+	| Irg.FLOAT (52, 12), _ -> gen_expr info expr
+	| Irg.RANGE (lo, up), _ -> to_range lo up
+	| Irg.ENUM vals, _ -> to_enum vals
+	| _ ->
+		Irg.print_type_expr typ;
+		Irg.print_type_expr otyp;
+		error_on_expr "unsupported coercition" expr)
+
+
+(** Generate a cast expression.
+	@param info		Generation information.
+	@param size		Size in bits.
+	@param expr		Expression to cast. *)
+and gen_cast info size expr =
+	let etyp = convert_type (Sem.get_type_expr expr) in
+	let ctyp = convert_type (Irg.CARD(size)) in
+	Printf.fprintf info.out "%s_cast_%s2%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
+	gen_expr info expr;
+	output_char info.out ')'
+
+
+(** Generate code for a bit field.
+	@param info		Generation information.
+	@param typ		Result type.
+	@param expr		Accessed expression.
+	@param lo		Lower bit index.
+	@param hi		Higher bit index. *)
+and gen_bitfield info typ expr lo up =
+
+	let rec is_const e =
+		match e with
+		| Irg.CONST(_, _) -> true
+		| Irg.ELINE(_, _, ee) -> is_const ee
+		| Irg.CAST(_, expr) -> is_const expr
+		| _ -> false in
+
+	(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10000000000000!) *)
+	let const_val e =
+		match e with
+		| Irg.CARD_CONST(i32) -> Int32.to_int i32
+		| Irg.CARD_CONST_64(i64) -> Int64.to_int i64
+		| _ -> failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)" in
+
+	let bitorder_to_int bo =
+		match bo with
+		| LOWERMOST -> 0
+		| UPPERMOST -> 1 in
+
+	(* stop printing after the expr and the bounds, a closing parens or the bit_order param has to be added apart *)
+	let output_field_common_C_code sufx a b arg3 b_o =
+		Printf.fprintf info.out "%s_field%s%s("
+			info.proc
+			(type_to_mem (convert_type (Sem.get_type_expr expr)))
+			sufx;
+		gen_expr info expr;
+		output_string info.out ", ";
+		gen_expr info a;
+		output_string info.out ", ";
+		gen_expr info b;
+		if arg3 then Printf.fprintf info.out ", %s )" (string_of_int b_o)
+		else output_string info.out ")" in
+
+	(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
+	if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
+		output_field_common_C_code "" lo up false 0
+	else
+		begin
+		let bo = bitorder_to_int info.bito
+		in
+		(* 2 const => we can decide right now if inversion is to be done or not *)
+		if (is_const lo) && (is_const up) then
+			begin
+			if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
+				if bo != 0 then
+					output_field_common_C_code "_inverted" up lo false 0
+				else
+					output_field_common_C_code "" up lo false 0
+			else
+				if bo != 0 then
+					output_field_common_C_code "" lo up false 0
+				else
+					output_field_common_C_code "_inverted" lo up false 0
+			end
+		else
+			output_field_common_C_code "_generic" lo up true bo;
+		end
+
+
+(** Test if a statement is composed of multiple statements.
+	@param stat		Statement to test.
+	@return			True if multiple, false else. *)
+let rec multiple_stats stat =
+	match stat with
+	| Irg.NOP
+	| Irg.EVAL _
+	| Irg.EVALIND _
+	| Irg.SET _
+	| Irg.CANON_STAT _
+	| Irg.ERROR _
+	| Irg.IF_STAT(_, _, Irg.NOP)
+	| Irg.SWITCH_STAT _
+	| Irg.SETSPE _
+	| Irg.INLINE _ -> false
+	| Irg.SEQ _
+	| Irg.IF_STAT _ -> true
+	| Irg.LINE (_, _, stat) -> multiple_stats stat
 
 
 (** Generate a prepared statement.
@@ -1455,17 +1559,19 @@ let rec gen_stat info stat =
 				(cstring msg))
 
 	| Irg.IF_STAT (cond, tpart, epart) ->
+		let tmult = multiple_stats tpart in
+		let emult = multiple_stats epart in
 		line (fun _ ->
 			out "if(";
 			gen_expr info cond;
-			out ") {");
-		indented (fun _ -> gen_stat info tpart);
-		line (fun _ -> out "}");
+			out (if tmult then ") {" else ")"));
+		indented (fun _ -> if (is_nop tpart) then line (fun _ -> out ";") else gen_stat info tpart);
+		if tmult then line (fun _ -> out "}");
 		if not (is_nop epart) then
 			begin
-				line (fun _ -> out "else {");
+				line (fun _ -> out (if emult then "else {" else "else"));
 				indented (fun _ -> gen_stat info epart);
-				line (fun _ -> out "}")
+				if emult then line (fun _ -> out "}")
 			end
 
 	| Irg.SWITCH_STAT (cond, cases, def) ->
@@ -1479,8 +1585,8 @@ let rec gen_stat info stat =
 					out "case ";
 					gen_expr info case;
 					out ":");
-				indented (fun _ -> gen_stat info stat);
-				line (fun _ -> out "break;"))
+				indented (fun _ -> gen_stat info stat; line (fun _ -> out "break;"))
+				(*line (fun _ -> out "break;")*))
 			cases;
 		if def <> Irg.NOP then
 			begin

@@ -16,7 +16,6 @@ extern  "C"
 #define gliss_error(e) fprintf(stderr, (e))
 
 
-
 /*
 	donne la valeur d'une zone mémoire (une instruction) en ne prenant
 	en compte que les bits indiqués par le mask

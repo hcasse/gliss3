@@ -96,7 +96,8 @@ let rec gen_disasm info inst expr =
 		| Irg.BINOP _
 		| Irg.CONST _
 		| Irg.COERCE _
-		| Irg.EINLINE _ ->
+		| Irg.EINLINE _
+		| Irg.CAST _ ->
 			Toc.error_on_expr "bad syntax expression" expr
 		| Irg.ELINE (file, line, e) ->
 			Printf.printf "%s: %d:\n" file line;
