@@ -16,6 +16,10 @@ extern  "C"
 #define gliss_error(e) fprintf(stderr, (e))
 
 
+/* decoder macros */
+#define __EXTRACT(m, i)	valeur_sur_mask_bloc(i, m)
+#define __EXTS(m, i, n)	(((int32_t)__EXTRACT(m, i) << n) >> n)
+
 /*
 	donne la valeur d'une zone mémoire (une instruction) en ne prenant
 	en compte que les bits indiqués par le mask
@@ -91,8 +95,7 @@ static $(proc)_inst_t *$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, 
 
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
-	mask = $(mask_32)UL;
-	$(PROC)_$(IDENT)_$(PARAM) = valeur_sur_mask_bloc(code_inst, mask); /* res->instrinput[$(INDEX)].val.$(param_type) */
+	$(PROC)_$(IDENT)_$(PARAM) = $(decoder); /*valeur_sur_mask_bloc(code_inst, mask);*/ /* res->instrinput[$(INDEX)].val.$(param_type) */
 	$(if !GLISS_NO_PARAM)inst->instrinput[$(INDEX) + 2].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;$(end)
 	$(end)
 	return inst;

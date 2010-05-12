@@ -32,7 +32,7 @@ $(end)
 #define $(PROC)__SIZE	$(min_instruction_size)
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
 	/* must not be executed ! */
-	$(proc)_execute_unknown(state, $(PROC)_$(NPC_NAME));
+	$(proc)_execute_unknown(state, $(PROC)_UNKNOWN___IADDR);
 }
 
 $(foreach instructions)

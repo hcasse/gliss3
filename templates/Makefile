@@ -23,3 +23,8 @@ clean:
 
 distclean: clean
 	-rm -rf $$(DISTCLEAN)
+
+# other dependencies
+fetch.o: fetch_table.h
+code.o: code_table.h
+decode.o: decode_table.h

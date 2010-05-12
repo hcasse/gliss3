@@ -188,15 +188,21 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 }
 
 float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
-	float x;	/* workaround bug in GCC 4.4.1 */
-	*((uint32_t *)&x) = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
-	return x;
+	union {
+		uint64_t i;
+		double d;
+	} x;
+	x.i = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
+	return x.d;
 }
 
 double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
-	double x;	/* workaround bug in GCC 4.4.1 */
-	*((uint64_t *)&x) = gliss_set_field64u(*((uint64_t *)&v), s, u, l);
-	return x;
+	union {
+		uint64_t i;
+		double d;
+	} x;
+	x.i = gliss_set_field64u(*((uint64_t *)&v), s, u, l);
+	return x.d;
 }
 
 

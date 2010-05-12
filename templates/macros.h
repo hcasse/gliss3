@@ -18,6 +18,7 @@ $(end)*/
 
 
 /* parameter access and instruction size macros */
+#define $(PROC)_UNKNOWN___IADDR			((inst)->instrinput[0].val.addr)
 #define $(PROC)_UNKNOWN___ISIZE			$(min_instruction_size)
 $(foreach instructions)
 #define $(PROC)_$(IDENT)___IADDR		((inst)->instrinput[0].val.addr)

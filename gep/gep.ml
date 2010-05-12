@@ -122,11 +122,20 @@ let make_env info =
 			(fun min inst ->
 				let size = Fetch.get_instruction_length inst
 				in if size < min then size else min)
-			1024
-	in
+			1024 in
+
+	let decoder inst idx out =
+		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx) in
+		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, code_inst)" mask in
+		let exts n = Printf.fprintf out "__EXTS(0x%08lX, code_inst, %d)" mask (32 - n) in
+		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
+		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
+		| _ -> extract () in
+
+
 	let add_mask_32_to_param inst idx _ _ dict =
-		("mask_32", Templater.TEXT (fun out -> Printf.fprintf out "0X%08lX" (Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)))) ::
-		dict in
+		("decoder", Templater.TEXT (decoder inst idx)) :: dict in
+
 	let add_size_to_inst inst dict =
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
 		("gen_code", Templater.TEXT (fun out ->
