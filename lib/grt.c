@@ -467,3 +467,33 @@ COERCE(itof, float, int32_t)
 COERCE(utof, float, uint32_t)
 COERCE(itod, double, int64_t)
 COERCE(utod, double, uint64_t)
+
+
+/**
+ * Cast the given float to raw 32-bits.
+ * @param f		Float to cast.
+ * @return		Casted float.
+ */
+uint32_t gliss_cast_f232(float f) {
+	union {
+		uint32_t i;
+		float f;
+	} d;
+	d.f = f;
+	return d.i;
+}
+
+
+/**
+ * Cast the given float to raw 64-bits.
+ * @param f		Float to cast.
+ * @return		Casted float.
+ */
+uint64_t gliss_cast_d264(double f) {
+	union {
+		uint64_t i;
+		float f;
+	} d;
+	d.f = f;
+	return d.i;
+}

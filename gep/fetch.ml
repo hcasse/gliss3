@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * OGliss is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -220,7 +220,7 @@ let str01_to_int32 s =
 	else
 		aux s 0 Int32.zero
 
-(** convert the 1st n chars of a string to an int_n 
+(** convert the 1st n chars of a string to an int_n
 the string is supposed to represent a binary number (only 0 and 1) *)
 (*let str_to_int_n s n =
 	let s_size = String.length s
@@ -317,7 +317,7 @@ let calcul_value_on_mask sp mask =
 (* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
 type dec_tree = DecTree of int32 list * Irg.spec list * int32 * int32 * dec_tree list
 
-		
+
 let print_dec_tree tr =
 	let name_of t =
 		let rec aux l s =
@@ -374,7 +374,7 @@ let get_instr_list dt =
 		sl
 
 
-(* return a list like [(v_i, i_i),...] 
+(* return a list like [(v_i, i_i),...]
 the v_is will describe all mask values, i_i will be an associated instruction,
 several tuples with the same v_i can appear for different instructions *)
 let create_son_list_of_dec_node dt =
@@ -493,7 +493,7 @@ let build_dec_nodes m =
 		aux [DecTree([], specs, mask, mask, [])]
 	| _ ->
 		[]
-		
+
 
 let test_build_dec_nodes n =
 	match n with
@@ -619,7 +619,7 @@ let print_dot_edges edge =
 		()
 
 let print_dot_dec_tree_list tl =
-	begin		
+	begin
 	print_string "digraph DEC {\n";
 	print_string "node [shape=Mrecord, labeljust=1, fontsize=10];\n";
 	List.iter (fun x -> begin print_dot_dec_tree x; print_string "\n" end) tl;
@@ -737,7 +737,7 @@ let output_table_C_decl out dt dl =
 	(* !!DEBUG!! *)
 	(*match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
-	print_string ("node treated[" ^ (name_of dt) ^ "], spec=["); 
+	print_string ("node treated[" ^ (name_of dt) ^ "], spec=[");
 	List.iter (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
 	print_string  "], sons=[";
 	List.iter (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
@@ -750,7 +750,7 @@ let output_table_C_decl out dt dl =
 		begin
 		(* !!DEBUG!! *)
 		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
-		
+
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
@@ -796,9 +796,9 @@ exception CheckIsizeException
 (* special value for fetch size, represent generic fetch *)
 let fetch_generic = -1
 
-			
+
 let output_all_table_C_decl out =
-	let isize = Irg.get_isize ()
+	(*let isize = Irg.get_isize ()
 	in
 	let get_min_max_instr_size_from_instr _ =
 		let iter_fun accu inst =
@@ -817,8 +817,8 @@ let output_all_table_C_decl out =
 		let init_val = List.hd (Irg.get_isize ())
 		in
 		Iter.iter iter_fun (init_val, init_val)
-	in
-	let get_min_max_instr_size_from_isize _ =
+	in*)
+	(*let get_min_max_instr_size_from_isize _ =
 		let min_fun a b_i =
 			if b_i < a then
 				b_i
@@ -833,12 +833,12 @@ let output_all_table_C_decl out =
 		in
 		(List.fold_left min_fun (List.hd isize) (List.tl isize),
 		 List.fold_left max_fun (List.hd isize) (List.tl isize))
-	in
-	let is_isize _ =
+	in*)
+	(*let is_isize _ =
 		isize != []
-	in
+	in*)
 	(* check if all instr have their size in isize *)
-	let check_isize _ =
+	(*let check_isize _ =
 		let iter_fun accu inst =
 			let size = get_instruction_length inst
 			in
@@ -852,9 +852,9 @@ let output_all_table_C_decl out =
 		with
 		CheckIsizeException ->
 			false
-	in
+	in*)
 	(* list of the specialized fixed fetch size (for RISC ISA), other or variable sizes imply use of generic fetch and decode *)
-	let fetch_sizes = [16; 32; 64]
+	(*let fetch_sizes = [16; 32; 64]
 	in
 	let get_fetch_size_from_min_max min_max =
 		let (min_size, max_size) = min_max
@@ -881,7 +881,7 @@ let output_all_table_C_decl out =
 			get_fetch_size_from_min_max (get_min_max_instr_size_from_instr ())
 	in
 	let fetch_size = choose_fetch_size ()
-	in
+	in*)
 	let aux dl dt =
 		(* TODO: parametrize with fetch_size *)
 		output_table_C_decl out dt dl
@@ -889,7 +889,7 @@ let output_all_table_C_decl out =
 	let dl  = sort_dectree_list (build_dec_nodes 0)
 	in
 		List.iter (aux dl) dl
-	
+
 
 let test_sort _ =
 	let name_of t =

@@ -99,6 +99,7 @@ type expr =
 	| CONST of type_expr*const
 	| ELINE of string * int * expr
 	| EINLINE of string				(** inline source in expression (for internal use only) *)
+	| CAST of int * expr			(** binary cast (size in bits, expression *)
 
 (** Statements *)
 type location =
@@ -463,9 +464,11 @@ let output_const out cst =
 	  NULL ->
 	    output_string out "<null>"
 	| CARD_CONST v ->
-		output_string out (Int32.to_string v)
+		output_string out (Int32.to_string v);
+		output_string out "L"
 	| CARD_CONST_64 v->
-		output_string out (Int64.to_string v)
+		output_string out (Int64.to_string v);
+		output_string out "LL"
 	| STRING_CONST v ->
 		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
@@ -581,7 +584,7 @@ let rec output_expr out e =
 		(*output_string out "(";
 		output_type_expr out t;
 		output_string out ":]";*)
-		
+
 		output_string out e;
 		output_string out ".";
 		output_string out n
@@ -647,10 +650,18 @@ let rec output_expr out e =
 		Printf.fprintf out "(%s:%d: " file line;
 		output_expr out e;
 		output_string out ")"
-	| CONST (_,c) ->
-		output_const out c
+	| CONST (t, c) ->
+		output_string out "const(";
+		output_type_expr out t;
+		output_string out ", ";
+		output_const out c;
+		output_string out ")"
 	| EINLINE s ->
 		Printf.fprintf out "inline(%s)" s
+	| CAST (size, expr) ->
+		Printf.fprintf out "cast<card(%d)>(" size;
+		output_expr out expr;
+		output_string out ")"
 
 
 (** Print an expression.

@@ -289,10 +289,11 @@ let rec substitute_in_expr name op ex =
 	| CONST(te, c)
 		-> CONST(te, c)
 	| ELINE (file, line, e) ->
-		(* ELINE useless here *)
-		substitute_in_expr name op e
+		ELINE (file, line, substitute_in_expr name op e)
 	| EINLINE _ ->
 		ex
+	| CAST(size, expr) ->
+		CAST(size, substitute_in_expr name op expr)
 
 
 
@@ -331,10 +332,11 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
 	| ELINE(file, line, e) ->
-		(* ELINE no more useful here *)
-		change_name_of_var_in_expr e var_name new_name
+		ELINE (file, line, change_name_of_var_in_expr e var_name new_name)
 	| EINLINE _ ->
 		ex
+	| CAST(size, expr) ->
+		CAST(size, change_name_of_var_in_expr expr var_name new_name)
 
 
 let rec change_name_of_var_in_location loc var_name new_name =
@@ -399,12 +401,12 @@ print_string "\nspec ="; print_spec op; flush stdout;*)			(* !!DEBUG!! *)
 			| _ ->
 				(* !!DEBUG!! *)
 				(*print_string "[["; Irg.print_expr mv; print_string "]]\n";*)
-				
+
 				if i=NONE then
 					if u=NONE && l=NONE then
 						(* LOC_REF(t, s, 0, 0, 0) <=> REF(s) *)
 						(* check type ? *)
-						
+
 						failwith "cannot substitute here (_ 1), loc_expr removed (instantiate.ml::substitute_in_location)"
 						(*LOC_EXPR(mv)*)
 					else
@@ -463,7 +465,7 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 			else
 				Irg.print_statement (get_stat_from_attr_from_spec op attr);
 			print_string "]]\n";*)
-			
+
 			if is_attr_recursive op attr then
 				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
 				EVAL(n ^ "_" ^ attr)
@@ -475,7 +477,7 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 			(*print_string "subst_stat (else) [[";
 			Irg.print_statement statement;
 			print_string "]]\n";*)
-			
+
 			EVALIND(n, attr)
 	| SET(l, e) ->
 		(* !!DEBUG!! *)
@@ -644,7 +646,7 @@ let string_to_regexp_list s =
 		res;
 	print_string "]\n";*)
 	res
-	
+
 
 let str_list_to_str l =
 	String.concat "" l
@@ -670,7 +672,32 @@ let rec print_reg_list e_l =
 
 
 let rec simplify_format_expr ex =
-	let rec reduce f params =
+
+	let rec insert_format f1 f_l p1 p_l =
+		match p1 with
+
+		| FORMAT(s, e_l) ->
+			(* reduce the format, check compatibility type between format and param later *)
+			let new_f1 = string_to_regexp_list s in
+			let (a, b) = reduce f_l p_l in
+			(* !!DEBUG!! *)
+			(*print_string "s_f_e(f1=delim)(p1(frmt)=[[";
+			print_expr p1;
+			print_string ("]]) ["^t^"]\n");*)
+			(new_f1 @ a, e_l @ b)
+
+		| ELINE (file, line, expr) ->
+			insert_format f1 f_l expr p_l
+
+		| _ ->
+			let (a, b) = reduce f_l p_l in
+			(* !!DEBUG!! *)
+			(*print_string "s_f_e(f1=delim)(p1(_)=[[";
+			print_expr p1;
+			print_string ("]]) ["^t^"]\n");*)
+			(f1::a,  p1::b)
+
+	and reduce f params =
 		(* !!DEBUG!! *)
 		(*print_string "simpl_frmt_expr, str_list=[";
 		List.iter
@@ -682,7 +709,7 @@ let rec simplify_format_expr ex =
 		print_string "] params=[";
 		List.iter (fun x -> Irg.print_expr x; print_string "; " ) params;
 		print_string "]\n";*)
-		
+
 		match f with
 		[] ->
 			if params = [] then
@@ -701,32 +728,8 @@ let rec simplify_format_expr ex =
 			| Str.Delim(t) ->
 				(* format *)
 				(match params with
-				[] ->
-					failwith "not enough params here (instantiate.ml::simplify_format_expr::reduce)"
-				| p1::p_l ->
-					(match p1 with
-					FORMAT(s, e_l) ->
-						(* reduce the format, check compatibility type between format and param later *)
-						let new_f1 = string_to_regexp_list s
-						in
-						let (a, b) = reduce f_l p_l
-						in
-						(* !!DEBUG!! *)
-						(*print_string "s_f_e(f1=delim)(p1(frmt)=[[";
-						print_expr p1;
-						print_string ("]]) ["^t^"]\n");*)
-						
-						(new_f1 @ a, e_l @ b)
-					| _ ->
-						let (a, b) = reduce f_l p_l
-						in
-						(* !!DEBUG!! *)
-						(*print_string "s_f_e(f1=delim)(p1(_)=[[";
-						print_expr p1;
-						print_string ("]]) ["^t^"]\n");*)
-						(f1::a, p1::b)
-					)
-				)
+				| [] 		-> failwith "not enough params here (instantiate.ml::simplify_format_expr::reduce)"
+				| p1::p_l	-> insert_format f1 f_l p1 p_l)
 			)
 	in
 	match ex with
@@ -736,7 +739,7 @@ let rec simplify_format_expr ex =
 		(*print_string ("simplify_format, frmt(" ^ s ^ "; ");
 		List.iter (fun x -> Irg.print_expr x; print_string "; ") e_l;
 		print_string ")\n";*)
-		
+
 		string_to_regexp_list s
 		in
 		let simpl_e_l = List.map simplify_format_expr e_l
@@ -769,9 +772,11 @@ let rec simplify_format_expr ex =
 	| CONST(t_e, c) ->
 		CONST(t_e, c)
 	| ELINE(file, line, e) ->
-		simplify_format_expr e
+		ELINE (file, line, simplify_format_expr e)
 	| EINLINE _ ->
 		ex
+	| CAST(size, expr) ->
+		CAST(size, simplify_format_expr expr)
 
 
 let rec remove_const_param_from_format f =
