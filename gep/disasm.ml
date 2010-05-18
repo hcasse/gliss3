@@ -100,7 +100,7 @@ let rec gen_disasm info inst expr =
 		| Irg.CAST _ ->
 			Toc.error_on_expr "bad syntax expression" expr
 		| Irg.ELINE (file, line, e) ->
-			Printf.printf "%s: %d:\n" file line;
+			(*Printf.printf "%s: %d:\n" file line;*)
 			Toc.locate_error file line (gen_disasm info inst) e in
 
 		(* !!DEBUG!! *)
