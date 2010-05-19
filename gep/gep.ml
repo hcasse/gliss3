@@ -160,8 +160,18 @@ let make_env info =
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
 	("gen_init_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
+			let spec_init = Irg.get_symbol "init" in
+			let init_action_attr =
+				match Iter.get_attr spec_init "action" with
+				| Iter.STAT(s) -> Irg.ATTR_STAT("action", s)
+				| _ -> failwith "(gep.ml::make_env::$(gen_init_code)) attr action for op init must be a stat"
+			in
 			info.Toc.out <- out;
-			Toc.gen_stat info (Toc.get_init_code () ))) ::
+			info.Toc.inst <- spec_init;
+			info.Toc.iname <- "init";
+			(* stack params (none) and attrs (only action) for "init" op *)
+			Irg.attr_stack [init_action_attr];Toc.get_stat_attr "action";
+			Toc.gen_action info "action")) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::

@@ -8,7 +8,7 @@
 
 #include "decode_table.h"
 
-#define gliss_error(e) fprintf(stderr, (e))
+#define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
 /* endianness */
 typedef enum gliss_endianness_t {

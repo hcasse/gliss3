@@ -7,7 +7,7 @@
 
 #include "fetch_table.h" /* or ../include/gliss/ ? */
 
-#define gliss_error(e) fprintf(stderr, (e))
+#define gliss_error(e) fprintf(stderr, "%s\n", (e))
 /* we should pass the next option on command line */
 #define GLISS_NO_CACHE_FETCH
 

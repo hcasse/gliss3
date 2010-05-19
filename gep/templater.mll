@@ -46,9 +46,13 @@ type state_t =
 let do_text out dict id =
 	try
 		(match List.assoc id dict with
-		  TEXT f -> f out
+		  TEXT f ->
+		  	(try f out
+			with Not_found -> failwith "error in generation")
 		| _ -> failwith (id ^ " is not a text !"))
 	with Not_found ->
+		List.iter (fun (n, _) -> Printf.printf "=>[%s]\n" n) dict;
+		Printf.printf "<=[%s]\n" id;
 		failwith (id ^ " is undefined !")
 
 

@@ -20,7 +20,7 @@ $(foreach modules)
 $(end)
 
 /* TODO: add some error messages when malloc fails */
-#define gliss_error(e) fprintf(stderr, (e))
+#define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
 /* useful macros */
 /*#define __GLISS_MASK(n, e) ((e) & ((1LL << n) - 1))*/

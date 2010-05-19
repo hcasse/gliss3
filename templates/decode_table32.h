@@ -13,7 +13,7 @@ extern  "C"
 #endif
 
 /* TODO: add some error messages when malloc fails */
-#define gliss_error(e) fprintf(stderr, (e))
+#define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
 
 /* decoder macros */

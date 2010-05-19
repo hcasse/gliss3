@@ -1627,7 +1627,8 @@ let find_recursives info name =
 				| Irg.INLINE _ -> recs in
 
 			match Iter.get_attr info.inst name with
-			| Iter.STAT stat -> look_stat stat recs
+			| Iter.STAT stat ->
+				look_stat stat recs
 			| _ -> failwith "find_recursives" in
 
 	info.recs <- look_attr name [] []
@@ -1676,7 +1677,7 @@ let gen_pc_increment info =
 	@param name		Name of the attribute. *)
 let gen_action info name =
 	info.indent <- 1;
-
+	
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;
@@ -1690,6 +1691,7 @@ let gen_action info name =
 
 	(* generate the code *)
 	gen_call info name;
+
 	cleanup_temps info;
 	StringHashtbl.clear info.attrs
 
