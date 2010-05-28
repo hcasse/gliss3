@@ -84,22 +84,22 @@ type const =
 	| FIXED_CONST of float
 
 type expr =
-	  NONE
-	| COERCE of type_expr * expr
-	| FORMAT of string * expr list
-	| CANON_EXPR of type_expr * string * expr list
-	| REF of string
-	| FIELDOF of type_expr * string * string
-	| ITEMOF of type_expr * string * expr
-	| BITFIELD of type_expr * expr * expr * expr
-	| UNOP of type_expr * unop * expr
-	| BINOP of type_expr * binop * expr * expr
-	| IF_EXPR of type_expr * expr * expr * expr
-	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr
-	| CONST of type_expr*const
-	| ELINE of string * int * expr
-	| EINLINE of string				(** inline source in expression (for internal use only) *)
-	| CAST of int * expr			(** binary cast (size in bits, expression *)
+	  NONE															(* null expression *)
+	| COERCE of type_expr * expr									(* explicit coercition *)
+	| FORMAT of string * expr list									(* format expression *)
+	| CANON_EXPR of type_expr * string * expr list					(* canonical expression *)
+	| REF of string													(* attribute / state item access *)
+	| FIELDOF of type_expr * string * string						(* attribute access *)
+	| ITEMOF of type_expr * string * expr							(* state item array access *)
+	| BITFIELD of type_expr * expr * expr * expr					(* bit field access *)
+	| UNOP of type_expr * unop * expr								(* unary operation (negation, not, etc) *)
+	| BINOP of type_expr * binop * expr * expr						(* binary operation (arithmetic, logic, shift, etc) *)
+	| IF_EXPR of type_expr * expr * expr * expr						(* if expression *)
+	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr	(* switch expression *)
+	| CONST of type_expr * const									(* constant value *)
+	| ELINE of string * int * expr									(* source/line information (file, line, expression) *)
+	| EINLINE of string												(** inline source in expression (for internal use only) *)
+	| CAST of type_expr * expr										(** binary cast (target type, expression *)
 
 (** Statements *)
 type location =
@@ -658,8 +658,10 @@ let rec output_expr out e =
 		output_string out ")"
 	| EINLINE s ->
 		Printf.fprintf out "inline(%s)" s
-	| CAST (size, expr) ->
-		Printf.fprintf out "cast<card(%d)>(" size;
+	| CAST (typ, expr) ->
+		output_string out "cast<";
+		output_type_expr out typ;
+		output_string out ">(";
 		output_expr out expr;
 		output_string out ")"
 

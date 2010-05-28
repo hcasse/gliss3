@@ -22,13 +22,6 @@ $(end)
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
-/* useful macros */
-/*#define __GLISS_MASK(n, e) ((e) & ((1LL << n) - 1))*/
-#define __GLISS_MASK32(n, e) ((n)==32 ? (e) : ((e) & ((1 << n) - 1)))
-#define __GLISS_MASK64(n, e) ((n)==64 ? (e) : ((e) & ((1LL << n) - 1)))
-#define __GLISS_EXTS(n, e) (((e) << n) >> n)
-
-
 #define $(PROC)__SIZE	$(min_instruction_size)
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
 	/* must not be executed ! */

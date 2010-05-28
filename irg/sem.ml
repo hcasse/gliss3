@@ -559,7 +559,7 @@ and get_type_expr exp=
 	| CONST (t,_)->t
 	| ELINE (_, _, e) -> get_type_expr e
 	| EINLINE _ -> NO_TYPE
-	| CAST(size, _) -> CARD(size)
+	| CAST(t, _) -> t
 
 
 (** Give the bit length of a type expression
@@ -801,7 +801,7 @@ let get_mult_div_mod e1 e2 bop=
 let to_card e =
 	match get_type_expr e with
 	| FLOAT _
-	| FIX _ -> CAST(get_type_length (get_type_expr e), e)
+	| FIX _ -> CAST(get_type_expr e, e)
 	| _ -> e
 
 
@@ -1670,6 +1670,20 @@ let test_data name indexed =
 	| Irg.MEM _				(* for compatibility with GLISS v1 *)
 	| Irg.REG _
 	| Irg.VAR _ -> ()
-	| _ -> raise (SemError (Printf.sprintf "the indefifier \"%s\" does not design a data" name))
+	| _ -> raise (SemError (Printf.sprintf "the idenfifier \"%s\" does not design a data" name))
 
 
+(** Build a set expression and check the types (possibly introducing
+	casts).
+	@param loc		Assigned location.
+	@param expr		Assigned expression.
+	@return			Built statement. *)
+let make_set loc expr =
+	let ltype = get_loc_type loc in
+	let etype = get_type_expr expr in
+	match ltype, etype with
+	| FLOAT _, CARD _
+	| FLOAT _, INT _
+	| CARD _, FLOAT _
+	| INT _, FLOAT _ -> Irg.SET (loc, Irg.CAST(ltype, expr))
+	| _ -> Irg.SET (loc, expr)

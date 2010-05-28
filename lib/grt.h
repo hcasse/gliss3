@@ -155,14 +155,29 @@ double gliss_coerce_itod(int64_t i);
 double gliss_coerce_utod(uint64_t u);
 
 /* cast */
-#define gliss_cast_f28(f) (uint8_t)gliss_cast_f232(f)
-#define gliss_cast_f216(f) (uint16_t)gliss_cast_f232(f)
-uint32_t gliss_cast_f232(float f);
-#define gliss_cast_f264(f) (uint64_t)gliss_cast_f232(f)
-#define gliss_cast_d28(f) (uint8_t)gliss_cast_d264(f)
-#define gliss_cast_d216(f) (uint16_t)gliss_cast_d264(f)
-#define gliss_cast_d232(f) (uint32_t)gliss_cast_d264(f)
-uint64_t gliss_cast_d264(double f);
+#define gliss_cast_fto8(f) (uint8_t)gliss_cast_fto32(f)
+#define gliss_cast_fto16(f) (uint16_t)gliss_cast_fto32(f)
+uint32_t gliss_cast_fto32(float f);
+#define gliss_cast_fto64(f) (uint64_t)gliss_cast_fto32(f)
 
+#define gliss_cast_dto8(f) (uint8_t)gliss_cast_dto64(f)
+#define gliss_cast_dto16(f) (uint16_t)gliss_cast_dto64(f)
+#define gliss_cast_dto32(f) (uint32_t)gliss_cast_dto64(f)
+uint64_t gliss_cast_dto64(double f);
+
+#define gliss_cast_8tof(i)	gliss_cast_32tof(i)
+#define gliss_cast_16tof(i)	gliss_cast_32tof(i)
+float gliss_cast_32tof(uint32_t i);
+#define gliss_cast_64tof(i)	gliss_cast_32tof(i)
+
+#define gliss_cast_8tod(i) gliss_cast_64tod(i)
+#define gliss_cast_16tod(i) gliss_cast_64tod(i)
+#define gliss_cast_32tod(i) gliss_cast_64tod(i)
+double gliss_cast_64tod(uint64_t d);
+
+/* signed/unsigned support */
+#define __GLISS_MASK32(n, e)	((n)==32 ? (e) : ((e) & ((1 << n) - 1)))
+#define __GLISS_MASK64(n, e)	((n)==64 ? (e) : ((e) & ((1LL << n) - 1)))
+#define __GLISS_EXTS(n, e)		(((e) << n) >> n)
 
 #endif /* GLISS_GRT_H */

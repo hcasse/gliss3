@@ -151,8 +151,112 @@ to the current directory.
 
 ====== Types ======
 
+Types are used to describe the nature of different data used in the ISA,
+that is, the state items (registers, memories) and the temporaries and
+parameters.
+
+Types are described by so-called type-expression and commonly used
+types may be named for a fast usage.
+
+===== Type Expressions =====
+
+<code>
+TypeExpression ::=
+	  BoolType
+	| IntType
+	| CardType
+	| FixType
+	| FloatType
+	| RangeType
+	| EnumType
+	| NamedType
+</code>
+
+In the following syntax definitions, ''IntegerExpression'' represents
+any SimNML expression statically evaluated to an integer value,
+supporting only constants identifiers.
+
+
+<code>
+BoolType ::= 'bool'
+</code>
+''BoolType'' is a simple boolean value with a bit value, 0 or 1.
+
+The ''IntType'' represents a signed integer on N bits, represent in
+2's complement, ranging from -2<sup>N - 1</sup> to 2<sup>N - 1</sup> - 1.
+<code>
+IntType ::= 'int' '(' N: IntegerExpression ')'
+</code>
+
+The ''CardType'' represents an unsigned integer on N bits, ranging
+from 0 to 2<sup>N</sup> - 1.
+<code>
+CardType ::= 'card' '(' N: IntegerExpression ')'
+</code>
+
+The ''FixType'' represents real values with fixed point, composed
+of an integer part of I bits and a fractional part of F bits.
+<code>
+FixType ::= 'fix' '(' I: IntegerExpression ',' F: IntegerExpression ')'
+</code>
+
+''FloatType'' allows to represents real value code with floating points.
+The mantissa expends on M bits and the exponent on E bits (2's complement
+representation).
+<code>
+FloatType ::= 'float' '(' M: IntegerExpression ',' E: IntegerExpression ')'
+</code>
+
+IEEE-754 float and double types are represented, respectively, by
+''float(23, 9)'' and ''float(52, 12)''.
+
+''RangeType'' allows to define an integer value ranging from a lower
+bound L to an upper bound U (bounds included in the range).
+<code>
+RangeType ::= '[' L: IntegerExpression '..' U: IntegerExpression ']'
+</code>
+
+''EnumType'' is a type composed of a set of identifiers. First receives
+code 0 and each following identifiers receive following codes incremented
+by one.
+<code>
+EnumType ::= 'enum' '(' Identifier (',' Identifier)* ')'
+</code>
+
+A ''NamedType'' refers to a previous definition of a type. The type
+expression passed inthe type definition is substituted to the identifier.
+<code>
+NamedType ::= Identifier
+</code>
+
+
+===== Type specification =====
+
+<code>
+TypeSpecification ::= 'type' Identifier '=' TypeExpression
+</code>
+
+A type specification provides an alias for a type expression.
+The type name must be unique and its usage in sunsequent type expressions
+is replaced  by the given type expression.
+
+
+
 
 ====== Constants ======
+
+''LetSpecification'' allows to defined constants re-usable throughout
+type, operation and mode definitions. The identifier must be unique
+in the SimNML file.
+
+<code>
+LetSpecification ::= 'let Identifier '=' ConstantExpression
+</code>
+
+The ''ConstantExpression'' is an expression where only references
+to other constants are accepted.
+
+
 
 
 ====== Registers and Memories ======
@@ -172,7 +276,7 @@ be read or written by the processor. It is part of the processor state.
 
 The syntax to declare a register is given below:
 <code>
-Register ::= reg id: Identifier '[' size: Expr ',' type: TypeExpr ' ]' Attributes
+RegisterSpecification ::= 'reg' id: Identifier '[' size: Expr ',' type: TypeExpr ' ]' Attributes
 </code>
 
 
@@ -266,6 +370,65 @@ the NMP description. The following values are currently supported:
 | ''_ _attr(npc)'' | design the next PC |
 | ''_ _attr(sp)''  | design the current stack pointer |
 | ''_ _attr(lr)''  | design the link register |
+
+
+===== Memories =====
+
+A memory represents the different storages of data found usually out
+of the microprocessor die. A memory is usually defined as an array of
+byte but may also be accessed with different word sizes.
+
+==== Specification ====
+
+A memory is declared as below:
+<code>
+MemorySpecification ::= 'mem' id: Identifier '[' ns: IntegerExpression (',' t: TypeExpression)? ']' MemAttribute*
+</code>
+
+A memory specified as above has for name //id//, that must be unique
+throughout the NMP file, and contains elements of type //t//. If //t//
+is omitted, the byte type, ''int(8)'', is taken as a default.
+Unlike to the register specification, the //ns// integer expression
+(expression supporting only constant referenecs) does not determine
+the number of memory elements but the number of bytes required to
+address the memory namepsace. In fact, the number of elements is
+2<sup>//ns//</sup>.
+
+An ISA description may supports several memory definitions (without
+taking into the aliases) but the program code must be contained
+in only one (and exactly one). As a default, the first declared memory
+is considered as the one containing the program.
+
+@@ but this default
+@@behaviour may be changed by marking the concerned memory with
+@@the attribute .
+
+
+==== Attributes ====
+
+The supported attributes are given below:
+<code>
+MemAttribute ::=
+	| VolatileAttribute
+	| AliasAttribute
+	| InitialAttrbute
+</code>
+
+
+The volatile attribute allows to
+VOLATILE EQ LetExpr
+		{ Irg.VOLATILE (Sem.to_int (Sem.eval_const $3)) }
+|	ALIAS EQ MemLocation
+		{ Irg.ALIAS $3 }
+|	INITIALA EQ LetExpr
+		{ Irg.INIT (Sem.eval_const $3) }
+
+@@ |	PORTS EQ CARD_CONST COMMA CARD_CONST
+@@		{ Irg.PORTS (Int32.to_int $3, Int32.to_int $3) }
+@@|	USES EQ UsesDef
+@@		{ Irg.USES }
+@@|	ATTR LPAREN ID OptionalAttrArgs RPAREN
+@@		{ Irg.NMP_ATTR ($3, List.rev $4) }
 
 
 ====== Operation, Modes and Attributes ======

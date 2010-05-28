@@ -22,6 +22,7 @@
 
 %{
 let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
+let line s = Irg.LINE (!(Lexer.file), !(Lexer.line), s)
 
 let get_spec_extend x =
 	let sym = Irg.get_symbol x in
@@ -416,7 +417,7 @@ ExtendSpec:
 					Irg.param_unstack pars;
 					Irg.rm_symbol id;
 					Irg.add_symbol id (Irg.AND_OP (id, pars, attrs @ $2));
-					
+
 					(* !!DEBUG!! *)
 					(*print_string "[[";
 					Irg.print_spec (Irg.get_symbol id);
@@ -611,7 +612,7 @@ Statement:
 				else
 					if not ((Sem.get_type_expr $3)=Irg.STRING ||(Sem.get_type_expr $3)=Irg.NO_TYPE )
 						then
-							Irg.SET ($1, $3)
+							Sem.make_set $1 $3
 						else
 							let temp = match Sem.get_type_expr $3 with
 								Irg.STRING->"string"

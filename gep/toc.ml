@@ -1,21 +1,21 @@
 (*
- * $Id: toc.ml,v 1.43 2009/11/26 09:01:17 casse Exp $
+ * GLISS V2
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS V2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS V2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with OGliss; if not, write to the Free Software
+ * along with GLISS V2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
@@ -1042,10 +1042,12 @@ and mask info t f =
 		else failwith "(toc.ml::mask::_32_or_64) trying to manipulate a number of more than 64 bits" in
 	match t with
 	| Irg.CARD _ when (ctype_size (convert_type t)) <> (type_size t) ->
-		output_string info.out ("__GLISS_MASK"^(_32_or_64 (type_size t)));
-		Printf.fprintf info.out "(%d, " (type_size t);
+		Printf.fprintf info.out "__%s_MASK%s(%d, "
+			(String.uppercase info.proc)
+			(_32_or_64 (type_size t))
+			(type_size t);
 		f ();
-		Printf.fprintf info.out ")"
+		output_char info.out ')'
 	| _ ->
 		f ()
 
@@ -1058,7 +1060,7 @@ and exts info t f =
 	match t with
 	| Irg.INT _ when (ctype_size (convert_type t)) <> (type_size t) ->
 		let shift = (ctype_size (convert_type t)) - (type_size t) in
-		Printf.fprintf info.out "__GLISS_EXTS(%d, " shift;
+		Printf.fprintf info.out "__%s_EXTS(%d, " (String.uppercase info.proc) shift;
 		f ();
 		Printf.fprintf info.out ")"
 	| _ ->
@@ -1249,10 +1251,10 @@ and coerce info typ expr =
 	@param info		Generation information.
 	@param size		Size in bits.
 	@param expr		Expression to cast. *)
-and gen_cast info size expr =
+and gen_cast info typ expr =
 	let etyp = convert_type (Sem.get_type_expr expr) in
-	let ctyp = convert_type (Irg.CARD(size)) in
-	Printf.fprintf info.out "%s_cast_%s2%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
+	let ctyp = convert_type typ in
+	Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
 	gen_expr info expr;
 	output_char info.out ')'
 
@@ -1564,6 +1566,7 @@ let rec gen_stat info stat =
 	| Irg.INLINE s ->
 		line (fun _ -> out s)
 
+	| Irg.SET _
 	| Irg.EVALIND _
 	| Irg.SETSPE _ ->
 		failwith "must have been removed"
