@@ -93,12 +93,7 @@ let _ =
 			(fun info ->
 
 				(* download the extensions *)
-				List.iter
-					(fun file ->
-						Lexer.file := file;
-						let lexbuf = Lexing.from_channel (open_in file) in
-						Parser.top Lexer.main lexbuf)
-					!extends;
+				List.iter IrgUtil.load !extends;
 
 				(* perform generation *)
 				if !template = "" then raise (CommandError "an template must specified with '-t'") else
