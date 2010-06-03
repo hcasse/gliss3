@@ -1673,6 +1673,20 @@ let test_data name indexed =
 	| _ -> raise (SemError (Printf.sprintf "the idenfifier \"%s\" does not design a data" name))
 
 
+(**	used to return the expression associated to an expr attr, UNDEF if no expression extractable
+	@param	name	Name of the attribute, it is supposed to have been stacked before
+	@return		if "name" is an expression attribute, return its expression,
+			if not, UNDEF is returned
+*)
+let get_data_expr_attr name =
+	match Irg.get_symbol name with
+	| Irg.ATTR a ->
+		(match a with
+		| Irg.ATTR_EXPR(_, e) -> e
+		| _ -> NONE)
+	| _ -> NONE
+
+
 (** Build a set expression and check the types (possibly introducing
 	casts).
 	@param loc		Assigned location.

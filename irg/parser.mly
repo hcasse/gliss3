@@ -838,7 +838,7 @@ Expr :
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID
-		{ Sem.test_data $1 false; eline (Irg.REF $1) }
+		{ Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1) }
 
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
