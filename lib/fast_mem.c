@@ -37,7 +37,7 @@
 
 #define little	0
 #define big		1
-#include "../include/gliss/config.h"
+#include <gliss/config.h>
 
 /**
  * @def gliss_address_t
@@ -55,7 +55,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include "../include/gliss/mem.h"
+#include <gliss/mem.h>
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\

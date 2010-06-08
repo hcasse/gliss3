@@ -157,24 +157,6 @@ void gliss_delete_fetch(gliss_fetch_t *fetch)
 		halt_fetch();
 }
 
-
-
-static int first_bit_on(uint32_t x)
-{
-	int i = 0, j = 0;
-	if (x != 0)
-	{
-		while (i != 1)
-		{
-			i = x & 1;
-			j++;
-			x >>=  1;
-		}
-	}
-	return j;
-}
-
-
 /*
 	donne la valeur d'une zone mémoire (une instruction) en ne prenant
 	en compte que les bits indiqués par le mask
@@ -227,8 +209,6 @@ int /* gliss_ident_t should be better */ gliss_fetch(gliss_fetch_t *fetch, gliss
 #ifndef GLISS_NO_CACHE_FETCH
 	unsigned int index;
 	hash_node_t *node;
-#else
-	gliss_ident_t instr_id;
 #endif /* GLISS_NO_CACHE_FETCH */
 
 #ifndef GLISS_NO_CACHE_FETCH
@@ -316,13 +296,9 @@ int /* gliss_ident_t should be better */ gliss_fetch(gliss_fetch_t *fetch, gliss
 	ptr2 = table;
 	do
 	{
-		uint32_t j1 = 0, k = 0;
 		uint32_t code;
 		tab_mask = ptr2->mask0;
-		j1 = tab_mask;
-		if (k == 0)
-			k = first_bit_on(j1);
-		code = gliss_mem_read32(fetch->mem, address);
+		code     = gliss_mem_read32(fetch->mem, address);
 
 		valeur = valeur_sur_mask_bloc(code, tab_mask);
 		ptr = ptr2;

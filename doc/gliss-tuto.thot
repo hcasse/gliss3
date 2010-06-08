@@ -283,7 +283,7 @@ a machine memory that may accept several execution (threads or
 multi-processors).
 
 <code c>
-	toy_platform_t *pf;
+	toy_platform_t *platform;
 	platform = ppc_new_platform();
 </code>
 
@@ -310,8 +310,8 @@ The simulator can now be created.
 And we can loop from the entry instruction to the exit one:
 <code c>
 	int inst_cnt = 0;
-	while(!ppc_is_sim_ended(sim)) {
-		ppc_step(sim);
+	while(!toy_is_sim_ended(sim)) {
+		toy_step(sim);
 		inst_cnt++;
 	}
 </code>

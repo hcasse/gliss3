@@ -9,8 +9,8 @@ extern  "C"
 {
 #endif
 
-#include "../include/$(proc)/api.h"
-#include "../include/$(proc)/macros.h"
+#include <$(proc)/api.h>
+#include <$(proc)/macros.h>
 
 
 #define gliss_error(e) fprintf(stderr, (e))

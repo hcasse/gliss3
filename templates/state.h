@@ -2,7 +2,7 @@
 #ifndef $(PROC)_STATE_H
 #define $(PROC)_STATE_H
 
-#include "../include/$(proc)/api.h"
+#include <$(proc)/api.h>
 $(foreach modules)
 #include "$(name).h"
 $(end)

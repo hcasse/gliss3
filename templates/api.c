@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include "../include/$(proc)/api.h"
+#include <$(proc)/api.h>
 #include "platform.h"
-#include "../include/$(proc)/env.h"
-#include "../include/$(proc)/macros.h"
+#include <$(proc)/env.h>
+#include <$(proc)/macros.h>
 
 
 

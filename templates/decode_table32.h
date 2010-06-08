@@ -15,6 +15,14 @@ extern  "C"
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
+/* hack : Enable cache if gep option is on 
+(without having to  move decode32.c to templates) */
+$(if GLISS_INF_DECODE_CACHE)
+#define $(PROC)_INF_DECODE_CACHE
+$(end)
+$(if GLISS_FIXED_DECODE_CACHE)
+#define $(PROC)_FIXED_DECODE_CACHE
+$(end)
 
 /* decoder macros */
 #define __EXTRACT(m, i)	valeur_sur_mask_bloc(i, m)
@@ -134,7 +142,12 @@ void $(proc)_free_inst($(proc)_inst_t *inst) {
 		if (inst->instrinput)
 			free(inst->instrinput);
 	$(end)
-	free(inst);
+
+	$(if !GLISS_INF_DECODE_CACHE)
+        $(if !GLISS_FIXED_DECODE_CACHE)
+	  free(inst);
+	$(end)
+	$(end)
 }
 
 #if defined(__cplusplus)
