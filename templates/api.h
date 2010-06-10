@@ -116,7 +116,7 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path);
 /* fetching */
 $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);
 void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
-int $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address);
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint32_t code);
 
 /* decoding */
 $(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *state);

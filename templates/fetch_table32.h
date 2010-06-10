@@ -28,8 +28,8 @@ typedef struct
 
 typedef struct
 {
-	uint32_t mask0;
-	Decode_Ent *table;
+	uint32_t      mask0;
+	Decode_Ent*   table;
 } Table_Decodage;
 
 

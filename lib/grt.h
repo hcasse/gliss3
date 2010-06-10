@@ -30,6 +30,14 @@
 #define GLISS_GRT_INIT(s)
 #define GLISS_GRT_DESTROY(s)
 
+/*	Notations :
+ * - v  : value
+ * - u  : uppermost (meaning the most significant bit)
+ * - l  : lowermost (meaning the least significant bit)
+ * - s  : set value (the field defined by [u l] in v is set to s)
+ * - n  :
+ * - bo : bit order ()
+ * */
 
 /* rotations */
 #define gliss_mask32(n)	((n) == 32 ? (-1L) : (1L << (n)) - 1)
@@ -107,7 +115,10 @@ uint64_t gliss_set_field64u_generic(uint64_t v, uint64_t s, int32_t a, int32_t b
 float gliss_set_fieldf_generic(float v, uint32_t s, int32_t a, int32_t b, int bit_order);
 double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int bit_order);
 
-/* field */
+/* field :
+ * gliss_fieldx_xxxxx(v, u, l) returns the value of v field defined by
+ * the bit intervalle [u l].
+ * */
 #define gliss_field8(v, u, l) gliss_field32u(v, u, l)
 #define gliss_field8u(v, u, l) gliss_field32u(v, u, l)
 #define gliss_field16(v, u, l) gliss_field32u(v, u, l)

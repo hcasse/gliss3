@@ -23,6 +23,9 @@ $(end)
 $(if GLISS_FIXED_DECODE_CACHE)
 #define $(PROC)_FIXED_DECODE_CACHE
 $(end)
+$(if GLISS_LRU_DECODE_CACHE)
+#define $(PROC)_LRU_DECODE_CACHE
+$(end)
 
 /* decoder macros */
 #define __EXTRACT(m, i)	valeur_sur_mask_bloc(i, m)

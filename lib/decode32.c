@@ -19,7 +19,9 @@ typedef enum gliss_endianness_t {
 
 #if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE)
 
+	#ifndef CACHE_SIZE
     #define CACHE_SIZE (4096*2) // Must be a power of two
+    #endif
 
     typedef struct gliss_entry_t {
         gliss_address_t key;
@@ -35,8 +37,12 @@ typedef enum gliss_endianness_t {
 
 #ifdef GLISS_FIXED_DECODE_CACHE
 
+	#ifndef CACHE_DEPTH
     #define CACHE_DEPTH 8     // Must be a power of two
+    #endif
+    #ifndef CACHE_SIZE
     #define CACHE_SIZE (4096) // Must be a power of two
+    #endif
 
     typedef struct gliss_entry {
         gliss_address_t key;
@@ -92,9 +98,9 @@ static int number_of_decoder_objects = 0;
 static void init_decoder(gliss_decoder_t *d, gliss_platform_t *state)
 {
         d->fetch = gliss_new_fetch(state);
-        #ifndef GLISS_FIXED_DECODE_CACHE
+        #if !defined(GLISS_FIXED_DECODE_CACHE) && defined(GLISS_INF_DECODE_CACHE)
         d->cache = create_hashtable( CACHE_SIZE );
-        #else
+        #elif defined(GLISS_FIXED_DECODE_CACHE)
         d->cache = create_hashtable( CACHE_SIZE, CACHE_DEPTH );
         #endif
 }
@@ -143,8 +149,8 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     {
     #endif
         /* first, fetch the instruction at the given address */
-        id   = gliss_fetch(decoder->fetch, address);
         code = gliss_mem_read32(decoder->fetch->mem, address);
+        id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
         res  = gliss_decode_table[id](address, code);
         /* and last cache the instruction */
@@ -321,13 +327,30 @@ static void hashtable_insert(gliss_hashtable_t* h, gliss_address_t key, gliss_in
 static gliss_inst_t* hashtable_search(gliss_hashtable_t* h, gliss_address_t key)
 {
     unsigned int i;
+    gliss_address_t tmp_key;
+    gliss_inst_t*   tmp_value;
     gliss_entry_ring_t* ring = h->table[MODULO(key, h->tablelength)];
 
     i = ring->idx;
     do{
         /* Check hash value to short circuit heavier comparison */
+        /* Check hash value to short circuit heavier comparison */
         if (key == ring->entries[i].key)
-            return ring->entries[i].value;
+        {
+            
+            tmp_value = ring->entries[i].value;
+            #ifdef GLISS_LRU_DECODE_CACHE
+            tmp_key   = ring->entries[i].key;
+            
+            ring->entries[i].value = ring->entries[ring->idx].value;
+            ring->entries[i].key   = ring->entries[ring->idx].key;
+            
+            ring->entries[ring->idx].value = tmp_value;
+            ring->entries[ring->idx].key   = tmp_key;
+            #endif
+            
+            return tmp_value;
+        }
 
         i = MODULO((i-1), h->tabledepth);
     }while( i != ring->idx);
