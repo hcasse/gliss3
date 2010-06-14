@@ -89,7 +89,7 @@ typedef struct gliss_callback_info_t
 	gliss_address_t start;
 	gliss_address_t end;
 	gliss_callback_fun_t callback_fun;
-	gliss_callback_info_t *next;
+	struct gliss_callback_info_t *next;
 	
 } gliss_callback_info_t;
 
@@ -236,8 +236,8 @@ void gliss_mem_delete(gliss_memory_t *memory) {
 	}
 	free(mem64); /* freeing the primary hash table */
 	/* freeing callback infos */
-	mem->callback_infos.ptr = 0;
-	gliss_callback_info_t *info_ptr = mem->callback_infos.ptr;
+	memory->callback_infos.ptr = 0;
+	gliss_callback_info_t *info_ptr = memory->callback_infos.ptr;
 	gliss_callback_info_t *next_ptr = 0;
 	while (info_ptr)
 	{
@@ -348,6 +348,9 @@ static secondary_memory_hash_table_t* mem_get_secondary_hash_table(
 }
 
 
+static void update_callback_infos(gliss_memory_t *mem);
+static gliss_callback_fun_t get_callback_info(gliss_callback_info_table_t *infos, gliss_address_t addr);
+
 /**
  * Get the page matching the given address and create it if it does not exist.
  * @parm mem	Memory to work on.
@@ -381,7 +384,7 @@ static memory_page_table_entry_t *mem_get_page(memory_64_t *mem, gliss_address_t
 		assertp(pte->storage != NULL, "Failed to allocate memory in mem_get_page\n");
 
 		/* set callback function */
-		pte->callback = get_callback_info(mem->callback_infos, addr);
+		pte->callback = get_callback_info(&mem->callback_infos, addr);
 
 		/* adding the memory page to the list of memory page size entry*/
 		pte->next = secondary_hash_table->pte[h2];
@@ -513,7 +516,7 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint16_t res;
-		p = &res;
+		p = (uint8_t *)&res;
 		pte->callback(address, 2, p, GLISS_MEM_READ);
 	}
 	else
@@ -569,7 +572,7 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint32_t res;
-		p = &res;
+		p = (uint8_t *)&res;
 		pte->callback(address, 4, p, GLISS_MEM_READ);
 	}
 	else
@@ -627,7 +630,7 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint64_t res;
-		p = &res;
+		p = (uint8_t *)&res;
 		pte->callback(address, 8, p, GLISS_MEM_READ);
 	}
 	else
@@ -926,7 +929,7 @@ void gliss_mem_writeld(gliss_memory_t *memory, gliss_address_t address, long dou
  * return the address of callback function, 0 if no callback is defined for that address */
 static gliss_callback_fun_t get_callback_info(gliss_callback_info_table_t *infos, gliss_address_t addr)
 {
-	gliss_callback_info_t *ptr = infos;
+	gliss_callback_info_t *ptr = infos->ptr;
 	while (ptr)
 	{
 		if ((ptr->start <= addr) && (addr <= ptr->end))
@@ -941,6 +944,8 @@ static gliss_callback_fun_t get_callback_info(gliss_callback_info_table_t *infos
  * we set correctly the callback function address accordingly to the callback infos of the given memory */
 static void update_callback_infos(gliss_memory_t *mem)
 {
+	int i, j;
+	
 	/* go through pages */
 	for (i = 0 ; i < PRIMARYMEMORY_HASH_TABLE_SIZE ; i++) {
 		secondary_memory_hash_table_t *secondary_hash_table = mem->primary_hash_table[i];
@@ -950,7 +955,7 @@ static void update_callback_infos(gliss_memory_t *mem)
 				if (pte) {
 					do {
 						/* get callback info for beginning of page, let's hope the whole page has the same callback function */
-						pte->callback = get_callback_info(mem->callback_infos, pte->addr);
+						pte->callback = get_callback_info(&mem->callback_infos, pte->addr);
 					} while ((pte=pte->next) != 0);
 				}
 			}
@@ -975,7 +980,7 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 {
 	/* store the infos in callback infos table */
 	/* create new entry */
-	gliss_callback_info_t *new_info = malloc(gliss_callback_info_t);
+	gliss_callback_info_t *new_info = malloc(sizeof(gliss_callback_info_t));
 	assertp(new_info, "malloc error for gliss_callback_info_t");
 	new_info->start = start;
 	new_info->end = end;
@@ -989,6 +994,6 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 }
 
 
-void gliss_unset_range_callback(gliss_address_t start, gliss_address_t end)
+void gliss_unset_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end)
 {
 }
