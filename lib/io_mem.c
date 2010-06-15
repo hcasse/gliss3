@@ -487,6 +487,7 @@ uint8_t gliss_mem_read8(gliss_memory_t *memory, gliss_address_t address) {
 	{
 		uint8_t res;
 		pte->callback(address, 1, &res, GLISS_MEM_READ);
+		return res;
 	}
 	else
 		return pte->storage[offset];
@@ -516,8 +517,9 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint16_t res;
-		p = (uint8_t *)&res;
-		pte->callback(address, 2, p, GLISS_MEM_READ);
+		pte->callback(address, 2, &res, GLISS_MEM_READ);
+		/* we suppose callback function returns data with same endianess as host */
+		return res;
 	}
 	else
 	{
@@ -572,8 +574,9 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint32_t res;
-		p = (uint8_t *)&res;
-		pte->callback(address, 4, p, GLISS_MEM_READ);
+		pte->callback(address, 4, &res, GLISS_MEM_READ);
+		/* we suppose callback function returns data with same endianess as host */
+		return res;
 	}
 	else
 	{
@@ -630,8 +633,9 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 	if (pte->callback)
 	{
 		uint64_t res;
-		p = (uint8_t *)&res;
-		pte->callback(address, 8, p, GLISS_MEM_READ);
+		pte->callback(address, 8, &res, GLISS_MEM_READ);
+		/* we suppose callback function returns data with same endianess as host */
+		return res;
 	}
 	else
 	{
