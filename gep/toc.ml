@@ -1252,11 +1252,25 @@ and coerce info typ expr =
 	@param size		Size in bits.
 	@param expr		Expression to cast. *)
 and gen_cast info typ expr =
-	let etyp = convert_type (Sem.get_type_expr expr) in
-	let ctyp = convert_type typ in
-	Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
-	gen_expr info expr;
-	output_char info.out ')'
+	let etyp = Sem.get_type_expr expr in
+
+	let do_cast _ =
+		Printf.fprintf info.out "((%s)(" (type_to_string (convert_type typ));
+		gen_expr info expr;
+		output_string info.out "))" in
+
+	match typ, etyp with
+	| Irg.FLOAT _, Irg.FLOAT _-> do_cast ()
+	| Irg.FLOAT _, _
+	| _, Irg.FLOAT _ ->
+		let etyp = convert_type etyp in
+		let ctyp = convert_type typ in
+		Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
+		gen_expr info expr;
+		output_char info.out ')'
+	| Irg.INT n, _
+	| Irg.CARD n, _ -> do_cast ()
+	| _ -> failwith "unsupported CAST"
 
 
 (** Generate code for a bit field.
@@ -1680,7 +1694,7 @@ let gen_pc_increment info =
 	@param name		Name of the attribute. *)
 let gen_action info name =
 	info.indent <- 1;
-	
+
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;

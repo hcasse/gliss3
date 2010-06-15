@@ -1695,9 +1695,25 @@ let get_data_expr_attr name =
 let make_set loc expr =
 	let ltype = get_loc_type loc in
 	let etype = get_type_expr expr in
+	if ltype = etype then Irg.SET (loc, expr) else
 	match ltype, etype with
+
+	| BOOL, INT _
+	| BOOL, CARD _
+
+	| INT _, BOOL
+	| INT _, INT _
+	| INT _, CARD _
+	| INT _, FLOAT _
+
+	| CARD _, BOOL
+	| CARD _, INT _
+	| CARD _, CARD _
+	| CARD _, FLOAT _
+
 	| FLOAT _, CARD _
 	| FLOAT _, INT _
-	| CARD _, FLOAT _
-	| INT _, FLOAT _ -> Irg.SET (loc, Irg.CAST(ltype, expr))
-	| _ -> Irg.SET (loc, expr)
+	| FLOAT _, FLOAT _
+		-> Irg.SET (loc, Irg.CAST(ltype, expr))
+
+	| _ -> raise (SemError "unsuppored assignment")
