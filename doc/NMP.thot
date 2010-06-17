@@ -416,6 +416,7 @@ MemAttribute ::=
 
 
 The volatile attribute allows to
+<code>
 VOLATILE EQ LetExpr
 		{ Irg.VOLATILE (Sem.to_int (Sem.eval_const $3)) }
 |	ALIAS EQ MemLocation
@@ -429,6 +430,7 @@ VOLATILE EQ LetExpr
 @@		{ Irg.USES }
 @@|	ATTR LPAREN ID OptionalAttrArgs RPAREN
 @@		{ Irg.NMP_ATTR ($3, List.rev $4) }
+</code>
 
 
 ====== Operation, Modes and Attributes ======

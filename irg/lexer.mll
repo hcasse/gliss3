@@ -41,6 +41,7 @@ let keywords = [
 	("alias",       ALIAS);
 	("ports",       PORTS);
 	("bool",        BOOL);
+	("canon",	CANON);
 	("card",        CARD);
 	("case",        CASE);
 	("coerce",      COERCE);
@@ -50,7 +51,7 @@ let keywords = [
 	("enum",        ENUM);
 	("error",       ERROR);
 	("exception",   EXCEPTION 0);
-	("extend",		EXTEND);
+	("extend",	EXTEND);
 	("fix",        	FIX);
 	("float",       FLOAT);
 	("format",      FORMAT);

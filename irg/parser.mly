@@ -95,6 +95,7 @@ let get_spec_extend x =
 %token	  ATTR
 %token		EXTEND
 %token		AROBAS
+%token		CANON
 
 %right	EQ
 %left	DOUBLE_COLON
@@ -141,6 +142,7 @@ MachineSpec :
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 |	ExtendSpec		{ }
+| CanonSpec		{ Irg.add_symbol (fst $1) (snd $1); Irg.add_canon (fst $1) (snd $1) }
 
 
 
@@ -166,6 +168,30 @@ Resource:
 						$1
 					}
 ;
+
+CanonSpec:
+	CANON STRING_CONST LPAREN TypeList RPAREN
+	{
+		($2, Irg.CANON_DEF($2, Irg.NO_TYPE, $4))
+	}
+|	CANON Type STRING_CONST LPAREN TypeList RPAREN
+	{
+		($3, Irg.CANON_DEF($3, $2, $5))
+	}
+|	CANON STRING_CONST LPAREN RPAREN
+	{
+		($2, Irg.CANON_DEF($2, Irg.NO_TYPE, []))
+	}
+|	CANON Type STRING_CONST LPAREN RPAREN
+	{
+		($3, Irg.CANON_DEF($3, $2, []))
+	}
+;
+
+TypeList:
+	Type			{ [$1] }
+|	TypeList COMMA Type		{ $3::$1 }
+
 
 ExceptionSpec:
 	EXCEPTION IdentifierList	{ List.iter (fun id -> (Irg.add_pos id !(Lexer.file) $1;(Irg.add_symbol id (Irg.EXN id)))) $2 }
