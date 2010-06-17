@@ -454,27 +454,6 @@ int gliss_enumerate(int val, int max) {
 }
 
 
-/* bit-to-bit conversions */
-#define COERCE(name, tr, ta) \
-	tr gliss_coerce_##name(ta arg) { \
-		union { \
-			tr res; \
-			ta arg; \
-		} v; \
-		v.arg = arg; \
-		return v.res; \
-	}
-
-COERCE(ftoi, int32_t, float)
-COERCE(ftou, uint32_t, float)
-COERCE(dtoi, int64_t, double)
-COERCE(dtou, uint64_t, double)
-COERCE(itof, float, int32_t)
-COERCE(utof, float, uint32_t)
-COERCE(itod, double, int64_t)
-COERCE(utod, double, uint64_t)
-
-
 /**
  * Cast the given float to raw 32-bits.
  * @param f		Float to cast.
@@ -498,7 +477,7 @@ uint32_t gliss_cast_fto32(float f) {
 uint64_t gliss_cast_dto64(double f) {
 	union {
 		uint64_t i;
-		float f;
+		double f;
 	} d;
 	d.f = f;
 	return d.i;

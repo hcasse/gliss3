@@ -27,6 +27,10 @@
 exception RedefinedSymbol of string
 exception IrgError of string
 
+(** May be set to true to dump line information during expression/statement
+	outpu. *)
+let dump_lines = ref false
+
 (** Type expression *)
 type type_expr =
 	  NO_TYPE
@@ -647,9 +651,9 @@ let rec output_expr out e =
 		output_expr out def;
 		output_string out " }"
 	| ELINE (file, line, e) ->
-		Printf.fprintf out "(%s:%d: " file line;
+		if !dump_lines then Printf.fprintf out "(%s:%d: " file line;
 		output_expr out e;
-		output_string out ")"
+		if !dump_lines then output_string out ")"
 	| CONST (t, c) ->
 		output_string out "const(";
 		output_type_expr out t;

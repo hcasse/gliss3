@@ -551,6 +551,7 @@ and get_type_expr exp=
 	| REF id -> get_type_ident id
 	| FIELDOF (t, _, _) -> t
 	| ITEMOF (t, _, _) -> t
+	| BITFIELD (FLOAT(n, m), _, _, _) -> CARD(n + m)
 	| BITFIELD (t, _, _, _) -> t
 	| UNOP (t, _, _) -> t
 	| BINOP (t, _, _, _) -> t
@@ -1555,6 +1556,7 @@ let build_canonical_stat name param=
 let get_loc_type loc =
 	match loc with
 	| LOC_NONE -> NO_TYPE
+	| LOC_REF (FLOAT (n, m), _, _, l, _) when l <> NONE -> CARD(n + m)
 	| LOC_REF (t, _, _, _, _) -> t
 	| LOC_CONCAT (t, _, _) -> t
 
@@ -1704,16 +1706,26 @@ let make_set loc expr =
 	| INT _, BOOL
 	| INT _, INT _
 	| INT _, CARD _
-	| INT _, FLOAT _
 
 	| CARD _, BOOL
 	| CARD _, INT _
 	| CARD _, CARD _
-	| CARD _, FLOAT _
+
+	| FLOAT _, FLOAT _ ->
+		Irg.SET (loc, Irg.CAST(ltype, expr))
 
 	| FLOAT _, CARD _
 	| FLOAT _, INT _
-	| FLOAT _, FLOAT _
-		-> Irg.SET (loc, Irg.CAST(ltype, expr))
+	| INT _, FLOAT _
+	| CARD _, FLOAT _ ->
+		Lexer.display_warning
+			("assigning float/int to int/float is ambiguous.\n"
+			^ "\tAs default, resolved to bit to bit assignment.\n"
+			^ "\tUse instead either field notation for bit to bit assignment\n"
+			^ "\tor explicit coerce for value conversion.");
+			let res = Irg.SET (loc, Irg.CAST(ltype, expr)) in
+			Irg.output_statement stderr res;
+			output_char stderr '\n';
+			res
 
 	| _ -> raise (SemError "unsuppored assignment")

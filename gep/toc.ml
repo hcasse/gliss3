@@ -1012,7 +1012,7 @@ let rec gen_expr info (expr: Irg.expr) =
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up
 	| Irg.UNOP (t, op, e) -> gen_unop info t op e
 	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2
-	| Irg.COERCE (typ, sube) -> coerce info typ sube
+	| Irg.COERCE (typ, sube) -> coerce info typ sube expr
 	| Irg.CANON_EXPR (_, name, args) ->
 		Printf.fprintf info.out "%s(" name;
 		ignore (List.fold_left
@@ -1185,7 +1185,7 @@ and gen_binop info t op e1 e2 =
 (** Generate code for coercition.
 	@param typ	Type to coerce to.
 	@param expr	Expression to coerce. *)
-and coerce info typ expr =
+and coerce info typ expr parent =
 
 	let apply pref suff = output_string info.out pref; gen_expr info expr; output_string info.out suff in
 	let asis _ = gen_expr info expr in
@@ -1198,7 +1198,7 @@ and coerce info typ expr =
 		apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
 
 	if typ = otyp then asis () else
-	(match (typ, otyp) with
+	match (typ, otyp) with
 
 	(* conversion to bool *)
 	| Irg.BOOL, Irg.INT _
@@ -1215,8 +1215,8 @@ and coerce info typ expr =
 	| Irg.INT n, Irg.CARD m when n > m -> asis ()
 	| Irg.INT n, Irg.CARD m when n < m -> asis ()
 	| Irg.INT _, Irg.CARD _ -> asis ()
-	| Irg.INT 32, Irg.FLOAT (23, 9) -> coerce "ftoi"
-	| Irg.INT 64, Irg.FLOAT (52, 12) -> coerce "dtoi"
+	| Irg.INT _, Irg.FLOAT (23, 9) -> coerce "ftoi"
+	| Irg.INT _, Irg.FLOAT (52, 12) -> coerce "dtoi"
 	| Irg.INT _, Irg.RANGE _
 	| Irg.INT _, Irg.ENUM _ -> asis ()
 
@@ -1228,8 +1228,8 @@ and coerce info typ expr =
 	| Irg.CARD n, Irg.CARD m when n < m -> asis ()
 	| Irg.CARD n, Irg.CARD m when n > m -> asis ()
 	| Irg.CARD _, Irg.CARD _ -> asis ()
-	| Irg.CARD 32, Irg.FLOAT (23, 9) -> coerce "ftou"
-	| Irg.CARD 64, Irg.FLOAT (52, 12) -> coerce "dtou"
+	| Irg.CARD _, Irg.FLOAT (23, 9) -> coerce "ftou"
+	| Irg.CARD _, Irg.FLOAT (52, 12) -> coerce "dtou"
 	| Irg.CARD _, Irg.RANGE _
 	| Irg.CARD _, Irg.ENUM _ -> asis ()
 
@@ -1244,7 +1244,13 @@ and coerce info typ expr =
 	| Irg.ENUM vals, _ -> to_enum vals
 
 	| _ ->
-		error_on_expr "unsupported coercition" expr)
+		raise (PreError (fun out ->
+			output_string out "unsupported coercition for ";
+			Irg.output_expr out expr;
+			output_string out " from ";
+			Irg.output_type_expr out otyp;
+			output_string out " to ";
+			Irg.output_type_expr out typ))
 
 
 (** Generate a cast expression.

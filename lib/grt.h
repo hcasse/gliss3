@@ -145,14 +145,14 @@ uint64_t gliss_fieldd_generic(double v, uint32_t a, uint32_t b, int bit_order);
 int gliss_enumerate(int val, int max);
 
 /* coercition */
-int32_t gliss_coerce_ftoi(float f);
-uint32_t gliss_coerce_ftou(float f);
-int64_t gliss_coerce_dtoi(double d);
-uint64_t gliss_coerce_dtou(double d);
-float gliss_coerce_itof(int32_t i);
-float gliss_coerce_utof(uint32_t u);
-double gliss_coerce_itod(int64_t i);
-double gliss_coerce_utod(uint64_t u);
+#define gliss_coerce_ftoi(f) ((int32_t)(f))
+#define gliss_coerce_ftou(f) ((uint32_t)(f))
+#define gliss_coerce_dtoi(d) ((int64_t)(d))
+#define gliss_coerce_dtou(d) ((uint64_t)(d))
+#define gliss_coerce_itof(i) ((float)(i))
+#define gliss_coerce_utof(u) ((float)(u))
+#define gliss_coerce_itod(i) ((double)(i))
+#define gliss_coerce_utod(u) ((double)(u))
 
 /* cast */
 #define gliss_cast_fto8(f) (uint8_t)gliss_cast_fto32(f)

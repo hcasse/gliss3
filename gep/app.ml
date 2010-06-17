@@ -253,8 +253,13 @@ let process file f =
 		f stderr;
 		output_char stderr '\n';
 		exit 4
+	| Toc.LocError (file, line, f) ->
+		Printf.fprintf stderr "ERROR: %s:%d: " file line;
+		f stderr;
+		output_char stderr '\n';
+		exit 1
 	| Sys_error msg ->
-		Printf.eprintf "ERROR: %s\n" msg; exit 1
+		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
 	(*| Failure e ->
