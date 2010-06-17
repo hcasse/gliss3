@@ -1728,4 +1728,10 @@ let make_set loc expr =
 			output_char stderr '\n';
 			res
 
-	| _ -> raise (SemError "unsuppored assignment")
+	| _ ->	(* !!DEBUG!! *)
+		(*print_string "types, loc:";
+		Irg.print_type_expr ltype;
+		print_string ", e:";
+		Irg.print_type_expr etype;
+		print_string "\n";*)
+		raise (SemError "unsuppored assignment")

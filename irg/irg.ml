@@ -173,6 +173,7 @@ type spec =
 								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
+	| CANON_DEF of string * type_expr * type_expr list	(* name of canonical function, return type, args type *)
 
 (** Get the name from a specification.
 	@param spec		Specification to get name of.
@@ -194,13 +195,14 @@ let name_of spec =
 	| PARAM (name, _) -> name
 	| ENUM_POSS (name, _, _, _) -> name
 	| ATTR(a) ->
-		match a with
+		(match a with
 		ATTR_EXPR(name, _) ->
 			name
 		| ATTR_STAT(name, _) ->
 			name
 		| ATTR_USES ->
-			"<ATTR_USES>"
+			"<ATTR_USES>")
+	| CANON_DEF(name, _, _) -> name
 
 
 (* Symbol table *)
@@ -431,6 +433,24 @@ let rec get_canon name=
 	try
 		CanonHashtbl.find canon_table (NAMED name)
 	with Not_found -> CanonHashtbl.find canon_table UNKNOW
+
+(** Add a canonical definition to the namespace.
+	@param sym	Canonical specification (Irg.CANON_DEF(...)).
+	@param fun_name	Canonical name.
+	@raise RedefinedSymbol	If the symbol is already defined. *)
+let add_canon fun_name sym =
+	let canon_def_sym =
+		match sym with
+		| CANON_DEF(n, res, prms) -> {name = NAMED n; type_param = prms; type_res = res}
+		| _ -> failwith "irg.ml::add_canon: shouldn't happen!\n"
+	in
+	let name = canon_def_sym.name
+	in
+	if CanonHashtbl.mem canon_table name
+	(* symbol already exists *)
+	then raise (RedefinedSymbol fun_name)
+	(* add the symbol to the hashtable *)
+	else CanonHashtbl.add canon_table name canon_def_sym
 
 (* --- end canonical functions --- *)
 
@@ -952,6 +972,18 @@ let output_spec out spec =
 
 	| ENUM_POSS (name,s,_,_)->
 		Printf.fprintf out "possibility %s of enum %s\n" name s;
+
+	| CANON_DEF(name, type_res, type_prms_list) ->
+		Printf.fprintf out "canon ";
+		output_type_expr out type_res;
+		Printf.fprintf out " \"%s\"(" name;
+		ignore (List.fold_left
+			(fun f e ->
+				if not f then output_string out ", ";
+				output_type_expr out e; false)
+			true
+			type_prms_list);
+		output_string out ");\n"
 
 	| UNDEF ->
 		output_string out "<UNDEF>"
