@@ -17,9 +17,12 @@ typedef enum gliss_endianness_t {
   big = 1
 } gliss_endianness_t;
 
-#if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE)
+/* Optimized modulo : only works if tablelength == 2^N */
+#define MODULO(x, length) (x & (length - 1u))
 
-	#ifndef CACHE_SIZE
+#if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)
+
+    #ifndef CACHE_SIZE
     #define CACHE_SIZE (4096*2) // Must be a power of two
     #endif
 
@@ -35,9 +38,9 @@ typedef enum gliss_endianness_t {
     }gliss_hashtable_t;
 #endif // GLISS_INF_DECODE_CACHE && !GLISS_FIXED_DECODE_CACHE
 
-#ifdef GLISS_FIXED_DECODE_CACHE
+#if defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)
 
-	#ifndef CACHE_DEPTH
+    #ifndef CACHE_DEPTH
     #define CACHE_DEPTH 8     // Must be a power of two
     #endif
     #ifndef CACHE_SIZE
@@ -59,31 +62,56 @@ typedef enum gliss_endianness_t {
         unsigned int tabledepth;  // Nb entries per table cell
         gliss_entry_ring_t** table;
     }gliss_hashtable_t;
-#endif // GLISS_FIXED_DECODE_CACHE
+#endif // GLISS_FIXED_DECODE_CACHE && !GLISS_LRU_DECODE_CACHE
+
+#if defined(GLISS_LRU_DECODE_CACHE)
+
+    #ifndef CACHE_DEPTH
+    #define CACHE_DEPTH 8     // Must be greater or equal to 2
+    #endif
+    #ifndef CACHE_SIZE
+    #define CACHE_SIZE (4096) // Must be a power of 2
+    #endif
+
+    // Double linked list (linked as a ring)
+    typedef struct gliss_entry {
+        gliss_address_t     key;
+        gliss_inst_t*       value;
+        struct gliss_entry* next;
+    }gliss_entry_t;
+
+    typedef struct gliss_hashtable {
+        unsigned int tablelength; // Table size
+        unsigned int tabledepth;  // Nb entries per table cell
+        gliss_entry_t* table[CACHE_SIZE];
+    }gliss_hashtable_t;
+
+
+
+#endif // GLISS_LRU_DECODE_CACHE
 
 /* decode structure */
 struct gliss_decoder_t
 {
 	/* the fetch unit used to retrieve instruction ID */
         gliss_fetch_t *fetch;
-        #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
+        #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
         gliss_hashtable_t* cache;
         #endif
 };
 
-#if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
+#if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
 /** ! Size must be a power of two ! */
-#ifndef GLISS_FIXED_DECODE_CACHE
-static gliss_hashtable_t* create_hashtable (unsigned int size  );
-#else
+#if defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
 static gliss_hashtable_t* create_hashtable (unsigned int size, unsigned int depth);
+#else
+static gliss_hashtable_t* create_hashtable (unsigned int size  );
 #endif
 
 static void hashtable_destroy(gliss_hashtable_t* h );
-
 static void hashtable_insert(gliss_hashtable_t* h, gliss_address_t key, gliss_inst_t* value);
 static gliss_inst_t* hashtable_search(gliss_hashtable_t* h, gliss_address_t key);
-#endif // GLISS_INF_DECODE_CACHE || GLISS_FIXED_DECODE_CACHE
+#endif // GLISS_INF_DECODE_CACHE || GLISS_FIXED_DECODE_CACHE || GLISS_LRU_DECODE_CACHE
 
 /* Extern Modules */
 /* Constants */
@@ -98,17 +126,17 @@ static int number_of_decoder_objects = 0;
 static void init_decoder(gliss_decoder_t *d, gliss_platform_t *state)
 {
         d->fetch = gliss_new_fetch(state);
-        #if !defined(GLISS_FIXED_DECODE_CACHE) && defined(GLISS_INF_DECODE_CACHE)
-        d->cache = create_hashtable( CACHE_SIZE );
-        #elif defined(GLISS_FIXED_DECODE_CACHE)
-        d->cache = create_hashtable( CACHE_SIZE, CACHE_DEPTH );
+        #if defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
+            d->cache = create_hashtable( CACHE_SIZE, CACHE_DEPTH );
+        #elif defined(GLISS_INF_DECODE_CACHE)
+            d->cache = create_hashtable( CACHE_SIZE );
         #endif
 }
 
 static void halt_decoder(gliss_decoder_t *d)
 {
         gliss_delete_fetch(d->fetch);
-        #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
+        #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
         hashtable_destroy(d->cache);
         #endif
 }
@@ -138,30 +166,75 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 /* Fonctions Principales */
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 {
-    gliss_inst_t* res  = 0;
-    gliss_ident_t id;
-    uint32_t    code;
+    gliss_inst_t*  res = 0;
+    gliss_ident_t  id;
+    uint32_t     code;
 
-    #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
+    /* Is the instruction inside the cache ? */
+#if defined(GLISS_LRU_DECODE_CACHE)
+    unsigned int i;
+    unsigned int  hash   = MODULO(address, CACHE_SIZE);
+    gliss_entry_t** table  = decoder->cache->table;
+    gliss_entry_t* current = table[hash];
+    gliss_entry_t* init    = current;
+    gliss_entry_t* prev;
+
+    // If it's the first element no need to handle LRU policy
+    if(address == current->key)
+        return current->value;
+
+    prev     = current;
+    current  = current->next;
+
+    // "FOR" has the advantage that gcc can unroll the loop if necessary
+    // Anyway I've not seen any improvements by unrolling manualy this loop
+    for( i = 0; i < (CACHE_DEPTH-2); i++)
+    {
+        if (address == current->key)
+        {
+            prev->next     = current->next;
+            current->next  = init;
+            table[hash] = current;
+            return current->value;
+        }
+        prev     = current;
+        current  = current->next;
+    }
+
+    // If it's last element LRU can be simplify
+    if (address == current->key)
+    {
+        current->next  = init;
+        //prev->next = NULL; useless because we don't rely on that
+        table[hash] = current;
+        return current->value;
+    }
+#elif defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
     res = hashtable_search(decoder->cache, address);
 
     if( !res )
     {
-    #endif
+#endif
+        /* If not find : */
         /* first, fetch the instruction at the given address */
         code = gliss_mem_read32(decoder->fetch->mem, address);
         id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
         res  = gliss_decode_table[id](address, code);
         /* and last cache the instruction */
-    #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
+#if defined(GLISS_LRU_DECODE_CACHE)
+        free(current->value);
+        current->key   = address;
+        current->value = res;
+#elif defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
         hashtable_insert(decoder->cache, address, res);
     }
-    #endif
+
+#endif
     return res;
 }
 
-#if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE)
+#if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)
 
 static gliss_hashtable_t* create_hashtable( unsigned int size )
 {
@@ -248,9 +321,9 @@ static void hashtable_destroy(gliss_hashtable_t* h)
     free(h);
 }
 
-#endif // GLISS_INF_DECODE_CACHE && !GLISS_FIXED_DECODE_CACHE
+#endif // GLISS_INF_DECODE_CACHE && !GLISS_FIXED_DECODE_CACHE && || !GLISS_LRU_DECODE_CACHE
 
-#ifdef GLISS_FIXED_DECODE_CACHE/////////////////////////////////////////////////////////////
+#if defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)
 
 static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int depth )
 {
@@ -306,8 +379,6 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
     return h;
 }
 
-/* Optimized modulo : only works if tablelength == 2^N */
-#define MODULO(x, length) (x & (length - 1u))
 
 static void hashtable_insert(gliss_hashtable_t* h, gliss_address_t key, gliss_inst_t* value)
 {
@@ -334,23 +405,7 @@ static gliss_inst_t* hashtable_search(gliss_hashtable_t* h, gliss_address_t key)
     i = ring->idx;
     do{
         /* Check hash value to short circuit heavier comparison */
-        /* Check hash value to short circuit heavier comparison */
-        if (key == ring->entries[i].key)
-        {
-            
-            tmp_value = ring->entries[i].value;
-            #ifdef GLISS_LRU_DECODE_CACHE
-            tmp_key   = ring->entries[i].key;
-            
-            ring->entries[i].value = ring->entries[ring->idx].value;
-            ring->entries[i].key   = ring->entries[ring->idx].key;
-            
-            ring->entries[ring->idx].value = tmp_value;
-            ring->entries[ring->idx].key   = tmp_key;
-            #endif
-            
-            return tmp_value;
-        }
+        if (key == ring->entries[i].key) return ring->entries[i].value;
 
         i = MODULO((i-1), h->tabledepth);
     }while( i != ring->idx);
@@ -393,7 +448,106 @@ static void hashtable_destroy(gliss_hashtable_t* h)
         free(h);
     }
 }
+// END GLISS_FIXED_DECODE_CACHE && !GLISS_LRU_DECODE_CACHE///////////////////////////////////
+#endif
 
-#endif // GLISS_FIXED_DECODE_CACHE
+#if defined(GLISS_LRU_DECODE_CACHE)
+
+/**
+ * @param depth  must greater or equal to 2
+ */
+static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int depth )
+{
+    gliss_entry_t* init;
+    gliss_entry_t* tmp0;
+    gliss_entry_t* tmp1;
+    gliss_hashtable_t* h;
+    unsigned int i, j;
+    /* Check requested hashtable isn't too large */
+    assert (size < (1u << 30));
+    assert( size  != 0 );
+    assert( depth >= 2 );
+    /* Chech requested size and depth is a power of two */
+    if( (size &(size -1)) != 0 ) size  = pow(2., ceil(log(size ) / log(2.)) );
+
+    h = (gliss_hashtable_t*)malloc( sizeof(gliss_hashtable_t) );
+    if (NULL == h) return NULL;
+
+    for(i = 0; i < size; ++i)
+    {
+        init = (gliss_entry_t *)malloc(sizeof(gliss_entry_t));
+        if( init == NULL)
+        {
+            hashtable_destroy(h);
+            return NULL;
+        }
+        tmp0 = init;
+        init->key   = -1;
+        init->value = NULL;/// TODO Carrement allouer l'instruction à l'avance.
+        for(j = 0; j < (depth-1); ++j)
+        {
+            tmp1 = (gliss_entry_t *)malloc(sizeof(gliss_entry_t));
+            if( tmp1 == NULL)
+            {
+                hashtable_destroy(h);
+                return NULL;
+            }
+            tmp1->key   = -1;
+            tmp1->value = NULL;/// TODO Carrement allouer l'instruction à l'avance.
+
+            tmp0->next = tmp1;
+            tmp0       = tmp1;
+        }
+        tmp1->next  = NULL;
+        h->table[i] = init;
+    }
+
+    h->tablelength  = size;
+    h->tabledepth   = depth;
+
+    return h;
+}
+
+static void hashtable_destroy(gliss_hashtable_t* h)
+{
+    unsigned int i, j;
+    gliss_entry_t** table;
+    gliss_entry_t*  init;
+    gliss_entry_t*  it;
+    gliss_entry_t*  tmp;
+
+    if( h != NULL )
+    {
+        table = h->table;
+        if( table != NULL )
+        {
+            for (i = 0; i < h->tablelength; i++)
+            {
+                init = table[i];
+                it   = init;
+
+                for (j = 0; j < CACHE_DEPTH; j++)
+                {
+                    if(it != NULL)
+                    {
+                        // Erase each instruction
+                        free(it->value);
+                        tmp = it;
+                        // Erase each entry
+                        it = it->next;
+                        free(tmp);
+                    }
+                    else
+                        break;
+                }
+            }
+        }
+        // Erase gliss_hashtable_t
+        free(h);
+    }
+
+}
+
+#endif // GLISS_LRU_DECODE_CACHE
 
 /* End of file gliss_decode.c */

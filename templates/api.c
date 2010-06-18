@@ -444,9 +444,6 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
  */
 $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
 {
-	if (sim == NULL)
-		return NULL;
-
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
 	return $(proc)_decode(sim->decoder, sim->state->$(pc_name));
@@ -463,10 +460,6 @@ void $(proc)_step($(proc)_sim_t *sim)
 {
 	$(proc)_inst_t *inst;
 
-	if (sim == NULL)
-	/* may be print an error? */
-		return;
-
 	/* retrieving next instruction */
 	inst = $(proc)_next_inst(sim);
 
@@ -475,6 +468,50 @@ void $(proc)_step($(proc)_sim_t *sim)
 
 	/* finally free it */
 	$(proc)_free_inst(inst);
+}
+
+
+/**
+ * Straightforward execution of the simulated programm. 
+ * It runs and count the number of executed instructions 
+ * until the programm reached the last instruction.
+ * this is the <bold> fastest </bold> way to simulate a programm
+ * @param	sim	the simulator which we simulate within
+ * @return number of executed instructions
+ * */
+int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+{
+	int i = 0;
+    $(proc)_state_t*   state     = sim->state;
+    $(proc)_decoder_t* decoder   = sim->decoder;
+    $(proc)_address_t  addr_exit = sim->addr_exit;
+	$(proc)_inst_t* inst;
+	while(addr_exit != state->$(pc_name))
+	{
+		inst = $(proc)_decode(decoder, state->$(pc_name));
+		$(proc)_execute(state, inst);
+		i++;
+	}
+	return i;	
+}
+
+/**
+ * Straightforward execution of the simulated programm. 
+ * It runs until the programm reached the last instruction.
+ * this is the <bold> fastest </bold> way to simulate a programm
+ * @param	sim	the simulator which we simulate within
+ * */
+void $(proc)_run_sim($(proc)_sim_t *sim)
+{
+	$(proc)_state_t*   state     = sim->state;
+    $(proc)_decoder_t* decoder   = sim->decoder;
+    $(proc)_address_t  addr_exit = sim->addr_exit;
+	$(proc)_inst_t* inst;
+	while(addr_exit != state->$(pc_name))
+	{
+		inst = $(proc)_decode(decoder, state->$(pc_name));
+		$(proc)_execute(state, inst);
+	}
 }
 
 

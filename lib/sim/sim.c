@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
 #include <gliss/api.h>
 #include <gliss/macros.h>
 #include <gliss/loader.h>
@@ -191,7 +193,7 @@ int main(int argc, char **argv)
 	int verbose = 0;
 	int stats = 0;
 	int inst_cnt = 0;
-	struct timeval start_time, end_time, delay;
+	uint64_t start_time, end_time, delay;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -500,17 +502,22 @@ int main(int argc, char **argv)
 // !!DEBUG END!!
 
 	/* measure time */
-	if(stats)
-		gettimeofday(&start_time, NULL);
+	if(stats) 
+	{
+		struct rusage buf;
+		getrusage(RUSAGE_SELF, &buf);
+		start_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+	}
 
 	/* full speed simulation */
 	if(!verbose) {
-		while(1)
+		int a = 40;
+		while(a)
 		{
-			if (gliss_is_sim_ended(sim))
-				break;
-			gliss_step(sim);
-			inst_cnt++;
+			sim->addr_exit = addr_exit;
+			sim->state->NIA = addr_start;
+			inst_cnt += ppc_run_and_count_inst(sim);
+			a--;
 		}
 // !!DEBUG BEGIN!!
 //	cpt++;
@@ -526,9 +533,8 @@ int main(int argc, char **argv)
 	/* verbose simulation */
 	else {
 		gliss_inst_t *inst;
-		while(1) {
-			if (gliss_is_sim_ended(sim))
-				break;
+		while(!gliss_is_sim_ended(sim)) 
+		{
 			inst = gliss_next_inst(sim);
 			gliss_disasm(buffer, inst);
 			fprintf(stderr, "%08x: %s\n", gliss_next_addr(sim),  buffer);
@@ -546,16 +552,14 @@ int main(int argc, char **argv)
 
 	/* produce statistics */
 	if(stats) {
-		double time;
-		if(gettimeofday(&end_time, NULL) < 0) {
-			fprintf(stderr, "ERROR: can not get time ?\n");
-			return 1;
-		}
-		timersub(&end_time, &start_time, &delay);
-		time = delay.tv_sec + (double)delay.tv_usec * 10E-6;
+		struct rusage buf;
+		getrusage(RUSAGE_SELF, &buf);
+		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+		delay = end_time - start_time;
+		printf("\n Execution of : %s\n", argv[prog_index]);
 		printf("Simulated instructions = %d\n", inst_cnt);
-		printf("Time = %f ms\n", time * 1000);
-		printf("Rate = %f i/s\n", inst_cnt / time);
+        printf("Time = %f ms\n", (double)delay / 1000.00);
+		printf("Rate = %f Mhz\n", ((double)inst_cnt / ((double)delay / 1000000.00)) / 1000000.00);
 	}
 
 	/* cleanup */

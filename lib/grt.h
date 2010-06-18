@@ -36,6 +36,7 @@
  * - l  : lowermost (meaning the least significant bit)
  * - s  : set value (the field defined by [u l] in v is set to s)
  * - n  :
+ * - r  : rotate    (number of times we rotate v)
  * - bo : bit order ()
  * */
 

@@ -137,7 +137,6 @@ static $(proc)_decode_function_t *$(proc)_decode_table[] =
 	$(proc)_instr_$(IDENT)_decode$(end)
 };
 
-
 /* free a dynamically allocated instruction, we try not to free an already freed or NULL pointer */
 void $(proc)_free_inst($(proc)_inst_t *inst) {
 	assert(inst);
@@ -147,8 +146,10 @@ void $(proc)_free_inst($(proc)_inst_t *inst) {
 	$(end)
 
 	$(if !GLISS_INF_DECODE_CACHE)
-        $(if !GLISS_FIXED_DECODE_CACHE)
+    $(if !GLISS_FIXED_DECODE_CACHE)
+    $(if !GLISS_LRU_DECODE_CACHE)
 	  free(inst);
+	$(end)
 	$(end)
 	$(end)
 }
