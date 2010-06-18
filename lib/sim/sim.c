@@ -511,14 +511,10 @@ int main(int argc, char **argv)
 
 	/* full speed simulation */
 	if(!verbose) {
-		int a = 40;
-		while(a)
-		{
+
 			sim->addr_exit = addr_exit;
 			sim->state->NIA = addr_start;
 			inst_cnt += ppc_run_and_count_inst(sim);
-			a--;
-		}
 // !!DEBUG BEGIN!!
 //	cpt++;
 //	printf("state after instr %d\n", cpt);
@@ -556,10 +552,9 @@ int main(int argc, char **argv)
 		getrusage(RUSAGE_SELF, &buf);
 		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
 		delay = end_time - start_time;
-		printf("\n Execution of : %s\n", argv[prog_index]);
 		printf("Simulated instructions = %d\n", inst_cnt);
         printf("Time = %f ms\n", (double)delay / 1000.00);
-		printf("Rate = %f Mhz\n", ((double)inst_cnt / ((double)delay / 1000000.00)) / 1000000.00);
+		printf("Rate = %f i/s\n", ((double)inst_cnt / ((double)delay / 1000000.00)));
 	}
 
 	/* cleanup */
