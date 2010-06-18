@@ -20,8 +20,8 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "../include/gliss/error.h"
-#include "../include/gliss/grt.h"
+#include <gliss/error.h>
+#include <gliss/grt.h>
 
 
 uint32_t gliss_rotate_left32(uint32_t v, int r, int n)

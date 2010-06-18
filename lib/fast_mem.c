@@ -37,7 +37,7 @@
 
 #define little	0
 #define big		1
-#include "../include/gliss/config.h"
+#include <gliss/config.h>
 
 /**
  * @def gliss_address_t
@@ -55,7 +55,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
-#include "../include/gliss/mem.h"
+#include <gliss/mem.h>
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\
@@ -523,6 +523,14 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 			memcpy(val.bytes, p, 4);
 #		endif
 
+	/*Faster byte swapping
+    a = (val.word & 0xFF000000u) >> (3*8) |
+        (val.word & 0x00FF0000u) >> (1*8) |
+        (val.word & 0x0000FF00u) << (1*8) |
+        (val.word & 0x000000FFu) << (3*8);
+
+    */
+    // Slower byte swapping :
 	/* invert */
 	a = val.bytes[0];
 	val.bytes[0] = val.bytes[3];

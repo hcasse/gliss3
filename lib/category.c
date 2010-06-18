@@ -4,7 +4,7 @@
 #include <stdio.h>
 /* #include <math.h>  needed for affiche_valeur_binaire (which is not well categoryd) */
 
-#include "../include/gliss/api.h"
+#include <gliss/api.h>
 #include "config.h" /* for memory endiannesses */
 #include "category.h"
 

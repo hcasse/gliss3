@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <gliss/loader.h>
 
+
 #ifndef NDEBUG
 #	define assertp(c, m)	\
 		if(!(c)) { \
@@ -42,6 +43,22 @@
 #	define TRACE
 #endif
 
+#include <ppc/mem.h>
+#if defined(PPC_VFAST_MEM)
+
+#   include <ppc/config.h>
+#   define little	0
+#   define big		1
+
+#   ifndef TARGET_ENDIANNESS
+#   	error "TARGET_ENDIANNESS must be defined !"
+#   endif
+
+#   ifndef HOST_ENDIANNESS
+#   	error "HOST_ENDIANNESS must be defined !"
+#   endif
+
+#endif
 
 /* ELF definitions */
 typedef uint32_t Elf32_Addr;
@@ -886,8 +903,10 @@ void gliss_loader_close(gliss_loader_t *loader)
  */
 void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
 {
-	struct data_secs *ptr;
-	struct text_secs *ptr_tex;
+    struct data_secs* ptr;
+    struct text_secs* ptr_tex;
+    uint8_t*          rbuffer;
+    unsigned int i;
 	assert(loader->Text.secs != NULL);
 	/* adapt the next line if you have an harvard mem archi */
 	gliss_memory_t *memory = gliss_get_memory(pf, GLISS_MAIN_MEMORY);
@@ -895,18 +914,41 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
 	/* load text part */
 	TRACE;
 	ptr_tex = loader->Text.secs;
-	while(ptr_tex != NULL) {
-		TRACE;
-		gliss_mem_write(memory, ptr_tex->address, ptr_tex->bytes, ptr_tex->size);
+    while(ptr_tex != NULL)
+    {
+        TRACE;
+        #if (HOST_ENDIANNESS != TARGET_ENDIANNESS) && defined(GLISS_VFAST_MEM)
+        // Byte swap buffer
+        rbuffer = (uint8_t*)malloc(ptr_tex->size);
+        for(i = 0; i < ptr_tex->size; i++)
+            rbuffer[ptr_tex->size-1-i] = ptr_tex->bytes[i];
+
+        gliss_mem_write(memory, ptr_tex->address, rbuffer, ptr_tex->size);
+        free(rbuffer);
+        #else
+        gliss_mem_write(memory, ptr_tex->address, ptr_tex->bytes, ptr_tex->size);
+        #endif
 		ptr_tex = ptr_tex->next;
 	}
 
 	/* load data part */
 	TRACE;
 	ptr = loader->Data.secs;
-	while(ptr != NULL){
+    while(ptr != NULL)
+    {
 		TRACE;
-		gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
+        #if (HOST_ENDIANNESS != TARGET_ENDIANNESS) && defined(GLISS_VFAST_MEM)
+        // Byte swap buffer
+        rbuffer = (uint8_t*)malloc(ptr->size);
+        for(i = 0; i < ptr->size; i++)
+            rbuffer[ptr->size-1-i] = ptr->bytes[i];
+
+        gliss_mem_write(memory, ptr->address, rbuffer, ptr->size);
+        free(rbuffer);
+        #else
+        gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
+        #endif
+
 		ptr = ptr->next;
 	}
 }

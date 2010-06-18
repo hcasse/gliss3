@@ -2,12 +2,12 @@
 #ifndef $(PROC)_PLATFORM_H
 #define $(PROC)_PLATFGORM_H
 
-#include "../include/$(proc)/api.h"
+#include <$(proc)/api.h>
 $(foreach modules)
 $(if is_mem)
-#include "../include/$(proc)/mem.h"
+#include <$(proc)/mem.h>
 $(else)
-#include "../include/$(proc)/$(name).h"
+#include <$(proc)/$(name).h>
 $(end)
 $(end)
 
