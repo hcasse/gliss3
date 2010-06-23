@@ -1165,9 +1165,9 @@ and gen_binop info t op e1 e2 =
 	| Irg.LSHIFT	->  mask info t (fun _ -> out "(" " << " ")")
 	| Irg.RSHIFT	-> out "(" " >> " ")"
 	| Irg.LROTATE	->
-		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.RROTATE	->
-		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.LT		-> out "(" " < " ")"
 	| Irg.GT		-> out "(" " > " ")"
 	| Irg.LE		-> out "(" " <= " ")"

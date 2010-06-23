@@ -13,7 +13,7 @@
 	in the dictionnary and must be resolved as a boolean.
 
 	Loops are allowed using "$(foreach identifier) ... $(end)". In this
-	case, the icentifier must be resolved to a collection and the loop body
+	case, the identifier must be resolved to a collection and the loop body
 	is generated as many times there is elements in the collection.
 	Identifiers contained in the body are resolved against special
 	dictionnaries associated with each collection element.

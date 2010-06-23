@@ -19,7 +19,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(*
+  Here is the module in charge of the generation of the fetch_table.h
+*)
+(*
+  Usefull list of dependencies in order to work with the interactive Ocaml toplevel :
+  (Do not forget to do make to have the latest version of the cmo binnairies)
 
+  #directory "../irg";;
+  #directory "../gep";;
+  
+  #load "unix.cma";;
+  #load "str.cma";;
+  #load "config.cmo";;
+  #load "irg.cmo";;
+  #load "instantiate.cmo";;
+  #load "lexer.cmo";;
+  #load "sem.cmo";;
+  #load "IdMaker.cmo";;
+  #load "iter.cmo";;
+  #load "toc.cmo";;
+*)
 
 (* return the string of a given Irg.expr which is supposed to be an image attribute *)
 let rec get_str e =

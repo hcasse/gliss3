@@ -19,11 +19,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-module OrderedType = struct
+(*
+  Usefull list of dependencies in order to work with the interactive Ocaml toplevel :
+  (Do not forget to do make to have the latest version of the cmo binnairies)
+*)
+(*
+  #directory "../irg";;
+  #directory "../gep";;
+  
+  #load "unix.cma";;
+  #load "str.cma";;
+  #load "config.cmo";;
+  #load "irg.cmo";;
+  #load "instantiate.cmo";;
+  #load "lexer.cmo";;
+  #load "sem.cmo";;
+  #load "IdMaker.cmo";;
+  #load "iter.cmo";;
+  #load "toc.cmo";;
+  #load "parser.cmo";;
+  #load "irgUtil.cmo";;
+  #load "templater.cmo";;
+*)
+
+
+module OrderedType = 
+struct
 	type t = Toc.c_type
 	let compare s1 s2 = if s1 = s2 then 0 else if s1 < s2 then (-1) else 1
 end
-module TypeSet = Set.Make(OrderedType)
+
+module TypeSet = Set.Make(OrderedType);;
 
 (** Gather information useful for the generation. *)
 type maker_t = {
@@ -183,6 +209,10 @@ let maker _ = {
 	get_params = (fun _ _ _ _ dict -> dict);
 	get_instruction = (fun _ dict -> dict)
 }
+
+(*
+make_env : Toc.info_t -> maker_t -> (string * Templater.value_t) list
+*)
 let make_env info maker =
 
 	let param_types =
@@ -316,3 +346,4 @@ let run args help f =
 let make_template template file dict =
 	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
 	Templater.generate dict template file
+ 
