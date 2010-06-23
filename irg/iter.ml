@@ -61,7 +61,7 @@ initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
 
 
-(* iterator (or fold) on the structure containin all the instructions specs
+(* iterator (or fold) on the structure containing all the instructions specs
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
 	@param init_val		the accumulator, initial value *)
 let iter fun_to_iterate init_val =

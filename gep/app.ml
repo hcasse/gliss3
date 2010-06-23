@@ -320,7 +320,7 @@ let options = [
 
 
 (** Run a standard command using IRG. Capture and display all errors.
-	@param f		Function to run once the IRG is load.
+	@param f		Function to run once the IRG is loaded.
 	@param args		Added arguments.
 	@param help		Help text about the command. *)
 let run args help f =

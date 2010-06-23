@@ -122,8 +122,10 @@ let make_env info =
 			(fun min inst ->
 				let size = Fetch.get_instruction_length inst
 				in if size < min then size else min)
-			1024 in
-
+			1024 
+	in
+	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
+	in
 	let decoder inst idx out =
 		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx) in
 		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, code_inst)" mask in
@@ -154,6 +156,7 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
+	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
 	("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;

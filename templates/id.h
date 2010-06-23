@@ -2,6 +2,8 @@
 #ifndef GLISS_$(PROC)_INCLUDE_$(PROC)_ID_H
 #define GLISS_$(PROC)_INCLUDE_$(PROC)_ID_H
 
+#define NB_INSTRUCTIONS $(total_instruction_count)
+
 /* ($(proc)_ident_t enumeration */
 typedef enum $(proc)_ident_t {
 	$(PROC)_UNKNOWN = 0$(foreach instructions),

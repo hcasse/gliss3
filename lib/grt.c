@@ -26,10 +26,7 @@
 
 uint32_t gliss_rotate_left32(uint32_t v, int r)
 {
-	r = FMOD(r, 32);
-	int len = 32 - r;
-	uint32_t mask = gliss_mask32(len);
-	return (((v & mask) << r) | ((v & ~mask) >> len));
+	return (((v ) << r) | ((v ) >> (32 - FMOD(r, 32))));
 }
 
 uint32_t gliss_rotate_left8(uint32_t v, int r)
