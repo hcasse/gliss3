@@ -10,48 +10,10 @@
 @include gliss-intro.thot
 @include gliss-tuto.thot
 @include gliss-mods.thot
+@include gliss-spec.thot
+@include gliss-cmds.thot
 
 
-
-
-
-====== NML Specific Items ======
-
-===== Declaration of canonical functions =====
-
-These C functions, defined in external C files and used in NMP files, cannot get
-correctly typed as is. To ensure type verification of operands and result, you have
-to give a prototype of each canonical function in the NML file(s) where it is used.
-Writing such a prototype in NML is done with the ''canon'' keyword like in these examples:
-first we define some types to make things more readable,
-<code>
-type f32 = float(23, 9)
-type u32 = card(32)
-</code>
-we can define functions with one, several or no argument,
-<code>
-canon f32 "fsqrt32"(f32)
-canon f32 "fmul32"(f32, f32)
-canon u32 "rand"()
-</code>
-or procedures with zero or more arguments.
-<code>
-canon "print_msg"(string)
-canon "do_stuff_with_several_things"(u32, f32, u32, card(5))
-</code>
-
-Here is the syntax:
-<code>
-CanonicFunctionDefinition ::= 'canon' TypeResult+ '"'function_name'"'(TypeParams)
-
-TypeResult ::= TypeExpr		// NML type of the result
-TypeParams ::=			// NML type of the params
-	TypeExpr
-|	TypeParams ',' TypeExpr
-function_name ::= string	// name of the canonical function
-</code>
-
-Whatever you call or declare an canonical, do not forget to put a pair of '"' around the name.
 
 
 ====== Commands ======
