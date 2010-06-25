@@ -1185,72 +1185,84 @@ and gen_binop info t op e1 e2 =
 (** Generate code for coercition.
 	@param typ	Type to coerce to.
 	@param expr	Expression to coerce. *)
-and coerce info typ expr parent =
-
-	let apply pref suff = output_string info.out pref; gen_expr info expr; output_string info.out suff in
+and coerce info t1 expr parent =
 	let asis _ = gen_expr info expr in
-	let otyp = Sem.get_type_expr expr in
-	let to_range lo up =
-		apply (Printf.sprintf "%s_check_range(" info.proc) (Printf.sprintf  ", %ld, %ld)" lo up) in
-	let to_enum vals =
-		apply (Printf.sprintf "%s_check_enum(" info.proc) (Printf.sprintf ", %d)" (List.length vals)) in
-	let coerce fn =
-		apply (Printf.sprintf "%s_coerce_%s(" info.proc fn) ")" in
 
-	if typ = otyp then asis () else
-	match (typ, otyp) with
+	(* simple equality *)
+	let t2 = Sem.get_type_expr expr in
+	let t1c = convert_type t1 in
+	let t2c = convert_type t2 in
+	if t1 = t2 or t1c = t2c then asis () else
+
+	(* generation *)
+	let eq0 f _ =
+		output_string info.out "((";
+		f ();
+		output_string info.out ") == 0)" in
+	let cast f _ =
+		Printf.fprintf info.out "((%s)(" (type_to_string t1c);
+		f ();
+		output_string info.out "))" in
+	let mask n f _ =
+		output_string info.out "((";
+		f ();
+		Printf.fprintf info.out ") &  ((1 << %d) - 1))" n in
+	let to_range lo up f _ =
+		Printf.fprintf info.out "%s_check_range(" info.proc;
+		f ();
+		Printf.fprintf info.out ", %ld, %ld)" lo up in
+	let to_enum vals f _ =
+		Printf.fprintf info.out "%s_check_enum(" info.proc;
+		f ();
+		Printf.fprintf info.out ", %d)" (List.length vals) in
+
+	(* special cases *)
+	match (t1, t2) with
 
 	(* conversion to bool *)
-	| Irg.BOOL, Irg.INT _
 	| Irg.BOOL, Irg.CARD _
-	| Irg.BOOL, Irg.FLOAT _
+	| Irg.BOOL, Irg.INT _
 	| Irg.BOOL, Irg.RANGE _
-	| Irg.BOOL, Irg.ENUM _ -> apply "((" ") ? 1 : 0)"
-
-	(* conversion to int *)
-	| Irg.INT _, Irg.BOOL -> asis ()
-	| Irg.INT n, Irg.INT m when n > m -> exts info typ asis
-	| Irg.INT n, Irg.INT m when n < m -> asis ()
-	| Irg.INT _, Irg.INT _ -> asis ()
-	| Irg.INT n, Irg.CARD m when n > m -> asis ()
-	| Irg.INT n, Irg.CARD m when n < m -> asis ()
-	| Irg.INT _, Irg.CARD _ -> asis ()
-	| Irg.INT _, Irg.FLOAT (23, 9) -> coerce "ftoi"
-	| Irg.INT _, Irg.FLOAT (52, 12) -> coerce "dtoi"
-	| Irg.INT _, Irg.RANGE _
-	| Irg.INT _, Irg.ENUM _ -> asis ()
+	| Irg.BOOL, Irg.ENUM _
+	| Irg.BOOL, Irg.FLOAT _ -> eq0 asis ()
 
 	(* conversion to card *)
-	| Irg.CARD _, Irg.BOOL -> asis ()
-	| Irg.CARD n, Irg.INT m when n >= m -> asis ()
-	| Irg.CARD n, Irg.INT m when m > n -> mask info typ asis
-	| Irg.CARD _, Irg.INT _ -> asis ()
-	| Irg.CARD n, Irg.CARD m when n < m -> asis ()
-	| Irg.CARD n, Irg.CARD m when n > m -> asis ()
-	| Irg.CARD _, Irg.CARD _ -> asis ()
-	| Irg.CARD _, Irg.FLOAT (23, 9) -> coerce "ftou"
-	| Irg.CARD _, Irg.FLOAT (52, 12) -> coerce "dtou"
+	| Irg.CARD n, Irg.CARD m when n < m -> mask n asis ()
+	| Irg.CARD n, Irg.CARD m when n > m -> cast asis ()
+	| Irg.CARD n, Irg.INT m when n = m -> cast asis ()
+	| Irg.CARD n, Irg.INT m when n < m -> cast (mask n asis) ()
+	| Irg.CARD n, Irg.INT m when n > m -> cast (mask m asis) ()
+	| Irg.CARD _, Irg.BOOL -> cast asis ()
 	| Irg.CARD _, Irg.RANGE _
-	| Irg.CARD _, Irg.ENUM _ -> asis ()
+	| Irg.CARD _, Irg.ENUM _ -> cast asis ()
+	| Irg.CARD _, Irg.FLOAT (23, 9) -> cast asis ()
+
+	(* conversion to int *)
+	| Irg.INT n, Irg.INT _
+	| Irg.INT n, Irg.CARD _
+	| Irg.INT n, Irg.BOOL
+	| Irg.INT n, Irg.RANGE _
+	| Irg.INT n, Irg.ENUM _
+	| Irg.INT n, Irg.FLOAT _ -> cast asis ()
 
 	(* conversion to float *)
 	| Irg.FLOAT (23, 9), _
-	| Irg.FLOAT (52, 12), _ -> asis ()
+	| Irg.FLOAT (52, 12), _ -> cast asis ()
 
 	(* conversion to range *)
-	| Irg.RANGE (lo, up), _ -> to_range lo up
+	| Irg.RANGE (lo, up), _ -> to_range lo up asis ()
 
 	(* conversion to enum *)
-	| Irg.ENUM vals, _ -> to_enum vals
+	| Irg.ENUM vals, _ -> to_enum vals asis ()
 
 	| _ ->
 		raise (PreError (fun out ->
 			output_string out "unsupported coercition for ";
 			Irg.output_expr out expr;
 			output_string out " from ";
-			Irg.output_type_expr out otyp;
+			Irg.output_type_expr out t2;
 			output_string out " to ";
-			Irg.output_type_expr out typ))
+			Irg.output_type_expr out t1))
 
 
 (** Generate a cast expression.
