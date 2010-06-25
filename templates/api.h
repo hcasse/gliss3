@@ -8,6 +8,7 @@
 #include "mem.h"
 //#include "loader.h"
 
+#define $(PROC)_PROC_NAME "$(PROC)"
 
 /* return an instruction identifier as a string instead of the $(proc)_ident_t which is not very user friendly */
 char *$(proc)_get_string_ident($(proc)_ident_t id);
