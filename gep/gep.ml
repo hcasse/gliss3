@@ -112,6 +112,18 @@ let get_source f dict source =
 	f (("path", App.out (fun _ -> source)) :: dict)
 
 
+(** find the first least significant bit set to one 
+    @param mask      the mask to parse 
+    @return the indice of the first least significant bit 
+*)
+let find_first_bit mask =
+  let rec aux index shifted_mask =
+    if (Int32.logand shifted_mask 1l) <> 0l || index >= 32
+    then index
+    else aux (index+1) (Int32.shift_right shifted_mask 1)
+  in
+    aux 0 mask
+
 (** Build a template environment.
 	@param info		Information for generation.
 	@return			Default template environement. *)
@@ -127,9 +139,9 @@ let make_env info =
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 	let decoder inst idx out =
-		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx) in
-		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, code_inst)" mask in
-		let exts n = Printf.fprintf out "__EXTS(0x%08lX, code_inst, %d)" mask (32 - n) in
+		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)                         in
+		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, %d, code_inst)"  mask (find_first_bit mask)          in
+		let exts    n = Printf.fprintf out "__EXTS(0x%08lX, %d, code_inst, %d)" mask (find_first_bit mask) (32 - n) in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in

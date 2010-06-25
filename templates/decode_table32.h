@@ -28,47 +28,8 @@ $(if GLISS_LRU_DECODE_CACHE)
 $(end)
 
 /* decoder macros */
-#define __EXTRACT(m, i)	valeur_sur_mask_bloc(i, m)
-#define __EXTS(m, i, n)	(((int32_t)__EXTRACT(m, i) << n) >> n)
-
-/*
-	donne la valeur d'une zone mémoire (une instruction) en ne prenant
-	en compte que les bits indiqués par le mask
-
-	on fait un ET logique entre l'instruction et le masque,
-	on conserve seulement les bits indiqués par le masque
-	et on les concatène pour avoir un nombre sur 32 bits
-
-	on suppose que le masque n'a pas plus de 32 bits à 1,
-	sinon débordement
-
-	instr : instruction (de 32 bits)
-	mask  : masque (32 bits aussi)
-*/
-static uint32_t valeur_sur_mask_bloc(uint32_t instr, uint32_t mask)
-{
-	int i;
-	uint32_t tmp_mask;
-	uint32_t res = 0;
-
-	/* on fait un parcours du bit de fort poids de instr[0]
-	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-
-	tmp_mask = mask;
-	for (i = 31; i >= 0; i--)
-	{
-		/* le bit i du mask est 1 ? */
-		if (tmp_mask & 0x80000000UL)
-		{
-			/* si oui, recopie du bit i de l'instruction
-			à droite du resultat avec decalage prealable */
-			res <<= 1;
-			res |= ((instr >> i) & 0x01);
-		}
-		tmp_mask <<= 1;
-	}
-	return res;
-}
+#define __EXTRACT(mask, offset_mask, inst)	  ( (uint32_t)((inst) & (mask)) >> (offset_mask))
+#define __EXTS(mask, offset_mask, inst, n)    (((int32_t)__EXTRACT(mask, offset_mask, inst) << (n)) >> (n))
 
 static $(proc)_inst_t *$(proc)_instr_UNKNOWN_decode($(proc)_address_t address, uint32_t code_inst)
 {
