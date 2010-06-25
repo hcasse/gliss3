@@ -671,14 +671,14 @@ int main(int argc, char **argv)
 	/* full speed simulation */
     if(!verbose && !profile)
     {
-        int a = 140;
-        while(a)
-        {
-            sim->addr_exit  = addr_exit;
-            sim->state->NIA = addr_start;
+        //int a = 140;
+        //while(a)
+        //{
+        //  sim->addr_exit  = addr_exit;
+        //  sim->state->NIA = addr_start;
             inst_cnt += ppc_run_and_count_inst(sim);
-            a--;
-        }
+         //   a--;
+         //}
 
 
 // !!DEBUG BEGIN!!
