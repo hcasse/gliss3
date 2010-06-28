@@ -213,8 +213,8 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 
 float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
 	union {
-		uint64_t i;
-		double d;
+		uint32_t i;
+		float d;
 	} x;
 	x.i = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
 	return x.d;
