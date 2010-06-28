@@ -676,7 +676,7 @@ int main(int argc, char **argv)
         //{
         //  sim->addr_exit  = addr_exit;
         //  sim->state->NIA = addr_start;
-            inst_cnt += ppc_run_and_count_inst(sim);
+            inst_cnt += gliss_run_and_count_inst(sim);
          //   a--;
          //}
 
