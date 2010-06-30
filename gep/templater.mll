@@ -125,6 +125,7 @@ rule scanner out dict state = parse
 | eof
 	{ () }
 
+
 and skip out dict cnt = parse
   "$$"
   	{ skip out dict cnt lexbuf }
@@ -141,6 +142,7 @@ and skip out dict cnt = parse
 	{ skip out dict cnt lexbuf }
 | eof
 	{ failwith "unclosed if" }
+
 
 and scan_end buf cnt = parse
   "$$" as s

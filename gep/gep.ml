@@ -51,7 +51,6 @@ let modules = ref [
 	new_mod "error" "error"
 ]
 
-
 (** Add a module to the list of module from arguments.
 	@param text		Text of the ragument. *)
 let add_module text =
@@ -77,18 +76,20 @@ let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
-let sim = ref false
+let sim     = ref false
 let memory = ref "fast_mem"
-let size = ref 0
+let size   = ref 0
 let sources : string list ref = ref []
 let switches: (string * bool) list ref = ref []
 let options = [
-	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
-	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
-	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
-	("-S", Arg.Set sim, "generate the simulator application");
+	("-m",   Arg.String  add_module, "add a module (module_name:actual_module)]");
+	("-s",   Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
+	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
+	("-S",   Arg.Set     sim, "generate the simulator application");
+	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
+             "Optimized generation with a profiling file given it's path" );
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
-	("-on", Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
+	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
 ]
 
 
@@ -185,7 +186,8 @@ let make_env info =
 			info.Toc.inst <- spec_init;
 			info.Toc.iname <- "init";
 			(* stack params (none) and attrs (only action) for "init" op *)
-			Irg.attr_stack [init_action_attr];Toc.get_stat_attr "action";
+			Irg.attr_stack [init_action_attr];
+			let _ = Toc.get_stat_attr "action" in
 			Toc.gen_action info "action")) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::

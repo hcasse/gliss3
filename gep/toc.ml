@@ -136,10 +136,7 @@ type info_t = {
 
 (** Empty information record. *)
 let info _ =
-	let p =
-		match Irg.get_symbol "proc" with
-		  Irg.LET(_, Irg.STRING_CONST name) -> name
-		| _ -> raise (Error "'proc' must be defined as a string let") in
+	let p = Irg.get_proc_name () in
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST

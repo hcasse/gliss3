@@ -235,6 +235,14 @@ let get_symbol n =
 		(*failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")*)
 		raise (Symbol_not_found(n))
 
+(** Get processor name of the simulator *)
+let get_proc_name () = match get_symbol "proc" with
+	| LET(_, STRING_CONST name) -> name
+	| _                         -> 
+		failwith ("Unable to find 'proc_name'."^
+				  "'proc' must be defined as a string let")
+
+
 (** Add a symbol to the namespace.
 	@param name	Name of the symbol to add.
 	@param sym	Symbol to add.

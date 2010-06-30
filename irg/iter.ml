@@ -55,44 +55,13 @@ let check_coerce spec =
 		(* shouldn't happen *)
 		spec
 
-
 (* structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
+(** List of instruction names sorted by ascending order of call number 
+	This list is initialize if -p option is activated when calling GEP *)
+let instr_stats : (string list ref) = ref [];;
 
-
-(* iterator (or fold) on the structure containing all the instructions specs
-	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
-	@param init_val		the accumulator, initial value *)
-let iter fun_to_iterate init_val =
-	let initialise_instrs =
-		if !instr_set = [Irg.UNDEF] then
-			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
-		else
-			()
-	in
-	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
-		match instrs with
-		[] ->
-			init
-		| a::b ->
-			match a with
-			Irg.AND_OP(_, param_l, attr_l) ->
-			
-				Irg.param_unstack params_to_unstack;
-				Irg.attr_unstack attrs_to_unstack;
-			
-				Irg.param_stack param_l;
-				Irg.attr_stack attr_l;
-				
-				rec_iter f (f init a) b param_l attr_l;
-			| _ ->
-				failwith "we should have only AND OP spec at this point (Iter)"	
-	in
-	begin
-	initialise_instrs;
-	rec_iter fun_to_iterate init_val !instr_set [] []
-	end
 
 (** return an attr from an instruction or mode specification
 	@param instr	spec of the instrution or the mode
@@ -208,3 +177,55 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
+(** *)
+let rec sort_instr_set instr_list stat_list = match stat_list with
+  | []       -> []
+  | name::q  -> 
+	try
+		let inst = List.find (fun a -> (get_name a) = name) instr_list 
+		in
+			(sort_instr_set instr_list q)  @ [inst]
+	with Not_found -> failwith "Profile instructions doesn't match current instruction generation"
+			
+(* iterator (or fold) on the structure containing all the instructions specs
+	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
+	@param init_val		the accumulator, initial value *)
+let iter fun_to_iterate init_val =
+	let initialise_instrs =
+		if !instr_set = [Irg.UNDEF] then
+			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
+		else
+			()
+	in
+	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
+	let _ = 
+		if List.length !instr_stats = 0
+		then  ()
+		else
+			 instr_set := sort_instr_set !instr_set !instr_stats
+	in
+  
+	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
+		match instrs with
+		[] ->
+			init
+		| a::b ->
+			match a with
+			Irg.AND_OP(_, param_l, attr_l) ->
+			
+				Irg.param_unstack params_to_unstack;
+				Irg.attr_unstack attrs_to_unstack;
+			
+				Irg.param_stack param_l;
+				Irg.attr_stack attr_l;
+				
+				rec_iter f (f init a) b param_l attr_l;
+			| _ ->
+				failwith "we should have only AND OP spec at this point (Iter)"	
+	in
+	begin
+	initialise_instrs;
+	rec_iter fun_to_iterate init_val !instr_set [] []
+	end
+	  
+		  
