@@ -5,9 +5,9 @@
 #include <errno.h>
 #include <$(proc)/api.h>
 #include "platform.h"
+#include "code_table.h"
 #include <$(proc)/env.h>
 #include <$(proc)/macros.h>
-
 
 
 static char *$(proc)_string_ident[] = {
@@ -458,16 +458,41 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
  */
 void $(proc)_step($(proc)_sim_t *sim)
 {
-	$(proc)_inst_t *inst;
+	$(proc)_inst_t*  inst;
+	$(proc)_state_t* state = sim->state;
 
 	/* retrieving next instruction */
-	inst = $(proc)_next_inst(sim);
+    inst = $(proc)_decode(sim->decoder, state->$(pc_name));
 
 	/* execute it */
-	$(proc)_execute(sim->state, inst);
-
-	/* finally free it */
+$(if GLISS_PROFILED_JUMPS)
+	switch(inst->ident)
+	{
+$(foreach profiled_instructions)
+		case $(PROC)_$(IDENT):
+		{
+		$(gen_code)
+		
+		}break;
+$(end)
+		default:
+		$(proc)_code_table[inst->ident](state, inst);
+	}
+$(end)
+	
+$(if !GLISS_PROFILED_JUMPS)
+	$(proc)_code_table[inst->ident](state, inst);
+$(end)
+	
+$(if !GLISS_INF_DECODE_CACHE)
+$(if !GLISS_FIXED_DECODE_CACHE)
+$(if !GLISS_LRU_DECODE_CACHE)
+    /* finally free it */
 	$(proc)_free_inst(inst);
+$(end)
+$(end)
+$(end)
+	
 }
 
 
@@ -489,7 +514,24 @@ int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 	while(addr_exit != state->$(pc_name))
 	{
 		inst = $(proc)_decode(decoder, state->$(pc_name));
-		$(proc)_execute(state, inst);
+$(if GLISS_PROFILED_JUMPS)
+		switch(inst->ident)
+		{
+			$(foreach profiled_instructions)
+			
+			case $(PROC)_$(IDENT): {
+			$(gen_code)
+			}
+			break;			
+			$(end)
+			default:
+			$(proc)_code_table[inst->ident](state, inst);
+		}
+$(end)
+	
+$(if !GLISS_PROFILED_JUMPS)
+		$(proc)_code_table[inst->ident](state, inst);
+$(end)
 		i++;
 	}
 	return i;	
@@ -510,7 +552,24 @@ void $(proc)_run_sim($(proc)_sim_t *sim)
 	while(addr_exit != state->$(pc_name))
 	{
 		inst = $(proc)_decode(decoder, state->$(pc_name));
-		$(proc)_execute(state, inst);
+$(if GLISS_PROFILED_JUMPS)
+		switch(inst->ident)
+		{
+$(foreach profiled_instructions)
+			case $(PROC)_$(IDENT):
+			{
+		$(gen_code)
+		
+			}break;
+$(end)
+			default:
+			$(proc)_code_table[inst->ident](state, inst);
+		}
+$(end)
+	
+$(if !GLISS_PROFILED_JUMPS)
+		$(proc)_code_table[inst->ident](state, inst);
+$(end)
 	}
 }
 

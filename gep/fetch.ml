@@ -124,7 +124,8 @@ let get_string_mask_from_op sp =
 	in
 	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
-(* return the length of a given instruction, based on the image description *)
+
+(** return the length of a given instruction, based on the image description *)
 let get_instruction_length sp =
 	let rec get_length_from_regexp_list l =
 		match l with

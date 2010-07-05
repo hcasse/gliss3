@@ -9,6 +9,7 @@
 //#include "loader.h"
 
 #define $(PROC)_PROC_NAME "$(PROC)"
+#define $(PROC)_PC_NAME  $(pc_name)
 
 /* return an instruction identifier as a string instead of the $(proc)_ident_t which is not very user friendly */
 char *$(proc)_get_string_ident($(proc)_ident_t id);
@@ -73,7 +74,7 @@ $(end)
 typedef struct $(proc)_inst_t {
 	$(proc)_ident_t ident;
 	$(proc)_ii_t *instrinput;
-	$(proc)_ii_t *instroutput;
+
 } $(proc)_inst_t;
 
 /* auxiliary vector */

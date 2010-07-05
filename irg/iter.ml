@@ -1,3 +1,23 @@
+(*
+ * $Id$
+ * Copyright (c) 2010, IRIT - UPS <casse@irit.fr>
+ *
+ * This file is part of GLISS2.
+ *
+ * GLISS2 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * GLISS2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with GLISS2; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *)
 
 (** Type of integrated instructions. *)
 type inst = Irg.spec
@@ -151,6 +171,15 @@ let get_params instr =
 	| _ ->
 		assert false
 
+(** Return the number of params of an instruction *)
+let get_params_nb instr =
+	match instr with
+	Irg.AND_OP(_, param_list, _) ->
+		List.length param_list
+	| _ ->
+		assert false
+
+
 (* instantiate all known vars in a given expr
 	@param instr	the spec whose params will give the vars to instantiate
 	@param e	the expr to reduce *)
@@ -189,7 +218,9 @@ let rec sort_instr_set instr_list stat_list = match stat_list with
 			
 (* iterator (or fold) on the structure containing all the instructions specs
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
-	@param init_val		the accumulator, initial value *)
+	@param init_val		the accumulator, initial value 
+     val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a 
+*)
 let iter fun_to_iterate init_val =
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
@@ -228,4 +259,15 @@ let iter fun_to_iterate init_val =
 	rec_iter fun_to_iterate init_val !instr_set [] []
 	end
 	  
-		  
+(** Compute the maximum params numbers of all instructions 
+	from the current loaded IRG 
+*)
+let get_params_max_nb () = 
+	let aux acc i =
+		let nb_params = get_params_nb i 
+		in 
+		  if nb_params > acc 
+		  then nb_params 
+		  else acc
+	in
+	  iter aux 0  

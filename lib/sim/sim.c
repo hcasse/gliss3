@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -45,9 +46,11 @@ void usage(const char *prog_name) {
             "  -s                    : display statistics\n"
 			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
 			"  -v, -verbose          : display simulated instructions\n"
+			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())"
             "  -p, -profile=<path>   : generate the file <exec_name>.profile wich contains a statistical array of called instructions.\n"
             "                          Results are added to the file <exec_name>.profile. If the file does not exists it will be created.\n"
             "                          By default <exec_name>.profile is loaded and saved from the caller's current directory\n"
+            "  -b, -bench            : Simulation loops until the programm execution time exceeds 200ms"
 			"\n"
 			"if args or env strings must be passed to the simulated program,\n"
 			"put them in <exec_name>.argv or <exec_name>.envp,\n"
@@ -314,8 +317,10 @@ int main(int argc, char **argv)
 	int verbose = 0;
 	int stats = 0;
     int profile = 0;
+    int fast_sim = 0;
+    int bench = 0;
 	int inst_cnt = 0;
-	uint64_t start_time, end_time, delay;
+	uint64_t start_time, end_time, delay = 0;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -329,6 +334,12 @@ int main(int argc, char **argv)
 		/* -v or -verbose option */
 		else if(strcmp(argv[i], "-verbose") == 0 || strcmp(argv[i], "-v") == 0)
 			verbose = 1;
+			
+		else if(strcmp(argv[i], "-fast") == 0 || strcmp(argv[i], "-f") == 0)
+			fast_sim = 1;
+			
+		else if(strcmp(argv[i], "-bench") == 0 || strcmp(argv[i], "-b") == 0)
+			bench = 1;
 
         /* -p or -profile=<path> option */
         else if( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "-profile") == 0){
@@ -671,14 +682,54 @@ int main(int argc, char **argv)
 	/* full speed simulation */
     if(!verbose && !profile)
     {
-        //int a = 140;
-        //while(a)
-        //{
-        //  sim->addr_exit  = addr_exit;
-        //  sim->state->NIA = addr_start;
-            inst_cnt += ppc_run_and_count_inst(sim);
-         //   a--;
-         //}
+		if(bench)
+		{
+			int a = 50;
+			
+			while(delay < 200.00*1000.00)
+			{				
+				while(a)
+				{
+					sim->addr_exit  = addr_exit;
+					sim->state->GLISS_PC_NAME = addr_start;
+            
+					if(fast_sim)
+						inst_cnt += gliss_run_and_count_inst(sim);
+					else
+					{
+						while(!gliss_is_sim_ended(sim))
+						{
+							gliss_step(sim);
+							inst_cnt++;
+						}
+					}  
+					a--;
+				}
+				
+				struct rusage buf;
+				getrusage(RUSAGE_SELF, &buf);
+				end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+				delay = end_time - start_time;				
+				
+				a = (unsigned long)ceil(a * (200.00*1000.00-delay) / delay);
+				if(a < 20)
+					a = 20;
+			}
+		}else
+		{
+			if(fast_sim)
+				inst_cnt += gliss_run_and_count_inst(sim);
+			else
+			{
+				while(!gliss_is_sim_ended(sim))
+				{
+					gliss_step(sim);
+					inst_cnt++;
+				}
+			}
+            
+          
+         }
 
 
 // !!DEBUG BEGIN!!

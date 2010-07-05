@@ -26,6 +26,9 @@ $(end)
 $(if GLISS_LRU_DECODE_CACHE)
 #define $(PROC)_LRU_DECODE_CACHE
 $(end)
+$(if GLISS_DCACHE_WITH_INSTR_WORD)
+#define $(PROC)_DCACHE_WITH_INSTR_WORD
+$(end)
 
 /* decoder macros */
 #define __EXTRACT(mask, offset_mask, inst)	  ( (uint32_t)((inst) & (mask)) >> (offset_mask))

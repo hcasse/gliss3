@@ -21,7 +21,7 @@
 open Lexing
 
 
-(** module structure *)
+(* (** module structure *) *)
 type gmod = {
 	mutable iname: string;				(** interface name *)
 	mutable aname: string;				(** actual name *)
@@ -76,9 +76,9 @@ let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
-let sim     = ref false
-let memory = ref "fast_mem"
-let size   = ref 0
+let sim                  = ref false
+let memory               = ref "fast_mem"
+let size                 = ref 0
 let sources : string list ref = ref []
 let switches: (string * bool) list ref = ref []
 let options = [
@@ -87,7 +87,9 @@ let options = [
 	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
 	("-S",   Arg.Set     sim, "generate the simulator application");
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
-             "Optimized generation with a profiling file given it's path" );
+		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
+	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
+		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
 	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
 ]
@@ -137,6 +139,8 @@ let make_env info =
 				in if size < min then size else min)
 			1024 
 	in
+	let max_op_nb = Iter.get_params_max_nb ()
+	in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 	let decoder inst idx out =
@@ -170,6 +174,7 @@ let make_env info =
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
+ 	("max_operand_nb", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_op_nb)  ) ::
 	("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;

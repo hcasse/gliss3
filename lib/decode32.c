@@ -11,6 +11,7 @@
 
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
+
 /* endianness */
 typedef enum gliss_endianness_t {
   little = 0,
@@ -75,7 +76,11 @@ typedef enum gliss_endianness_t {
 
     // Double linked list (linked as a ring)
     typedef struct gliss_entry {
+        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         gliss_address_t     key;
+        #else
+        uint32_t          key;
+        #endif
         gliss_inst_t*       value;
         struct gliss_entry* next;
     }gliss_entry_t;
@@ -93,7 +98,7 @@ typedef enum gliss_endianness_t {
 /* decode structure */
 struct gliss_decoder_t
 {
-	/* the fetch unit used to retrieve instruction ID */
+    /* the fetch unit used to retrieve instruction ID */
         gliss_fetch_t *fetch;
         #if defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE) || defined(GLISS_LRU_DECODE_CACHE)
         gliss_hashtable_t* cache;
@@ -144,24 +149,25 @@ static void halt_decoder(gliss_decoder_t *d)
 gliss_decoder_t *gliss_new_decoder(gliss_platform_t *state)
 {
         gliss_decoder_t *res = malloc(sizeof(gliss_decoder_t));
-	if (res == NULL)
+    if (res == NULL)
                 gliss_error("not enough memory to create a gliss_decoder_t object"); /* I assume error handling will remain the same, we use gliss_error istead of iss_error ? */
-	/*assert(number_of_decode_objects >= 0);*/
-	init_decoder(res, state);
-	number_of_decoder_objects++;
-	return res;
+    /*assert(number_of_decode_objects >= 0);*/
+    init_decoder(res, state);
+    number_of_decoder_objects++;
+    return res;
 }
 
 void gliss_delete_decoder(gliss_decoder_t *decode)
 {
-	if (decode == NULL)
-		/* we shouldn't try to free a void decoder_t object, should this output an error ? */
+    if (decode == NULL)
+        /* we shouldn't try to free a void decoder_t object, should this output an error ? */
                 gliss_error("cannot delete an NULL gliss_decoder_t object");
-	number_of_decoder_objects--;
-	/*assert(number_of_decode_objects >= 0);*/
-	halt_decoder(decode);
-	free(decode);
+    number_of_decoder_objects--;
+    /*assert(number_of_decode_objects >= 0);*/
+    halt_decoder(decode);
+    free(decode);
 }
+
 
 /* Fonctions Principales */
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
@@ -169,6 +175,10 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     gliss_inst_t*  res = 0;
     gliss_ident_t  id;
     uint32_t     code;
+
+    #ifdef GLISS_DCACHE_WITH_INSTR_WORD
+    code = gliss_mem_read32(decoder->fetch->mem, address);
+    #endif
 
     /* Is the instruction inside the cache ? */
 #if defined(GLISS_LRU_DECODE_CACHE)
@@ -180,8 +190,13 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     gliss_entry_t* prev;
 
     // If it's the first element no need to handle LRU policy
+    #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if(address == current->key)
         return current->value;
+    #else
+    if(code == current->key)
+        return current->value;
+    #endif
 
     prev     = current;
     current  = current->next;
@@ -190,7 +205,11 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     // Anyway I've not seen any improvements by unrolling manualy this loop
     for( i = 0; i < (CACHE_DEPTH-2); i++)
     {
+        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         if (address == current->key)
+        #else
+        if (code == current->key)
+        #endif
         {
             prev->next     = current->next;
             current->next  = init;
@@ -202,7 +221,11 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     }
 
     // If it's last element LRU can be simplify
+    #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if (address == current->key)
+    #else
+    if (code == current->key)
+    #endif
     {
         current->next  = init;
         //prev->next = NULL; useless because we don't rely on that
@@ -217,14 +240,22 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 #endif
         /* If not find : */
         /* first, fetch the instruction at the given address */
+        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         code = gliss_mem_read32(decoder->fetch->mem, address);
+        #endif
+
         id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
         res  = gliss_decode_table[id](address, code);
         /* and last cache the instruction */
 #if defined(GLISS_LRU_DECODE_CACHE)
         free(current->value);
+        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         current->key   = address;
+        #else
+        current->key   = code;
+        #endif
+
         current->value = res;
 #elif defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
         hashtable_insert(decoder->cache, address, res);
