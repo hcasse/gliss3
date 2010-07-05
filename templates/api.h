@@ -142,6 +142,9 @@ void $(proc)_step($(proc)_sim_t *sim);
 int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
 $(proc)_address_t  $(proc)_next_addr($(proc)_sim_t *sim);
+void $(proc)_set_next_address($(proc)_sim_t *sim, $(proc)_address_t address);
+#define $(proc)_set_entry_address(sim, addr) $(proc)_set_next_address(sim, addr)
+void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address);
 
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);

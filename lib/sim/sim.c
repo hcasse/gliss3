@@ -502,7 +502,7 @@ int main(int argc, char **argv)
 // !!DEBUG END!!
 
 	/* measure time */
-	if(stats) 
+	if(stats)
 	{
 		struct rusage buf;
 		getrusage(RUSAGE_SELF, &buf);
@@ -512,9 +512,9 @@ int main(int argc, char **argv)
 	/* full speed simulation */
 	if(!verbose) {
 
-			sim->addr_exit = addr_exit;
-			sim->state->NIA = addr_start;
-			inst_cnt += ppc_run_and_count_inst(sim);
+			gliss_set_exit_address(sim, addr_exit);
+			gliss_set_entry_address(sim, addr_start);
+			inst_cnt += gliss_run_and_count_inst(sim);
 // !!DEBUG BEGIN!!
 //	cpt++;
 //	printf("state after instr %d\n", cpt);
@@ -529,7 +529,7 @@ int main(int argc, char **argv)
 	/* verbose simulation */
 	else {
 		gliss_inst_t *inst;
-		while(!gliss_is_sim_ended(sim)) 
+		while(!gliss_is_sim_ended(sim))
 		{
 			inst = gliss_next_inst(sim);
 			gliss_disasm(buffer, inst);
