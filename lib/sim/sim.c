@@ -682,6 +682,7 @@ int main(int argc, char **argv)
 	/* full speed simulation */
     if(!verbose && !profile)
     {
+
 		if(bench)
 		{
 			int a = 50;
@@ -730,6 +731,7 @@ int main(int argc, char **argv)
             
           
          }
+
 
 
 // !!DEBUG BEGIN!!

@@ -43,10 +43,10 @@
 #	define TRACE
 #endif
 
-#include <ppc/mem.h>
-#if defined(PPC_VFAST_MEM)
+#include <gliss/mem.h>
+#if defined(GLISS_VFAST_MEM)
 
-#   include <ppc/config.h>
+#   include <gliss/config.h>
 #   define little	0
 #   define big		1
 
