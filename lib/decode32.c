@@ -79,15 +79,20 @@ typedef enum gliss_endianness_t {
         #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         gliss_address_t     key;
         #else
-        uint32_t          key;
+        uint32_t            key;
         #endif
+        
+        #ifndef GLISS_NO_MALLOC
         gliss_inst_t*       value;
+        #else
+        gliss_inst_t        value;
+        #endif
+        
         struct gliss_entry* next;
     }gliss_entry_t;
 
     typedef struct gliss_hashtable {
-        unsigned int tablelength; // Table size
-        unsigned int tabledepth;  // Nb entries per table cell
+        gliss_entry_t* entry_tab;
         gliss_entry_t* table[CACHE_SIZE];
     }gliss_hashtable_t;
 
@@ -192,10 +197,18 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     // If it's the first element no need to handle LRU policy
     #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if(address == current->key)
+        #ifndef GLISS_NO_MALLOC
         return current->value;
+        #else
+        return &(current->value);
+        #endif        
     #else
     if(code == current->key)
+        #ifndef GLISS_NO_MALLOC
         return current->value;
+        #else
+        return &(current->value);
+        #endif   
     #endif
 
     prev     = current;
@@ -214,23 +227,32 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
             prev->next     = current->next;
             current->next  = init;
             table[hash] = current;
-            return current->value;
+            #ifndef GLISS_NO_MALLOC
+			return current->value;
+			#else
+			return &(current->value);
+			#endif 
         }
         prev     = current;
         current  = current->next;
     }
 
     // If it's last element LRU can be simplify
+    current->next  = init;
+    //prev->next = NULL; useless because we don't rely on that
+    table[hash] = current;
+    
     #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if (address == current->key)
     #else
     if (code == current->key)
     #endif
     {
-        current->next  = init;
-        //prev->next = NULL; useless because we don't rely on that
-        table[hash] = current;
+        #ifndef GLISS_NO_MALLOC
         return current->value;
+        #else
+        return &(current->value);
+        #endif 
     }
 #elif defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
     res = hashtable_search(decoder->cache, address);
@@ -246,23 +268,33 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 
         id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
+        #ifndef GLISS_NO_MALLOC
         res  = gliss_decode_table[id](address, code);
+        #else
+        gliss_decode_table[id](address, code, &(current->value));
+        #endif
+        
         /* and last cache the instruction */
 #if defined(GLISS_LRU_DECODE_CACHE)
-        free(current->value);
         #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         current->key   = address;
         #else
         current->key   = code;
         #endif
-
+        #ifndef GLISS_NO_MALLOC
+		free(current->value);
         current->value = res;
+        #endif
 #elif defined(GLISS_INF_DECODE_CACHE) || defined(GLISS_FIXED_DECODE_CACHE)
         hashtable_insert(decoder->cache, address, res);
     }
 
 #endif
-    return res;
+    #ifndef GLISS_NO_MALLOC
+    return current->value;
+    #else
+    return &(current->value);
+    #endif 
 }
 
 #if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)
@@ -504,9 +536,11 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
     h = (gliss_hashtable_t*)malloc( sizeof(gliss_hashtable_t) );
     if (NULL == h) return NULL;
 
+    h->entry_tab = (gliss_entry_t*)malloc(sizeof(gliss_entry_t)*depth*size);
+
     for(i = 0; i < size; ++i)
     {
-        init = (gliss_entry_t *)malloc(sizeof(gliss_entry_t));
+        init = h->entry_tab + i*depth;
         if( init == NULL)
         {
             hashtable_destroy(h);
@@ -514,17 +548,21 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
         }
         tmp0 = init;
         init->key   = -1;
-        init->value = NULL;/// TODO Carrement allouer l'instruction à l'avance.
+        #ifndef GLISS_NO_MALLOC
+        init->value = NULL;
+        #endif
         for(j = 0; j < (depth-1); ++j)
         {
-            tmp1 = (gliss_entry_t *)malloc(sizeof(gliss_entry_t));
+            tmp1 = h->entry_tab + i*depth +j+1;
             if( tmp1 == NULL)
             {
                 hashtable_destroy(h);
                 return NULL;
             }
             tmp1->key   = -1;
-            tmp1->value = NULL;/// TODO Carrement allouer l'instruction à l'avance.
+            #ifndef GLISS_NO_MALLOC
+			tmp1->value = NULL;
+			#endif
 
             tmp0->next = tmp1;
             tmp0       = tmp1;
@@ -532,9 +570,6 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
         tmp1->next  = NULL;
         h->table[i] = init;
     }
-
-    h->tablelength  = size;
-    h->tabledepth   = depth;
 
     return h;
 }
@@ -549,10 +584,10 @@ static void hashtable_destroy(gliss_hashtable_t* h)
 
     if( h != NULL )
     {
-        table = h->table;
+		table = h->table;
         if( table != NULL )
         {
-            for (i = 0; i < h->tablelength; i++)
+            for (i = 0; i < CACHE_SIZE; i++)
             {
                 init = table[i];
                 it   = init;
@@ -561,21 +596,24 @@ static void hashtable_destroy(gliss_hashtable_t* h)
                 {
                     if(it != NULL)
                     {
-                        // Erase each instruction
-                        free(it->value);
-                        tmp = it;
+						tmp = it;
+                        #ifndef GLISS_NO_MALLOC
+                        free(tmp->value);
+                        #endif
                         // Erase each entry
                         it = it->next;
-                        free(tmp);
                     }
                     else
                         break;
                 }
             }
         }
+        // Erase every chained list :
+        free( h->entry_tab);
         // Erase gliss_hashtable_t
         free(h);
     }
+    
 
 }
 
