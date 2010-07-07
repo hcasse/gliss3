@@ -269,10 +269,12 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
         id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
         #ifndef GLISS_NO_MALLOC
-        res  = gliss_decode_table[id](address, code);
+        res  = gliss_decode_table[id](code);
         #else
-        gliss_decode_table[id](address, code, &(current->value));
+        res = &(current->value);
+        gliss_decode_table[id](code, res);
         #endif
+        res->addr = address;
         
         /* and last cache the instruction */
 #if defined(GLISS_LRU_DECODE_CACHE)
@@ -293,7 +295,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     #ifndef GLISS_NO_MALLOC
     return current->value;
     #else
-    return &(current->value);
+    return res;
     #endif 
 }
 

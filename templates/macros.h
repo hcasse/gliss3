@@ -18,13 +18,13 @@ $(end)*/
 
 
 /* parameter access and instruction size macros */
-#define $(PROC)_UNKNOWN___IADDR			((inst)->instrinput[0].val.addr)
+#define $(PROC)_UNKNOWN___IADDR			((inst)->addr)
 #define $(PROC)_UNKNOWN___ISIZE			$(min_instruction_size)
 $(foreach instructions)
-#define $(PROC)_$(IDENT)___IADDR		((inst)->instrinput[0].val.addr)
-#define $(PROC)_$(IDENT)___ISIZE		((inst)->instrinput[1].val.size)
+#define $(PROC)_$(IDENT)___IADDR		((inst)->addr)
+#define $(PROC)_$(IDENT)___ISIZE		$(size)
 $(foreach params)
-#define $(PROC)_$(IDENT)_$(PARAM)		((inst)->instrinput[$(INDEX) + 2].val.$(param_type))
+#define $(PROC)_$(IDENT)_$(PARAM)		((inst)->instrinput[$(INDEX)].val.$(param_type))
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */

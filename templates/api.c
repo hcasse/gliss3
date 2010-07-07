@@ -12,7 +12,8 @@
 
 static char *$(proc)_string_ident[] = {
 	"$(PROC)_UNKNOWN"$(foreach instructions),
-	"$(PROC)_$(IDENT)"$(end)};
+	"$(PROC)_$(IDENT)"$(end)
+};
 
 
 char *$(proc)_get_string_ident($(proc)_ident_t id)
@@ -20,6 +21,15 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
 	return $(proc)_string_ident[id];
 }
 
+static unsigned long $(proc)_size_ident[] = {
+	32$(foreach instructions),
+	$(size)$(end)
+};
+
+unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst)
+{
+	return $(proc)_size_ident[inst->ident]; 
+}
 
 /**
  * @typedef $(proc)_platform_t

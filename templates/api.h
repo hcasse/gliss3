@@ -43,9 +43,7 @@ typedef struct $(proc)_sim_t {
 } $(proc)_sim_t;
 
 /* $(proc)_value_t type */
-typedef union $(proc)_value_t {
-	$(proc)_address_t addr;
-	unsigned long size;
+typedef union $(proc)_value_t {	
 $(foreach values)
 	$(type) $(name);
 $(end)
@@ -72,9 +70,10 @@ $(end)
 
 /* $(proc)_inst_t type */
 typedef struct $(proc)_inst_t {
-	$(proc)_ident_t ident;
+	$(proc)_ident_t   ident;
+	$(proc)_address_t addr;
 $(if GLISS_PARAMS_NOMALLOC)
-	$(proc)_ii_t instrinput[$(max_operand_nb)+2];
+	$(proc)_ii_t instrinput[$(max_operand_nb)];
 $(else)	
 	$(proc)_ii_t *instrinput;
 $(end)

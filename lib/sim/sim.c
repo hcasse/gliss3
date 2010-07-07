@@ -338,8 +338,10 @@ int main(int argc, char **argv)
 		else if(strcmp(argv[i], "-fast") == 0 || strcmp(argv[i], "-f") == 0)
 			fast_sim = 1;
 			
-		else if(strcmp(argv[i], "-bench") == 0 || strcmp(argv[i], "-b") == 0)
+		else if(strcmp(argv[i], "-bench") == 0 || strcmp(argv[i], "-b") == 0){
+			stats = 1; 
 			bench = 1;
+		}
 
         /* -p or -profile=<path> option */
         else if( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "-profile") == 0){
@@ -685,11 +687,13 @@ int main(int argc, char **argv)
 
 		if(bench)
 		{
-			int a = 50;
+			int a   = 50;
+			int cpt;
 			
 			while(delay < 200.00*1000.00)
-			{				
-				while(a)
+			{		
+				cpt = a;		
+				while(cpt)
 				{
 					sim->addr_exit  = addr_exit;
 					sim->state->GLISS_PC_NAME = addr_start;
@@ -704,7 +708,7 @@ int main(int argc, char **argv)
 							inst_cnt++;
 						}
 					}  
-					a--;
+					cpt--;
 				}
 				
 				struct rusage buf;

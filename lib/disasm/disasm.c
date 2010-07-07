@@ -24,8 +24,6 @@
 #include <gliss/api.h>
 #include <gliss/loader.h>
 
-#define gliss_inst_size(inst) ((inst)->instrinput[1].val.size)
-
 typedef struct list_entry_t
 {
 	const char *name;
@@ -242,7 +240,7 @@ int main(int argc, char **argv) {
 				printf("\n%08X <%s>\n", adr_start, n);
 			printf("%08X:\t%08X\t%s.\n", adr_start, code, buff);
 			/* inst size is given in bit, we want it in byte */
-			adr_start += gliss_inst_size(inst) / 8;
+			adr_start += gliss_get_inst_size(inst) / 8;
 		}
 	}
 

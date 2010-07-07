@@ -38,63 +38,44 @@ $(end)
 #define __EXTRACT(mask, offset_mask, inst)	  ( (uint32_t)((inst) & (mask)) >> (offset_mask))
 #define __EXTS(mask, offset_mask, inst, n)    (((int32_t)__EXTRACT(mask, offset_mask, inst) << (n)) >> (n))
 
-static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_UNKNOWN_decode($(proc)_address_t address, uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
+static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_UNKNOWN_decode(uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
 {
 $(if !GLISS_NO_MALLOC)
 	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
-	$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = malloc(sizeof($(proc)_ii_t) * 2);$(end)
 $(end)
 	inst->ident = $(PROC)_UNKNOWN;
-
-	/* set size and address */
-	$(if !GLISS_NO_PARAM)inst->instrinput[0].type = $(PROC)_ADDR;$(end)
-	inst->instrinput[0].val.addr = address;
-	$(if !GLISS_NO_PARAM)inst->instrinput[1].type = $(PROC)_SIZE;$(end)
-	inst->instrinput[1].val.size = 32;
 
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 }
 
 $(foreach instructions)
-static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode($(proc)_address_t address, uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
+static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode(uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
 {
 	$(if has_param)uint32_t mask;
 	
 $(if !GLISS_NO_MALLOC)
 $(if GLISS_ONE_MALLOC)
-	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) $(if !GLISS_PARAMS_NOMALLOC) + sizeof($(proc)_ii_t) * ($(num_params) + 2) $(end));
+	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) $(if !GLISS_PARAMS_NOMALLOC) + sizeof($(proc)_ii_t) * $(num_params) $(end));
 	$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = ($(proc)_ii_t *)(inst + 1);$(end)
 $(else)
 		$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t));
-		$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = malloc(sizeof($(proc)_ii_t) * ($(num_params) + 2));$(end)
+		$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = malloc(sizeof($(proc)_ii_t) * $(num_params) );$(end)
 $(end)
 $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
-	/* set size and address */
-	$(if !GLISS_NO_PARAM)inst->instrinput[0].type = $(PROC)_ADDR;$(end)
-	inst->instrinput[0].val.addr = address;
-	$(if !GLISS_NO_PARAM)inst->instrinput[1].type = $(PROC)_SIZE;$(end)
-	inst->instrinput[1].val.size = 32;
-
 	/* put other parameters */
 	$(foreach params)/* param number $(INDEX) */
 	$(PROC)_$(IDENT)_$(PARAM) = $(decoder); /*valeur_sur_mask_bloc(code_inst, mask);*/ /* res->instrinput[$(INDEX)].val.$(param_type) */
-	$(if !GLISS_NO_PARAM)inst->instrinput[$(INDEX) + 2].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;$(end)
+	$(if !GLISS_NO_PARAM)inst->instrinput[$(INDEX)].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;$(end)
 	$(end)
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 }
 
 $(else)$(if !GLISS_NO_MALLOC)$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
-	$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = malloc(sizeof($(proc)_ii_t) * 2);$(end)
+	
 $(end)	
 	inst->ident = $(PROC)_$(IDENT);
-
-	/* set size and address */
-	$(if !GLISS_NO_PARAM)inst->instrinput[0].type = $(PROC)_ADDR;$(end)
-	inst->instrinput[0].val.addr = address;
-	$(if !GLISS_NO_PARAM)inst->instrinput[1].type = $(PROC)_SIZE;$(end)
-	inst->instrinput[1].val.size = 32;
 
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 }
@@ -103,7 +84,7 @@ $(end)
 $(end)
 
 
-typedef $(if !GLISS_NO_MALLOC)$(proc)_inst_t *$(else)void $(end)$(proc)_decode_function_t($(proc)_address_t address, uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end));
+typedef $(if !GLISS_NO_MALLOC)$(proc)_inst_t *$(else)void $(end)$(proc)_decode_function_t(uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end));
 
 static $(proc)_decode_function_t *$(proc)_decode_table[] =
 {
