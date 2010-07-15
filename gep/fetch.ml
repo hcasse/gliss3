@@ -23,8 +23,8 @@
   Here is the module in charge of the generation of the fetch_table.h
 *)
 (*
-  Usefull list of dependencies in order to work with the interactive Ocaml toplevel :
-  (Do not forget to do make to have the latest version of the cmo binnairies)
+  Useful list of dependencies in order to work with the interactive Ocaml toplevel :
+  (Do not forget to do make to have the latest version of the cmo binaries)
 
   #directory "../irg";;
   #directory "../gep";;
@@ -49,7 +49,7 @@ let rec get_str e =
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
-			Irg.STRING_CONST(str) ->
+			Irg.STRING_CONST(str, false, _) ->
 				str
 			| _ -> ""
 		else
