@@ -318,7 +318,7 @@ gliss_memory_t* gliss_mem_copy(gliss_memory_t* memory)
 void gliss_mem_write(gliss_memory_t* memory, gliss_address_t address, void* buffer, size_t size)
 {
     assert(size > 0);
-
+	int i;
     uint32_t      offset = FMOD(address , MEM_PAGE_SIZE);
     uint32_t      sz     = MEM_PAGE_SIZE - offset;
     memory_64_t*  mem    = (memory_64_t *)memory;
@@ -347,25 +347,17 @@ void gliss_mem_write(gliss_memory_t* memory, gliss_address_t address, void* buff
             memcpy(pte->storage, buffer, size);
         }
 #       else
-
-        memcpy(pte->storage + (MEM_PAGE_SIZE-sz - offset), (buffer+size-sz), sz);
-        size    -= sz;
-        address += sz;
-        //buffer   = (uint8_t *)buffer + sz;
-
-        while(size >= MEM_PAGE_SIZE)
+		for(i=0; i<size; i++)
         {
-            pte = mem_get_page(mem, address);
-            memcpy(pte->storage+(MEM_PAGE_SIZE - MEM_PAGE_SIZE-0), (buffer+size-MEM_PAGE_SIZE), MEM_PAGE_SIZE);
-            size    -= MEM_PAGE_SIZE;
-            address += MEM_PAGE_SIZE;
-            //buffer   = (uint8_t *)buffer + MEM_PAGE_SIZE;
-        }
+            sz--;
+            *((uint8_t*)(pte->storage) + sz) = *((uint8_t*)buffer + i);
+            address += 1;
 
-        if(size > 0)
-        {
-            pte = mem_get_page(mem, address);
-            memcpy(pte->storage + (MEM_PAGE_SIZE-size -0), (buffer+size-size), size);
+            if( sz == 0)
+            {
+                pte = mem_get_page(mem, address);
+                sz  = MEM_PAGE_SIZE;
+            }
         }
 #       endif
     }
@@ -374,7 +366,8 @@ void gliss_mem_write(gliss_memory_t* memory, gliss_address_t address, void* buff
 #       if HOST_ENDIANNESS == TARGET_ENDIANNESS
         memcpy(pte->storage + offset, buffer, size);
 #       else
-        memcpy(pte->storage + (MEM_PAGE_SIZE-size - offset), buffer, size);
+        for(i=0; i<size; i++)
+            *((uint8_t*)(pte->storage)+sz-1-i) = *((uint8_t*)buffer + i);
 #       endif
     }
 
@@ -392,7 +385,7 @@ void gliss_mem_write(gliss_memory_t* memory, gliss_address_t address, void* buff
 void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffer, size_t size)//////////////////////////////
 {
     assert(size > 0);
-
+	int i;
     uint32_t      offset = FMOD(address, MEM_PAGE_SIZE);
     uint32_t      sz     = MEM_PAGE_SIZE - offset;
     memory_64_t*  mem    = (memory_64_t *) memory;
@@ -422,21 +415,17 @@ void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffe
             memcpy(buffer, pte->storage, size);
         }
 #       else
-        memcpy((buffer+size-sz), pte->storage + (MEM_PAGE_SIZE-sz - offset), sz);
-        size    -= sz;
-        address += sz;
-        while(size >= MEM_PAGE_SIZE)
+        for(i=0; i<size; i++)
         {
-            pte = mem_get_page(mem, address);
-            memcpy((buffer+size-MEM_PAGE_SIZE), pte->storage+(MEM_PAGE_SIZE - MEM_PAGE_SIZE-0), MEM_PAGE_SIZE);
-            size    -= MEM_PAGE_SIZE;
-            address += MEM_PAGE_SIZE;
-        }
+            sz--;
+            *((uint8_t*)buffer + i) = *((uint8_t*)(pte->storage) + sz);
+            address += 1;
 
-        if(size>0)
-        {
-            pte = mem_get_page(mem, address);
-            memcpy((buffer+size-size), pte->storage + (MEM_PAGE_SIZE-size -0), size);
+            if( sz == 0)
+            {
+                pte = mem_get_page(mem, address);
+                sz  = MEM_PAGE_SIZE;
+            }
         }
 #       endif
     }
@@ -446,7 +435,8 @@ void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffe
 #       if HOST_ENDIANNESS == TARGET_ENDIANNESS
         memcpy(buffer, pte->storage + offset, size);
 #       else
-        memcpy(buffer, pte->storage + (MEM_PAGE_SIZE-size - offset), size);
+        for(i=0; i<size; i++)
+             *((uint8_t*)buffer + i) = *((uint8_t*)(pte->storage)+sz-1-i);
 #       endif
     }
 

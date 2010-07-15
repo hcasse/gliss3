@@ -917,17 +917,7 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
     while(ptr_tex != NULL)
     {
         TRACE;
-        #if (HOST_ENDIANNESS != TARGET_ENDIANNESS) && defined(GLISS_VFAST_MEM)
-        // Byte swap buffer
-        rbuffer = (uint8_t*)malloc(ptr_tex->size);
-        for(i = 0; i < ptr_tex->size; i++)
-            rbuffer[ptr_tex->size-1-i] = ptr_tex->bytes[i];
-
-        gliss_mem_write(memory, ptr_tex->address, rbuffer, ptr_tex->size);
-        free(rbuffer);
-        #else
         gliss_mem_write(memory, ptr_tex->address, ptr_tex->bytes, ptr_tex->size);
-        #endif
 		ptr_tex = ptr_tex->next;
 	}
 
@@ -937,18 +927,7 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
     while(ptr != NULL)
     {
 		TRACE;
-        #if (HOST_ENDIANNESS != TARGET_ENDIANNESS) && defined(GLISS_VFAST_MEM)
-        // Byte swap buffer
-        rbuffer = (uint8_t*)malloc(ptr->size);
-        for(i = 0; i < ptr->size; i++)
-            rbuffer[ptr->size-1-i] = ptr->bytes[i];
-
-        gliss_mem_write(memory, ptr->address, rbuffer, ptr->size);
-        free(rbuffer);
-        #else
         gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
-        #endif
-
 		ptr = ptr->next;
 	}
 }
