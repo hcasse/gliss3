@@ -24,7 +24,11 @@ $(foreach instructions)
 #define $(PROC)_$(IDENT)___IADDR		((inst)->addr)
 #define $(PROC)_$(IDENT)___ISIZE		$(size)
 $(foreach params)
+$(if !GLISS_INSTR_FAST_STRUCT)
 #define $(PROC)_$(IDENT)_$(PARAM)		((inst)->instrinput[$(INDEX)].val.$(param_type))
+$(else)
+#define $(PROC)_$(IDENT)_$(PARAM)		((inst)->op_union.op_struct_$(ident).$(PARAM))
+$(end)
 $(end)$(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_MACROS_H */

@@ -50,7 +50,6 @@ void usage(const char *prog_name) {
             "  -p, -profile=<path>   : generate the file <exec_name>.profile wich contains a statistical array of called instructions.\n"
             "                          Results are added to the file <exec_name>.profile. If the file does not exists it will be created.\n"
             "                          By default <exec_name>.profile is loaded and saved from the caller's current directory\n"
-            "  -b, -bench            : Simulation loops until the programm execution time exceeds 200ms"
 			"\n"
 			"if args or env strings must be passed to the simulated program,\n"
 			"put them in <exec_name>.argv or <exec_name>.envp,\n"
@@ -298,7 +297,7 @@ int main(int argc, char **argv)
 	char *c_ptr = 0;
     char *profiling_file_name;
     char *profiling_file_path = NULL;
-    FILE *profile_id;
+    FILE *profile_id=0;
     int inst_stat[GLISS_INSTRUCTIONS_NB];
 	int is_start_given = 0;
 	int is_exit_given = 0;
@@ -318,9 +317,8 @@ int main(int argc, char **argv)
 	int stats = 0;
     int profile = 0;
     int fast_sim = 0;
-    int bench = 0;
 	int inst_cnt = 0;
-	uint64_t start_time, end_time, delay = 0;
+	uint64_t start_time=0, end_time, delay = 0;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -337,11 +335,6 @@ int main(int argc, char **argv)
 			
 		else if(strcmp(argv[i], "-fast") == 0 || strcmp(argv[i], "-f") == 0)
 			fast_sim = 1;
-			
-		else if(strcmp(argv[i], "-bench") == 0 || strcmp(argv[i], "-b") == 0){
-			stats = 1; 
-			bench = 1;
-		}
 
         /* -p or -profile=<path> option */
         else if( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "-profile") == 0){
@@ -685,58 +678,17 @@ int main(int argc, char **argv)
     if(!verbose && !profile)
     {
 
-		if(bench)
-		{
-			int a   = 50;
-			int cpt;
-			
-			while(delay < 200.00*1000.00)
-			{		
-				cpt = a;		
-				while(cpt)
-				{
-					sim->addr_exit  = addr_exit;
-					sim->state->GLISS_PC_NAME = addr_start;
-            
-					if(fast_sim)
-						inst_cnt += gliss_run_and_count_inst(sim);
-					else
-					{
-						while(!gliss_is_sim_ended(sim))
-						{
-							gliss_step(sim);
-							inst_cnt++;
-						}
-					}  
-					cpt--;
-				}
-				
-				struct rusage buf;
-				getrusage(RUSAGE_SELF, &buf);
-				end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
-				delay = end_time - start_time;				
-				
-				a = (unsigned long)ceil(a * (200.00*1000.00-delay) / delay);
-				if(a < 20)
-					a = 20;
-			}
-		}else
-		{
 			if(fast_sim)
 				inst_cnt += gliss_run_and_count_inst(sim);
 			else
 			{
-				while(!gliss_is_sim_ended(sim))
+				while(addr_exit != state->GLISS_PC_NAME)
 				{
 					gliss_step(sim);
 					inst_cnt++;
 				}
 			}
-            
-          
-         }
-
-
+               
 
 // !!DEBUG BEGIN!!
 //	cpt++;
@@ -749,7 +701,8 @@ int main(int argc, char **argv)
 // !!DEBUG END!!
 	}
 	/* verbose simulation */
-	else {
+	else 
+	{
         gliss_inst_t *inst;
         while(!gliss_is_sim_ended(sim))
 		{

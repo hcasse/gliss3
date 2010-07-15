@@ -51,7 +51,7 @@ $(end)
 $(foreach instructions)
 static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode(uint32_t code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
 {
-	$(if has_param)uint32_t mask;
+	$(if has_param)//uint32_t mask;
 	
 $(if !GLISS_NO_MALLOC)
 $(if GLISS_ONE_MALLOC)

@@ -42,15 +42,18 @@ typedef struct $(proc)_sim_t {
 	/* anything else? */
 } $(proc)_sim_t;
 
+
+$(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_value_t type */
 typedef union $(proc)_value_t {	
 $(foreach values)
 	$(type) $(name);
 $(end)
 } $(proc)_value_t;
+$(end)
 
-/* $(proc)_param_t type */
 $(if !GLISS_NO_PARAM)
+/* $(proc)_param_t type */
 	typedef enum $(proc)_param_t {
 		$(PROC)_VOID_T = 0,
 		$(PROC)_ADDR,
@@ -60,6 +63,7 @@ $(if !GLISS_NO_PARAM)
 	} $(proc)_param_t;
 $(end)
 
+$(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_ii_t type */
 typedef struct $(proc)_ii_t {
 $(if !GLISS_NO_PARAM)
@@ -67,16 +71,27 @@ $(if !GLISS_NO_PARAM)
 $(end)
 	$(proc)_value_t val;
 } $(proc)_ii_t;
+$(end)
 
 /* $(proc)_inst_t type */
 typedef struct $(proc)_inst_t {
 	$(proc)_ident_t   ident;
 	$(proc)_address_t addr;
+$(if !GLISS_INSTR_FAST_STRUCT)
 $(if GLISS_PARAMS_NOMALLOC)
 	$(proc)_ii_t instrinput[$(max_operand_nb)];
-$(else)	
+$(else)
 	$(proc)_ii_t *instrinput;
 $(end)
+$(else)
+	union {
+		$(foreach instructions)struct {
+			$(foreach params)$(TYPE) $(PARAM);
+			$(end)
+		} op_struct_$(ident); 
+		$(end)
+	} op_union; 
+	$(end)
 
 } $(proc)_inst_t;
 

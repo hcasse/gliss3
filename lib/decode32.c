@@ -292,11 +292,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     }
 
 #endif
-    #ifndef GLISS_NO_MALLOC
-    return current->value;
-    #else
     return res;
-    #endif 
 }
 
 #if defined(GLISS_INF_DECODE_CACHE) && !defined(GLISS_FIXED_DECODE_CACHE) && !defined(GLISS_LRU_DECODE_CACHE)

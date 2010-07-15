@@ -537,10 +537,16 @@ $(if GLISS_PROFILED_JUMPS)
 			default:
 			$(proc)_code_table[inst->ident](state, inst);
 		}
-$(end)
-	
-$(if !GLISS_PROFILED_JUMPS)
+$(else)
 		$(proc)_code_table[inst->ident](state, inst);
+$(end)
+$(if !GLISS_INF_DECODE_CACHE)
+$(if !GLISS_FIXED_DECODE_CACHE)
+$(if !GLISS_LRU_DECODE_CACHE)
+    /* finally free it */
+	$(proc)_free_inst(inst);
+$(end)
+$(end)
 $(end)
 		i++;
 	}
@@ -575,10 +581,17 @@ $(end)
 			default:
 			$(proc)_code_table[inst->ident](state, inst);
 		}
-$(end)
-	
-$(if !GLISS_PROFILED_JUMPS)
+		
+$(else)
 		$(proc)_code_table[inst->ident](state, inst);
+$(end)
+$(if !GLISS_INF_DECODE_CACHE)
+$(if !GLISS_FIXED_DECODE_CACHE)
+$(if !GLISS_LRU_DECODE_CACHE)
+    /* finally free it */
+	$(proc)_free_inst(inst);
+$(end)
+$(end)
 $(end)
 	}
 }

@@ -11,6 +11,7 @@ CLEAN = $$(OBJECTS)
 DISTCLEAN = lib$(proc).a
 
 CFLAGS += -g3 -O3 $(foreach modules)$(CFLAGS)$(end) -I../include
+# -fno-jump-tables : speed up the switch option
 
 all: lib$(proc).a
 
