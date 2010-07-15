@@ -84,26 +84,26 @@ type const =
 	  NULL
 	| CARD_CONST of Int32.t
 	| CARD_CONST_64 of Int64.t
-	| STRING_CONST of string
+	| STRING_CONST of string * bool	* type_expr	(* bool indicates if const is canonical, if bool then 3rd field is the type of canonical const *)
 	| FIXED_CONST of float
 
 type expr =
-	  NONE															(* null expression *)
-	| COERCE of type_expr * expr									(* explicit coercition *)
-	| FORMAT of string * expr list									(* format expression *)
-	| CANON_EXPR of type_expr * string * expr list					(* canonical expression *)
-	| REF of string													(* attribute / state item access *)
-	| FIELDOF of type_expr * string * string						(* attribute access *)
-	| ITEMOF of type_expr * string * expr							(* state item array access *)
-	| BITFIELD of type_expr * expr * expr * expr					(* bit field access *)
-	| UNOP of type_expr * unop * expr								(* unary operation (negation, not, etc) *)
-	| BINOP of type_expr * binop * expr * expr						(* binary operation (arithmetic, logic, shift, etc) *)
-	| IF_EXPR of type_expr * expr * expr * expr						(* if expression *)
-	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr	(* switch expression *)
-	| CONST of type_expr * const									(* constant value *)
-	| ELINE of string * int * expr									(* source/line information (file, line, expression) *)
-	| EINLINE of string												(** inline source in expression (for internal use only) *)
-	| CAST of type_expr * expr										(** binary cast (target type, expression *)
+	  NONE									(* null expression *)
+	| COERCE of type_expr * expr						(* explicit coercition *)
+	| FORMAT of string * expr list						(* format expression *)
+	| CANON_EXPR of type_expr * string * expr list				(* canonical expression *)	
+	| REF of string								(* attribute / state item access *)
+	| FIELDOF of type_expr * string * string				(* attribute access *)
+	| ITEMOF of type_expr * string * expr					(* state item array access *)
+	| BITFIELD of type_expr * expr * expr * expr				(* bit field access *)
+	| UNOP of type_expr * unop * expr					(* unary operation (negation, not, etc) *)
+	| BINOP of type_expr * binop * expr * expr				(* binary operation (arithmetic, logic, shift, etc) *)
+	| IF_EXPR of type_expr * expr * expr * expr				(* if expression *)
+	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr		(* switch expression *)
+	| CONST of type_expr * const						(* constant value *)
+	| ELINE of string * int * expr						(* source/line information (file, line, expression) *)
+	| EINLINE of string							(** inline source in expression (for internal use only) *)
+	| CAST of type_expr * expr						(** binary cast (target type, expression *)
 
 (** Statements *)
 type location =
@@ -151,6 +151,11 @@ type attr =
 	| ATTR_STAT of string * stat
 	| ATTR_USES
 
+(* 2 kinds of canonicals, functions and constants *)
+type canon_type =
+	| CANON_FUNC
+	| CANON_CNST
+
 
 (** Specification of an item *)
 type spec =
@@ -173,7 +178,7 @@ type spec =
 								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
-	| CANON_DEF of string * type_expr * type_expr list	(* name of canonical function, return type, args type *)
+	| CANON_DEF of string * canon_type * type_expr * type_expr list	(* name of canonical function, type (fun or const name), return type, args type *)
 
 (** Get the name from a specification.
 	@param spec		Specification to get name of.
@@ -202,7 +207,7 @@ let name_of spec =
 			name
 		| ATTR_USES ->
 			"<ATTR_USES>")
-	| CANON_DEF(name, _, _) -> name
+	| CANON_DEF(name, _, _, _) -> name
 
 
 (* Symbol table *)
@@ -278,7 +283,7 @@ let add_symbol name sym =
 		let b_o =
 			match get_symbol "bit_order" with
 			UNDEF -> true
-			| LET(_, STRING_CONST id) ->
+			| LET(_, STRING_CONST(id, _, _)) ->
 				if (String.uppercase id) = "UPPERMOST" then true
 				else if (String.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
@@ -407,16 +412,16 @@ struct
 end
 module CanonHashtbl = Hashtbl.Make(HashCanon)
 
-type canon_fun={name : canon_name_type; type_param : type_expr list ; type_res:type_expr}
+type canon_fun={name : canon_name_type; type_fun : canon_type ; type_param : type_expr list ; type_res:type_expr}
 
 (* the canonical functions space *)
 let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 
 (* list of all defined canonical functions *)
 let canon_list = [
-			{name= UNKNOW;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
-			{name=NAMED "sin";type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};
-			{name=NAMED "print";type_param=[STRING];type_res=NO_TYPE}
+			{name= UNKNOW;type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
+			{name=NAMED "sin";type_fun=CANON_FUNC;type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};
+			{name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE}
 		 ]
 
 (* we add all the defined canonical functions to the canonical functions space *)
@@ -441,7 +446,7 @@ let rec get_canon name=
 let add_canon fun_name sym =
 	let canon_def_sym =
 		match sym with
-		| CANON_DEF(n, res, prms) -> {name = NAMED n; type_param = prms; type_res = res}
+		| CANON_DEF(n, typ, res, prms) -> {name = NAMED n; type_fun = typ; type_param = prms; type_res = res}
 		| _ -> failwith "irg.ml::add_canon: shouldn't happen!\n"
 	in
 	let name = canon_def_sym.name
@@ -493,7 +498,7 @@ let output_const out cst =
 	| CARD_CONST_64 v->
 		output_string out (Int64.to_string v);
 		output_string out "LL"
-	| STRING_CONST v ->
+	| STRING_CONST(v, _, _) ->
 		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
 		Printf.fprintf out "%f" v
@@ -529,7 +534,7 @@ let output_type_expr out t =
 		Printf.fprintf out "%s" (List.hd (List.rev l));
 		List.iter (fun i->(Printf.fprintf out ",%s" i)) (List.tl (List.rev l));
 		output_string out ")"
-	|UNKNOW_TYPE -> output_string out "unknow_type"
+	| UNKNOW_TYPE -> output_string out "unknow_type"
 
 
 (** Print a type expression.
@@ -973,17 +978,23 @@ let output_spec out spec =
 	| ENUM_POSS (name,s,_,_)->
 		Printf.fprintf out "possibility %s of enum %s\n" name s;
 
-	| CANON_DEF(name, type_res, type_prms_list) ->
+	| CANON_DEF(name, kind, type_res, type_prms_list) ->
 		Printf.fprintf out "canon ";
-		output_type_expr out type_res;
-		Printf.fprintf out " \"%s\"(" name;
-		ignore (List.fold_left
-			(fun f e ->
-				if not f then output_string out ", ";
-				output_type_expr out e; false)
-			true
-			type_prms_list);
-		output_string out ");\n"
+		if kind = CANON_FUNC then
+			(output_type_expr out type_res;
+			Printf.fprintf out " \"%s\"(" name;
+			ignore (List.fold_left
+				(fun f e ->
+					if not f then output_string out ", ";
+					output_type_expr out e; false)
+				true
+				type_prms_list);
+			output_string out ")\n")
+		else
+			Printf.fprintf out "\"%s\"\t: " name;
+			output_type_expr out type_res;
+			output_string out "\n"
+		
 
 	| UNDEF ->
 		output_string out "<UNDEF>"
@@ -1006,7 +1017,7 @@ let get_isize _ =
 		[]
 	| LET(st, cst) ->
 		(match cst with
-		STRING_CONST(nums) ->
+		STRING_CONST(nums, _, _) ->
 			List.map
 			(fun x ->
 				try

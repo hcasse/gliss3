@@ -159,7 +159,7 @@ let get_name instr =
 	let rec to_string e =
 		match e with
 		  Irg.FORMAT(s, e_l) -> s
-		| Irg.CONST(Irg.STRING, Irg.STRING_CONST str) -> str
+		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
 		| Irg.IF_EXPR (_, _, e, _) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->

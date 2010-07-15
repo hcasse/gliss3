@@ -161,7 +161,7 @@ let is_true c =
 	  NULL -> false
 	| CARD_CONST v -> v <> Int32.zero
 	| CARD_CONST_64 v-> v <> Int64.zero
-	| STRING_CONST v -> v <> ""
+	| STRING_CONST(v, _, _) -> v <> ""
 	| FIXED_CONST v -> v <> 0.0
 
 
@@ -316,7 +316,7 @@ let eval_binop_string op v1 v2 =
 	| GE		-> to_bool (v1 >= v2)
 	| EQ		-> to_bool (v1 = v2)
 	| NE		-> to_bool (v1 <> v2)
-	| CONCAT	-> STRING_CONST (v1 ^ v2)
+	| CONCAT	-> STRING_CONST(v1 ^ v2, false, NO_TYPE)
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
 			(string_of_binop op)))
@@ -338,8 +338,11 @@ let eval_binop op c1 c2 =
 		eval_binop_fixed op (Int32.to_float v1) v2
 	| (Irg.FIXED_CONST v1, Irg.FIXED_CONST v2) ->
 		eval_binop_fixed op v1 v2
-	| (Irg.STRING_CONST v1, Irg.STRING_CONST v2) ->
-		eval_binop_string op v1 v2
+	| (Irg.STRING_CONST(v1, b1, t1), Irg.STRING_CONST(v2, b2, t2)) ->
+		if not b1 && not b2 then
+			eval_binop_string op v1 v2
+		else
+			raise (SemError "cannot evaluate a canonical const here, value can only be got via C code")
 	| _ ->
 		raise (SemError (Printf.sprintf "bad type operand for '%s'"
 			(string_of_binop op)))
@@ -493,7 +496,7 @@ let rec get_type_ident id=
 			 NULL-> NO_TYPE
 			|CARD_CONST _->CARD 32
 			|CARD_CONST_64 _->CARD 64
-			|STRING_CONST _->STRING
+			|STRING_CONST(_, b, t) -> if b then t else STRING
 			|FIXED_CONST _->FLOAT (24,8))
 	|TYPE (_,t)->(match t with
 			ENUM l->(let i = List.length l in
@@ -1507,10 +1510,12 @@ let rec get_length id =
 let check_param name list_param=
 	let canon= get_canon name
 	in
+	(*!!DEBUG!!*)
+	(*print_string ("check_param, "^name^":\n");*)
 	if canon.name =UNKNOW then true
 	else
 	try (
-	 if not (List.fold_right2 (fun p t v-> (get_type_expr p)=t & v) list_param canon.type_param true)
+	 if not (List.fold_right2 (fun p t v-> (*(*!!DEBUG!!*)Irg.print_type_expr (get_type_expr p);print_string "\n";*) (get_type_expr p)=t & v) list_param canon.type_param true)
 		then false
 		else true
 	) with Invalid_argument _ -> false

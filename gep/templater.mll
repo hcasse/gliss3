@@ -48,7 +48,7 @@ let do_text out dict id =
 		(match List.assoc id dict with
 		  TEXT f ->
 		  	(try f out
-			with Not_found -> failwith "error in generation")
+			with Not_found -> failwith ("error in generation with "^id))
 		| _ -> failwith (id ^ " is not a text !"))
 	with Not_found ->
 		List.iter (fun (n, _) -> Printf.printf "=>[%s]\n" n) dict;
