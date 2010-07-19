@@ -105,12 +105,12 @@ void get_gliss_reg_addr(char *desc, PROC(_state_t) * st, int *bank, int *idx)
 	
 	if (strncmp("R", desc, 1) == 0)
 		*bank = REG_R;
-	else if (strncmp("F", desc, 1) == 0)
-		*bank = REG_F;
 	else if (strncmp("PSR", desc, 3) == 0)
 		*bank = REG_PSR;
 	else if (strncmp("FSR", desc, 3) == 0)
 		*bank = REG_FSR;
+	else if (strncmp("F", desc, 1) == 0)
+		*bank = REG_F;
 	else if (strncmp("Y", desc, 1) == 0)
 		*bank = REG_Y;
 	else if (strncmp("TBR", desc, 3) == 0)
