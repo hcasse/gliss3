@@ -54,13 +54,8 @@ static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(
 	$(if has_param)//uint32_t mask;
 	
 $(if !GLISS_NO_MALLOC)
-$(if GLISS_ONE_MALLOC)
 	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) $(if !GLISS_PARAMS_NOMALLOC) + sizeof($(proc)_ii_t) * $(num_params) $(end));
 	$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = ($(proc)_ii_t *)(inst + 1);$(end)
-$(else)
-		$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t));
-		$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = malloc(sizeof($(proc)_ii_t) * $(num_params) );$(end)
-$(end)
 $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
@@ -95,11 +90,8 @@ static $(proc)_decode_function_t *$(proc)_decode_table[] =
 /* free a dynamically allocated instruction, we try not to free an already freed or NULL pointer */
 void $(proc)_free_inst($(proc)_inst_t *inst) {
 	assert(inst);
-	$(if !GLISS_ONE_MALLOC)
-		if (inst->instrinput)
-			free(inst->instrinput);
-	$(end)
-
+	// NB : inst->instrinput is allocate with the same malloc which allocate an instr
+	
 	$(if !GLISS_INF_DECODE_CACHE)
     $(if !GLISS_FIXED_DECODE_CACHE)
     $(if !GLISS_LRU_DECODE_CACHE)

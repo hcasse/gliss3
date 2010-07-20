@@ -927,7 +927,8 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
     while(ptr != NULL)
     {
 		TRACE;
-        gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
+		if(ptr->size)
+			gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);	
 		ptr = ptr->next;
 	}
 }

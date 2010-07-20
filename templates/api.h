@@ -52,23 +52,10 @@ $(end)
 } $(proc)_value_t;
 $(end)
 
-$(if !GLISS_NO_PARAM)
-/* $(proc)_param_t type */
-	typedef enum $(proc)_param_t {
-		$(PROC)_VOID_T = 0,
-		$(PROC)_ADDR,
-		$(PROC)_SIZE$(foreach params),
-		$(PROC)_PARAM_$(NAME)_T$(end)$(foreach registers),
-		$(PROC)_$(NAME)_T$(end)
-	} $(proc)_param_t;
-$(end)
 
 $(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_ii_t type */
 typedef struct $(proc)_ii_t {
-$(if !GLISS_NO_PARAM)
-		$(proc)_param_t type;
-$(end)
 	$(proc)_value_t val;
 } $(proc)_ii_t;
 $(end)

@@ -611,8 +611,6 @@ static void hashtable_destroy(gliss_hashtable_t* h)
         // Erase gliss_hashtable_t
         free(h);
     }
-    
-
 }
 
 #endif // GLISS_LRU_DECODE_CACHE

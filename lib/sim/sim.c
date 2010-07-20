@@ -46,7 +46,7 @@ void usage(const char *prog_name) {
             "  -s                    : display statistics\n"
 			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
 			"  -v, -verbose          : display simulated instructions\n"
-			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())"
+			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
             "  -p, -profile=<path>   : generate the file <exec_name>.profile wich contains a statistical array of called instructions.\n"
             "                          Results are added to the file <exec_name>.profile. If the file does not exists it will be created.\n"
             "                          By default <exec_name>.profile is loaded and saved from the caller's current directory\n"
@@ -737,7 +737,7 @@ int main(int argc, char **argv)
 		delay = end_time - start_time;
 		printf("Simulated instructions = %d\n", inst_cnt);
         printf("Time = %f ms\n", (double)delay / 1000.00);
-		printf("Rate = %f i/s\n", ((double)inst_cnt / ((double)delay / 1000000.00)));
+		printf("Rate = %f Mips\n", ((double)inst_cnt / ((double)delay / 1000000.00 / 1000000.00)));
 	}
 
     if(profile)
