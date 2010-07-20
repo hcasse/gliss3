@@ -87,12 +87,15 @@ void $(proc)_free_inst($(proc)_inst_t *inst) {
 	assert(inst);
 	// NB : inst->instrinput is allocate with the same malloc which allocate an instr
 	
-	$(if !GLISS_INF_DECODE_CACHE)
-    $(if !GLISS_FIXED_DECODE_CACHE)
-    $(if !GLISS_LRU_DECODE_CACHE)
-	  free(inst);
-	$(end)
-	$(end)
+	$(if !GLISS_NO_MALLOC)
+	#ifndef $(PROC)_INF_DECODE_CACHE
+	#ifndef $(PROC)_FIXED_DECODE_CACHE
+	#ifndef $(PROC)_LRU_DECODE_CACHE
+    /* finally free it */
+	free(inst);
+	#endif
+	#endif
+	#endif
 	$(end)
 }
 

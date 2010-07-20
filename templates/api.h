@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "id.h"
 #include "mem.h"
+#include "decode.h"
+
 //#include "loader.h"
 
 #define $(PROC)_PROC_NAME "$(PROC)"
