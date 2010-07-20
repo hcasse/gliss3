@@ -76,11 +76,7 @@ typedef enum gliss_endianness_t {
 
     // Double linked list (linked as a ring)
     typedef struct gliss_entry {
-        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         gliss_address_t     key;
-        #else
-        uint32_t            key;
-        #endif
         
         #ifndef GLISS_NO_MALLOC
         gliss_inst_t*       value;
@@ -181,10 +177,6 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     gliss_ident_t  id;
     uint32_t     code;
 
-    #ifdef GLISS_DCACHE_WITH_INSTR_WORD
-    code = gliss_mem_read32(decoder->fetch->mem, address);
-    #endif
-
     /* Is the instruction inside the cache ? */
 #if defined(GLISS_LRU_DECODE_CACHE)
     unsigned int i;
@@ -195,21 +187,12 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     gliss_entry_t* prev;
 
     // If it's the first element no need to handle LRU policy
-    #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if(address == current->key)
         #ifndef GLISS_NO_MALLOC
         return current->value;
         #else
         return &(current->value);
-        #endif        
-    #else
-    if(code == current->key)
-        #ifndef GLISS_NO_MALLOC
-        return current->value;
-        #else
-        return &(current->value);
-        #endif   
-    #endif
+        #endif
 
     prev     = current;
     current  = current->next;
@@ -218,11 +201,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     // Anyway I've not seen any improvements by unrolling manualy this loop
     for( i = 0; i < (CACHE_DEPTH-2); i++)
     {
-        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         if (address == current->key)
-        #else
-        if (code == current->key)
-        #endif
         {
             prev->next     = current->next;
             current->next  = init;
@@ -242,11 +221,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     //prev->next = NULL; useless because we don't rely on that
     table[hash] = current;
     
-    #ifndef GLISS_DCACHE_WITH_INSTR_WORD
     if (address == current->key)
-    #else
-    if (code == current->key)
-    #endif
     {
         #ifndef GLISS_NO_MALLOC
         return current->value;
@@ -262,9 +237,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 #endif
         /* If not find : */
         /* first, fetch the instruction at the given address */
-        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         code = gliss_mem_read32(decoder->fetch->mem, address);
-        #endif
 
         id   = gliss_fetch(decoder->fetch, address, code);
         /* then decode it */
@@ -278,11 +251,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
         
         /* and last cache the instruction */
 #if defined(GLISS_LRU_DECODE_CACHE)
-        #ifndef GLISS_DCACHE_WITH_INSTR_WORD
         current->key   = address;
-        #else
-        current->key   = code;
-        #endif
         #ifndef GLISS_NO_MALLOC
 		free(current->value);
         current->value = res;

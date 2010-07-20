@@ -26,9 +26,6 @@ $(end)
 $(if GLISS_LRU_DECODE_CACHE)
 #define $(PROC)_LRU_DECODE_CACHE
 $(end)
-$(if GLISS_DCACHE_WITH_INSTR_WORD)
-#define $(PROC)_DCACHE_WITH_INSTR_WORD
-$(end)
 $(if GLISS_NO_MALLOC)
 #define $(PROC)_NO_MALLOC
 $(end)

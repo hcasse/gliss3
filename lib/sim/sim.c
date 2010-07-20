@@ -737,7 +737,7 @@ int main(int argc, char **argv)
 		delay = end_time - start_time;
 		printf("Simulated instructions = %d\n", inst_cnt);
         printf("Time = %f ms\n", (double)delay / 1000.00);
-		printf("Rate = %f Mips\n", ((double)inst_cnt / ((double)delay / 1000000.00 / 1000000.00)));
+		printf("Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
 	}
 
     if(profile)
