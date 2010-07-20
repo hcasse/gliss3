@@ -51,15 +51,13 @@ static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(
 	$(if has_param)//uint32_t mask;
 	
 $(if !GLISS_NO_MALLOC)
-	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) $(if !GLISS_PARAMS_NOMALLOC) + sizeof($(proc)_ii_t) * $(num_params) $(end));
-	$(if !GLISS_PARAMS_NOMALLOC)inst->instrinput = ($(proc)_ii_t *)(inst + 1);$(end)
+	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) );
 $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
 	/* put other parameters */
-	$(foreach params)/* param number $(INDEX) */
-	$(PROC)_$(IDENT)_$(PARAM) = $(decoder); /*valeur_sur_mask_bloc(code_inst, mask);*/ /* res->instrinput[$(INDEX)].val.$(param_type) */
-	$(if !GLISS_NO_PARAM)inst->instrinput[$(INDEX)].type = $(PROC)_PARAM_$(PARAM_TYPE)_T;$(end)
+	$(foreach params)
+	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
 	$(end)
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 }

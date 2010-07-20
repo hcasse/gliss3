@@ -65,11 +65,7 @@ typedef struct $(proc)_inst_t {
 	$(proc)_ident_t   ident;
 	$(proc)_address_t addr;
 $(if !GLISS_INSTR_FAST_STRUCT)
-$(if GLISS_PARAMS_NOMALLOC)
 	$(proc)_ii_t instrinput[$(max_operand_nb)];
-$(else)
-	$(proc)_ii_t *instrinput;
-$(end)
 $(else)
 	union {
 		$(foreach instructions)struct {
@@ -78,7 +74,7 @@ $(else)
 		} op_struct_$(ident); 
 		$(end)
 	} op_union; 
-	$(end)
+$(end)
 
 } $(proc)_inst_t;
 
