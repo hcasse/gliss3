@@ -243,32 +243,24 @@ let str01_to_int32 s =
 
 (** convert the 1st n chars of a string to an int_n
 the string is supposed to represent a binary number (only 0 and 1) *)
-(*let str_to_int_n s n =
-	let s_size = String.length s
-	in
-	let size = if s_size < n then s_size else n
-	in
-	let char01_to_int_n c =
+let str_to_int_n s n =
+	let s_size = String.length s in
+	let size = if s_size < n then s_size else n in
+	let char01_to_int32 c =
 		match c with
-		'0' ->
-			Generic_int.zero
+		| '0' ->
+			Int32.zero
 		| '1' ->
-			Generic_int.one
+			Int32.one
 		| _ ->
-			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int_n)")
-	in
+			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int_n)") in
 	let rec aux s n accu =
 		if n = size then
 			accu
 		else
-					(* or instead of add *)
-			aux s (n+1) (Int32.add (Int32.shift_left accu 1) (char01_to_int_n s.[n]))
-	in
-	if size > 32 then
-		failwith "string too long, 32 chars max allowed (fetch.ml::str01_to_int32)"
-	else
-		aux s 0 Int32.zero
-*)
+			aux s (n+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (char01_to_int32 s.[n])) in
+	aux s 0 Generic_int.zero
+
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -290,7 +282,7 @@ let get_int32_mask sp =
 	else
 		build_mask mask 0 Int32.zero
 
-(* return the mask of an arbitrary length instruction as a generic int *)
+(** return the mask of an arbitrary length instruction as a generic int *)
 let get_int_mask sp =
 	let mask = get_string_mask_from_op sp in
 	let rec build_mask str pos accu =
@@ -318,7 +310,19 @@ let get_int32_value sp =
 		build_mask v 0 Int32.zero
 
 
-(* perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
+(** returns the value of an instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0, result is a generic int *)
+let get_int_value sp =
+	let v = get_string_value_on_mask_from_op sp in
+	let rec build_mask str pos accu =
+		if pos >= String.length str then
+			accu
+		else
+			build_mask str (pos+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
+	in
+	build_mask v 0 Generic_int.zero
+
+
+(** perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
 let rec calcul_mask spec_list top_mask =
 	match spec_list with
 	[] ->
@@ -326,7 +330,15 @@ let rec calcul_mask spec_list top_mask =
 	| h::t ->
 		Int32.logand (get_int32_mask h) (calcul_mask t top_mask)
 
-(* return the bits in a value, only those indicated by the set bits in a given mask, bit are concatenated *)
+(** perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
+let rec calcul_mask_gen spec_list top_mask =
+	match spec_list with
+	[] ->
+		Generic_int.lognot top_mask
+	| h::t ->
+		Generic_int.logand (get_int_mask h) (calcul_mask_gen t top_mask)
+
+(** return the bits in a value num, only those indicated by the set bits in a given mask, bit are concatenated *)
 let keep_value_on_mask num mask =
 	let rec aux n m accu step numbit =
 		if step>=32 then
@@ -342,14 +354,34 @@ let keep_value_on_mask num mask =
 	in
 	aux num mask Int32.zero 0 0
 
+(** return the bits in a value num, only those indicated by the set bits in a given mask, bit are concatenated *)
+let keep_value_on_mask_gen num mask =
+	let max_step = Generic_int.length mask in
+	let rec aux n m accu step numbit =
+		if step >= max_step then
+			accu
+		else
+			if Generic_int.get_lowest_bit m = Int32.zero then
+				aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) numbit
+			else
+				if Generic_int.get_lowest_bit n = Int32.one then
+					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) (Generic_int.logor accu (Generic_int.shift_left Generic_int.one numbit)) (step+1) (numbit+1)
+				else
+					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) (numbit+1)
+	in
+	aux num mask Generic_int.zero 0 0
+
+(** get the value of the given spec image on the given mask, bit not in the mask are discarded and so the result is the concatenation of the masked bits *)
 let calcul_value_on_mask sp mask =
 	keep_value_on_mask (Int32.logand (get_int32_value sp) mask) mask
+let calcul_value_on_mask_gen sp mask =
+	keep_value_on_mask_gen (Generic_int.logand (get_int_value sp) mask) mask
 
 
 
 (* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
 type dec_tree = DecTree of int32 list * Irg.spec list * int32 * int32 * dec_tree list
-
+(*type dec_tee_gen = DecTree of Generic_int.gen_int list * Irg.spec list * Generic_int.gen_int * Generic_int.gen_int * dec_tree_gen list*)
 
 let print_dec_tree tr =
 	let name_of t =
@@ -386,6 +418,17 @@ let get_amount_of_set_bits num =
 			accu
 		else
 			aux (Int32.shift_right_logical n 1) (accu + (Int32.to_int (Int32.rem n (Int32.of_int 2)))) (step+1)
+	in
+	aux num 0 0
+	
+(* returns the amount of set bits in a generic int, help to get mask's "length" *)
+let get_amount_of_set_bits_gen num =
+	let max_step = Generic_int.length num in
+	let rec aux n accu step =
+		if step >= max_step then
+			accu
+		else
+			aux (Generic_int.shift_right_logical n 1) (accu + Int32.to_int (Generic_int.get_lowest_bit n)) (step+1)
 	in
 	aux num 0 0
 
