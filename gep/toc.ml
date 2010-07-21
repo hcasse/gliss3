@@ -19,6 +19,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(*Usefull when you want to use caml toplevel :*)
+(*
+  #directory "../irg";;
+  #directory "../gep";;
+  
+  #load "unix.cma";;
+  #load "str.cma";;
+  #load "config.cmo";;
+  #load "irg.cmo";;
+  #load "instantiate.cmo";;
+  #load "lexer.cmo";;
+  #load "sem.cmo";;
+  #load "IdMaker.cmo";;
+  #load "iter.cmo";;
+  #load "toc.cmo";;
+  #load "templater.cmo";;
+  #load "parser.cmo";;
+  #load "irgUtil.cmo";;
+  #load "app.cmo";;
+*)
+
 exception UnsupportedType of Irg.type_expr
 exception UnsupportedExpression of Irg.expr
 exception Error of string
@@ -221,7 +242,7 @@ let set_inst info inst =
 	@param info	Current generation information.
 	@return		New label name. *)
 let new_label info =
-	let res = Printf.sprintf "__gliss_lab_%d" info.lab in
+	let res = Printf.sprintf "gliss_%s_%d_" info.iname info.lab in
 	info.lab <- info.lab + 1;
 	res
 

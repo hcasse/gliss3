@@ -214,7 +214,7 @@ let rec sort_instr_set instr_list stat_list = match stat_list with
 		let inst = List.find (fun a -> (get_name a) = name) instr_list 
 		in
 			(sort_instr_set instr_list q)  @ [inst]
-	with Not_found -> failwith "Profile instructions doesn't match current instruction generation"
+	with Not_found -> failwith "Profiled file instructions statistics doesn't match current instruction generation"
 			
 (* iterator (or fold) on the structure containing all the instructions specs
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
