@@ -244,7 +244,7 @@ sub parse_file{
                         $pos=0;                 # next search will begin from 0
                         $continued_ligne=1;
                         $nb_lines_written+=count_cr($debut);
-                        print match_fpi_macro($debut);
+			print $debut;
                         undef $debut;
                         next BIG_BOUCLE;
                     }
@@ -275,7 +275,7 @@ sub parse_file{
 			}
 
             $nb_lines_written+=count_cr($ligne);
-            print match_fpi_macro($ligne);
+		print $ligne;
 			
 			# !!HKC!!
 			if($one) {
@@ -312,27 +312,6 @@ sub count_cr{
          
      }
     return $nb;
-}
-
-
-##################
-# match_fpi_macro
-sub match_fpi_macro{
-    my $nom_possible;
-    my $tmp;
-    my $ligne=pop(@_);
-    # mot commencant par fpi_ (maj/min) et qui n'est pas suivit par " (sinon, c'est deja fait).
-    while ($ligne =~ m/\b(fpi_\w*)\b(?!")/img){
-        #$tmp=pos($ligne);
-        $nom_possible=$1;
-        if (!&is_in($1,@list_macro_fp)){
-            nMP_warning("'$1` is not a floating-point macro, but looks like\n");
-        } else {
-            $ligne =~ s/$nom_possible/"$nom_possible"/mg;
-        }
-        #pos($ligne)=$tmp;
-    }
-    return $ligne;
 }
 
 ######################
@@ -391,7 +370,6 @@ sub check_macro{
     foreach $param (@params){
         ($txt !~ /\b$param\b/) && nMP_warning("Macro '$nom` doesn't use parameter '$param` ! \n");
     }
-    $txt=match_fpi_macro($txt);
     #print STDERR "Macro : $nom, params @params, code $txt\n";
 }
 
