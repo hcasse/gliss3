@@ -161,7 +161,7 @@ let info _ =
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, Irg.STRING_CONST id) ->
+		| Irg.LET(_, Irg.STRING_CONST(id, _, _)) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -1106,7 +1106,13 @@ and gen_const info typ cst =
 			Printf.fprintf info.out "%ldL" v
 	| Irg.CARD _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "0x%LxLLU" v
 	| _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "%LdLL" v
-	| _, Irg.STRING_CONST s -> Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.STRING_CONST(s, b, _) ->
+		if b then
+			(* canonical const *)
+			Printf.fprintf info.out "%s" (cstring s)
+		else
+			(* simple string const *)
+			Printf.fprintf info.out "\"%s\"" (cstring s)
 	| _, Irg.FIXED_CONST v -> Printf.fprintf info.out "%f" v
 
 
@@ -1683,8 +1689,8 @@ let find_recursives info name =
 			| Iter.STAT stat ->
 				look_stat stat recs
 			| _ -> failwith "find_recursives" in
-
 	info.recs <- look_attr name [] []
+
 
 (** generate the instruction responsibe for the incrementation of PCs,
 we return an Irg.STAT which has to be transformed, useful to resolve alias
@@ -1730,7 +1736,6 @@ let gen_pc_increment info =
 	@param name		Name of the attribute. *)
 let gen_action info name =
 	info.indent <- 1;
-
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;

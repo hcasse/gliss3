@@ -42,7 +42,6 @@ let get_spec_extend x =
 %token<Int64.t> CARD_CONST_64
 %token<float>	FIXED_CONST
 %token<string>	STRING_CONST
-%token<string> STRING_VALUE
 
 %token    EOF
 %token    DOLLAR
@@ -172,19 +171,23 @@ Resource:
 CanonSpec:
 	CANON STRING_CONST LPAREN TypeList RPAREN
 	{
-		($2, Irg.CANON_DEF($2, Irg.NO_TYPE, $4))
+		($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, $4))
 	}
 |	CANON Type STRING_CONST LPAREN TypeList RPAREN
 	{
-		($3, Irg.CANON_DEF($3, $2, $5))
+		($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, $5))
 	}
 |	CANON STRING_CONST LPAREN RPAREN
 	{
-		($2, Irg.CANON_DEF($2, Irg.NO_TYPE, []))
+		($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, []))
 	}
 |	CANON Type STRING_CONST LPAREN RPAREN
 	{
-		($3, Irg.CANON_DEF($3, $2, []))
+		($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, []))
+	}
+|	CANON STRING_CONST COLON Type
+	{
+		($2, Irg.CANON_DEF($2, Irg.CANON_CNST, $4, []))
 	}
 ;
 
@@ -1050,15 +1053,23 @@ Constant :
 |	CARD_CONST_64
 		{ (Irg.CARD 64, Irg.CARD_CONST_64 $1) }
 |	STRING_CONST
-		{ (Irg.STRING, Irg.STRING_CONST $1) }
-|	STRING_VALUE
-		{ (Irg.STRING, Irg.STRING_CONST $1) }
+		{
+			if  (Irg.is_defined_canon $1) then
+				(Sem.test_canonical $1;
+				let e = Irg.get_canon $1 in
+					(e.Irg.type_res, Irg.STRING_CONST($1, true, e.Irg.type_res)))
+			else
+				(Irg.STRING, Irg.STRING_CONST($1, false, Irg.NO_TYPE))
+		}
 ;
+
+
+
 
 Bit_Expr :
 	ID
 		{
-		if Irg.is_defined $1
+			if Irg.is_defined $1
 			then
 				eline (Irg.REF $1)
 			else
@@ -1095,7 +1106,14 @@ Bit_Expr :
 |	CARD_CONST
 		{ eline (Irg.CONST (Irg.CARD 32,Irg.CARD_CONST $1)) }
 |	STRING_CONST
-		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
+		{
+			if  (Irg.is_defined_canon $1) then
+				(Sem.test_canonical $1;
+				let e = Irg.get_canon $1 in
+					eline (Irg.CONST (e.Irg.type_res, Irg.STRING_CONST($1, true, e.Irg.type_res))))
+			else
+				eline (Irg.CONST (Irg.STRING, Irg.STRING_CONST($1, false, Irg.NO_TYPE)))
+		}
 ;
 
 

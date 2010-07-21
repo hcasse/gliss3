@@ -867,8 +867,10 @@ let rec remove_const_param_from_format f =
 						Str.Text(int64_to_string01 i (get_length_from_format regexp) "")
 					else
 						failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
-			| STRING_CONST(s) ->
-				if is_string_format regexp then
+			| STRING_CONST(s, b, _) ->
+				if b then
+					regexp
+				else if is_string_format regexp then
 					Str.Text(s)
 				else
 					failwith "bad format, a string constant can be displayed only with \"%s\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
@@ -957,7 +959,7 @@ let rec remove_const_param_from_format f =
 		in
 		if new_p = [] then
 			(* format with no arg => simplified into a string constant *)
-			CONST(STRING, STRING_CONST(new_s))
+			CONST(STRING, STRING_CONST(new_s, false, NO_TYPE))
 		else
 			FORMAT(new_s, new_p)
 		(*FORMAT(str_list_to_str (regexp_list_to_str_list (r_aux r_l p)), p_aux r_l p)*)

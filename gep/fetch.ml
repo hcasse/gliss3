@@ -23,8 +23,8 @@
   Here is the module in charge of the generation of the fetch_table.h
 *)
 (*
-  Usefull list of dependencies in order to work with the interactive Ocaml toplevel :
-  (Do not forget to do make to have the latest version of the cmo binnairies)
+  Useful list of dependencies in order to work with the interactive Ocaml toplevel :
+  (Do not forget to do make to have the latest version of the cmo binaries)
 
   #directory "../irg";;
   #directory "../gep";;
@@ -49,7 +49,7 @@ let rec get_str e =
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
-			Irg.STRING_CONST(str) ->
+			Irg.STRING_CONST(str, false, _) ->
 				str
 			| _ -> ""
 		else
@@ -289,6 +289,18 @@ let get_int32_mask sp =
 		failwith "instruction too long, 32 bits max allowed (fetch.ml::get_int32_mask)"
 	else
 		build_mask mask 0 Int32.zero
+
+(* return the mask of an arbitrary length instruction as a generic int *)
+let get_int_mask sp =
+	let mask = get_string_mask_from_op sp in
+	let rec build_mask str pos accu =
+		if pos >= String.length str then
+			accu
+		else
+			build_mask str (pos + 1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
+	in
+	build_mask mask 0 Generic_int.zero
+
 
 (* returns the 32 bit value of a 32 bit instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0 *)
 let get_int32_value sp =
