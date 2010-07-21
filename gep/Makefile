@@ -12,7 +12,8 @@ LIBGEP_SOURCES=\
 	config.ml \
 	toc.ml \
 	templater.mll \
-	app.ml
+	app.ml \
+	profile.ml
 $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build
@@ -37,7 +38,7 @@ gliss-disasm: ../irg/irg.cma  libgep.cma
 
 # gliss-attr build
 ATTR_SOURCES = \
-	gliss-attr.ml
+	gliss_attr.ml
 
 gliss-attr_LIBS = str unix ../irg/irg libgep
 $(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))

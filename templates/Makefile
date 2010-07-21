@@ -10,7 +10,8 @@ OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS)
 DISTCLEAN = lib$(proc).a
 
-CFLAGS += -g3 $(foreach modules)$(CFLAGS)$(end) -O3 -I../include -Dassert
+CFLAGS += -g3 -O3 $(foreach modules)$(CFLAGS)$(end) -I../include
+# -fno-jump-tables : speed up the switch option
 
 all: lib$(proc).a
 

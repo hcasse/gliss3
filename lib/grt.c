@@ -24,34 +24,61 @@
 #include <gliss/grt.h>
 
 
-uint32_t gliss_rotate_left32(uint32_t v, int r, int n)
+uint32_t gliss_rotate_left32(uint32_t v, int r)
 {
-	r = r % n;
-	int len = n - r;
+	return (((v ) << r) | ((v ) >> (32 - FMOD(r, 32))));
+}
+
+uint32_t gliss_rotate_left8(uint32_t v, int r)
+{
+	r = FMOD(r, 8);
+	int len = 8 - r;
 	uint32_t mask = gliss_mask32(len);
 	return (((v & mask) << r) | ((v & ~mask) >> len));
 }
 
-uint64_t gliss_rotate_left64(uint64_t v, int r, int n)
+uint32_t gliss_rotate_left16(uint32_t v, int r)
 {
-	r = r % n;
-	int len = n - r;
+	r = FMOD(r, 16);
+	int len = 16 - r;
+	uint32_t mask = gliss_mask32(len);
+	return (((v & mask) << r) | ((v & ~mask) >> len));
+}
+
+uint64_t gliss_rotate_left64(uint64_t v, int r)
+{
+	r = FMOD(r, 64);
+	int len = 64 - r;
 	uint64_t mask = gliss_mask64(len);
 	return (((v & mask) << r) | ((v & ~mask) >> len));
 }
 
-uint32_t gliss_rotate_right32(uint32_t v, int r, int n)
+uint32_t gliss_rotate_right32(uint32_t v, int r)
 {
-	r = r % n;
+	r = FMOD(r, 32);
 	uint32_t mask = gliss_mask32(r);
-	return (((v & mask) << (n - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (32 - r)) | ((v & ~mask) >> r));
 }
 
-uint64_t gliss_rotate_right64(uint64_t v, int r, int n)
+uint32_t gliss_rotate_right8(uint32_t v, int r)
 {
-	r = r % n;
+	r = FMOD(r, 8);
+	uint32_t mask = gliss_mask32(r);
+	return (((v & mask) << (8 - r)) | ((v & ~mask) >> r));
+}
+
+uint32_t gliss_rotate_right16(uint32_t v, int r)
+{
+	r = FMOD(r, 16);
+	uint32_t mask = gliss_mask32(r);
+	return (((v & mask) << (16 - r)) | ((v & ~mask) >> r));
+}
+
+uint64_t gliss_rotate_right64(uint64_t v, int r)
+{
+	r = FMOD(r, 64);
 	uint64_t mask = gliss_mask64(r);
-	return (((v & mask) << (n - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (64 - r)) | ((v & ~mask) >> r));
 }
 
 
@@ -162,20 +189,17 @@ double gliss_invertd(double v, uint32_t n)
 	return v;
 }
 
-
-
 /* for these functions no inversion is done and l <= u */
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
-	uint32_t mask = gliss_mask32(u - l + 1) << l;
+    uint32_t mask = gliss_mask32(u - l + 1) << l;
 
-	/* !!DEBUG!! */
-	//printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
-	//printf("(mask=%08X) ", mask);
-	//printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
+    /* !!DEBUG!! */
+    //printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
+    //printf("(mask=%08X) ", mask);
+    //printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
 
-	return (v & ~mask) | ((s << l) & mask);
+    return (v & ~mask) | ((s << l) & mask);
 }
-
 
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = gliss_mask64(u - l + 1) << l;
@@ -189,8 +213,8 @@ uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 
 float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l) {
 	union {
-		uint64_t i;
-		double d;
+		uint32_t i;
+		float d;
 	} x;
 	x.i = gliss_set_field32u(*((uint32_t *)&v), s, u, l);
 	return x.d;
@@ -307,38 +331,6 @@ double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int 
 	} x;		/* workaround for bug in GCC 4.4.1 */
 	x.i = gliss_set_field64u_generic(*(uint64_t *)&v, s, a, b, bit_order);
 	return x.d;
-}
-
-
-/* for these functions no inversion is done and l <= u */
-uint32_t gliss_field32u(uint32_t v, uint32_t u, uint32_t l)
-{
-	uint32_t mask = gliss_mask32(u - l + 1) << l;
-
-	/* !!DEBUG!! */
-	//printf("gliss_field32u(0X%08X, 0X%08X, 0X%08X) => ", v, u, l);
-	//printf("0X%08X\n", (v & mask) >> l);
-
-	return (v & mask) >> l;
-}
-
-uint64_t gliss_field64u(uint64_t v, uint32_t u, uint32_t l)
-{
-	uint64_t mask = gliss_mask64(u - l + 1) << l;
-
-	/* !!DEBUG!! */
-	//printf("gliss_field64u(0X%016LX, 0X%08X, 0X%08X) => ", v, u, l);
-	//printf("0X%016LX\n", (v & mask) >> l);
-
-	return (v & mask) >> l;
-}
-
-uint32_t gliss_fieldf(float v, uint32_t u, uint32_t l) {
-	return gliss_field32u(*(uint32_t *)&v, u, l);
-}
-
-uint64_t gliss_fieldd(double v, uint32_t u, uint32_t l) {
-	return gliss_field64u(*(uint64_t *)&v, u, l);
 }
 
 

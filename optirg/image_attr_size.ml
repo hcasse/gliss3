@@ -123,7 +123,7 @@ let rec sizeOfExpr
 						size 
 				in 
 				List.fold_right (sizeCmp) liste (sizeOfExpr listeParam t) 
-		| 	CONST(_,STRING_CONST(st))-> String.length st
+		| 	CONST(_,STRING_CONST(st, false, _))-> String.length st
 		|	_ -> failwith ("sizeOfExpr : Constructor "^(name_of_expr e)^" of expr is not yet implemented. ")
 	end
 and
@@ -203,7 +203,7 @@ let rec fclassOfExpr
 	match e with 
 		|	ELINE(_,_,e) ->  fclassOfExpr e
 		| 	FORMAT(st, expr_list) -> fclassOfFormat st expr_list
-		| 	CONST(_,STRING_CONST(st))-> (fparse st,[])
+		| 	CONST(_,STRING_CONST(st, false, _))-> (fparse st,[])
 		|	_ ->  raise NotFormated
 	end
 and

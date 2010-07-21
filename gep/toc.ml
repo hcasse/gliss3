@@ -19,6 +19,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(*Usefull when you want to use caml toplevel :*)
+(*
+  #directory "../irg";;
+  #directory "../gep";;
+  
+  #load "unix.cma";;
+  #load "str.cma";;
+  #load "config.cmo";;
+  #load "irg.cmo";;
+  #load "instantiate.cmo";;
+  #load "lexer.cmo";;
+  #load "sem.cmo";;
+  #load "IdMaker.cmo";;
+  #load "iter.cmo";;
+  #load "toc.cmo";;
+  #load "templater.cmo";;
+  #load "parser.cmo";;
+  #load "irgUtil.cmo";;
+  #load "app.cmo";;
+*)
+
 exception UnsupportedType of Irg.type_expr
 exception UnsupportedExpression of Irg.expr
 exception Error of string
@@ -136,14 +157,11 @@ type info_t = {
 
 (** Empty information record. *)
 let info _ =
-	let p =
-		match Irg.get_symbol "proc" with
-		  Irg.LET(_, Irg.STRING_CONST name) -> name
-		| _ -> raise (Error "'proc' must be defined as a string let") in
+	let p = Irg.get_proc_name () in
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, Irg.STRING_CONST id) ->
+		| Irg.LET(_, Irg.STRING_CONST(id, _, _)) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -224,7 +242,7 @@ let set_inst info inst =
 	@param info	Current generation information.
 	@return		New label name. *)
 let new_label info =
-	let res = Printf.sprintf "__gliss_lab_%d" info.lab in
+	let res = Printf.sprintf "gliss_%s_%d_" info.iname info.lab in
 	info.lab <- info.lab + 1;
 	res
 
@@ -1088,7 +1106,13 @@ and gen_const info typ cst =
 			Printf.fprintf info.out "%ldL" v
 	| Irg.CARD _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "0x%LxLLU" v
 	| _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "%LdLL" v
-	| _, Irg.STRING_CONST s -> Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.STRING_CONST(s, b, _) ->
+		if b then
+			(* canonical const *)
+			Printf.fprintf info.out "%s" (cstring s)
+		else
+			(* simple string const *)
+			Printf.fprintf info.out "\"%s\"" (cstring s)
 	| _, Irg.FIXED_CONST v -> Printf.fprintf info.out "%f" v
 
 
@@ -1165,9 +1189,9 @@ and gen_binop info t op e1 e2 =
 	| Irg.LSHIFT	->  mask info t (fun _ -> out "(" " << " ")")
 	| Irg.RSHIFT	-> out "(" " >> " ")"
 	| Irg.LROTATE	->
-		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.RROTATE	->
-		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " (Printf.sprintf ", %d)" (ctype_size (convert_type t)))
+		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.LT		-> out "(" " < " ")"
 	| Irg.GT		-> out "(" " > " ")"
 	| Irg.LE		-> out "(" " <= " ")"
@@ -1665,8 +1689,8 @@ let find_recursives info name =
 			| Iter.STAT stat ->
 				look_stat stat recs
 			| _ -> failwith "find_recursives" in
-
 	info.recs <- look_attr name [] []
+
 
 (** generate the instruction responsibe for the incrementation of PCs,
 we return an Irg.STAT which has to be transformed, useful to resolve alias
@@ -1712,7 +1736,6 @@ let gen_pc_increment info =
 	@param name		Name of the attribute. *)
 let gen_action info name =
 	info.indent <- 1;
-
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;

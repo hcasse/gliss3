@@ -6,14 +6,15 @@
 #include <errno.h>
 #include <$(proc)/api.h>
 #include "platform.h"
+#include "code_table.h"
 #include <$(proc)/env.h>
 #include <$(proc)/macros.h>
 
 
-
 static char *$(proc)_string_ident[] = {
 	"$(PROC)_UNKNOWN"$(foreach instructions),
-	"$(PROC)_$(IDENT)"$(end)};
+	"$(PROC)_$(IDENT)"$(end)
+};
 
 
 char *$(proc)_get_string_ident($(proc)_ident_t id)
@@ -21,6 +22,15 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
 	return $(proc)_string_ident[id];
 }
 
+static unsigned long $(proc)_size_ident[] = {
+	32$(foreach instructions),
+	$(size)$(end)
+};
+
+unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst)
+{
+	return $(proc)_size_ident[inst->ident]; 
+}
 
 /**
  * @typedef $(proc)_platform_t
@@ -434,6 +444,7 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	return sim;
 }
 
+#ifndef $(PROC)_TRACE_CACHE
 
 /**
  * Return the next instruction to be executed by the given simulator
@@ -459,16 +470,42 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
  */
 void $(proc)_step($(proc)_sim_t *sim)
 {
-	$(proc)_inst_t *inst;
+	$(proc)_inst_t*  inst;
+	$(proc)_state_t* state = sim->state;
 
 	/* retrieving next instruction */
-	inst = $(proc)_next_inst(sim);
+    inst = $(proc)_decode(sim->decoder, state->$(pc_name));
 
 	/* execute it */
-	$(proc)_execute(sim->state, inst);
+$(if GLISS_PROFILED_JUMPS)
+	switch(inst->ident)
+	{
+$(foreach profiled_instructions)
+		case $(PROC)_$(IDENT):
+		{
+		$(gen_code)
+		
+		}break;
+$(end)
+		default:
+		$(proc)_code_table[inst->ident](state, inst);
+	}
+$(end)
+	
+$(if !GLISS_PROFILED_JUMPS)
+	$(proc)_code_table[inst->ident](state, inst);
+$(end)
 
-	/* finally free it */
+$(if !GLISS_NO_MALLOC)
+#ifndef $(PROC)_INF_DECODE_CACHE
+#ifndef $(PROC)_FIXED_DECODE_CACHE
+#ifndef $(PROC)_LRU_DECODE_CACHE
+    /* finally free it */
 	$(proc)_free_inst(inst);
+#endif
+#endif
+#endif
+$(end)	
 }
 
 
@@ -490,7 +527,32 @@ int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 	while(addr_exit != state->$(pc_name))
 	{
 		inst = $(proc)_decode(decoder, state->$(pc_name));
-		$(proc)_execute(state, inst);
+$(if GLISS_PROFILED_JUMPS)
+		switch(inst->ident)
+		{
+			$(foreach profiled_instructions)
+			
+			case $(PROC)_$(IDENT): {
+			$(gen_code)
+			}
+			break;			
+			$(end)
+			default:
+			$(proc)_code_table[inst->ident](state, inst);
+		}
+$(else)
+		$(proc)_code_table[inst->ident](state, inst);
+$(end)
+$(if !GLISS_NO_MALLOC)
+#ifndef $(PROC)_INF_DECODE_CACHE
+#ifndef $(PROC)_FIXED_DECODE_CACHE
+#ifndef $(PROC)_LRU_DECODE_CACHE
+    /* finally free it */
+	$(proc)_free_inst(inst);
+#endif
+#endif
+#endif
+$(end)
 		i++;
 	}
 	return i;
@@ -511,10 +573,178 @@ void $(proc)_run_sim($(proc)_sim_t *sim)
 	while(addr_exit != state->$(pc_name))
 	{
 		inst = $(proc)_decode(decoder, state->$(pc_name));
-		$(proc)_execute(state, inst);
+$(if GLISS_PROFILED_JUMPS)
+		switch(inst->ident)
+		{
+$(foreach profiled_instructions)
+			case $(PROC)_$(IDENT):
+			{
+		$(gen_code)
+		
+			}break;
+$(end)
+			default:
+			$(proc)_code_table[inst->ident](state, inst);
+		}
+		
+$(else)
+		$(proc)_code_table[inst->ident](state, inst);
+$(end)
+$(if !GLISS_NO_MALLOC)
+#ifndef $(PROC)_INF_DECODE_CACHE
+#ifndef $(PROC)_FIXED_DECODE_CACHE
+#ifndef $(PROC)_LRU_DECODE_CACHE
+    /* finally free it */
+	$(proc)_free_inst(inst);
+#endif
+#endif
+#endif
+$(end)
 	}
 }
 
+#else // then TRACE_CACHE is used //////////////////////////////////////
+/**
+ * Return the next instruction to be executed by the given simulator
+ *
+ * this instruction is pointed by the PC
+ *
+ * @param	sim	the simulator which we simulate within
+ * @return		the next instruction to be executed, fully decoded
+ */
+$(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
+{
+	/* retrieving the instruction (which is allocated by the decoder) */
+	/* we let the caller check for error */
+	return $(proc)_decode(sim->decoder, sim->state->$(pc_name)) + ((sim->state->NIA >> 2) & (TRACE_DEPTH-1));
+}
+
+
+/**
+ * Execute the next instruction in the given simulator.
+ * It doesn't check if we reached the last instruction, so it should be done
+ * separately using the function $(proc)_is_sim_ended
+ * @param	sim	the simulator which we simulate within
+ */
+void $(proc)_step($(proc)_sim_t *sim)
+{
+	$(proc)_inst_t*  inst;
+	$(proc)_state_t* state = sim->state;
+
+	/* retrieving next instruction */
+    inst =  $(proc)_decode(sim->decoder, state->$(pc_name)) + ((sim->state->NIA >> 2) & (TRACE_DEPTH-1));
+	
+	/* execute it */
+$(if GLISS_PROFILED_JUMPS)
+	switch(inst->ident)
+	{
+$(foreach profiled_instructions)
+		case $(PROC)_$(IDENT):
+		{
+		$(gen_code)
+		
+		}break;
+$(end)
+		default:
+		$(proc)_code_table[inst->ident](state, inst);
+	}
+$(end)
+	
+$(if !GLISS_PROFILED_JUMPS)
+	$(proc)_code_table[inst->ident](state, inst);
+$(end)
+	
+}
+
+
+/**
+ * Straightforward execution of the simulated programm. 
+ * It runs and count the number of executed instructions 
+ * until the programm reached the last instruction.
+ * this is the <bold> fastest </bold> way to simulate a programm
+ * @param	sim	the simulator which we simulate within
+ * @return number of executed instructions
+ * */
+int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+{
+	int i = 0;
+    uint32_t num_bloc;
+    $(proc)_state_t*   state     = sim->state;
+    $(proc)_decoder_t* decoder   = sim->decoder;
+    $(proc)_address_t  addr_exit = sim->addr_exit;
+    $(proc)_inst_t*    inst, *trace;
+
+	while(addr_exit != state->$(pc_name))
+	{
+        trace    = $(proc)_decode(decoder, state->$(pc_name));
+        num_bloc = (state->$(pc_name) >> 2) >> TRACE_DEPTH_PW;
+
+        while((((state->$(pc_name) >> 2)>> TRACE_DEPTH_PW) == num_bloc) && (addr_exit != state->$(pc_name)))
+        {
+			inst = trace + ((state->NIA >> 2) & (TRACE_DEPTH-1));
+            $(if GLISS_PROFILED_JUMPS)
+			switch(inst->ident)
+			{
+$(foreach profiled_instructions)
+				case $(PROC)_$(IDENT):
+				{
+				$(gen_code)
+		
+				}break;
+$(end)
+				default:
+				$(proc)_code_table[inst->ident](state, inst);
+$(end)
+			}
+			i++;
+		}
+	}
+	return i;	
+}
+
+/**
+ * Straightforward execution of the simulated programm. 
+ * It runs until the programm reached the last instruction.
+ * this is the <bold> fastest </bold> way to simulate a programm
+ * @param	sim	the simulator which we simulate within
+ * */
+void $(proc)_run_sim($(proc)_sim_t *sim)
+{
+    uint32_t num_bloc;
+    $(proc)_state_t*   state     = sim->state;
+    $(proc)_decoder_t* decoder   = sim->decoder;
+    $(proc)_address_t  addr_exit = sim->addr_exit;
+    $(proc)_inst_t*    inst, *trace;
+
+	while(addr_exit != state->$(pc_name))
+	{
+        trace    = $(proc)_decode(decoder, state->$(pc_name));
+        num_bloc = (state->$(pc_name) >> 2) >> TRACE_DEPTH_PW;
+
+        while((((state->$(pc_name) >> 2)>> TRACE_DEPTH_PW) == num_bloc) && (addr_exit != state->$(pc_name)))
+        {
+			inst = trace + ((state->NIA >> 2) & (TRACE_DEPTH-1));
+            $(if GLISS_PROFILED_JUMPS)
+			switch(inst->ident)
+			{
+$(foreach profiled_instructions)
+				case $(PROC)_$(IDENT):
+				{
+				$(gen_code)
+		
+				}break;
+$(end)
+				default:
+				$(proc)_code_table[inst->ident](state, inst);
+			}
+		
+$(else)
+		    $(proc)_code_table[inst->ident](state, inst);
+$(end)            
+        }
+	}
+}
+#endif
 
 /**
  * Indicate if the simulation is finished on the given simulator

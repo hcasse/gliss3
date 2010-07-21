@@ -1,3 +1,23 @@
+(*
+ * $Id$
+ * Copyright (c) 2010, IRIT - UPS <casse@irit.fr>
+ *
+ * This file is part of GLISS2.
+ *
+ * GLISS2 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * GLISS2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with GLISS2; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *)
 
 (** Type of integrated instructions. *)
 type inst = Irg.spec
@@ -55,44 +75,13 @@ let check_coerce spec =
 		(* shouldn't happen *)
 		spec
 
-
 (* structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
+(** List of instruction names sorted by ascending order of call number 
+	This list is initialize if -p option is activated when calling GEP *)
+let instr_stats : (string list ref) = ref [];;
 
-
-(* iterator (or fold) on the structure containin all the instructions specs
-	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
-	@param init_val		the accumulator, initial value *)
-let iter fun_to_iterate init_val =
-	let initialise_instrs =
-		if !instr_set = [Irg.UNDEF] then
-			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
-		else
-			()
-	in
-	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
-		match instrs with
-		[] ->
-			init
-		| a::b ->
-			match a with
-			Irg.AND_OP(_, param_l, attr_l) ->
-			
-				Irg.param_unstack params_to_unstack;
-				Irg.attr_unstack attrs_to_unstack;
-			
-				Irg.param_stack param_l;
-				Irg.attr_stack attr_l;
-				
-				rec_iter f (f init a) b param_l attr_l;
-			| _ ->
-				failwith "we should have only AND OP spec at this point (Iter)"	
-	in
-	begin
-	initialise_instrs;
-	rec_iter fun_to_iterate init_val !instr_set [] []
-	end
 
 (** return an attr from an instruction or mode specification
 	@param instr	spec of the instrution or the mode
@@ -159,7 +148,7 @@ let get_name instr =
 	let rec to_string e =
 		match e with
 		  Irg.FORMAT(s, e_l) -> s
-		| Irg.CONST(Irg.STRING, Irg.STRING_CONST str) -> str
+		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
 		| Irg.IF_EXPR (_, _, e, _) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->
@@ -181,6 +170,15 @@ let get_params instr =
 		param_list
 	| _ ->
 		assert false
+
+(** Return the number of params of an instruction *)
+let get_params_nb instr =
+	match instr with
+	Irg.AND_OP(_, param_list, _) ->
+		List.length param_list
+	| _ ->
+		assert false
+
 
 (* instantiate all known vars in a given expr
 	@param instr	the spec whose params will give the vars to instantiate
@@ -208,3 +206,68 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
+(** *)
+let rec sort_instr_set instr_list stat_list = match stat_list with
+  | []       -> []
+  | name::q  -> 
+	try
+		let inst = List.find (fun a -> (get_name a) = name) instr_list 
+		in
+			(sort_instr_set instr_list q)  @ [inst]
+	with Not_found -> failwith "Profiled file instructions statistics doesn't match current instruction generation"
+			
+(* iterator (or fold) on the structure containing all the instructions specs
+	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
+	@param init_val		the accumulator, initial value 
+     val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a 
+*)
+let iter fun_to_iterate init_val =
+	let initialise_instrs =
+		if !instr_set = [Irg.UNDEF] then
+			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
+		else
+			()
+	in
+	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
+	let _ = 
+		if List.length !instr_stats = 0
+		then  ()
+		else
+			 instr_set := sort_instr_set !instr_set !instr_stats
+	in
+  
+	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
+		match instrs with
+		[] ->
+			init
+		| a::b ->
+			match a with
+			Irg.AND_OP(_, param_l, attr_l) ->
+			
+				Irg.param_unstack params_to_unstack;
+				Irg.attr_unstack attrs_to_unstack;
+			
+				Irg.param_stack param_l;
+				Irg.attr_stack attr_l;
+				
+				rec_iter f (f init a) b param_l attr_l;
+			| _ ->
+				failwith "we should have only AND OP spec at this point (Iter)"	
+	in
+	begin
+	initialise_instrs;
+	rec_iter fun_to_iterate init_val !instr_set [] []
+	end
+	  
+(** Compute the maximum params numbers of all instructions 
+	from the current loaded IRG 
+*)
+let get_params_max_nb () = 
+	let aux acc i =
+		let nb_params = get_params_nb i 
+		in 
+		  if nb_params > acc 
+		  then nb_params 
+		  else acc
+	in
+	  iter aux 0  

@@ -6,8 +6,12 @@
 #include <stdio.h>
 #include "id.h"
 #include "mem.h"
+#include "decode.h"
+
 //#include "loader.h"
 
+#define $(PROC)_PROC_NAME "$(PROC)"
+#define $(PROC)_PC_NAME  $(pc_name)
 
 /* return an instruction identifier as a string instead of the $(proc)_ident_t which is not very user friendly */
 char *$(proc)_get_string_ident($(proc)_ident_t id);
@@ -40,39 +44,40 @@ typedef struct $(proc)_sim_t {
 	/* anything else? */
 } $(proc)_sim_t;
 
+
+$(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_value_t type */
-typedef union $(proc)_value_t {
-	$(proc)_address_t addr;
-	unsigned long size;
+typedef union $(proc)_value_t {	
 $(foreach values)
 	$(type) $(name);
 $(end)
 } $(proc)_value_t;
-
-/* $(proc)_param_t type */
-$(if !GLISS_NO_PARAM)
-	typedef enum $(proc)_param_t {
-		$(PROC)_VOID_T = 0,
-		$(PROC)_ADDR,
-		$(PROC)_SIZE$(foreach params),
-		$(PROC)_PARAM_$(NAME)_T$(end)$(foreach registers),
-		$(PROC)_$(NAME)_T$(end)
-	} $(proc)_param_t;
 $(end)
 
+
+$(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_ii_t type */
 typedef struct $(proc)_ii_t {
-$(if !GLISS_NO_PARAM)
-		$(proc)_param_t type;
-$(end)
 	$(proc)_value_t val;
 } $(proc)_ii_t;
+$(end)
 
 /* $(proc)_inst_t type */
 typedef struct $(proc)_inst_t {
-	$(proc)_ident_t ident;
-	$(proc)_ii_t *instrinput;
-	$(proc)_ii_t *instroutput;
+	$(proc)_ident_t   ident;
+	$(proc)_address_t addr;
+$(if !GLISS_INSTR_FAST_STRUCT)
+	$(proc)_ii_t instrinput[$(max_operand_nb)];
+$(else)
+	union {
+		$(foreach instructions)struct {
+			$(foreach params)$(TYPE) $(PARAM);
+			$(end)
+		} op_struct_$(ident); 
+		$(end)
+	} op_union; 
+$(end)
+
 } $(proc)_inst_t;
 
 /* auxiliary vector */

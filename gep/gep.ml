@@ -21,7 +21,7 @@
 open Lexing
 
 
-(** module structure *)
+(* (** module structure *) *)
 type gmod = {
 	mutable iname: string;				(** interface name *)
 	mutable aname: string;				(** actual name *)
@@ -51,7 +51,6 @@ let modules = ref [
 	new_mod "error" "error"
 ]
 
-
 (** Add a module to the list of module from arguments.
 	@param text		Text of the ragument. *)
 let add_module text =
@@ -77,18 +76,22 @@ let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
-let sim = ref false
-let memory = ref "fast_mem"
-let size = ref 0
+let sim                  = ref false
+let memory               = ref "fast_mem"
+let size                 = ref 0
 let sources : string list ref = ref []
 let switches: (string * bool) list ref = ref []
 let options = [
-	("-m", Arg.String add_module, "add a module (module_name:actual_module)]");
-	("-s", Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
-	("-a", Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
-	("-S", Arg.Set sim, "generate the simulator application");
+	("-m",   Arg.String  add_module, "add a module (module_name:actual_module)]");
+	("-s",   Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
+	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
+	("-S",   Arg.Set     sim, "generate the simulator application");
+	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
+		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
+	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
+		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
-	("-on", Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
+	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
 ]
 
 
@@ -112,6 +115,18 @@ let get_source f dict source =
 	f (("path", App.out (fun _ -> source)) :: dict)
 
 
+(** find the first least significant bit set to one 
+    @param mask      the mask to parse 
+    @return the indice of the first least significant bit 
+*)
+let find_first_bit mask =
+  let rec aux index shifted_mask =
+    if (Int32.logand shifted_mask 1l) <> 0l || index >= 32
+    then index
+    else aux (index+1) (Int32.shift_right shifted_mask 1)
+  in
+    aux 0 mask
+
 (** Build a template environment.
 	@param info		Information for generation.
 	@return			Default template environement. *)
@@ -122,12 +137,16 @@ let make_env info =
 			(fun min inst ->
 				let size = Fetch.get_instruction_length inst
 				in if size < min then size else min)
-			1024 in
-
+			1024 
+	in
+	let max_op_nb = Iter.get_params_max_nb ()
+	in
+	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
+	in
 	let decoder inst idx out =
-		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx) in
-		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, code_inst)" mask in
-		let exts n = Printf.fprintf out "__EXTS(0x%08lX, code_inst, %d)" mask (32 - n) in
+		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)                         in
+		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, %d, code_inst)"  mask (find_first_bit mask)          in
+		let exts    n = Printf.fprintf out "__EXTS(0x%08lX, %d, code_inst, %d)" mask (find_first_bit mask) (32 - n) in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
@@ -154,6 +173,8 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
+	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
+ 	("max_operand_nb", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_op_nb)  ) ::
 	("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
@@ -170,7 +191,8 @@ let make_env info =
 			info.Toc.inst <- spec_init;
 			info.Toc.iname <- "init";
 			(* stack params (none) and attrs (only action) for "init" op *)
-			Irg.attr_stack [init_action_attr];Toc.get_stat_attr "action";
+			Irg.attr_stack [init_action_attr];
+			let _ = Toc.get_stat_attr "action" in
 			Toc.gen_action info "action")) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
