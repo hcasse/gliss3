@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(* return the mask giving the nth param (counting from 0) of an instr of the given spec, the result will be a string
+(* return the mask giving the nth param (counting from 0) of an instr of the given spec sp, the result will be a string
 with only '0' or '1' chars representing the bits of the mask,
 the params' order is the one given by the Iter.get_params method *)
 let get_string_mask_for_param_from_op sp n =
