@@ -8,8 +8,6 @@
 #include "fetch_table.h" /* or ../include/gliss/ ? */
 
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
-/* we should pass the next option on command line */
-#define GLISS_NO_CACHE_FETCH
 
 /* endianness */
 typedef enum gliss_endianness_t {
@@ -19,112 +17,27 @@ typedef enum gliss_endianness_t {
 
 /* Extern Modules */
 /* Constants */
-#ifndef GLISS_NO_CACHE_FETCH
-//# define GLISS_HASH_DEBUG
-#	ifndef GLISS_HASH_NUM_INSTR
-#		define GLISS_HASH_NUM_INSTR 0xFFFF
-#	endif
-#	ifndef GLISS_HASH_FUNC
-#		define GLISS_HASH_FUNC(a) (((a)>>2)&GLISS_HASH_NUM_INSTR)
-#	endif
-#	ifndef GLISS_MALLOC_BUF_MAX_SIZE
-#		define GLISS_MALLOC_BUF_MAX_SIZE (1024*1024)
-#	endif
-#else /* GLISS_NO_CACHE_FETCH */
-#	ifndef GLISS_MAX_INSTR_FETCHED
-#		define GLISS_MAX_INSTR_FETCHED 100
-#	endif
-#endif /* GLISS_NO_CACHE_FETCH */
 
-/* Variables & Fonctions (for cache & no cache) */
 
-#ifndef GLISS_NO_CACHE_FETCH
+/* Variables & Fonctions */
 
-typedef struct hash_node_type
-{
-	gliss_ident_t instr_id;
-	gliss_address_t id;
-	struct hash_node_type *next;
-} hash_node_t;
-
-hash_node_t *hash_table[GLISS_HASH_NUM_INSTR+1];
-
-typedef struct malloc_buf_type
-{
-	/* keep buffer at the first elt, for having a good alignment */
-	char buffer[GLISS_MALLOC_BUF_MAX_SIZE];
-	size_t size;
-	struct malloc_buf_type *next;
-} malloc_buf_t;
-
-malloc_buf_t *last_malloc_buf = NULL;
-
-#	ifdef GLISS_HASH_DEBUG
-
-unsigned long int count_hits = 0, count_miss = 0, count_instr = 0,
-count_hits_total = 0, count_miss_total = 0,
-count_move = 0, count_move_total = 0;
-unsigned long int move_total = 0, move_intern = 0;
-
-#	endif /* GLISS_HASH_DEBUG */
-
-static void *mymalloc(size_t size)
-{
-	void *buf;
-	/* align size on 64 bits boundary, that is 8 bytes */
-	size = (size +7) & ~(size_t)0x07;
-	if ((last_malloc_buf == NULL) || ((last_malloc_buf->size + size) > GLISS_MALLOC_BUF_MAX_SIZE))
-	{
-		malloc_buf_t *malloc_buf = (malloc_buf_t *) malloc(sizeof(malloc_buf_t));
-		malloc_buf->size = 0;
-		malloc_buf->next = last_malloc_buf;
-		last_malloc_buf = malloc_buf;
-	}
-	buf = &last_malloc_buf->buffer[last_malloc_buf->size];
-	last_malloc_buf->size += size;
-	return buf;
-}
-
-static void cache_halt(void)
-{
-	malloc_buf_t *ptr;
-	ptr = last_malloc_buf;
-	while (ptr != NULL)
-	{
-		ptr = ptr->next;
-		free(last_malloc_buf);
-		last_malloc_buf = ptr;
-	}
-	/* here, last_malloc_buf==NULL */
-}
-
-#else /* GLISS_NO_CACHE_FETCH */
 
 static int instr_is_free[GLISS_MAX_INSTR_FETCHED];
 static gliss_inst_t instr_tbl[GLISS_MAX_INSTR_FETCHED];
 
-#endif /* GLISS_NO_CACHE_FETCH */
+
 
 
 static void halt_fetch(void)
 {
-#ifndef GLISS_NO_CACHE_FETCH
-	cache_halt();
-#else /* GLISS_NO_CACHE_FETCH */
-	/* nop */
-#endif /* GLISS_NO_CACHE_FETCH */
 }
 
 static void init_fetch(void)
 {
 	int i;
-#ifndef GLISS_NO_CACHE_FETCH
-	for (i = 0; i < GLISS_HASH_NUM_INSTR + 1; i++)
-		hash_table[i] = NULL;
-#else /* GLISS_NO_CACHE_FETCH */
+
 	for (i = 0; i < GLISS_MAX_INSTR_FETCHED; i++)
 		instr_is_free[i] = 1;
-#endif /* GLISS_NO_CACHE_FETCH */
 }
 
 
@@ -204,94 +117,6 @@ gliss_ident_t gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address, uint32_
 	Table_Decodage *ptr;
 	Table_Decodage *ptr2;
 
-#ifndef GLISS_NO_CACHE_FETCH
-	unsigned int index;
-	hash_node_t *node;
-#endif /* GLISS_NO_CACHE_FETCH */
-
-#ifndef GLISS_NO_CACHE_FETCH
-
-#	ifdef GLISS_HASH_DEBUG
-	if ((count_instr % 10000000) == 0)
-	{
-		fprintf(stderr,
-		"\ncount = %lu\thits = %lu\tmiss = %lu\tmove=%lu\n"
-		"\ttotal hits = %lu\ttotal miss = %lu\ttotal move=%lu\n"
-		"\tmax move = %lu\n",
-		count_instr,count_hits,count_miss,count_move,
-		count_hits_total,count_miss_total,count_move_total,
-		move_total);
-		count_hits = 0;
-		count_miss = 0;
-		count_move = 0;
-		move_total = 0;
-	}
-#	endif /* GLISS_HASH_DEBUG */
-
-	index = GLISS_HASH_FUNC(address);
-
-#	ifdef GLISS_HASH_DEBUG
-	count_miss++;
-	count_instr++;
-	count_miss_total++;
-#	endif /* GLISS_HASH_DEBUG */
-
-	if (hash_table[index] != NULL)
-	{
-		hash_node_t *prev;
-		hash_node_t *act;
-		if (hash_table[index]->id == address)
-		{
-#	ifdef GLISS_HASH_DEBUG
-			count_hits++;
-			count_hits_total++;
-			count_miss--;
-			count_miss_total--;
-#	endif /* GLISS_HASH_DEBUG */
-			return hash_table[index]->instr_id;
-		}
-		prev = hash_table[index];
-		act = hash_table[index]->next;
-#       ifdef GLISS_HASH_DEBUG
-		move_intern = 0;
-#       endif /* GLISS_HASH_DEBUG */
-		for ( ; act != NULL; )
-		{
-#	ifdef GLISS_HASH_DEBUG
-			move_intern++;
-#	endif /* GLISS_HASH_DEBUG */
-			if (act->id == address)
-			{
-				hash_node_t *next = act->next;
-				prev->next = next;
-				act->next = hash_table[index];
-				hash_table[index] = act;
-#	ifdef GLISS_HASH_DEBUG
-				count_move++;
-				count_move_total++;
-				count_miss--;
-				count_miss_total--;
-				if (move_intern > move_total)
-					move_total = move_intern;
-#	endif /* GLISS_HASH_DEBUG */
-				return act->instr_id;
-			}
-#	ifdef GLISS_HASH_DEBUG
-			if(move_intern > move_total)
-				move_total = move_intern;
-#	endif /* GLISS_HASH_DEBUG */
-			prev = act;
-			act = act->next;
-		}
-	}
-	node = (hash_node_t *)mymalloc(sizeof(hash_node_t));
-	node->next = hash_table[index];
-	node->id = address;
-
-#else /* GLISS_NO_CACHE_FETCH */
-
-#endif /* GLISS_NO_CACHE_FETCH */
-
 	ptr2 = table;
 	do
 	{
@@ -301,13 +126,7 @@ gliss_ident_t gliss_fetch(gliss_fetch_t *fetch, gliss_address_t address, uint32_
 	}
 	while (ptr->table[valeur].type == TABLEFETCH);
 
-#ifndef GLISS_NO_CACHE_FETCH
-	node->instr_id = (gliss_ident_t)ptr->table[valeur].ptr;
-	hash_table[index] = node;
-	return node->instr_id;
-#else /* GLISS_NO_CACHE_FETCH */
 	return (gliss_ident_t)ptr->table[valeur].ptr;
-#endif /* GLISS_NO_CACHE_FETCH */
 }
 
 /* End of file gliss_fetch.c */
