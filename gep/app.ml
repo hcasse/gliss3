@@ -26,7 +26,7 @@
 (*
   #directory "../irg";;
   #directory "../gep";;
-  
+
   #load "unix.cma";;
   #load "str.cma";;
   #load "config.cmo";;
@@ -43,7 +43,7 @@
 *)
 
 
-module OrderedType = 
+module OrderedType =
 struct
 	type t = Toc.c_type
 	let compare s1 s2 = if s1 = s2 then 0 else if s1 < s2 then (-1) else 1
@@ -167,17 +167,17 @@ let get_instruction maker f dict _ i = f
 		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 		dict))
 
-(** Get the nth first instructions defined by nb_inst 
+(** Get the nth first instructions defined by nb_inst
 	Only if a instruction profile is loaded i.e : (Iter.instr_stats <> [])
 *)
 let get_ninstruction maker f dict nb_inst cpt i =
-	if (Iter.instr_stats = ref []) 
+	if (Iter.instr_stats = ref [])
 	then (prerr_string "WARNING a profiling option is being used without a loaded '.profile'\n";cpt)
 	else
-		if (cpt < nb_inst) 
+		if (cpt < nb_inst)
 		then let _ = get_instruction maker f dict () i in cpt+1
 		else cpt
-	
+
 
 let get_register f dict _ sym =
 	match sym with
@@ -243,8 +243,8 @@ let make_env info maker =
 		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
 
 	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
-	("profiled_instructions", Templater.COLL ( fun f dict -> 
-	  let _ = Iter.iter (get_ninstruction maker f dict (!profiled_switch_size)) 0 in () )) :: 
+	("profiled_instructions", Templater.COLL ( fun f dict ->
+	  let _ = Iter.iter (get_ninstruction maker f dict (!profiled_switch_size)) 0 in () )) ::
 	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
@@ -288,7 +288,7 @@ let process file f =
 	| Irg.IrgError msg ->
 		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
 	| Irg.RedefinedSymbol sym ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\"" sym); exit 2
+		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
@@ -362,4 +362,4 @@ let run args help f =
 let make_template template file dict =
 	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
 	Templater.generate dict template file
- 
+

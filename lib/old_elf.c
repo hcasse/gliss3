@@ -3,7 +3,7 @@
  *	old_elf module interface
  *
  *	This file is part of OTAWA
- *	Copyright (c) 2008, IRIT UPS.
+ *	Copyright (c) 2010, IRIT UPS.
  *
  *	GLISS is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -573,7 +573,8 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 
 	for(i=0; i<Ehdr->e_shnum; ++i) {
 		if((Tables.sec_header_tbl[i].sh_type == SHT_PROGBITS)
-		&& (Tables.sec_header_tbl[i].sh_flags == (SHF_ALLOC | SHF_EXECINSTR))){
+		&& (Tables.sec_header_tbl[i].sh_flags & SHF_ALLOC)
+		&& (Tables.sec_header_tbl[i].sh_flags & SHF_EXECINSTR)) {
 			txt_sec = (struct text_secs *)malloc(sizeof(struct text_secs));
 			if(txt_sec == NULL) {
 				errno = ENOMEM;
@@ -928,7 +929,7 @@ void gliss_loader_load(gliss_loader_t *loader, gliss_platform_t *pf)
     {
 		TRACE;
 		if(ptr->size)
-			gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);	
+			gliss_mem_write(memory, ptr->address, ptr->bytes, ptr->size);
 		ptr = ptr->next;
 	}
 }

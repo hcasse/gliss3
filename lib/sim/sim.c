@@ -254,28 +254,28 @@ void write_profiling_file(FILE* profile_id, int inst_stat[])
 		int id;    // instruction identifier
 		int count; // total number instruction call
 	}tmp, entries[GLISS_INSTRUCTIONS_NB];
-	
+
 	// Copy inst_stat[] into entries[]
 	for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
 	{
 		entries[i].id    = i;
-		entries[i].count = inst_stat[i];		
+		entries[i].count = inst_stat[i];
 	}
-	
+
 	// sort entries[]
 	for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
-	{		
+	{
 		for(j = i+1; j<GLISS_INSTRUCTIONS_NB; j++)
 		{
 			if( entries[j].count > entries[i].count)
 			{
-				tmp        = entries[i]; 
+				tmp        = entries[i];
 				entries[i] = entries[j];
-				entries[j] = tmp;					
-			}	
+				entries[j] = tmp;
+			}
 		}
 	}
-	
+
     // Write stats
     for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
     {
@@ -332,13 +332,13 @@ int main(int argc, char **argv)
 		/* -v or -verbose option */
 		else if(strcmp(argv[i], "-verbose") == 0 || strcmp(argv[i], "-v") == 0)
 			verbose = 1;
-			
+
 		else if(strcmp(argv[i], "-fast") == 0 || strcmp(argv[i], "-f") == 0)
 			fast_sim = 1;
 
         /* -p or -profile=<path> option */
         else if( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "-profile") == 0){
-			profile = 1;        
+			profile = 1;
 		}
         else if( strncmp(argv[i], "-profile=", 9) == 0 ){
             profile = 1;
@@ -651,11 +651,11 @@ int main(int argc, char **argv)
         if( profiling_file_path != NULL){
 			profiling_file_name = (char*)alloca(sizeof(char)* (strlen(profiling_file_path) + strlen(GLISS_PROC_NAME) + 10));
 			strcpy(profiling_file_name, profiling_file_path);
-			// Append the last slash if necessary  
+			// Append the last slash if necessary
 			if( strlen(profiling_file_path) )
 				if(profiling_file_name[strlen(profiling_file_path)-1] != '/')
 					strcat(profiling_file_name, "/");
-					
+
 			strcat(profiling_file_name, GLISS_PROC_NAME);
 		}else{
 			profiling_file_name = (char*)alloca(sizeof(char)* strlen(GLISS_PROC_NAME) + 10);
@@ -667,7 +667,7 @@ int main(int argc, char **argv)
     }
 
 	/* measure time */
-	if(stats) 
+	if(stats)
 	{
 		struct rusage buf;
 		getrusage(RUSAGE_SELF, &buf);
@@ -688,7 +688,7 @@ int main(int argc, char **argv)
 					inst_cnt++;
 				}
 			}
-               
+
 
 // !!DEBUG BEGIN!!
 //	cpt++;
@@ -701,7 +701,7 @@ int main(int argc, char **argv)
 // !!DEBUG END!!
 	}
 	/* verbose simulation */
-	else 
+	else
 	{
         gliss_inst_t *inst;
         while(!gliss_is_sim_ended(sim))

@@ -13,18 +13,8 @@
 @include gliss-spec.thot
 @include gliss-cmds.thot
 
-
-
-
-====== Commands ======
-
-
-
-
-
 ====== Generated Sources ======
 
+@include gliss-temps.thot
 
 
-
-====== Custom Attributes ======
