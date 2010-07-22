@@ -21,23 +21,12 @@ typedef enum gliss_endianness_t {
 
 /* Variables & Fonctions */
 
-
-static int instr_is_free[GLISS_MAX_INSTR_FETCHED];
-static gliss_inst_t instr_tbl[GLISS_MAX_INSTR_FETCHED];
-
-
-
-
 static void halt_fetch(void)
 {
 }
 
 static void init_fetch(void)
 {
-	int i;
-
-	for (i = 0; i < GLISS_MAX_INSTR_FETCHED; i++)
-		instr_is_free[i] = 1;
 }
 
 

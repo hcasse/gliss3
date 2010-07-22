@@ -484,7 +484,7 @@ print_string "spec ="; print_spec op;	*)		(* !!DEBUG!! *)
 		(*print_string "substitute_in_stat, SET,\nloc="; print_location l; print_string "\nexpr="; print_expr e; print_string "\n";flush stdout;*)
 		SET(substitute_in_location name op l, substitute_in_expr name op e)
 	| CANON_STAT(n, el) ->
-		CANON_STAT(n, el)
+		CANON_STAT(n, List.map (substitute_in_expr name op) el)
 	| ERROR(s) ->
 		ERROR(s)
 	| IF_STAT(e, s1, s2) ->
