@@ -1505,20 +1505,21 @@ let rec get_length id =
 (** This function check if the paramters of a canonical function are correct
 	@param name	The name of the canonical function
 	@param list_param	The list of parameters given to the canonical function
-	@return true if the parameters are of correct number and type, false otherwise. This function will also always return true if the name given is unknown
+	@return 			Fixed list of parameters (possibly with casting).
 *)
-let check_param name list_param=
-	let canon= get_canon name
-	in
-	(*!!DEBUG!!*)
-	(*print_string ("check_param, "^name^":\n");*)
-	if canon.name =UNKNOW then true
-	else
-	try (
-	 if not (List.fold_right2 (fun p t v-> (*(*!!DEBUG!!*)Irg.print_type_expr (get_type_expr p);print_string "\n";*) (get_type_expr p)=t & v) list_param canon.type_param true)
-		then false
-		else true
-	) with Invalid_argument _ -> false
+let check_params name list_param =
+
+	let check_type p t =
+		let pt = get_type_expr p in
+		if t = pt then p else Irg.COERCE(t, p) in
+
+	let canon = get_canon name in
+	if canon.name = UNKNOW then list_param else
+	try
+		List.map2 check_type list_param canon.type_param
+	with Invalid_argument _ ->
+		raise (SemError "bad number of arguments")
+
 
 (** This function build a canonical expression, after checked if the parameters are corrects.
 	@param name	The name of the canonical function
@@ -1526,14 +1527,10 @@ let check_param name list_param=
 	@return a CANON_EXPR expression
 	@raise SemError 	Raised when the parameters are incorrects
 *)
-let build_canonical_expr name param=
-	if not (check_param name param)
-		then
-			raise (SemError (Printf.sprintf "The canonical function %s have incorrect parameters" name))
-		else
-			let e=get_canon name
-			in
-			CANON_EXPR (e.type_res, name , param)
+let build_canonical_expr name param =
+	let e = get_canon name in
+	CANON_EXPR (e.type_res, name , check_params name param)
+
 
 (** This function build a canonical statement, after checked if the parameters are corrects.
 	If the function have a return type different of NO_TYPE (except of course UNKNOW_TYPE, when the function is unknow), then a warning is displayed
@@ -1543,17 +1540,12 @@ let build_canonical_expr name param=
 	@return a CANON_STAT expression
 	@raise SemError 	Raised when the parameters are incorrects
 *)
-let build_canonical_stat name param=
-	if not (check_param name param)
-		then
-			raise (SemError (Printf.sprintf "The canonical function %s have incorrect parameters" name))
-		else
-			let e= get_canon name
-			in
-			(if not (e.type_res=NO_TYPE || e.type_res=UNKNOW_TYPE)
-				then
-					Lexer.display_warning (Printf.sprintf "the result of the canonical function %s is not used" name));
-			CANON_STAT (name , param)
+let build_canonical_stat name param =
+	let e = get_canon name in
+	if not (e.type_res = NO_TYPE || e.type_res = UNKNOW_TYPE) then
+		Lexer.display_warning (Printf.sprintf "the result of the canonical function %s is not used" name);
+	CANON_STAT (name , check_params name param)
+
 
 (** Get type of a location.
 	@param loc	Location to get type of.

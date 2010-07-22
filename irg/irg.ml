@@ -91,7 +91,7 @@ type expr =
 	  NONE									(* null expression *)
 	| COERCE of type_expr * expr						(* explicit coercition *)
 	| FORMAT of string * expr list						(* format expression *)
-	| CANON_EXPR of type_expr * string * expr list				(* canonical expression *)	
+	| CANON_EXPR of type_expr * string * expr list				(* canonical expression *)
 	| REF of string								(* attribute / state item access *)
 	| FIELDOF of type_expr * string * string				(* attribute access *)
 	| ITEMOF of type_expr * string * expr					(* state item array access *)
@@ -243,7 +243,7 @@ let get_symbol n =
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
 	| LET(_, STRING_CONST(name, _, _)) -> name
-	| _                         -> 
+	| _                         ->
 		failwith ("Unable to find 'proc_name'."^
 				  "'proc' must be defined as a string let")
 
@@ -482,6 +482,18 @@ let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
 *)
 let add_pos v_name v_file v_line =
 	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
+
+
+(** Return string identifying file and line definition of the given symbol.
+	@param sym	Required symbol.
+	@return		File and line information about the symbol. *)
+let pos_of sym =
+	try
+		let p = StringHashtbl.find pos_table sym in
+		Printf.sprintf "%s:%d" p.file p.line
+	with Not_found ->
+		"<no line>"
+
 
 (* --- display functions --- *)
 
@@ -1002,7 +1014,7 @@ let output_spec out spec =
 			Printf.fprintf out "\"%s\"\t: " name;
 			output_type_expr out type_res;
 			output_string out "\n"
-		
+
 
 	| UNDEF ->
 		output_string out "<UNDEF>"
@@ -1096,10 +1108,8 @@ let run_nmp2nml file =
 	(* find the command *)
 	let cmd =
 		let cmd = Config.source_dir ^ "/gep/gliss-nmp2nml.pl" in
-		Printf.printf "-> %s\n" cmd;
 		if Sys.file_exists cmd then cmd else
 		let cmd = Config.install_dir ^ "/bin/gliss-nmp2nml.pl" in
-		Printf.printf "-> %s\n" cmd;
 		if Sys.file_exists cmd then cmd else
 		begin
 			Printf.fprintf stderr "ERROR: cannot find gliss-nmp2nml.pl to process %s\n" file;
