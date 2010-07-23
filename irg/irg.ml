@@ -84,7 +84,7 @@ type const =
 	  NULL
 	| CARD_CONST of Int32.t
 	| CARD_CONST_64 of Int64.t
-	| STRING_CONST of string * bool	* type_expr	(* bool indicates if const is canonical, if bool then 3rd field is the type of canonical const *)
+	| STRING_CONST of string * bool	* type_expr	(** bool indicates if const is canonical, if bool is true then 3rd field is the type of canonical const *)
 	| FIXED_CONST of float
 
 type expr =
@@ -178,7 +178,7 @@ type spec =
 								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
 								the third is the value of this ENUM_POSS,
 								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
-	| CANON_DEF of string * canon_type * type_expr * type_expr list	(* name of canonical function, type (fun or const name), return type, args type *)
+	| CANON_DEF of string * canon_type * type_expr * type_expr list	(** declaration of a canonical: name of canonical, type (fun or const name), return type, args type *)
 
 (** Get the name from a specification.
 	@param spec		Specification to get name of.
@@ -428,7 +428,7 @@ let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 (* list of all defined canonical functions *)
 let canon_list = [
 			{name= UNKNOW;type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
-			{name=NAMED "sin";type_fun=CANON_FUNC;type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};
+			(*{name=NAMED "sin";type_fun=CANON_FUNC;type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};*)
 			{name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE}
 		 ]
 

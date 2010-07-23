@@ -37,6 +37,7 @@ let print_value v =
 
 (** Check if all SET or SETSPE statements in a spec are coerced if needed,
 it happens when location and rvalue have different scalar types (card or int)
+	@param spec	spec of the instrution or the mode
 *)
 let check_coerce spec =
 	let rec check_stat sta =
@@ -75,7 +76,7 @@ let check_coerce spec =
 		(* shouldn't happen *)
 		spec
 
-(* structure containing the specifications of all instantiated instructions,
+(** structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
 (** List of instruction names sorted by ascending order of call number 
@@ -112,7 +113,7 @@ let get_attr instr name =
 	| _ ->
 		assert false
 
-(* return the ID of the given instruction spec, 0 is for unknown instr
+(** return the ID of the given instruction spec, 0 is for unknown instr
 	@param instr	the spec of the instruction whose ID is needed *)
 let get_id instr =
 	let rec search_in_list l i num =
@@ -180,7 +181,7 @@ let get_params_nb instr =
 		assert false
 
 
-(* instantiate all known vars in a given expr
+(** instantiate all known vars in a given expr
 	@param instr	the spec whose params will give the vars to instantiate
 	@param e	the expr to reduce *)
 let reduce instr e =
@@ -216,7 +217,7 @@ let rec sort_instr_set instr_list stat_list = match stat_list with
 			(sort_instr_set instr_list q)  @ [inst]
 	with Not_found -> failwith "Profiled file instructions statistics doesn't match current instruction generation"
 			
-(* iterator (or fold) on the structure containing all the instructions specs
+(** iterator (or fold) on the structure containing all the instructions specs
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
 	@param init_val		the accumulator, initial value 
      val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a 
