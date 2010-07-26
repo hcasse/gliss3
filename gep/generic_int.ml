@@ -106,6 +106,19 @@ let rec clean_i32_list l n =
 		else
 			a :: (clean_i32_list b (n - 32))
 
+let rec compare_i32_list x y =
+		match x with
+		| [] -> -1
+		| x1::x2 ->
+			(match y with
+			| [] -> 1
+			| y1::y2 ->
+				let diff = Int32.compare x1 y1 in
+				if diff=0 then
+					compare_i32_list x2 y2
+				else
+					diff
+			)
 
 (* add 0s in msb to meet new size *)
 let expand_gen_int gi new_size =
@@ -170,6 +183,13 @@ let is_equals gi1 gi2 =
 		false
 	else
 		List.for_all2 (fun x y -> ((Int32.compare x y) == 0) ) gi1.number gi2.number
+
+let compare gi1 gi2 =
+	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
+	in
+	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
+	in
+	compare_i32_list arg1.number arg2.number
 
 let get_lowest_bit gi = 
 	if gi.length < 1 then

@@ -16,7 +16,7 @@ let is_attr_recursive sp name =
 	let get_attr sp n =
 		let rec aux al =
 			match al with
-			[] ->
+			| [] ->
 				failwith ("attribute " ^ name ^ " not found or not a statement (instantiate.ml::is_attr_recursive)")
 			| ATTR_STAT(nm, s)::t ->
 				if (String.compare nm n) == 0 then
@@ -26,7 +26,7 @@ let is_attr_recursive sp name =
 			| _::t -> aux t
 		in
 		match sp with
-		AND_OP(_, _, attrs) ->
+		| AND_OP(_, _, attrs) ->
 			aux attrs
 		| AND_MODE(_, _, _, a_l) ->
 			aux a_l
@@ -37,7 +37,7 @@ let is_attr_recursive sp name =
 	we look for things like 'EVAL(str)' *)
 	let rec find_occurence str st =
 		match st with
-		NOP ->
+		| NOP ->
 			false
 		| SEQ(s1, s2) ->
 			(find_occurence str s1) || (find_occurence str s2)
@@ -541,8 +541,7 @@ let change_name_of_var_in_attr a var_name new_name =
 *)
 let prefix_attr_var a param pfx =
 	match param with
-	(str, _) ->
-		change_name_of_var_in_attr a str (pfx^"_"^str)
+	| (str, _) -> change_name_of_var_in_attr a str (pfx^"_"^str)
 
 
 (**
@@ -554,10 +553,8 @@ let prefix_attr_var a param pfx =
 *)
 let rec prefix_all_vars_in_attr a p_l pfx =
 	match p_l with
-	h::q ->
-		prefix_all_vars_in_attr (prefix_attr_var a h pfx) q pfx
-	| [] ->
-		a
+	| h::q -> prefix_all_vars_in_attr (prefix_attr_var a h pfx) q pfx
+	| [] -> a
 
 
 (**
@@ -569,8 +566,7 @@ let rec prefix_all_vars_in_attr a p_l pfx =
 *)
 let prefix_var_in_mode_value mode_value param pfx =
 	match param with
-	(str, _) ->
-		change_name_of_var_in_expr mode_value str (pfx^"_"^str)
+	| (str, _) -> change_name_of_var_in_expr mode_value str (pfx^"_"^str)
 
 
 (**
@@ -582,10 +578,8 @@ let prefix_var_in_mode_value mode_value param pfx =
 *)
 let rec prefix_all_vars_in_mode_value mode_value p_l pfx =
 	match p_l with
-	h::q ->
-		prefix_all_vars_in_mode_value (prefix_var_in_mode_value mode_value h pfx) q pfx
-	| [] ->
-		mode_value
+	| h::q -> prefix_all_vars_in_mode_value (prefix_var_in_mode_value mode_value h pfx) q pfx
+	| [] -> mode_value
 
 
 (**
@@ -598,16 +592,14 @@ let rec prefix_all_vars_in_mode_value mode_value p_l pfx =
 let rec prefix_name_of_params_in_spec sp pfx =
 	let prefix_param param =
 		match param with
-		(name, t) ->
-			(pfx^"_"^name, t)
+		| (name, t) -> (pfx^"_"^name, t)
 	in
 	match sp with
-	AND_OP(name, params, attrs) ->
+	| AND_OP(name, params, attrs) ->
 		AND_OP(name, List.map prefix_param params, List.map (fun x -> prefix_all_vars_in_attr x params pfx) attrs)
 	| AND_MODE(name, params, mode_val, attrs) ->
 		AND_MODE(name, List.map prefix_param params, prefix_all_vars_in_mode_value mode_val params pfx, List.map (fun x -> prefix_all_vars_in_attr x params pfx) attrs)
-	| _ ->
-		sp
+	| _ -> sp
 
 
 
@@ -1006,41 +998,63 @@ let instantiate_param param =
 		aux [param]
 
 
+
+(**
+	takes 2 list and return a list where elements
+	represent all possible tuples with 1st element from l1 and 2nd from l2,
+	these tuples are represented as lists of 2 element, so we return a list of list.
+	If any input list is empty, so is the result
+	@param	l1	list giving 1st elements of the resulting sublists
+	@param	l2	list giving 2nd elements of the resulting sublists
+	@return		the list of every possible couples (rendered as lists) [a; b] with a in l1 and b in l2
+*)
 let rec cross_prod l1 l2 =
 	match l1 with
-	| [] ->
-		[]
+	| [] -> []
 	| a::b ->
 		if l2=[] then
 			[]
 		else
 			(List.map (fun x -> [a;x]) l2) @ (cross_prod b l2)
 
+
+
+(**
+	takes a list and list of list and returns a list with each element of ll
+	is prefixed by an element of l (all possibilities are produced),
+	l or ll empty implies result also empty
+	@param	l	list of elements to add at head of each elements of the list of list
+	@param	ll	list of sublist to be prefixed
+	@return		list of all possible combinations a::b with a in l and b in ll
+*)
 let rec list_and_list_list_prod l ll =
 	match l with
-	| [] ->
-		[]
+	| [] -> []
 	| a::b ->
 		if ll=[] then
 			[]
 		else
 			(List.map (fun x -> a::x) ll) @ (list_and_list_list_prod b ll)
 
+
+
+(**
+	takes a list of n list and returns a list of n-tuples (each rendered as a list)
+	from those n sublists, each possibilities are taken care of.
+	@param	p_ll	list of n sublists l_i (i from 1 to n)
+	@return		list of all possible combinations [a_1; a_2; ...; a_n] with a_i in l_i
+*)
 let list_prod p_ll =
 	let rec expand l =
 		match l with
-		[] ->
-			[]
-		| a::b ->
-			[a]::(expand b)
+		| [] -> []
+		| a::b -> [a]::(expand b)
 	in
 	match p_ll with
-	[] ->
-		[]
+	| [] -> []
 	| a::b ->
 		(match b with
-		[] ->
-			expand a
+		| [] -> expand a
 		| c::d ->
 			if List.length d = 0 then
 				cross_prod a c
@@ -1048,12 +1062,28 @@ let list_prod p_ll =
 				List.fold_left (fun x y -> list_and_list_list_prod y x) (cross_prod a c) d
 		)
 
+
+
+(**
+	takes a list of parameters (coming from a spec) and instantiate it by returning every possible
+	resulting instantiated parameter list
+	@param	p_l	a list of parameters coming from a spec
+	@return		list of all possible instantiated parameter lists from p_l
+*)
 let instantiate_param_list p_l =
 	let a = List.map instantiate_param p_l
 	in
 	list_prod a
 
-let instantiate_attr sp a params=
+
+
+(**
+	instantiate all vars given by an instantiated parameter list in an attribute
+	@param	a	the attribute where we instantiate
+	@param	params	list of instantiated parameters giving the vars to instantiate
+	@return		the attribute with vars indicated by params instantiated
+*)
+let instantiate_attr a params=
 	match a with
 	ATTR_EXPR(n, e) ->
 		ATTR_EXPR(n, remove_const_param_from_format (simplify_format_expr (instantiate_in_expr e params)))
@@ -1062,30 +1092,32 @@ let instantiate_attr sp a params=
 	| ATTR_USES ->
 		ATTR_USES
 
-(* when instantiating the given param in the given spec
-we must add to the spec the attribute of the param which are not in the given spec *)
+
+
+(**
+	when instantiating in a spec a param refering to an op,
+	we must add to the spec the attributes of the param' spec which are not in the given spec
+	@param	sp	spec on which we may add attributes
+	@param	param	an instantiated parameter of sp
+	@return		if param refers to an op which has attributes not present in sp
+			we return sp with the extra attributes added. if not, sp is returned
+*)
 let add_attr_to_spec sp param =
 	let get_attrs s =
 		match s with
-		AND_OP(_, _, a_l) -> a_l
+		| AND_OP(_, _, a_l) -> a_l
 		| AND_MODE(_, _, _, a_l) -> a_l
 		| _ -> []
 	in
 	let name_of_param p =
 		match p with
-		(name, TYPE_ID(s)) ->
-			name
+		| (name, TYPE_ID(s)) -> name
 		| (_, TYPE_EXPR(_)) ->
 			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::name_of_param)"
 	in
 	let spec_of_param p =
-	(* !!DEBUG!! *)
-	(*print_string "add_attr_to_sepc::spec_of_param, param = ["; print_param p; print_string "]\n";
-	print_string "spec = ["; print_spec sp; print_string "]\n\n";
-	flush stdout;*)
 		match p with
-		(name, TYPE_ID(s)) ->
-			get_symbol s
+		| (name, TYPE_ID(s)) -> get_symbol s
 		| (_, TYPE_EXPR(_)) ->
 			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::spec_of_param)"
 	in
@@ -1093,8 +1125,6 @@ let add_attr_to_spec sp param =
 	let prefix_recursive_attr a pfx =
 		let rec aux st name =
 			match st with
-			NOP ->
-				NOP
 			| SEQ(s1, s2) ->
 				SEQ(aux s1 name, aux s2 name)
 			| EVAL(str) ->
@@ -1102,27 +1132,16 @@ let add_attr_to_spec sp param =
 					EVAL(pfx ^ "_" ^ name)
 				else
 					EVAL(str)
-			| EVALIND(v, attr_name) ->
-				EVALIND(v, attr_name)
-			| SET(l, e) ->
-				SET(l, e)
-			| CANON_STAT(str, e_l) ->
-				CANON_STAT(str, e_l)
-			| ERROR(str) ->
-				ERROR(str)
 			| IF_STAT(e, s1, s2) ->
 				IF_STAT(e, aux s1 name, aux s2 name)
 			| SWITCH_STAT(e, es_l, s) ->
 				SWITCH_STAT(e, List.map (fun (x,y) -> (x, aux s name)) es_l, aux s name)
-			| SETSPE(l, e) ->
-				SETSPE(l, e)
 			| LINE(str, n, s) ->
 				LINE(str, n, aux s name)
-			| INLINE _ ->
-				st
+			| _ -> st
 		in
 		match a with
-		ATTR_EXPR(n, at) ->
+		| ATTR_EXPR(n, at) ->
 			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_EXPR)"
 		| ATTR_STAT(n, at) ->
 			ATTR_STAT(pfx ^ "_" ^ n, aux at n)
@@ -1131,9 +1150,9 @@ let add_attr_to_spec sp param =
 	in
 	let compare_attrs a1 a2 =
 		match a1 with
-		ATTR_EXPR(n, _) ->
+		| ATTR_EXPR(n, _) ->
 			(match a2 with
-			ATTR_EXPR(nn, _) ->
+			| ATTR_EXPR(nn, _) ->
 				if (String.compare nn n) == 0 then
 					true
 				else
@@ -1142,7 +1161,7 @@ let add_attr_to_spec sp param =
 			)
 		| ATTR_STAT(n, _) ->
 			(match a2 with
-			ATTR_STAT(nn, _) ->
+			| ATTR_STAT(nn, _) ->
 				if (String.compare nn n) == 0 then
 					true
 				else
@@ -1158,87 +1177,76 @@ let add_attr_to_spec sp param =
 	(* returns the attr in param not present in sp (or present but recursive in param and not in sp, a new fully renamed attr must be produced for sp) *)
 	let rec search_in_attrs a_l a_l_param =
 		match a_l_param with
-		[] -> []
+		| [] -> []
 		| a::b ->
 			if List.exists (fun x -> compare_attrs a x) a_l then
-				match a with
-				ATTR_STAT(n, _) ->
-					begin
+				(match a with
+				| ATTR_STAT(n, _) ->
 					if is_attr_recursive (spec_of_param param) n then
 						(prefix_recursive_attr a (name_of_param param))::(search_in_attrs a_l b)
 					else
 						search_in_attrs a_l b
-					end
 				| _ ->
-					search_in_attrs a_l b
+					search_in_attrs a_l b)
 			else
 				a::(search_in_attrs a_l b)
 	in
-	let attr_spec =
-		get_attrs sp
+	let attr_spec = get_attrs sp
 	in
 	let attr_param =
 		match param with
-		(name, TYPE_ID(s)) ->
+		| (name, TYPE_ID(s)) ->
 			get_attrs (prefix_name_of_params_in_spec (get_symbol s) name)
-		| (name, TYPE_EXPR(t)) ->
-			[]
+		| (name, TYPE_EXPR(t)) -> []
 	in
-	(* !!DEBUG!! *)
-	let get_attr_name a =
-		match a with
-		ATTR_EXPR(n, _) ->
-			n
-		| ATTR_STAT(n, _) ->
-			n
-		| ATTR_USES ->
-			"<ATTR_USES>"
-	in
-	(* !!DEBUG!! *)
-	let rec print_attr_list_name a_l =
-		match a_l with
-		[] -> ()
-		| a::b -> print_string ((get_attr_name a) ^ " "); print_attr_list_name b
-	in
-	(* !!DEBUG!! *)
-	(*print_string "adding attrs\n\tattr_spec = "; print_attr_list_name attr_spec;
-	print_string "\n\tattr_param = "; print_attr_list_name attr_param;
-	print_string "\n";*)
-		match sp with
-		AND_OP(name, p_l, a_l) ->
-			(match spec_of_param param with
-			(* we shouldn't add attributes from a mode to an op spec *)
-			AND_MODE(_, _, _, _) ->
-				sp
-			| _ ->
-				AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
-			)
-		| AND_MODE(name, p_l, e, a_l) ->
-			AND_MODE(name, p_l, e, a_l@(search_in_attrs attr_spec attr_param))
-		| _ -> sp
+	match sp with
+	| AND_OP(name, p_l, a_l) ->
+		(match spec_of_param param with
+		(* we shouldn't add attributes from a mode to an op spec *)
+		| AND_MODE(_, _, _, _) -> sp
+		| _ -> AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
+		)
+	| AND_MODE(name, p_l, e, a_l) ->
+		AND_MODE(name, p_l, e, a_l@(search_in_attrs attr_spec attr_param))
+	| _ -> sp
+
+
 
 (**
-	add the attrs present in the params' specs but not in the main spec (sp)
-to the main spec *)
+	add the attrs present in the params' specs but not in the main spec (sp) to the main spec
+	when instantiating in a spec a param refering to an op,
+	we must add to the spec the attributes of the param' spec which are not in the given spec,
+	here we do this for each parameter in a given parameter list
+	@param	sp	spec on which we may add attributes
+	@param	param_list	a instantiated list of all the parameters of sp
+	@return		if any parameter refers to an op which has attributes not present in sp
+			we return sp with the extra attributes added by each parameter. if not, sp is returned
+*)
 let rec add_new_attrs sp param_list =
 	match param_list with
-	[] ->
-		sp
+	[] -> sp
 	| a::b ->
 		(match a with
-		(_, TYPE_ID(_)) ->
-			add_new_attrs (add_attr_to_spec sp a) b
-		| (name, TYPE_EXPR(t)) ->
-			add_new_attrs sp b
+		| (_, TYPE_ID(_)) -> add_new_attrs (add_attr_to_spec sp a) b
+		| (name, TYPE_EXPR(t)) -> add_new_attrs sp b
 		)
+
+
 
 let get_param_of_spec s =
 	match s with
-	AND_OP(_, l, _) -> l
+	| AND_OP(_, l, _) -> l
 	| AND_MODE(_, l, _, _) -> l
 	| _ -> []
 
-(*  *)
+
+
+(**
+	replace each parameter in a spec's parameter list by the parameter lists from each parameter's type spec.
+	Each parameter refers to basic type or another spec, if it's another spec we replace the parameter by those of the spec
+	@param	p_l	a list of parameters to replace
+	@return		list of new replaced parameters
+*)
 let replace_param_list p_l =
 	let prefix_name prfx param =
 		match param with
@@ -1257,32 +1265,35 @@ let replace_param_list p_l =
 			[param]
 	in
 	List.flatten (List.map replace_param p_l)
-	
+
+
+
+(**
+	instantiate a spec with a fully instantiated parameter list (each parameter refering to a basic type)
+	@param	sp	the spec to instantiate
+	@param	param_list	the parameters to instantiate in the spec
+	@return		a spec which is the result of the instantiation of all parameters from param_list in sp
+*)
 let instantiate_spec sp param_list =
 	let is_type_def_spec sp =
 		match sp with
-		TYPE(_, _) ->
-			true
-		| _ ->
-			false
+		| TYPE(_, _) -> true
+		| _ -> false
 	in
 	(* replace all types by basic types (replace type definitions) *)
 	let simplify_param p =
 		match p with
-		(str, TYPE_ID(n)) ->
+		| (str, TYPE_ID(n)) ->
 			(* we suppose n can refer only to an OP or MODE, or to a TYPE *)
 			let sp = get_symbol n in
 			if is_type_def_spec sp then
 				(match sp with
-				TYPE(_, t_e) ->
-					(str, TYPE_EXPR(t_e))
-				| _ ->
-					p
+				| TYPE(_, t_e) -> (str, TYPE_EXPR(t_e))
+				| _ -> p
 				)
 			else
 				p
-		| (_, _) ->
-			p
+		| (_, _) -> p
 	in
 	let simplify_param_list p_l =
 		List.map simplify_param p_l
@@ -1290,32 +1301,26 @@ let instantiate_spec sp param_list =
 	let new_param_list = simplify_param_list param_list
 	in
 	match sp with
-	AND_OP(name, params, attrs) ->
-	(*  !!DEBUG!! *)
-	(*print_string "################################################\ninstantiate_spec, new params=";
-	print_param_list new_param_list;
-	print_string "\tspec=\n";
-	print_spec sp;
-	print_string "################\n";*)
-		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr sp x new_param_list) attrs)) new_param_list
-	| _ ->
-		UNDEF
+	| AND_OP(name, params, attrs) ->
+		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
+	| _ -> UNDEF
+
 
 
 (**
-	this function instantiate a list of spec, called by instantiate_instructions
-	and should not be called alone as some post processing must be done after instantiating
-	@param	s_l	list of specs to instantiate
-	@return		the list of all fully instantiated instructions derived from the starting list
+	instantiate all possible parameter combinations in a spec
+	@param	sp	the spec to instantiate
+	@return		the list of all fully instantiated specs (one for each parameter combination) derived from the starting spec
 *)
 let instantiate_spec_all_combinations sp =
 	let new_param_lists = instantiate_param_list (get_param_of_spec sp) in
 	List.map (fun x -> instantiate_spec sp x) new_param_lists
 
 
+
 (**
 	indicates if a spec can be instantiated further, it is the case if there remains
-	any param of mode or op type
+	any parameter of mode or op type
 	@param	sp	the eventually instantiable spec
 	@return		true if the spec is instantiable, false otherwise
 *)
@@ -1336,11 +1341,11 @@ let is_instantiable sp =
 	| _ -> false
 
 
+
 (**
-	this function instantiate a list of spec, called by instantiate_instructions
-	and should not be called alone as some post processing must be done after instantiating
+	fully instantiate a list of specs, for each one every parameter combination is instantiated
 	@param	s_l	list of specs to instantiate
-	@return		the list of all fully instantiated instructions derived from the starting list
+	@return		the list of all fully instantiated specs derived from the starting list
 *)
 let rec instantiate_spec_list s_l =
 	match s_l with
@@ -1354,12 +1359,11 @@ let rec instantiate_spec_list s_l =
 
 
 
-
 (**
-	this function instantiates all possible instructions given by the spec with given name in the hashtable,
+	this function instantiates all possible specs given by the spec with the given name in the hashtable,
 	all modes and op are instantiated until we have only basic types (card, int ...)
 	@param	name	name of the spec to instantiate
-	@return		the list of all fully instantiated instructions derived from the spec of given name
+	@return		the list of all fully instantiated instructions derived from the spec of the given name
 *)
 let instantiate_instructions name =
 	(* some AND_OP specs with empty attrs and no params are output, remove them
@@ -1367,9 +1371,9 @@ let instantiate_instructions name =
 	here, we assume we have an empty spec as soon as the syntax or the image is void *)
 	let is_void_attr a =
 		match a with
-		ATTR_EXPR(n, e) ->
+		| ATTR_EXPR(n, e) ->
 			(match e with
-			ELINE(_, _, ee) ->
+			| ELINE(_, _, ee) ->
 				if (String.compare n "syntax") == 0 && ee = NONE then
 					true
 				else
@@ -1377,48 +1381,37 @@ let instantiate_instructions name =
 						true
 					else
 						false
-			| _ ->
-				false
+			| _ -> false
 			)
-		| _ ->
-			false
+		| _ -> false
 	in
 	let is_void_spec sp =
 		match sp with
-		AND_OP(_, _, attrs) ->
-			List.exists is_void_attr attrs
-		| _ ->
-			false
+		| AND_OP(_, _, attrs) -> List.exists is_void_attr attrs
+		| _ -> false
 	in
 	let rec clean_attr a =
 		match a with
-		ATTR_EXPR(n, e) ->
+		| ATTR_EXPR(n, e) ->
 			(match e with
-			ELINE(f, l, ee) ->
+			| ELINE(f, l, ee) ->
 				(match ee with
-				ELINE(_, _, eee) ->
-					clean_attr (ATTR_EXPR(n, eee))
-				| _ ->
-					ATTR_EXPR(n, ee)
+				| ELINE(_, _, eee) -> clean_attr (ATTR_EXPR(n, eee))
+				| _ -> ATTR_EXPR(n, ee)
 				)
-			| _ ->
-				a
+			| _ -> a
 			)
-		| _ ->
-			a
+		| _ -> a
 	in
 	(* a try to fix over imbrication of ELINE *)
 	let rec clean_eline s =
 		match s with
-		AND_OP(n, st_l, al) ->
-			AND_OP(n, st_l, List.map clean_attr al)
-		| _ ->
-			s
+		| AND_OP(n, st_l, al) -> AND_OP(n, st_l, List.map clean_attr al)
+		| _ -> s
 	in
 	let rec clean_instructions s_l =
 		match s_l with
-		[] ->
-			[]
+		| [] -> []
 		| h::t ->
 			if is_void_spec h then
 				clean_instructions t
@@ -1432,6 +1425,9 @@ let instantiate_instructions name =
 			s_l
 	in
 	clean_instructions (aux [get_symbol name])
+
+
+
 
 
 (* a few testing functions *)

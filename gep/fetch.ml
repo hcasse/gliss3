@@ -381,7 +381,7 @@ let calcul_value_on_mask_gen sp mask =
 
 (* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
 type dec_tree = DecTree of int32 list * Irg.spec list * int32 * int32 * dec_tree list
-(*type dec_tee_gen = DecTree of Generic_int.gen_int list * Irg.spec list * Generic_int.gen_int * Generic_int.gen_int * dec_tree_gen list*)
+type dec_tree_gen = DecTree_ of Generic_int.gen_int list * Irg.spec list * Generic_int.gen_int * Generic_int.gen_int * dec_tree_gen list
 
 let print_dec_tree tr =
 	let name_of t =
@@ -449,6 +449,22 @@ let get_instr_list dt =
 	DecTree(_, sl, _, _, _) ->
 		sl
 
+let get_local_mask_length_gen dt =
+	match dt with
+	DecTree_(_, _, ml, _, _) ->
+		get_amount_of_set_bits_gen ml
+
+
+let get_global_mask_length_gen dt =
+	match dt with
+	DecTree_(_, _, _, mg, _) ->
+		get_amount_of_set_bits_gen mg
+
+let get_instr_list_gen dt =
+	match dt with
+	DecTree_(_, sl, _, _, _) ->
+		sl
+
 
 (* return a list like [(v_i, i_i),...]
 the v_is will describe all mask values, i_i will be an associated instruction,
@@ -470,6 +486,23 @@ let create_son_list_of_dec_node dt =
 	DecTree(i_l, s_l, msk, gm, dt_l) ->
 		aux msk s_l
 
+let create_son_list_of_dec_node_gen dt =
+	let rec aux msk sl =
+		(match sl with
+		[] ->
+			(* one instr => terminal node *)
+			[]
+		| a::b ->
+			(* !!DEBUG!! *)
+			(*print_string "\ncreating dec_node son, val_on_mask=";
+			Printf.printf "%lX, spec=%s\n" (calcul_value_on_mask a msk) (Iter.get_name a);*)
+			((calcul_value_on_mask_gen a msk), a)::(aux msk b)
+		)
+	in
+	match dt with
+	DecTree_(i_l, s_l, msk, gm, dt_l) ->
+		aux msk s_l
+
 (* take the result given by the previous function and returns a list of tuples of the type
 (v_i, [i0,i1,...,in]) [ik] being the list of all instr with v_i as value on mask *)
 let sort_son_list vl =
@@ -482,6 +515,23 @@ let sort_son_list vl =
 			(match a with
 			(vv, sl) ->
 				if (Int32.compare v vv) = 0 then
+					(vv, sp::sl)::b
+				else
+					a::(add_instr_in_tuple_list b (v,sp))
+			)
+	in
+	List.fold_left add_instr_in_tuple_list [] vl
+
+let sort_son_list_gen vl =
+	(* add one instr with a given value on mask to a tuple list (with inst list like the top result expected) *)
+	let rec add_instr_in_tuple_list l (v, sp) =
+		match l with
+		[] ->
+			[(v, [sp])]
+		| a::b ->
+			(match a with
+			(vv, sl) ->
+				if Generic_int.is_equals v vv then
 					(vv, sp::sl)::b
 				else
 					a::(add_instr_in_tuple_list b (v,sp))
@@ -506,6 +556,20 @@ let rec build_dectrees vl msk gm il =
 			(*print_dec_tree dt;*)
 			dt::(build_dectrees b msk gm il)
 
+let rec build_dectrees_gen vl msk gm il =
+	match vl with
+	[] ->
+		[]
+	| a::b ->
+		match a with
+		(v, sl) ->
+			let dt = DecTree_(il@[v], sl, Generic_int.logand (calcul_mask_gen sl Generic_int.zero) (Generic_int.lognot gm), calcul_mask_gen sl Generic_int.zero, [])(* ::(build_dectrees b msk gm il) *)
+			in
+			(* !!DEBUG!! *)
+			(*print_dec_tree dt;*)
+			dt::(build_dectrees_gen b msk gm il)
+
+
 let build_sons_of_tree tr =
 	match tr with
 	DecTree(int_l, sl, msk, gm, dt_l) ->
@@ -518,6 +582,24 @@ let build_sons_of_tree tr =
 			output_string stderr "ERROR: some instructions seem to have same image.\n";
 			output_string stderr "here is the list: ";
 			List.iter (fun x -> Printf.fprintf stderr "%s, " (Iter.get_name x)) (get_instr_list (List.hd res));
+			output_string stderr "\n";
+			failwith "cannot continue with 2 instructions with same image"
+			end
+		else
+			res
+
+let build_sons_of_tree_gen tr =
+	match tr with
+	DecTree_(int_l, sl, msk, gm, dt_l) ->
+		let res = build_dectrees_gen (sort_son_list_gen (create_son_list_of_dec_node_gen tr)) msk gm int_l
+		in
+		(* !!DEBUG!! *)
+		(*Printf.printf "build_sons, %d in father, %d sons\n" (List.length sl) (List.length res);flush stdout;*)
+		if (List.length res) == 1 && (List.length (get_instr_list_gen (List.hd res))) > 1 then
+			begin
+			output_string stderr "ERROR: some instructions seem to have same image.\n";
+			output_string stderr "here is the list: ";
+			List.iter (fun x -> Printf.fprintf stderr "%s, " (Iter.get_name x)) (get_instr_list_gen (List.hd res));
 			output_string stderr "\n";
 			failwith "cannot continue with 2 instructions with same image"
 			end
@@ -570,55 +652,51 @@ let build_dec_nodes m =
 	| _ ->
 		[]
 
-
-let test_build_dec_nodes n =
-	match n with
-	0 ->
-		begin
-		Printf.printf "\n\ntest build decode nodes\n";
-		print_dec_tree_list (build_dec_nodes 0)
-		end
+let build_dec_nodes_gen m =
+	let list_of_all_op_specs n =
+		match n with
+		0 ->
+			Iter.iter (fun a x -> x::a) []
+		| _ ->
+			[]
+	in
+	let node_cond (DecTree_(_, sl, lmask, gmask, _)) =
+		((List.length sl)<=1)
+	in
+	let rec stop_cond l =
+		match l with
+		[] ->
+			(*print_string "stop_cond=true\n";flush stdout;*)
+			true
+		| a::b ->
+			if node_cond a then
+			(*begin print_string "stop_cond=[rec]\n";flush stdout;*)
+				stop_cond b (*end*)
+			else
+			(*begin print_string "stop_cond=false\n";flush stdout;*)
+				false (*end*)
+	in
+	let get_sons x =
+		match x with
+		DecTree_(int_l, sl, msk, gm, dt_l) ->
+			if (List.length sl)>1 then
+				DecTree_(int_l, [], msk, gm, dt_l)::(build_sons_of_tree_gen x)
+			else
+				[x]
+	in
+	let rec aux dl =
+		if stop_cond dl then
+			dl
+		else
+			aux (List.flatten (List.map get_sons dl))
+	in
+	match m with
+	| 0 ->
+		let specs = list_of_all_op_specs 0 in
+		let mask = calcul_mask_gen specs Generic_int.zero in
+		aux [DecTree_([], specs, mask, mask, [])]
 	| _ ->
-		()
-
-(* print a node's informations to be used in dot format *)
-let print_dot_dec_tree tr =
-	let name_of t =
-		let rec aux l s =
-			match l with
-			[] ->
-				s
-			| a::b ->
-				aux b (s^"_"^(string_of_int (Int32.to_int a)))
-		in
-		match t with
-		DecTree(i, s, m, g, d) ->
-			aux i ""
-	in
-	let spec_list_of t =
-		let rec aux l s =
-			match l with
-			[] ->
-				s
-			| a::b ->
-				aux b (s^"\\l"^(Iter.get_name a))
-		in
-		match t with
-		DecTree(i, s, m, g, d) ->
-			aux s ""
-	in
-	match tr with
-	DecTree(int_l, sl, msk, gm, dt_l) ->
-		begin
-		print_string "\"";
-		print_string (name_of tr);
-		print_string "\" ";
-		print_string "[label=\"{";
-		print_string (name_of tr);
-		print_string " | ";
-		print_string (spec_list_of tr);
-		print_string "}\"]"
-		end
+		[]
 
 (* returns a list of the direct sons of a given DecTree among a given list *)
 let find_sons_of_node node d_l =
@@ -660,48 +738,46 @@ let find_sons_of_node node d_l =
 	in
 	List.flatten (List.map (fun d -> if (is_son d node) then [d] else [] ) d_l)
 
-
-(* returns a list of all edges that would be present if the given list of DecTree
-was to be represented as a tree, used to build the graph in dot format,
-the result is a list of sub-lists symbolizing each edge containing 2 elements, the head and the tail of an edge *)
-let get_edges_between_dec_tables dl =
-	let make_edge src sons_list =
-		List.map (fun x -> [src; x]) sons_list
+(* returns a list of the direct sons of a given DecTree among a given list *)
+let find_sons_of_node_gen node d_l =
+	let get_name d =
+		match d with
+		DecTree_(name, _, _, _, _) ->
+			name
 	in
-	List.flatten (List.map (fun x -> make_edge x (find_sons_of_node x dl)) dl)
-
-
-let print_dot_edges edge =
-	let name_of t =
-		let rec aux l s =
-			match l with
+	let length_of_name d =
+		List.length (get_name d)
+	in
+	(* return true if l1 is a sub list at the beginning of l2,
+	ie if l2 can be the name of a son (direct or not) of a DecTree whose name is l1,
+	l1 and l2 are supposed to be two int list representing a name of a DecTree *)
+	let rec is_sub_name l1 l2 =
+		match l1 with
+		[] ->
+			true
+		| a1::b1 ->
+			(match l2 with
 			[] ->
-				s
-			| a::b ->
-				aux b (s^"_"^(string_of_int (Int32.to_int a)))
-		in
-		match t with
-		DecTree(i, s, m, g, d) ->
-			aux i ""
+				false
+			| a2::b2 ->
+				if a1=a2 then
+					(is_sub_name b1 b2)
+				else
+					false
+			)
 	in
-	match edge with
-	[a; b] ->
-		begin
-		Printf.printf "\"%s\"" (name_of a);
-		Printf.printf " -> ";
-		Printf.printf "\"%s\"" (name_of b);
-		end
-	| _ ->
-		()
+	(* return true if d1 is a direct son of d2, false otherwise *)
+	let is_son d1 d2 =
+		if (length_of_name d1) = ((length_of_name d2) + 1) then
+			if (is_sub_name (get_name d2) (get_name d1)) then
+				true
+			else
+				false
+		else
+			false
+	in
+	List.flatten (List.map (fun d -> if (is_son d node) then [d] else [] ) d_l)
 
-let print_dot_dec_tree_list tl =
-	begin
-	print_string "digraph DEC {\n";
-	print_string "node [shape=Mrecord, labeljust=1, fontsize=10];\n";
-	List.iter (fun x -> begin print_dot_dec_tree x; print_string "\n" end) tl;
-	List.iter (fun x -> begin print_dot_edges x; print_string "\n" end) (get_edges_between_dec_tables tl);
-	print_string "}\n"
-	end
 
 
 (* outputs the declaration of all structures related to the given DecTree dt in C language,
@@ -865,6 +941,33 @@ let sort_dectree_list d_l =
 		comp_int32_list (name_of y) (name_of x)
 	in
 	List.sort comp_fun d_l
+	
+let sort_dectree_list_gen d_l =
+	let name_of t =
+		match t with
+		DecTree_(i, _, _, _, _) ->
+			i
+	in
+	(* same specification as a standard compare function, x>y means x is "bigger" than y (eg: 12_3 < 13_3_5, "nothing" < x for any x) *)
+	let rec comp_gen_int_list x y =
+		match x with
+		| [] -> -1
+		| x1::x2 ->
+			(match y with
+			| [] -> 1
+			| y1::y2 ->
+				let diff = Generic_int.compare x1 y1
+				in
+				if diff=0 then
+					comp_gen_int_list x2 y2
+				else
+					diff
+			)
+	in
+	let comp_fun x y =
+		comp_gen_int_list (name_of y) (name_of x)
+	in
+	List.sort comp_fun d_l
 
 
 
@@ -967,6 +1070,17 @@ let output_all_table_C_decl out =
 		List.iter (aux dl) dl
 
 
+
+let test_build_dec_nodes n =
+	match n with
+	0 ->
+		begin
+		Printf.printf "\n\ntest build decode nodes\n";
+		print_dec_tree_list (build_dec_nodes 0)
+		end
+	| _ ->
+		()
+
 let test_sort _ =
 	let name_of t =
 		let rec aux l s =
@@ -988,3 +1102,87 @@ let test_sort _ =
 	print_string "let's test!\n";
 	List.iter aux dl
 
+
+(* dot related *)
+
+
+(* print a node's informations to be used in dot format *)
+let print_dot_dec_tree tr =
+	let name_of t =
+		let rec aux l s =
+			match l with
+			[] ->
+				s
+			| a::b ->
+				aux b (s^"_"^(string_of_int (Int32.to_int a)))
+		in
+		match t with
+		DecTree(i, s, m, g, d) ->
+			aux i ""
+	in
+	let spec_list_of t =
+		let rec aux l s =
+			match l with
+			[] ->
+				s
+			| a::b ->
+				aux b (s^"\\l"^(Iter.get_name a))
+		in
+		match t with
+		DecTree(i, s, m, g, d) ->
+			aux s ""
+	in
+	match tr with
+	DecTree(int_l, sl, msk, gm, dt_l) ->
+		begin
+		print_string "\"";
+		print_string (name_of tr);
+		print_string "\" ";
+		print_string "[label=\"{";
+		print_string (name_of tr);
+		print_string " | ";
+		print_string (spec_list_of tr);
+		print_string "}\"]"
+		end
+
+(* returns a list of all edges that would be present if the given list of DecTree
+was to be represented as a tree, used to build the graph in dot format,
+the result is a list of sub-lists symbolizing each edge containing 2 elements, the head and the tail of an edge *)
+let get_edges_between_dec_tables dl =
+	let make_edge src sons_list =
+		List.map (fun x -> [src; x]) sons_list
+	in
+	List.flatten (List.map (fun x -> make_edge x (find_sons_of_node x dl)) dl)
+
+
+let print_dot_edges edge =
+	let name_of t =
+		let rec aux l s =
+			match l with
+			[] ->
+				s
+			| a::b ->
+				aux b (s^"_"^(string_of_int (Int32.to_int a)))
+		in
+		match t with
+		DecTree(i, s, m, g, d) ->
+			aux i ""
+	in
+	match edge with
+	[a; b] ->
+		begin
+		Printf.printf "\"%s\"" (name_of a);
+		Printf.printf " -> ";
+		Printf.printf "\"%s\"" (name_of b);
+		end
+	| _ ->
+		()
+
+let print_dot_dec_tree_list tl =
+	begin
+	print_string "digraph DEC {\n";
+	print_string "node [shape=Mrecord, labeljust=1, fontsize=10];\n";
+	List.iter (fun x -> begin print_dot_dec_tree x; print_string "\n" end) tl;
+	List.iter (fun x -> begin print_dot_edges x; print_string "\n" end) (get_edges_between_dec_tables tl);
+	print_string "}\n"
+	end
