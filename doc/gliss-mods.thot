@@ -414,6 +414,12 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state);
 </code>
 Perform the system call.
 
+<code c>
+void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address);
+</code>
+Inform the system about the top address of the program. With POSIX
+compliant system, this is used to implement the ''brk'' system call.
+
 
 
 ===== ''sysparm'' interface =====

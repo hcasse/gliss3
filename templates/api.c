@@ -29,7 +29,7 @@ static unsigned long $(proc)_size_ident[] = {
 
 unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst)
 {
-	return $(proc)_size_ident[inst->ident]; 
+	return $(proc)_size_ident[inst->ident];
 }
 
 /**
@@ -163,6 +163,27 @@ $(end)
 
 
 /**
+ * Load the program from the given loader.
+ * @param platform		Platform.
+ * @param loader		Loader to get program from.
+ */
+void $(proc)_load($(proc)_platform_t *platform, $(proc)_loader_t *loader) {
+	assert(platform);
+
+	/* load in platform's memory */
+	$(proc)_loader_load(loader, platform);
+
+	/* initialize system information */
+	platform->entry = $(proc)_loader_start(loader);
+	$(proc)_set_brk(platform, $(proc)_brk_init(loader));
+
+	/* !!TODO!! add argc,argv... init */
+	/* stack initialization */
+	$(proc)_stack_fill_env(loader, platform, platform->sys_env);
+}
+
+
+/**
  * Load the given program in the platform and initialize stack
  * @param platform	Platform to load in.
  * @param path		Path of the file to load.
@@ -170,8 +191,7 @@ $(end)
  */
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 	$(proc)_loader_t *loader;
-	if (platform == NULL)
-		return -1;
+	assert(platform);
 
 	/* open the file */
 	loader = $(proc)_loader_open(path);
@@ -179,14 +199,7 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path) {
 		return -1;
 
 	/* load in platform's memory */
-	$(proc)_loader_load(loader, platform);
-
-	/* initialize system information */
-	platform->entry = $(proc)_loader_start(loader);
-
-	/* !!TODO!! add argc,argv... init */
-	/* stack initialization */
-	$(proc)_stack_fill_env(loader, platform, platform->sys_env);
+	$(proc)_load(platform, loader);
 
 	/* close the file */
 	$(proc)_loader_close(loader);
@@ -484,14 +497,14 @@ $(foreach profiled_instructions)
 		case $(PROC)_$(IDENT):
 		{
 		$(gen_code)
-		
+
 		}break;
 $(end)
 		default:
 		$(proc)_code_table[inst->ident](state, inst);
 	}
 $(end)
-	
+
 $(if !GLISS_PROFILED_JUMPS)
 	$(proc)_code_table[inst->ident](state, inst);
 $(end)
@@ -505,7 +518,7 @@ $(if !GLISS_NO_MALLOC)
 #endif
 #endif
 #endif
-$(end)	
+$(end)
 }
 
 
@@ -531,11 +544,11 @@ $(if GLISS_PROFILED_JUMPS)
 		switch(inst->ident)
 		{
 			$(foreach profiled_instructions)
-			
+
 			case $(PROC)_$(IDENT): {
 			$(gen_code)
 			}
-			break;			
+			break;
 			$(end)
 			default:
 			$(proc)_code_table[inst->ident](state, inst);
@@ -580,13 +593,13 @@ $(foreach profiled_instructions)
 			case $(PROC)_$(IDENT):
 			{
 		$(gen_code)
-		
+
 			}break;
 $(end)
 			default:
 			$(proc)_code_table[inst->ident](state, inst);
 		}
-		
+
 $(else)
 		$(proc)_code_table[inst->ident](state, inst);
 $(end)
@@ -633,7 +646,7 @@ void $(proc)_step($(proc)_sim_t *sim)
 
 	/* retrieving next instruction */
     inst =  $(proc)_decode(sim->decoder, state->$(pc_name)) + ((sim->state->NIA >> 2) & (TRACE_DEPTH-1));
-	
+
 	/* execute it */
 $(if GLISS_PROFILED_JUMPS)
 	switch(inst->ident)
@@ -642,24 +655,24 @@ $(foreach profiled_instructions)
 		case $(PROC)_$(IDENT):
 		{
 		$(gen_code)
-		
+
 		}break;
 $(end)
 		default:
 		$(proc)_code_table[inst->ident](state, inst);
 	}
 $(end)
-	
+
 $(if !GLISS_PROFILED_JUMPS)
 	$(proc)_code_table[inst->ident](state, inst);
 $(end)
-	
+
 }
 
 
 /**
- * Straightforward execution of the simulated programm. 
- * It runs and count the number of executed instructions 
+ * Straightforward execution of the simulated programm.
+ * It runs and count the number of executed instructions
  * until the programm reached the last instruction.
  * this is the <bold> fastest </bold> way to simulate a programm
  * @param	sim	the simulator which we simulate within
@@ -689,7 +702,7 @@ $(foreach profiled_instructions)
 				case $(PROC)_$(IDENT):
 				{
 				$(gen_code)
-		
+
 				}break;
 $(end)
 				default:
@@ -699,11 +712,11 @@ $(end)
 			i++;
 		}
 	}
-	return i;	
+	return i;
 }
 
 /**
- * Straightforward execution of the simulated programm. 
+ * Straightforward execution of the simulated programm.
  * It runs until the programm reached the last instruction.
  * this is the <bold> fastest </bold> way to simulate a programm
  * @param	sim	the simulator which we simulate within
@@ -731,16 +744,16 @@ $(foreach profiled_instructions)
 				case $(PROC)_$(IDENT):
 				{
 				$(gen_code)
-		
+
 				}break;
 $(end)
 				default:
 				$(proc)_code_table[inst->ident](state, inst);
 			}
-		
+
 $(else)
 		    $(proc)_code_table[inst->ident](state, inst);
-$(end)            
+$(end)
         }
 	}
 }

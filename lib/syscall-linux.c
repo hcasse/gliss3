@@ -37,6 +37,13 @@
 #include <gliss/mem.h>
 #include <gliss/sysparm.h>
 #include <gliss/syscall.h>
+#include <gliss/config.h>
+#include "platform.h"
+
+/* default page size */
+#ifndef GLISS_PAGE_SIZE
+#	define GLISS_PAGE_SIZE	4096
+#endif
 
 /* for access to gliss_env_t (system environment) */
 #include <gliss/loader.h>
@@ -48,7 +55,6 @@ typedef int BOOL;
 
 /* global */
 static FILE *verbose = NULL;
-static BOOL running = FALSE;
 
 #define RETURN(x)	gliss_sysparm_return(state, x)
 #define RESET_CR0SO	gliss_sysparm_succeed(state)
@@ -60,10 +66,6 @@ static BOOL running = FALSE;
 #define PARM_END	gliss_sysparm_destroy(parm, state); }
 #define STRLEN(addr) my_strlen(state, addr)
 #define MEM_WRITE_DWORD(a, v) gliss_mem_write64(GLISS_SYSCALL_MEM(state), (a), (v))
-
-/*#define READ_GPR(i) handler->read_gpr(handler->instance, i)
-#define WRITE_GPR(i,x) handler->write_gpr(handler->instance, i, x)
-#define MEM_WRITE_DWORD(addr, x) handler->mem_write_dword(handler->instance,addr,x)*/
 
 #define __SYSCALL_exit		  1
 #define __SYSCALL_fork		  2
@@ -287,24 +289,21 @@ static BOOL running = FALSE;
 #define __SYSCALL_getdents64		220
 #define __SYSCALL_fcntl64		221
 
-extern int gliss_running;
-
 /* FD match table */
-#define FD_COUNT	32
-static int fds[FD_COUNT];
 
 /**
  * Find a new simulation FD with the given system FD.
+ * @param pf	Platform.
  * @param sfd	System FD.
  * @return		Simulation FD.
  */
-static int fd_new(int sfd) {
+static int fd_new(gliss_platform_t *pf, int sfd) {
 	int i;
 	if(sfd < 0)
 		return -1;
-	for(i = 0; i < FD_COUNT; i++)
-		if(fds[i] == -1) {
-			fds[i] = sfd;
+	for(i = 0; i < GLISS_FD_COUNT; i++)
+		if(pf->fds[i] == -1) {
+			pf->fds[i] = sfd;
 			return i;
 		}
 	fprintf(stderr, "ERROR: system.c: no more free fd.\n");
@@ -313,42 +312,54 @@ static int fd_new(int sfd) {
 
 /**
  * Free a used FD.
+ * @param pf	Platform.
  * @param fd	FD to delete.
  */
-static void fd_delete(int fd) {
-	assert(fd >= 0 && fd < FD_COUNT);
-	fds[fd] = -1;
+static void fd_delete(gliss_platform_t *pf, int fd) {
+	assert(fd >= 0 && fd < GLISS_FD_COUNT);
+	pf->fds[fd] = -1;
 }
 
 
 /**
  * Convert a simulated FD to a system FD.
+ * @param pf	Platform.
  */
-static int _fd(int fd) {
-	assert(fd >= 0 && fd < FD_COUNT);
-	return fds[fd];
+static int _fd(gliss_platform_t *pf, int fd) {
+	assert(fd >= 0 && fd < GLISS_FD_COUNT);
+	return pf->fds[fd];
 }
 
 /**
  * Initialize the FD translation system.
  */
-void gliss_syscall_init(void) {
+void gliss_syscall_init(gliss_platform_t *pf) {
 	int i;
-	for(i = 0; i < FD_COUNT; i++)
-		fds[i] = -1;
-	fd_new(dup(0));
-	fd_new(dup(1));
-	fd_new(dup(2));
+
+	/* FD init */
+	for(i = 0; i < GLISS_FD_COUNT; i++)
+		pf->fds[i] = -1;
+	fd_new(pf, dup(0));
+	fd_new(pf, dup(1));
+	fd_new(pf, dup(2));
+
+	/* BRK base init */
+	pf->brk_base = 0;
+
+	/* running init */
+	pf->running = FALSE;
 }
 
 /**
  * Stop the FD translation system.
  */
-void gliss_syscall_destroy(void) {
+void gliss_syscall_destroy(gliss_platform_t *pf) {
 	int i;
-	for(i = 0; i < FD_COUNT; i++)
-		if(fds[i] != -1)
-			close(fds[i]);
+
+	/* destroy FDS */
+	for(i = 0; i < GLISS_FD_COUNT; i++)
+		if(pf->fds[i] != -1)
+			close(pf->fds[i]);
 }
 
 
@@ -604,16 +615,12 @@ static char *gliss_get_syscall_name(int num)
 	return "?";
 }
 
-//static void default_exit_proc(int code)
-//{
-//	exit(code);
-//}
-
 static BOOL gliss_syscall_exit(gliss_state_t *state) {
+	gliss_platform_t *pf = gliss_platform(state);
 	if(verbose)
 		fprintf(verbose, "exit()\n");
-	if(running)
-		running = FALSE;
+	if(pf->running)
+		pf->running = FALSE;
 	return TRUE;
 }
 
@@ -627,7 +634,7 @@ static BOOL gliss_syscall_read(gliss_state_t *state) {
 	size_t ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 		buf_addr = (uint32_t)PARM(1);
 		count = (size_t)PARM(2);
 	PARM_END
@@ -656,7 +663,7 @@ static BOOL gliss_syscall_write(gliss_state_t *state)
 	size_t ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 		buf_addr = (uint32_t)PARM(1);
 		count = (size_t) PARM(2);
 	PARM_END
@@ -697,7 +704,7 @@ static BOOL gliss_syscall_open(gliss_state_t *state) {
 		fprintf(verbose, "open(pathname=\"%s\", flags=%d, mode=%d)\n", pathname, flags, mode);
 	ret = open(pathname, flags, mode);
 	free(pathname);
-	RETURN(fd_new(ret));
+	RETURN(fd_new(gliss_platform(state), ret));
 	return ret != -1;
 }
 
@@ -707,7 +714,7 @@ static BOOL gliss_syscall_close(gliss_state_t *state)
 	int ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 	PARM_END
 	if(verbose)
 		fprintf(verbose, "close(fd=%d)\n", fd);
@@ -737,7 +744,7 @@ static BOOL gliss_syscall_lseek(gliss_state_t *state)
 	off_t ret;
 
 	PARM_BEGIN
-		fildes = _fd(PARM(0));
+		fildes = _fd(gliss_platform(state), PARM(0));
 		offset = PARM(1);
 		whence = PARM(2);
 	PARM_END
@@ -834,30 +841,27 @@ static BOOL gliss_syscall_times(gliss_state_t *state) {
 
 static BOOL gliss_syscall_prof(gliss_state_t *state) { RETURN(-1); return FALSE; }
 
-static BOOL gliss_syscall_brk(gliss_state_t *state)
-{
+static BOOL gliss_syscall_brk(gliss_state_t *state) {
 	uint32_t new_brk_addr;
 	BOOL success;
-	gliss_env_t *sys_env = gliss_get_sys_env(gliss_platform(state));
+	gliss_platform_t *pf = gliss_platform(state);
 
 	PARM_BEGIN
 		new_brk_addr = PARM(0);
 	PARM_END
 	success = FALSE;
 
-	if(verbose)
-	{
+	if(verbose) {
 		fprintf(verbose, "new_brk(end=0x%08x)\n", new_brk_addr);
-		fprintf(verbose, "brk(end=0x%08x)\n", sys_env->brk_addr);
+		fprintf(verbose, "brk(end=0x%08x)\n", pf->brk_base);
 	}
 
-	if(new_brk_addr > sys_env->brk_addr)
-	{
-		sys_env->brk_addr = new_brk_addr;
+	if(new_brk_addr > pf->brk_base) {
+		pf->brk_base = new_brk_addr;
 		success = TRUE;
 	}
 
-	RETURN(sys_env->brk_addr);
+	RETURN(pf->brk_base);
 	return success;
 }
 
@@ -998,7 +1002,7 @@ static BOOL gliss_syscall_fstat(gliss_state_t *state) {
 	int ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 		buf_addr = PARM(1);
 	PARM_END
 	if(verbose)
@@ -1066,7 +1070,7 @@ static BOOL gliss_syscall__llseek(gliss_state_t *state)
 	int ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 		offset_high = PARM(1);
 		offset_low = PARM(2);
 		result_addr = PARM(3);
@@ -1210,7 +1214,7 @@ static BOOL gliss_syscall_fstat64(gliss_state_t *state) {
 	int ret;
 
 	PARM_BEGIN
-		fd = _fd(PARM(0));
+		fd = _fd(gliss_platform(state), PARM(0));
 		buf_addr = PARM(1);
 	PARM_END
 	if(verbose)
@@ -1504,4 +1508,14 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
 	}
 	else
 		RESET_CR0SO;
+}
+
+
+/**
+ * Fix the position of the brk base (top address of memory).
+ * @param pf		Platform to work with.
+ * @param address	New address of the brk base.
+ */
+void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address) {
+	pf->brk_base = (address + GLISS_PAGE_SIZE - 1) & ~(GLISS_PAGE_SIZE - 1);
 }
