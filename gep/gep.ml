@@ -77,6 +77,7 @@ let paths = [
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
 let sim                  = ref false
+let gen_with_trace       = ref false
 let memory               = ref "fast_mem"
 let size                 = ref 0
 let sources : string list ref = ref []
@@ -86,6 +87,8 @@ let options = [
 	("-s",   Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
 	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
 	("-S",   Arg.Set     sim, "generate the simulator application");
+	("-gen-with-trace", Arg.Set gen_with_trace, 
+        "Generate simulator with decoding of dynamic traces of instructions (faster). module decode32_dtrace must be use with this option" );
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
 		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
 	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
@@ -301,7 +304,14 @@ let _ =
 			App.make_template "api.c" "src/api.c" dict;
 			App.make_template "platform.h" "src/platform.h" dict;
 			App.make_template "fetch_table32.h" "src/fetch_table.h" dict;
-			App.make_template "decode_table32.h" "src/decode_table.h" dict;
+			(if not !gen_with_trace 
+			 then App.make_template "decode_table32.h" "src/decode_table.h" dict
+			 else 
+				if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
+				then App.make_template "decode_table32_dtrace.h" "src/decode_table.h" dict
+				else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
+                               "but gep was not able to find a single one while parsing the NML")
+			);
 			App.make_template "code_table.h" "src/code_table.h" dict;
 
 			(* module linking *)

@@ -19,6 +19,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(* Usefull when you want to use caml toplevel : *)
+(*
+#directory "../irg";;
+#directory "../gep";;
+
+#load "unix.cma";;
+#load "str.cma";;
+#load "config.cmo";;
+#load "irg.cmo";;
+#load "instantiate.cmo";;
+#load "lexer.cmo";;
+#load "sem.cmo";;
+#load "IdMaker.cmo";;
+#load "iter.cmo";;
+#load "toc.cmo";;
+#load "templater.cmo";;
+#load "parser.cmo";;
+#load "irgUtil.cmo";;
+#load "app.cmo";;
+*)
 (** Type of integrated instructions. *)
 type inst = Irg.spec
 
@@ -111,6 +131,14 @@ let get_attr instr name =
 		search_attr_in_list name a_l
 	| _ ->
 		assert false
+
+(** return true if the instruction is a branch *)
+let is_branch_instr instr =
+	try
+		let _ = get_attr instr "set_attr_branch" 
+		in
+		   true
+	with Not_found -> false
 
 (* return the ID of the given instruction spec, 0 is for unknown instr
 	@param instr	the spec of the instruction whose ID is needed *)
