@@ -286,3 +286,7 @@ let rec to_string gi =
 		let mask = if gi.length < 32 then Int32.sub (Int32.shift_left Int32.one gi.length) Int32.one else Int32.minus_one in
 		((to_string gi2) ^ if b == [] then Printf.sprintf "%X" (Int32.to_int a) else Printf.sprintf "%08X" (Int32.to_int (Int32.logand a mask)))
 	| [] -> ""
+
+
+let to_Int32_list gi = gi.number
+

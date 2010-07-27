@@ -9,11 +9,6 @@
 
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
-/* endianness */
-typedef enum gliss_endianness_t {
-  little = 0,
-  big = 1
-} gliss_endianness_t;
 
 /* Extern Modules */
 /* Constants */

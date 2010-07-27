@@ -902,7 +902,7 @@ let output_table_C_decl out dt dl =
 		begin
 		(* !!DEBUG!! *)
 		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
-
+(*!!TODO!! param with gen/not gen*)
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
@@ -916,7 +916,7 @@ let output_table_C_decl out dt dl =
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
 dl is the global list of all nodes, used to find sons for instance *)
-(*let output_table_C_decl_gen out dt dl =
+let output_table_C_decl_gen fetch_size out dt dl =
 	let name_of t =
 		let correct_name s =
 			if s = "" then
@@ -933,7 +933,17 @@ dl is the global list of all nodes, used to find sons for instance *)
 		| DecTree_(i, s, m, g, d) -> correct_name (aux i "")
 	in
 	let sz_l_mask = get_local_mask_length_gen dt in
-	let num_dec_ent = Generic_int.shift_left Generic_int.one sz_l_mask in
+	let num_dec_ent =
+	(* we hope we never have a too big mask, we don't want to produce
+	 * fetch tables with millions of entries (most of them void).
+	 * if that unfortunate case happen => change the algorithm *)
+	(* don't forget also that caml int are 31 bit long,
+	 * let's limit ourself below this limit *)
+		if sz_l_mask > 30 then
+			failwith "shouldn't happen? mask too big (fetch.ml::output_table_C_decl_gen::num_dec_ent)"
+		else
+			1 lsl sz_l_mask
+	in
 	let name = name_of dt in
 	let l_mask =
 		match dt with
@@ -941,8 +951,8 @@ dl is the global list of all nodes, used to find sons for instance *)
 	in
 	let info = Toc.info () in
 	let sons = find_sons_of_node_gen dt dl in
-	*)(* is i the last element of i_l? i is an Int32, i_l is an gen_int list *)
-	(*let rec is_suffix i i_l =
+	(* is i the last element of i_l? i is an int, i_l is an gen_int list *)
+	let rec is_suffix i i_l =
 		let i2 = Generic_int.of_int i in
 		match i_l with
 		| a::b ->
@@ -966,26 +976,24 @@ dl is the global list of all nodes, used to find sons for instance *)
 			| DecTree_(i_l, _, _, _, _) -> is_suffix i i_l
 		in
 		List.find predicate d_l
-	in *)(* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
-(*	let is_terminal_node d =
+	in (* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
+	let is_terminal_node d =
 		match d with
 		| DecTree_(_, s, _, _, _) -> s != []
 	in
-	*)(* returns the spec of a supposed terminal node *)
-(*	let get_spec_of_term d =
+	(* returns the spec of a supposed terminal node *)
+	let get_spec_of_term d =
 		match d with
 		| DecTree_(_, s, _, _, _) -> List.hd s
 	in
 	let produce_i_th_son i =
 		if exists_in i sons then
 			if is_terminal_node (get_i_th_son i sons) then
-	*)		(* TODO: decode or not decode ? *)(*
+			(* TODO: decode or not decode ? *)
 				let x = get_spec_of_term (get_i_th_son i sons)
 				in
-				begin
 				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
 				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
-				end
 			else
 				Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons))
 		else
@@ -995,40 +1003,41 @@ dl is the global list of all nodes, used to find sons for instance *)
 		if i >= num_dec_ent then
 			()
 		else
-			begin
-			Printf.fprintf out "\t";
+			(Printf.fprintf out "\t";
 			produce_i_th_son i;
 			if i = (num_dec_ent-1) then
 				Printf.fprintf out "\n"
 			else
 				Printf.fprintf out ",\n";
-			produce_decode_ent (i+1)
-			end
+			produce_decode_ent (i+1))
 	in
-	*)(* !!DEBUG!! *)
-	(*match dt with
+	(* !!DEBUG!! *)(*
+	match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
 	print_string ("node treated[" ^ (name_of dt) ^ "], spec=[");
 	List.iter (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
 	print_string  "], sons=[";
 	List.iter (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
 	print_string "]\n";*)
-(*	if is_terminal_node dt then
+	if is_terminal_node dt then
 		(* !!DEBUG!! *)
 		(*print_string ((name_of dt) ^ ": [[terminal node]]\n")*)
 		()
 	else
-		begin
 		(* !!DEBUG!! *)
 		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
 
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
-		Printf.fprintf out "static Table_Decodage _table%s = {0X%lX, table_table%s};\n" name l_mask name;
+		(* !!TODO!! param mask (gen/not gen) *)
+		if fetch_size != 0 then
+			Printf.fprintf out "static Table_Decodage _table%s = {0X%s, table_table%s};\n" name (Generic_int.to_string l_mask) name
+		else
+			();
 		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
 		Printf.fprintf out "\n"
-		end*)
+
 
 
 (* sort the DecTree in a given list according to a reverse pseudo-lexicographic order among the name of the DecTrees *)
@@ -1185,12 +1194,13 @@ let output_all_table_C_decl out =
 	let output_table_type_decl _ =
 		if fetch_size == 0 then
 			(* generic, mask is not an uintN_t here *)
-			(* !!TODO!! *)
-			()
+			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tlength;\n} mask_t;\n\n";
+			output_string out "typedef struct {\n\tmask_t\tmask0;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
+			output_string out "\n\n/* and now the tables */\n\n\n")
 		else
-			Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask0;\n" fetch_size;
+			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask0;\n" fetch_size;
 			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
-			output_string out "\n\n/* and now the tables */\n\n\n"
+			output_string out "\n\n/* and now the tables */\n\n\n")
 	in
 	let aux dl dt =
 		(* TODO: parametrize with fetch_size *)
