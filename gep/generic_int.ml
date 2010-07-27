@@ -152,6 +152,12 @@ let one =
 		number = [ Int32.one ];
 	}
 
+let of_int i =
+	{
+		length = 32;
+		number = [Int32.of_int i];
+	}
+
 let lognot gi =
 	{
 		length = gi.length;
@@ -272,11 +278,11 @@ let shift_right_logical gi n =
 					(right_shift_int32_list (drop_lsb_from_list gi.number dropped_lsb) shift_val)
 					(gi.length - n);
 			}
-(* hexadecimal string, all bits concatenated, leading zeros are output *)
+(* hexadecimal string, all bits concatenated, leading zeros are not output *)
 let rec to_string gi =
 	match gi.number with
 	| a::b ->
 		let gi2 = {length = gi.length - 32; number = b} in
 		let mask = if gi.length < 32 then Int32.sub (Int32.shift_left Int32.one gi.length) Int32.one else Int32.minus_one in
-		( (to_string gi2) ^ if b == [] then Printf.sprintf "%X" (Int32.to_int a) else Printf.sprintf "%08X" (Int32.to_int (Int32.logand a mask)))
+		((to_string gi2) ^ if b == [] then Printf.sprintf "%X" (Int32.to_int a) else Printf.sprintf "%08X" (Int32.to_int (Int32.logand a mask)))
 	| [] -> ""

@@ -9,8 +9,8 @@
 
 #include "decode_table.h"
 
-#ifndef GLISS_NO_MALLOC
-#error "GEP option GLISS_NO_MALLOC must be activated when using module decode32_trace"
+#ifndef DECODE_DTRACE_TABLE
+#error "Can't use decode32_dtrace module if GEP option -gen-with-trace is not activated"
 #endif
 
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
@@ -36,7 +36,7 @@ typedef enum gliss_endianness_t {
 typedef struct gliss_entry {
 
     gliss_address_t  key;
-    gliss_inst_t     value[TRACE_DEPTH];
+    gliss_inst_t     value[TRACE_DEPTH+1];
 
     struct gliss_entry* next;
 }gliss_entry_t;
@@ -118,9 +118,7 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 
     /* Is the instruction inside the cache ? */
     unsigned int    i;
-    
-    gliss_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2;
-    unsigned int    hash       = MODULO(block_addr >> 2 >> TRACE_DEPTH_PW, CACHE_SIZE);
+    unsigned int    hash     = MODULO( address, CACHE_SIZE);
 
     gliss_entry_t** table  = decoder->cache->table;
     gliss_entry_t* current = table[hash];
@@ -128,7 +126,7 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     gliss_entry_t* prev;
 
     // If it's the first element no need to handle LRU policy
-    if(block_addr == current->key)
+    if(address == current->key)
         return current->value;
 
     prev     = current;
@@ -138,7 +136,7 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     // Anyway I've not seen any improvements by unrolling manualy this loop
     for( i = 0; i < (CACHE_DEPTH-2); i++)
     {
-        if (block_addr == current->key)
+        if (address == current->key)
         {
             prev->next     = current->next;
             current->next  = init;
@@ -154,22 +152,25 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     //prev->next = NULL; useless because we don't rely on that
     table[hash] = current;
     
-    if (block_addr == current->key)
+    if (address == current->key)
     {
         return current->value;
     }
 
     // If not find : --------------------------------------------------
-    current->key = block_addr;
-    res = (current->value);
-    for(i=0; i < TRACE_DEPTH; i++)
-    {
-        code = gliss_mem_read32(decoder->fetch->mem, block_addr + i*4);
-        id   = gliss_fetch(decoder->fetch, block_addr + i*4, code);
+    current->key = address;
 
-        gliss_decode_table[id](code, (res+i));
-        (res+i)->addr = block_addr + i*4;
+    res = (current->value);
+    int is_branch = 0;
+    for(i=0; i < TRACE_DEPTH && !is_branch; i++)
+    {
+        gliss_address_t a = address + i*4;
+        code      = gliss_mem_read32(decoder->fetch->mem, a);
+        id        = gliss_fetch(decoder->fetch, a, code);
+        is_branch = gliss_decode_table[id](code, (res+i));
+        (res+i)->addr = a;
     }
+    res[i].ident = -1;
     return res;
 }
 

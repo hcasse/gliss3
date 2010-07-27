@@ -165,7 +165,9 @@ let get_instruction maker f dict _ i = f
 		("params", Templater.COLL (get_params maker i)) ::
 		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
 		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
-		dict))
+		("is_inst_branch", Templater.BOOL (fun _ -> Iter.is_branch_instr i )) ::
+		dict)) 
+
 
 (** Get the nth first instructions defined by nb_inst
 	Only if a instruction profile is loaded i.e : (Iter.instr_stats <> [])

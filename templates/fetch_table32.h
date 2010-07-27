@@ -26,15 +26,6 @@ typedef struct
 	void *ptr;	/* will be used to store an instruction ID or the address of a Table_Decodage */
 } Decode_Ent;
 
-typedef struct
-{
-	uint32_t      mask0;
-	Decode_Ent*   table;
-} Table_Decodage;
-
-
-
-/* And now the tables */
 
 $(INIT_FETCH_TABLES)
 
