@@ -9,6 +9,10 @@
 
 #include "decode_table.h"
 
+#ifndef GLISS_NO_MALLOC
+#error "GEP option GLISS_NO_MALLOC must be activated when using module decode32_trace"
+#endif
+
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
 
