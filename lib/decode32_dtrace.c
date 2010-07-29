@@ -46,14 +46,12 @@ typedef struct gliss_hashtable {
     gliss_entry_t* table[CACHE_SIZE];
 }gliss_hashtable_t;
 
-
 /* decode structure */
 struct gliss_decoder_t
 {
     /* the fetch unit used to retrieve instruction ID */
-    gliss_fetch_t *fetch;
+    gliss_fetch_t*     fetch;
     gliss_hashtable_t* cache;
-
 };
 
 /** ! Size must be a power of two ! */
@@ -110,6 +108,19 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 }
 
 /* Fonctions Principales */
+/** @brief Return a trace of instructions given an address.
+ *  The function loads up an entire trace of instructions from a given address
+ * 	to the next instruction branch or the buffer maximum size (TRACE_DEPTH)
+ * 	Warning : Once you have the trace you have to execute it until the
+ *  instruction identifier is equal to -1. 
+ *  Otherwise if you call the function for each instruction address, it
+ *  would load a new trace each time and hence slow down 
+ *  dramatically the simulation
+ * 
+ * 	@param address  	from which to load a new trace
+ *  @return a instruction array to be executed until instruction's id
+ *  is equal to -1
+ **/
 gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 {
     gliss_inst_t*  res = 0;
@@ -193,7 +204,8 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
 
     h = (gliss_hashtable_t*)malloc( sizeof(gliss_hashtable_t) );
     if (NULL == h) return NULL;
-
+	
+	// a single malloc is used to allocate the array and every chained list 
     h->entry_tab = (gliss_entry_t*)malloc(sizeof(gliss_entry_t)*depth*size);
 
     for(i = 0; i < size; ++i)
@@ -263,9 +275,6 @@ static void hashtable_destroy(gliss_hashtable_t* h)
         // Erase gliss_hashtable_t
         free(h);
     }
-    
-
 }
-
 
 /* End of file gliss_decode.c */

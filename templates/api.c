@@ -517,9 +517,9 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
-	int i = 0;
+	unsigned int i = 0;
     $(proc)_state_t*   state     = sim->state;
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;
@@ -666,9 +666,9 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
-	int i = 0;
+	unsigned int i = 0;
     uint32_t num_bloc;
     $(proc)_state_t*   state     = sim->state;
     $(proc)_decoder_t* decoder   = sim->decoder;
@@ -760,7 +760,23 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
 {
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
-	return $(proc)_decode(sim->decoder, sim->state->$(pc_name));
+	
+	/* Static variable is an optimisation hack 
+	 * in order to cache the current trace */
+	static $(proc)_inst_t*  inst = 0;
+	$(proc)_state_t* state = sim->state;
+
+	/* retrieving next instruction */
+	if(inst != 0)
+	{
+		inst++;
+		if(inst->ident == -1)
+			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));			
+	}else
+	{
+		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));		
+	}
+	return inst;
 }
 
 
@@ -772,11 +788,22 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
  */
 void $(proc)_step($(proc)_sim_t *sim)
 {
-	$(proc)_inst_t*  inst;
+	/* Static variable is an optimisation hack 
+	 * in order to cache the current trace */
+	static $(proc)_inst_t*  inst = 0;
 	$(proc)_state_t* state = sim->state;
 
 	/* retrieving next instruction */
-    inst =  $(proc)_decode(sim->decoder, state->$(pc_name));
+	if(inst != 0)
+	{
+		inst++;
+		if(inst->ident == -1)
+			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));			
+	}else
+	{
+		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));		
+	}
+    
 	
 	/* execute it */
 $(if GLISS_PROFILED_JUMPS)
@@ -809,9 +836,9 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
-	int i = 0;
+	unsigned int i = 0;
     $(proc)_state_t*   state     = sim->state;
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;

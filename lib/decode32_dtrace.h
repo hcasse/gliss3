@@ -16,8 +16,8 @@ extern  "C"
 
 #define GLISS_DTRACE_CACHE
 #ifndef TRACE_DEPTH
-#define TRACE_DEPTH (32) // Must be power of two
-#endif
+#define TRACE_DEPTH (32) // Must be a power of two 
+#endif                   // and don't forget to update TRACE_DEPTH_PW
 // TRACE_DEPTH is a power of two (2^N)
 // TRACE_DEPTH_PW is N
 #ifndef TRACE_DEPTH_PW

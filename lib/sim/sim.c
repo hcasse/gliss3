@@ -43,7 +43,8 @@ void usage(const char *prog_name) {
 			"OPTIONS may be a combination of \n"
 			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
 			"  -h, -help             : display usage message\n"
-            "  -s                    : display statistics\n"
+            "  -s                    : display user statistics\n"
+            "  -more-stats           : display more statistics \n"
 			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
 			"  -v, -verbose          : display simulated instructions\n"
 			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
@@ -317,8 +318,11 @@ int main(int argc, char **argv)
 	int stats = 0;
     int profile = 0;
     int fast_sim = 0;
-	int inst_cnt = 0;
+    int more_stat = 0;
+	unsigned int inst_cnt = 0;
 	uint64_t start_time=0, end_time, delay = 0;
+	uint64_t start_sys_time=0, end_sys_time, sys_delay = 0;
+	struct timeval start_all_time;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -335,6 +339,8 @@ int main(int argc, char **argv)
 
 		else if(strcmp(argv[i], "-fast") == 0 || strcmp(argv[i], "-f") == 0)
 			fast_sim = 1;
+		else if(strcmp(argv[i], "-more-stats") == 0 )
+			more_stat = 1;
 
         /* -p or -profile=<path> option */
         else if( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "-profile") == 0){
@@ -672,6 +678,12 @@ int main(int argc, char **argv)
 		struct rusage buf;
 		getrusage(RUSAGE_SELF, &buf);
 		start_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+	}	
+	if(more_stat)
+	{
+		struct rusage buf;
+		gettimeofday(&start_all_time, NULL);		
+		start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 	}
 
 	/* full speed simulation */
@@ -735,9 +747,29 @@ int main(int argc, char **argv)
 		getrusage(RUSAGE_SELF, &buf);
 		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
 		delay = end_time - start_time;
-		printf("Simulated instructions = %d\n", inst_cnt);
+		printf("Simulated instructions = %u\n", inst_cnt);
         printf("Time = %f ms\n", (double)delay / 1000.00);
 		printf("Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
+	}
+	if(more_stat)
+	{
+		struct rusage buf;
+		struct timeval end_all_time, all_delay;
+		double time;
+		if(gettimeofday(&end_all_time, NULL) < 0) {
+			fprintf(stderr, "ERROR: can not get time ?\n");
+			return 1;
+		}
+		timersub(&end_all_time, &start_all_time, &all_delay);
+		time = all_delay.tv_sec + (double)all_delay.tv_usec * 10E-6;
+		
+		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
+		sys_delay = end_sys_time - start_sys_time;
+		printf("\nSystem (computed with rusage()): \n");
+		printf("Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
+		printf("\nUser+System (computed with gettimeofday()): \n");
+		printf("Time : %f sec\n", time);
+		printf("Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
 	}
 
     if(profile)
