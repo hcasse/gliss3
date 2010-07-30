@@ -8,8 +8,6 @@
 #include "mem.h"
 #include "decode.h"
 
-//#include "loader.h"
-
 #define $(PROC)_PROC_NAME "$(PROC)"
 #define $(PROC)_PC_NAME  $(pc_name)
 
@@ -20,7 +18,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id);
 typedef struct $(proc)_platform_t $(proc)_platform_t;
 typedef struct $(proc)_fetch_t $(proc)_fetch_t;
 typedef struct $(proc)_decoder_t $(proc)_decoder_t;
-/*typedef struct $(proc)_sim_t $(proc)_sim_t;*/
+struct $(proc)_loader_t;
 
 /* $(proc)_state_t type */
 typedef struct $(proc)_state_t {
@@ -47,7 +45,7 @@ typedef struct $(proc)_sim_t {
 
 $(if !GLISS_INSTR_FAST_STRUCT)
 /* $(proc)_value_t type */
-typedef union $(proc)_value_t {	
+typedef union $(proc)_value_t {
 $(foreach values)
 	$(type) $(name);
 $(end)
@@ -73,9 +71,9 @@ $(else)
 		$(foreach instructions)struct {
 			$(foreach params)$(TYPE) $(PARAM);
 			$(end)
-		} op_struct_$(ident); 
+		} op_struct_$(ident);
 		$(end)
-	} op_union; 
+	} op_union;
 $(end)
 
 } $(proc)_inst_t;
@@ -117,6 +115,7 @@ struct $(proc)_env_t *$(proc)_get_sys_env($(proc)_platform_t *platform);
 void $(proc)_lock_platform($(proc)_platform_t *platform);
 void $(proc)_unlock_platform($(proc)_platform_t *platform);
 int $(proc)_load_platform($(proc)_platform_t *platform, const char *path);
+void $(proc)_load($(proc)_platform_t *platform, struct $(proc)_loader_t *loader);
 
 /* fetching */
 $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);

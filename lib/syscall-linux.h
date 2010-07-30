@@ -23,16 +23,28 @@
 #define GLISS_SYSCALL_LINUX_H
 
 #include "api.h"
+#include "mem.h"
 
 #if defined(__cplusplus)
     extern  "C" {
 #endif
 
-#define GLISS_SYSCALL_STATE
-#define GLISS_SYSCALL_INIT(s)		gliss_syscall_init(s)
-#define GLISS_SYSCALL_DESTROY(s)	gliss_syscall_destroy(s)
+#ifndef GLISS_FD_COUNT
+#	define GLISS_FD_COUNT	32
+#endif
 
+#define GLISS_SYSCALL_STATE	\
+	gliss_address_t brk_base; \
+	int running; \
+	int fds[GLISS_FD_COUNT];
+
+#define GLISS_SYSCALL_INIT(pf)		gliss_syscall_init(pf)
+#define GLISS_SYSCALL_DESTROY(pf)	gliss_syscall_destroy(pf)
+
+void gliss_syscall_init(gliss_platform_t *pf);
+void gliss_syscall_destroy(gliss_platform_t *pf);
 void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state);
+void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address);
 
 #if defined(__cplusplus)
 }
