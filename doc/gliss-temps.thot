@@ -142,6 +142,14 @@ to know when a source has been generated)
 ''instruction'' (//collect//) -- collection of NML instruction
 (fully derived)
 
+''profiled_instructions'' (//collect//) -- collection of 'n' profiled NML instruction more details in section optimisation.
+
+''GLISS_PROFILED_JUMPS'' (//bool//) -- True when option '-PJ nb_instr' is activated in GEP more details ins section optimisation.
+
+''max_operand_nb'' (//text//) -- Indicates the maximum number of operands of the NML instruction set.
+
+''total_instruction_count'' (//text//) -- Total number of NML instruction set.
+
 ''memories'' (//collect//) -- collection of used memories
 (''mem'' NML statement)
 
@@ -164,6 +172,36 @@ the NML ''proc'' definition
 ''version'' (//text//) -- identification of the generation version
 of @(GLISS)
 
+=== Collection symbols ===
+
+== ''instruction'' (//collect//) And ''profiled_instructions'' (//collect//) ==
+
+In this example you will find a summary of the availables symbols for this collection :
+<code>
+$(foreach instructions) // or $(foreach profiled_instructions)
+     $(IDENT)      // Name of the current instruction
+     $(ident)      // Name of the current instruction (lower case)
+     $(size)       // Bit number of the instruction
+     $(ICODE)      // Integer identifier of the instruction
+     $(has_param)  // True if instruction has operands
+     $(num_params) // Number of 
+     $(gen_code)   // code C de l'instruction pour la simuler
+     $(is_inst_branch) // True if it is a branch instruction
+     $(foreach params) // Collection of instruction's operands
+          $(PARAM)     // Name of the operand
+          $(INDEX)     // index of the operand when operands are represented with an array
+                       // which is not always the case (see section optimisation option GLISS_INSTR_FAST_STRUCT
+          $(TYPE)      // C type of the operand (uint8_t, int32_t etc.)
+          $(PARAM_TYPE)// Type of the operand (uint8, int32 etc.)
+          $(param_type)// Operand's Type (lower case)
+     $(end)
+$(end)
+</code>
+
+
+== ''registers'' (//collect//) ==
+
+== ''memories'' (//collect//) ==
 
 
 ==== Fetch Symbols ====

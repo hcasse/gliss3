@@ -461,6 +461,26 @@ The example above creates the following code:
 | 19-16 | bits replaced by the image provided by ''rb'' |
 | 15-0 | 16 bits provided by the ''imm'' parameter |
 
+====== Branch attribute ====== 
+
+The branch attribute is not mandatory but will allow GEP to optimize generated code.
+When adding to an instruction statement :
+<code>
+set_attr_branch = 1 
+</code>
+You told GEP that the instruction statement describded a branch instruction (wether it is a conditionnal jump or not).
+Be carreful to not forget a branch instruction because GEP won't be able to see it.
+However, as long as you are not using GEP option '-gen-with-trace' such error will have no effect.
+To learn more about optimizing output code and the option '-gen-with-trace', see section optimisation.
+
+
+
+
+
+
+
+ 
+
 
 ====== Expressions ======
 

@@ -25,7 +25,7 @@ typedef enum gliss_endianness_t {
 #define CACHE_DEPTH 8     // Must be a power of two
 #endif
 #ifndef CACHE_SIZE
-#define CACHE_SIZE (4096) // Must be a power of two
+#define CACHE_SIZE (4096*2) // Must be a power of two
 #endif
 
 typedef struct gliss_entry {
