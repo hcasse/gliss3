@@ -108,6 +108,14 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 
 
 /* Fonctions Principales */
+/** @brief decode an instruction given an address
+ *  The instruction is cached into a fixed hashtable.
+ *  The hashtable free an instruction when a new one is cached,
+ *  so a second call to gliss_decode might free the last decoded instruction !
+ *  @param address of the instruction addr to be decoded
+ *  @return a heap allocated intruction which would be freed at the earliest
+ *  when gliss_decode is called a second time.      
+ * */
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 {
     gliss_inst_t*  res = 0;

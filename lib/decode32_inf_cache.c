@@ -96,6 +96,14 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 
 
 /* Fonctions Principales */
+/** @brief decode an instruction given address
+ *  @warning The decode instruction is cache into an infinite hashtable.
+ *  the memory could bloat at any moment. Be aware of that flow,
+ *  and use this function at your own risk !
+ *  @param address of the instruction addr to be decoded
+ *  @return a heap allocated intruction which would be freed at the earliest
+ *  when the object decoder is erased.   
+ * */
 gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 {
     gliss_inst_t*  res = 0;

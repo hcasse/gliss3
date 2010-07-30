@@ -26,12 +26,14 @@
  * This module is mandatory and is currently implemented by
  * the @ref fast_mem and @ref vfast_mem .
  *
- * @author M. Finnet, P. Sainrat, H. Casse
+ * @author R. Vaillant 
  *
  * @page vfast_mem	vfast_mem module
  *
  * This module aims is to be faster than the default module fast_mem
  * (vfast_mem for Very Fast Memory)
+ * Unlike fast_mem.c the hashtable has only one level depth.
+ * And endianness are handle differently
  */
 
 #include <assert.h>
@@ -107,21 +109,21 @@ if(!(c)) { \
  *  the vfast_mem module read and write backwards into the memory.                      *
  *  For instance when target endiannes != host endianness read8() looks like :          *
  *  read8(addr){ return mem[SIZE_MEM-1-addr] }                                          *
- *                                                                               ^      *
- *  WARNING : this means that you need to byte swap data and programm before    / \     *
- * loading them into the memory, if endianness differs.                        / ! \    *
- *                                                                            *-----*   *
- *  For example your target ".elf" is written in big endian                             *
- *  but the host is in little endian :                                                  *
+ *                                                                                 ^    *
+ *  WARNING : this means that you need to exclusively use byte memorie operations / \   *
+ *  when loading a programm into the memory, if endianness differs.              / ! \  *
+ *                                                                              *-----* *
+ *  For example with an ".elf" target written in big endian                             *
+ *  and an host in little endian :                                                      *
  *                                                                                      *
- *  ELF buffer befor swapping:            After swapping :                              *
+ *  ELF buffer before swapping:            After swapping                               *
  *  adr   ->  0123 4567                      7654 3210                                  *
  *  bytes -> |ABCD|ABCD|                    |DCBA|DCBA|                                 *
  *                                                                                      *
- *  Then every read/write can be perform with the host endianness.                      *
+ *  Then every read8/32/64/write8/32/64 can be perform with the host endianness.        *
  *                                                                                      *
  !  The bottom line is : if your are writting something into the memory that is not     !
- !  in the host endianness you need to byte swap it as described above                  !
+ !  in the host endianness you need to byte swap it using mem8 or mem buffer operations !
  *                                                                                      *
  ***************************************************************************************/
 

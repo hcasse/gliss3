@@ -110,17 +110,39 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
 }
 
 /* Fonctions Principales */
+/** @brief Decode a block of instructions
+ *  Simulated programmed is split into regular parts of size TRACE_DEPTH.
+ *  gliss_decode() decode an entire block of instruction belonging to the given
+ *  address and return the pointer of the first element of the block.
+ *  It is left to the user to compute the right offset inside the block 
+ *  (knowing the eddresse and TRACE_DEPTH)
+ * 
+ *  @param decoder
+ *  @param address inside a block of instruction to decode
+ *  @return first element of an array of instructions 
+ * */
 gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
 {
-    gliss_inst_t*  res = 0;
+	gliss_inst_t*  res = 0;
     gliss_ident_t  id;
     uint32_t     code;
 
-    /* Is the instruction inside the cache ? */
+    // Is the instruction inside the cache ? ===========================
     unsigned int    i;
     
-    gliss_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2;
-    unsigned int    hash       = MODULO(block_addr >> 2 >> TRACE_DEPTH_PW, CACHE_SIZE);
+    /*  A block of four elements :
+     *  ____
+     *  |  | <- block_addr 
+     *  ----
+     *  |  |
+     *  ----
+     *  |  | <- address  
+     *  ---- 
+     *  |  |
+     *  ____
+     * */
+    gliss_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2; // (address / TRACE_DEPTH / 4) * TRACE_DEPTH * 4
+    unsigned int    hash       = MODULO(block_addr >> 2 >> TRACE_DEPTH_PW, CACHE_SIZE);    // (block_addr / 4 / TRACE_DEPTH) % CACHE_SIZE
 
     gliss_entry_t** table  = decoder->cache->table;
     gliss_entry_t* current = table[hash];
@@ -193,6 +215,7 @@ static gliss_hashtable_t* create_hashtable( unsigned int size, unsigned int dept
     h = (gliss_hashtable_t*)malloc( sizeof(gliss_hashtable_t) );
     if (NULL == h) return NULL;
 
+    // Allocate table and every chained list with one malloc for better host cache handling
     h->entry_tab = (gliss_entry_t*)malloc(sizeof(gliss_entry_t)*depth*size);
 
     for(i = 0; i < size; ++i)
