@@ -88,7 +88,7 @@ machine and the simulated machine have different endianness.
 
 Their value may be 0 for little endian, 1 for big endian.
 
-Implementing modules: ''fast_mem''.
+Implementing modules: ''fast_mem'' and ''vfast_mem''.
 
 ==== Types ====
 <code c>

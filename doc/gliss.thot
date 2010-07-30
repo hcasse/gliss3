@@ -12,6 +12,7 @@
 @include gliss-mods.thot
 @include gliss-spec.thot
 @include gliss-cmds.thot
+@include gliss-optimizing.thot
 
 ====== Generated Sources ======
 
