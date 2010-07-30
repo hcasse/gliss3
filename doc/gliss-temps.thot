@@ -1,0 +1,174 @@
+====== Generation Templates ======
+
+@(GLISS) uses a template system in order to generate C sources of
+an ISS. This system allows to get maximum flexibility and customisation
+in generation. It allows also to have a C-close view of the sources
+and to propose different generation modes. In addition, users may easily
+modify the used symbol in order to meet their needs.
+
+
+===== Template System =====
+
+Basically, a template is a text file containing C sources augmented
+with @(GLISS) template system syntax. Templates files are used by
+''gep'' or other @(GLISS) commands to perform the generation of sources.
+These templates are located in the ''templates/'' @(GLISS) directory.
+
+==== Textual Symbols ====
+
+The main item of the template system is a symbol that may be anywhere
+in the source file and have the following syntax:
+
+<code>
+TemplateCommands ::= TemplateSymbol
+TemplateSymbol ::= '$' '(' IDENTIFIER ')'
+</code>
+
+When processed by the template system, the symbol is looked
+in a dictionnary provided by the generator command the found text
+replaces the symbol invocation.
+
+For example, the ''proc'' symbol may used to renamed ISS functions as
+in the excerpt of ''api.h'' below:
+<code c>
+$(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim);
+void $(proc)_step($(proc)_sim_t *sim);
+int $(proc)_is_sim_ended($(proc)_sim_t *sim);
+</code>
+
+This basic behaviour is provided by a symbol of type text and may be used
+for simple text generation or replacement (the text is not fixed and
+may be generated according the processed NML description).
+
+Other types of symbols allows to iterate on collections of NML items
+(registers, memories, instructions, parameters and so on) while other
+ones are evaluated as boolean and allows to perform conditional generation
+of code.
+
+==== Collection Symbols ====
+
+To iterate on a collection symbol, the ''foreach'' statement must be
+used:
+<code>
+TemplateCommands ::⁼ TemplateForeach
+TemplateForeach ::= '$(foreach' IDENTIFIER ')' TEXT '$(end)'
+</code>
+
+The text in the ''foreach'' commands is repeated for each item of
+the collection matching the identifier. The text may contain other
+template commands and the used dictionnary is extended with symbols
+specific to the collecion items.
+
+The excerpt below, from disassembly template, shows the ''foreach'' usage:
+<code c>
+$(foreach instructions)
+static void disasm_$(IDENT)(char *__buffer, $(proc)_inst_t *inst) {
+	$(disassemble)
+}
+$(end)
+</code>
+
+The ''instructions'' symbols provides the collection of instructions
+and each instruction provides the ''disassemble'' symbol. Notice that
+the latter symbol is only visible in the ''foreach'' statement.
+
+==== Conditional Symbols ====
+
+Finally, some symbols are of type boolean and may be used to generate
+sources according some conditions if they are used in conditional
+statement.
+
+<code>
+TemplateCommands ::= TemplateIf
+TemplateIf ::= '$(if' TemplateCondition ')' TEXT '$(end)'
+           |   '$(if' TemplateCondition ')' TEXT '$(else)' '$(end)'
+TemplateCondition ::= IDENTIFIER | '!' IDENTIFIER
+</code>
+
+In the first form, the text in the condition is only generated is
+if the condition evaluates to true. The second form meets same semantics
+except if the condition evaluates to false, only the text following
+the ''else'' statement is generated.
+
+The template condition may be a boolean identifier that evaluates to
+true if the identifier is equals to true or it may be preceded by
+a ''!'' indicating an inversion of condition.
+
+The example below is extracted from ''api.h'' and perform the state
+data structure definition:
+<code c>
+typedef struct $(proc)_state_t {
+	$(proc)_platform_t *platform;
+$(foreach registers)$(if !aliased)$(if array)
+	$(type) $(name)[$(size)];
+$(else)
+	$(type) $(name);
+$(end)$(end)$(end)
+$(foreach memories)$(if !aliased)
+	$(proc)_memory_t *$(NAME);
+$(end)$(end)
+} $(proc)_state_t;
+</code>
+
+It contains a double condition. The first one says that only unaliased
+registers are declared: there is no ''else'' part. In the second one,
+we use two ways to generate the register declaration according if they
+are arrays or not.
+
+
+===== Symbols and Templates =====
+
+This section describes the set of standard symbols. They are sorted
+according to the template they are used in and to the collection items
+they are defined in.
+
+In addition, they are suffixed by their type that may be:
+  * //text// for textual symbols,
+  * //collect// for collection symbols,
+  * //bool// for boolean symbols.
+
+
+==== Standard Symbols ====
+
+These symbols are defined whatever the used template.
+
+=== Top Level ===
+
+''date'' (//text//) -- current date including days and hours (useful
+to know when a source has been generated)
+
+''INCLUDE_PATH'' (//text//) -- path to the generated include header files
+
+''instruction'' (//collect//) -- collection of NML instruction
+(fully derived)
+
+''memories'' (//collect//) -- collection of used memories
+(''mem'' NML statement)
+
+''params'' (//collect//) -- collection of existing parameter types
+(built the union of the parameters types of the different instructions).
+
+''proc'' (//text//) -- processor name in lowercase, derived from
+the NML ''proc'' definition
+
+''PROC'' (//text//) -- processor name in uppercase, derived from
+the NML ''proc'' definition
+
+''registers'' (//collect//) -- collection of used registers
+
+''SOURCE_PATH'' (//text//) -- path to the generated sources
+
+''values'' (//collect//) -- collection of constant values
+(as defined by the ''let''  NML instruction)
+
+''version'' (//text//) -- identification of the generation version
+of @(GLISS)
+
+
+
+==== Fetch Symbols ====
+
+==== Decode Symbols ====
+
+==== Disassembly Symbols ====
+
