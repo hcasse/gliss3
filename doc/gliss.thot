@@ -1,6 +1,6 @@
 @use dokuwiki
 @TITLE=GLISS V2 User Manual
-@AUTHORS=H. Cassé <casse@irit.fr>, J. Barre <barre@irit.fr>
+@AUTHORS=H. Cassé <casse@irit.fr>, J. Barre <barre@irit.fr>, R. Vaillant
 @VERSION=0.1
 @LANG=en_EN
 @ENCODING=UTF-8
