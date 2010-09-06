@@ -100,7 +100,7 @@ let check_coerce spec =
 (** structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
-(** List of instruction names sorted by ascending order of call number 
+(** List of instruction names sorted by ascending order of call number
 	This list is initialize if -p option is activated when calling GEP *)
 let instr_stats : (string list ref) = ref [];;
 
@@ -111,7 +111,7 @@ let instr_stats : (string list ref) = ref [];;
 let get_attr instr name =
 	let rec search_attr_in_list n a_l =
 		match a_l with
-		[] -> 
+		[] ->
 		(* if attr not found => means an empty attr (?) *)
 			raise Not_found
 		| (Irg.ATTR_STAT(nm, s))::t ->
@@ -138,7 +138,7 @@ let get_attr instr name =
 (** return true if the instruction is a branch *)
 let is_branch_instr instr =
 	try
-		let _ = get_attr instr "set_attr_branch" 
+		let _ = get_attr instr "set_attr_branch"
 		in
 		   true
 	with Not_found -> false
@@ -187,7 +187,7 @@ let get_name instr =
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
 		| _ -> failwith "unsupported operator in syntax" in
 
-	
+
 	let syntax = match get_attr instr "syntax" with
 		  EXPR(e) -> to_string e
 		| _ -> failwith "syntax does not reduce to a string" in
@@ -219,7 +219,7 @@ let reduce instr e =
 	Instantiate.instantiate_in_expr e (get_params instr)
 
 (** return the type of a symbol appearing in the spec of an instruction
-	@param instr	spec of the instruction 
+	@param instr	spec of the instruction
 	@param var_name	name of the symbol whose type is required *)
 let get_type instr var_name =
 	let rec search_param_list nam p_l =
@@ -241,33 +241,35 @@ let get_type instr var_name =
 (** *)
 let rec sort_instr_set instr_list stat_list = match stat_list with
   | []       -> []
-  | name::q  -> 
+  | name::q  ->
 	try
-		let inst = List.find (fun a -> (get_name a) = name) instr_list 
+		let inst = List.find (fun a -> (get_name a) = name) instr_list
 		in
 			(sort_instr_set instr_list q)  @ [inst]
 	with Not_found -> failwith "Profiled file instructions statistics doesn't match current instruction generation"
-			
-(** iterator (or fold) on the structure containing all the instructions specs
+
+
+(** Iteration over actual instruction using profiling order.
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
-	@param init_val		the accumulator, initial value 
-     val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a 
-*)
-let iter fun_to_iterate init_val =
+	@param init_val		the accumulator, initial value
+     val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a
+	@param with_profiling	If true, profiling order is used.
+	*)
+let iter_ext
+ fun_to_iterate init_val with_profiling =
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
 			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
 		else
 			()
 	in
+
 	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
-	let _ = 
-		if List.length !instr_stats = 0
-		then  ()
-		else
-			 instr_set := sort_instr_set !instr_set !instr_stats
-	in
-  
+	let old_inst_set = !instr_set in
+	if with_profiling && (List.length !instr_stats) <> 0
+	then instr_set := sort_instr_set !instr_set !instr_stats;
+
+	(* actual instruction iterator *)
 	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
 		match instrs with
 		[] ->
@@ -275,31 +277,42 @@ let iter fun_to_iterate init_val =
 		| a::b ->
 			match a with
 			Irg.AND_OP(_, param_l, attr_l) ->
-			
+
 				Irg.param_unstack params_to_unstack;
 				Irg.attr_unstack attrs_to_unstack;
-			
+
 				Irg.param_stack param_l;
 				Irg.attr_stack attr_l;
-				
+
 				rec_iter f (f init a) b param_l attr_l;
 			| _ ->
-				failwith "we should have only AND OP spec at this point (Iter)"	
+				failwith "we should have only AND OP spec at this point (Iter)"
 	in
 	begin
 	initialise_instrs;
-	rec_iter fun_to_iterate init_val !instr_set [] []
+	let res  = rec_iter fun_to_iterate init_val !instr_set [] [] in
+	instr_set := old_inst_set;
+	res
 	end
-	  
-(** Compute the maximum params numbers of all instructions 
-	from the current loaded IRG 
+
+
+(** iterator (or fold) on the structure containing all the instructions specs
+	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
+	@param init_val		the accumulator, initial value
+     val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a
 *)
-let get_params_max_nb () = 
+let iter fun_to_iterate init_val = iter_ext fun_to_iterate init_val false
+
+
+(** Compute the maximum params numbers of all instructions
+	from the current loaded IRG
+*)
+let get_params_max_nb () =
 	let aux acc i =
-		let nb_params = get_params_nb i 
-		in 
-		  if nb_params > acc 
-		  then nb_params 
+		let nb_params = get_params_nb i
+		in
+		  if nb_params > acc
+		  then nb_params
 		  else acc
 	in
-	  iter aux 0  
+	  iter aux 0

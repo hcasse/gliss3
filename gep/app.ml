@@ -166,7 +166,7 @@ let get_instruction maker f dict _ i = f
 		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
 		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 		("is_inst_branch", Templater.BOOL (fun _ -> Iter.is_branch_instr i )) ::
-		dict)) 
+		dict))
 
 
 (** Get the nth first instructions defined by nb_inst
@@ -245,6 +245,7 @@ let make_env info maker =
 		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
 
 	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
+	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction maker f dict) () true)) ::
 	("profiled_instructions", Templater.COLL ( fun f dict ->
 	  let _ = Iter.iter (get_ninstruction maker f dict (!profiled_switch_size)) 0 in () )) ::
 	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
