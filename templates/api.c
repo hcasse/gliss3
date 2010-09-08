@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <$(proc)/api.h>
 #include "platform.h"
-#include "code_table.h"
 #include <$(proc)/env.h>
 #include <$(proc)/macros.h>
 
@@ -15,6 +14,10 @@ static char *$(proc)_string_ident[] = {
 	"$(PROC)_UNKNOWN"$(foreach instructions),
 	"$(PROC)_$(IDENT)"$(end)
 };
+
+/* execution code table */
+typedef void (*$(proc)_code_function_t)($(proc)_state_t *, $(proc)_inst_t *);
+extern $(proc)_code_function_t $(proc)_code_table[];
 
 
 char *$(proc)_get_string_ident($(proc)_ident_t id)
@@ -617,7 +620,7 @@ $(end)
 }
 #endif
 //======================================================================
-#ifdef $(PROC)_TRACE_CACHE 
+#ifdef $(PROC)_TRACE_CACHE
 /**
  * Return the next instruction to be executed by the given simulator
  *
@@ -773,8 +776,8 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
 {
 	/* retrieving the instruction (which is allocated by the decoder) */
 	/* we let the caller check for error */
-	
-	/* Static variable is an optimisation hack 
+
+	/* Static variable is an optimisation hack
 	 * in order to cache the current trace */
 	static $(proc)_inst_t*  inst = 0;
 	$(proc)_state_t* state = sim->state;
@@ -784,10 +787,10 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
 	{
 		inst++;
 		if(inst->ident == -1)
-			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));			
+			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));
 	}else
 	{
-		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));		
+		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));
 	}
 	return inst;
 }
@@ -801,7 +804,7 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim)
  */
 void $(proc)_step($(proc)_sim_t *sim)
 {
-	/* Static variable is an optimisation hack 
+	/* Static variable is an optimisation hack
 	 * in order to cache the current trace */
 	static $(proc)_inst_t*  inst = 0;
 	$(proc)_state_t* state = sim->state;
@@ -811,13 +814,13 @@ void $(proc)_step($(proc)_sim_t *sim)
 	{
 		inst++;
 		if(inst->ident == -1)
-			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));			
+			inst =  $(proc)_decode(sim->decoder, state->$(pc_name));
 	}else
 	{
-		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));		
+		inst =  $(proc)_decode(sim->decoder, state->$(pc_name));
 	}
-    
-	
+
+
 	/* execute it */
 $(if GLISS_PROFILED_JUMPS)
 	switch(inst->ident)
@@ -826,24 +829,24 @@ $(foreach profiled_instructions)
 		case $(PROC)_$(IDENT):
 		{
 		$(gen_code)
-		
+
 		}break;
 $(end)
 		default:
 		$(proc)_code_table[inst->ident](state, inst);
 	}
 $(end)
-	
+
 $(if !GLISS_PROFILED_JUMPS)
 	$(proc)_code_table[inst->ident](state, inst);
 $(end)
-	
+
 }
 
 
 /**
- * Straightforward execution of the simulated programm. 
- * It runs and count the number of executed instructions 
+ * Straightforward execution of the simulated programm.
+ * It runs and count the number of executed instructions
  * until the programm reached the last instruction.
  * this is the <bold> fastest </bold> way to simulate a programm
  * @param	sim	the simulator which we simulate within
@@ -870,7 +873,7 @@ $(foreach profiled_instructions)
 				case $(PROC)_$(IDENT):
 				{
 				$(gen_code)
-		
+
 				}break;
 $(end)
 				default:
@@ -878,16 +881,16 @@ $(end)
 		}
 $(else)
 		    $(proc)_code_table[inst->ident](state, inst);
-$(end)     
+$(end)
 			inst++;
 			i++;
         }
 	}
-	return i;	
+	return i;
 }
 
 /**
- * Straightforward execution of the simulated programm. 
+ * Straightforward execution of the simulated programm.
  * It runs until the programm reached the last instruction.
  * this is the <bold> fastest </bold> way to simulate a programm
  * @param	sim	the simulator which we simulate within
@@ -913,7 +916,7 @@ $(foreach profiled_instructions)
 				case $(PROC)_$(IDENT):
 				{
 				$(gen_code)
-		
+
 				}break;
 $(end)
 				default:
@@ -921,7 +924,7 @@ $(end)
 		}
 $(else)
 		    $(proc)_code_table[inst->ident](state, inst);
-$(end)     
+$(end)
 			inst++;
         }
 	}

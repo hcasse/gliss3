@@ -38,7 +38,7 @@ $(end)
 
 typedef void (*$(proc)_code_function_t)($(proc)_state_t *, $(proc)_inst_t *);
 
-static $(proc)_code_function_t $(proc)_code_table[] =
+$(proc)_code_function_t $(proc)_code_table[] =
 {
 	$(proc)_instr_UNKNOWN_code$(foreach instructions),
 	$(proc)_instr_$(IDENT)_code$(end)
