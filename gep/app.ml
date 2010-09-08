@@ -1,6 +1,6 @@
 (*
  * $Id: app.ml,v 1.16 2009/11/26 09:01:16 casse Exp $
- * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
+ * Copyright (c) 2009-10, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of OGliss.
  *
@@ -247,7 +247,7 @@ let make_env info maker =
 	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
 	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction maker f dict) () true)) ::
 	("profiled_instructions", Templater.COLL ( fun f dict ->
-	  let _ = Iter.iter (get_ninstruction maker f dict (!profiled_switch_size)) 0 in () )) ::
+	  let _ = Iter.iter_ext (get_ninstruction maker f dict (!profiled_switch_size)) 0 true in () )) ::
 	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
