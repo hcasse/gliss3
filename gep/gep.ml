@@ -130,6 +130,9 @@ let find_first_bit mask =
   in
     aux 0 mask
 
+(* thrown when not succeeding to find the smallest C type uintN_t for a given size *)
+exception BadCSize
+
 (** Build a template environment.
 	@param info		Information for generation.
 	@return			Default template environement. *)
@@ -141,6 +144,32 @@ let make_env info =
 				let size = Fetch.get_instruction_length inst
 				in if size < min then size else min)
 			1024 
+	in
+	let max_size =
+		Iter.iter
+			(fun max inst ->
+				let size = Fetch.get_instruction_length inst
+				in if size > max then size else max)
+			0
+	in
+	let get_C_size n =
+		match n with
+		| _ when n > 0 && n <= 8 -> 8
+		| _ when n > 8 && n <= 16 -> 16
+		| _ when n > 16 && n <= 32 -> 32
+		| _ when n > 32 && n <= 64 -> 64
+		| _ -> raise BadCSize
+	in
+	let get_msb_mask n =
+		try
+			(match get_C_size min_size with
+			| 8 -> "0x80"
+			| 16 -> "0x8000"
+			| 32 -> "0x80000000"
+			| 64 -> "0x8000000000000000LL"
+			| _ -> raise BadCSize)
+		with
+			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with RISC ISA")
 	in
 	let max_op_nb = Iter.get_params_max_nb ()
 	in
@@ -176,6 +205,11 @@ let make_env info =
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
+	("max_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_size)) ::
+	("is_RISC", Templater.BOOL (fun _ -> min_size == max_size)) ::
+	(* next 2 things have meaning only if a RISC ISA is considered as we use min_size *)
+	("C_inst_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (try (get_C_size min_size) with BadCSize -> raise (Sys_error "template $(C_inst_size) should be used only with RISC ISA")))) ::
+	("msb_mask", App.out (fun _ -> (get_msb_mask min_size))) ::
 	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
  	("max_operand_nb", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_op_nb)  ) ::
 	("gen_pc_incr", Templater.TEXT (fun out ->

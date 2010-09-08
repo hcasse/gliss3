@@ -4,7 +4,8 @@ type gen_int =
 	(* number of bits *)
 	length : int;
 	(* list representing the number cut in 32 bit slices, the head is the lowest bits, the tail is the upper bits,
-	   only the lowest bits of the tail are significative (the first 'length % 32' bits) *)
+	   only the lowest bits of the tail are significative (the first 'length % 32' bits).
+	   This makes computations easier but postprocessing is needed as we'd like to output numbers in "natural" order in C files *)
 	number   : Int32.t list;
 }
 
@@ -278,6 +279,8 @@ let shift_right_logical gi n =
 					(right_shift_int32_list (drop_lsb_from_list gi.number dropped_lsb) shift_val)
 					(gi.length - n);
 			}
+
+
 (* hexadecimal string, all bits concatenated, leading zeros are not output *)
 let rec to_string gi =
 	match gi.number with
@@ -288,5 +291,18 @@ let rec to_string gi =
 	| [] -> ""
 
 
-let to_Int32_list gi = gi.number
-
+(* returns the bits of the number as an Int32 list with left justified msb at head of list,
+ * last element is left justified lsb (only msb are significative),
+ * used to output as a C uint32_t list *)
+let to_Int32_list gi =
+	let remainder = gi.length mod 32
+	in
+	let shift_val =
+		if remainder == 0 then
+			0
+		else
+			32 - remainder
+	in
+	let pre_res = shift_left gi shift_val
+	in
+		List.rev pre_res.number
