@@ -9,6 +9,7 @@ endif
 
 # libgep build
 LIBGEP_SOURCES=\
+	generic_int.ml \
 	config.ml \
 	toc.ml \
 	templater.mll \
@@ -18,14 +19,13 @@ $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build
 GEP_SOURCES = \
-	generic_int.ml \
 	fetch.ml \
 	decode.ml \
 	gep.ml
-gep_LIBS = str unix  ../irg/irg libgep
+gep_LIBS = str unix  ../irg/irg ../gep/libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
 
-gep: ../irg/irg.cma
+gep: ../irg/irg.cma ../gep/libgep.cma
 
 # gliss-disasm build
 DISASM_SOURCES = \

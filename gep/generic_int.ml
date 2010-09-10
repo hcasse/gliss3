@@ -8,7 +8,11 @@ type gen_int =
 	number   : Int32.t list;
 }
 
+(** Get the length in bits of a gen_int.
+	@param v	Generic int.
+	@return		Length. *)
 let length v = v.length
+
 
 (* add a given Int32 a certain number of times to the left of a given list,
 typically used to add zeros when resizing *)
@@ -58,7 +62,7 @@ let right_shift_with_lost_bits_i32 i shift_val accu =
 (* return the bits lost during a right shift *)
 let remain_of_right_shift_i32 i shift_val =
 	Int32.logand i (mask_i32 shift_val)
-	
+
 
 let left_shift_int32_list l n =
 	let rec aux i32_list shift_val accu =
@@ -76,7 +80,7 @@ let left_shift_int32_list l n =
 			)
 	in
 	aux l n Int32.zero
-	
+
 
 let right_shift_int32_list l n =
 	let rec aux i32_list shift_val accu =
@@ -197,7 +201,7 @@ let compare gi1 gi2 =
 	in
 	compare_i32_list arg1.number arg2.number
 
-let get_lowest_bit gi = 
+let get_lowest_bit gi =
 	if gi.length < 1 then
 		failwith "cannot get lowest bit from a too small number"
 	else
@@ -274,7 +278,7 @@ let shift_right_logical gi n =
 		else
 			{
 				length = gi.length - n;
-				number = clean_i32_list 
+				number = clean_i32_list
 					(right_shift_int32_list (drop_lsb_from_list gi.number dropped_lsb) shift_val)
 					(gi.length - n);
 			}
