@@ -86,6 +86,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     uint32_t     code;
 
     /* first, fetch the instruction at the given address */
+/* for genericity: only fetch should read instead and return the read inst to decode */
     code = gliss_mem_read32(decoder->fetch->mem, address);
     id   = gliss_fetch(decoder->fetch, address, code);
     /* then decode it */
