@@ -31,6 +31,7 @@ let of_int32 i =
 	{ Generic_int.length = 32; Generic_int.number = [i] }
 let to_int32 i =
 	List.nth i.Generic_int.number 0
+
 let is_null g =
 	let rec test l =
 		match l with
@@ -38,6 +39,21 @@ let is_null g =
 		| f::t when (Int32.compare f Int32.zero) = 0 -> test t
 		| _ -> false in
 	test g.Generic_int.number
+
+(** Test if two generic integer are equals, whatever their length.
+	@param g1	First generic integer.
+	@param g2	Second generic integer.
+	@return		True if they are equals, false else. *)
+let equals g1 g2 =
+	let rec test l1 l2 =
+		match l1, l2 with
+		| [], [] -> true
+		| h1::t1, h2::t2 when (Int32.compare h1 h2) = 0 -> test t1 t2
+		| [], h::t when (Int32.compare h Int32.zero) = 0 -> test [] t
+		| h::t, [] when (Int32.compare h Int32.zero) = 0 -> test t []
+		| _ -> false in
+	test g1.Generic_int.number g2.Generic_int.number
+
 
 let add e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.ADD, e1, e2)
 let sub e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.SUB, e1, e2)
@@ -207,7 +223,6 @@ let scan_decode_arguments args vals =
 		(fun r a v -> r @ (scan_decode_argument a (mask_of_expr a) v))
 		[] args vals
 
-(* !!TODO!! Check that no bits are lost !!! *)
 
 (** Build a list of pairs (parameter name, expression to decode it).
 	@param params	List of parameter names.
@@ -222,19 +237,26 @@ let decode_parameters params args vals =
 		then (p, Generic_int.logor m m', or_ e (and_ e' (cst (to_int32 m'))))
 		else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p)) in
 	List.map
-		(fun p -> List.fold_left process (p, Generic_int.zero, cst Int32.zero) t)
+		(fun p ->
+			let (p, m, e) = List.fold_left process (p, Generic_int.zero, cst Int32.zero) t in
+			let m' = mask (Sem.get_type_length (Sem.get_type_ident p)) in
+			if equals m m' then  (p, e)
+			else
+				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
+					(Generic_int.to_string m') p (Generic_int.to_string m))))
 		params
 
 
-
 (*** testing part: comment it before archiving ***)
-let test1 params arg =
+(*let test params args =
 	Printf.printf "argument: ";
-	Irg.print_expr arg;
+	List.iter (fun e -> Irg.print_expr e; print_string ", ") args;
 	print_char '\n';
-	let r = decode_parameters params [arg] [Irg.EINLINE "p"] in
+	let cnt = ref 0 in
+	let vals = List.map (fun _ -> incr cnt; Irg.EINLINE (Printf.sprintf "p%d" !cnt)) args in
+	let r = decode_parameters params args vals in
 	List.iter
-		(fun (n, _, e) ->
+		(fun (n, e) ->
 			Printf.printf "\tparameter %s: " n;
 			Irg.print_expr e;
 			print_char '\n')
@@ -246,13 +268,15 @@ let ref_x = Irg.REF "x"
 let ref_y = Irg.REF "y"
 
 let _ =
+	Irg.dump_type := false;
 	Irg.add_symbol "x" (Irg.PARAM ("x", Irg.TYPE_EXPR c32));
 	Irg.add_symbol "y" (Irg.PARAM ("y", Irg.TYPE_EXPR c32));
-	test1 ["x"] ref_x;
-	test1 ["x"] (add ref_x (csti 1));
-	test1 ["x"] (shl ref_x (csti 4));
-	test1 ["x"] (shl (add ref_x (csti 1)) (csti 4));
-	test1 ["x"] (getb ref_x (csti 15) (csti 8));
-	test1 ["x"] (add (getb ref_x (csti 15) (csti 8)) (csti 3));
-	test1 ["x"; "y"] (concat ref_x ref_y);
-	test1 ["x"; "y"] (concat (getb ref_x (csti 15) (csti 8)) ref_y)
+	test ["x"] [ref_x];
+	test ["x"] [add ref_x (csti 1)];
+	test ["x"] [shl ref_x (csti 4); getb ref_x (csti 15) (csti 12)];
+	test ["x"] [shl (add ref_x (csti 1)) (csti 4); getb ref_x (csti 15) (csti 12)];
+	test ["x"] [getb ref_x (csti 15) (csti 8); getb ref_x (csti 7) (csti 0)];
+	test ["x"] [add (getb ref_x (csti 15) (csti 8)) (csti 3); getb ref_x (csti 7) (csti 0)];
+	test ["x"; "y"] [concat ref_x ref_y];
+	test ["x"; "y"] [concat (getb ref_x (csti 15) (csti 8)) ref_y; getb ref_x (csti 7) (csti 0)]
+*)
