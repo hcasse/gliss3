@@ -1,8 +1,6 @@
 (*
- * $Id: irg.ml,v 1.39 2009/10/21 14:40:50 barre Exp $
- * Copyright (c) 2009, IRIT - UPS <casse@irit.fr>
- *
- * This file is part of OGliss.
+ * GLISS2 -- image argument decoding
+ * Copyright (c) 2010, IRIT - UPS <casse@irit.fr>
  *
  * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -245,38 +243,3 @@ let decode_parameters params args vals =
 				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
 					(Generic_int.to_string m') p (Generic_int.to_string m))))
 		params
-
-
-(*** testing part: comment it before archiving ***)
-(*let test params args =
-	Printf.printf "argument: ";
-	List.iter (fun e -> Irg.print_expr e; print_string ", ") args;
-	print_char '\n';
-	let cnt = ref 0 in
-	let vals = List.map (fun _ -> incr cnt; Irg.EINLINE (Printf.sprintf "p%d" !cnt)) args in
-	let r = decode_parameters params args vals in
-	List.iter
-		(fun (n, e) ->
-			Printf.printf "\tparameter %s: " n;
-			Irg.print_expr e;
-			print_char '\n')
-		r;
-	print_char '\n'
-
-let c32 = Irg.CARD(16)
-let ref_x = Irg.REF "x"
-let ref_y = Irg.REF "y"
-
-let _ =
-	Irg.dump_type := false;
-	Irg.add_symbol "x" (Irg.PARAM ("x", Irg.TYPE_EXPR c32));
-	Irg.add_symbol "y" (Irg.PARAM ("y", Irg.TYPE_EXPR c32));
-	test ["x"] [ref_x];
-	test ["x"] [add ref_x (csti 1)];
-	test ["x"] [shl ref_x (csti 4); getb ref_x (csti 15) (csti 12)];
-	test ["x"] [shl (add ref_x (csti 1)) (csti 4); getb ref_x (csti 15) (csti 12)];
-	test ["x"] [getb ref_x (csti 15) (csti 8); getb ref_x (csti 7) (csti 0)];
-	test ["x"] [add (getb ref_x (csti 15) (csti 8)) (csti 3); getb ref_x (csti 7) (csti 0)];
-	test ["x"; "y"] [concat ref_x ref_y];
-	test ["x"; "y"] [concat (getb ref_x (csti 15) (csti 8)) ref_y; getb ref_x (csti 7) (csti 0)]
-*)
