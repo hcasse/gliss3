@@ -797,7 +797,7 @@ let output_table_C_decl out dt dl =
 			[] ->
 				s
 			| a::b ->
-				aux b (if (String.length s)=0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
+				aux b (if (String.length s)=0 then (Printf.sprintf "%lu" a) else (s^"_"^(Printf.sprintf "%lu" a)))
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->
@@ -1011,6 +1011,16 @@ let output_table_C_decl_gen fetch_size out dt dl =
 				Printf.fprintf out ",\n";
 			produce_decode_ent (i+1))
 	in
+	let to_C_list mask =
+		let list = Generic_int.to_Int32_list mask in
+		let rec aux l comma =
+			match l with
+			| [] -> ""
+			| a::b ->
+				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
+		in
+			aux false list
+	in
 	(* !!DEBUG!! *)(*
 	match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
@@ -1030,11 +1040,13 @@ let output_table_C_decl_gen fetch_size out dt dl =
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
-		(* !!TODO!! param mask (gen/not gen) *)
-		if fetch_size != 0 then
-			Printf.fprintf out "static Table_Decodage _table%s = {0X%s, table_table%s};\n" name (Generic_int.to_string l_mask) name
+		if fetch_size != fetch_generic then
+			Printf.fprintf out "static Table_Decodage _table%s = {0X%s%s, table_table%s};\n" name (Generic_int.to_string l_mask) (Generic_int.get_C_const_suffix l_mask) name
 		else
-			();
+			(Printf.fprintf out "static mask_t mask%s = {\n\t%s," name (to_C_list l_mask);
+			Printf.fprintf out "\t%d};\n" (Generic_int.length l_mask);
+			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
+			);
 		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
 		Printf.fprintf out "\n"
 
@@ -1192,18 +1204,17 @@ let output_all_table_C_decl out =
 	let fetch_size = choose_fetch_size ()
 	in (* output the declaration of struct Table_Decodage *)
 	let output_table_type_decl _ =
-		if fetch_size == 0 then
+		if fetch_size == fetch_generic then
 			(* generic, mask is not an uintN_t here *)
-			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tlength;\n} mask_t;\n\n";
-			output_string out "typedef struct {\n\tmask_t\tmask0;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
+			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tbit_length;\n} mask_t;\n\n";
+			output_string out "typedef struct {\n\tmask_t\tmask;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 		else
-			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask0;\n" fetch_size;
+			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask;\n" fetch_size;
 			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 	in
 	let aux dl dt =
-		(* TODO: parametrize with fetch_size *)
 		output_table_C_decl out dt dl
 	in
 	let dl  = sort_dectree_list (build_dec_nodes 0)

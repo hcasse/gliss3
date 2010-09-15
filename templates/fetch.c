@@ -66,17 +66,17 @@ $(if is_RISC)
 	on conserve seulement les bits indiqués par le masque
 	et on les concatène pour avoir un nombre sur bits
 
-	on suppose que le masque n'a pas plus de $(C_inst_size) bits à 1,
+	on suppose que le masque n'a pas plus de 32 bits à 1,
 	sinon débordement
 
 	instr : instruction (de $(C_inst_size) bits)
 	mask  : masque ($(C_inst_size) bits aussi)
 */
-static uint$(C_inst_size)_t valeur_sur_mask_bloc(uint$(C_inst_size)_t instr, uint$(C_inst_size)_t mask)
+static uint32_t valeur_sur_mask_bloc(uint$(C_inst_size)_t instr, uint$(C_inst_size)_t mask)
 {
 	int i;
 	uint$(C_inst_size)_t tmp_mask;
-	uint$(C_inst_size)_t res = 0;
+	uint32_t res = 0;
 
 	/* on fait un parcours du bit de fort poids de instr[0]
 	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
@@ -101,14 +101,14 @@ static uint$(C_inst_size)_t valeur_sur_mask_bloc(uint$(C_inst_size)_t instr, uin
 /* Fonctions Principales */
 $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t code)
 {
-	uint$(C_inst_size)_t valeur;
+	uint32_t valeur;
 	Table_Decodage *ptr;
 	Table_Decodage *ptr2;
 
 	ptr2 = table;
 	do
 	{
-                valeur = valeur_sur_mask_bloc(code, ptr2->mask0);
+                valeur = valeur_sur_mask_bloc(code, ptr2->mask);
                 ptr  = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
 	}

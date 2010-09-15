@@ -287,22 +287,25 @@ let rec to_string gi =
 	| a::b ->
 		let gi2 = {length = gi.length - 32; number = b} in
 		let mask = if gi.length < 32 then Int32.sub (Int32.shift_left Int32.one gi.length) Int32.one else Int32.minus_one in
-		((to_string gi2) ^ if b == [] then Printf.sprintf "%X" (Int32.to_int a) else Printf.sprintf "%08X" (Int32.to_int (Int32.logand a mask)))
+		((to_string gi2) ^ if b == [] then Printf.sprintf "%lX" a else Printf.sprintf "%08lX" (Int32.logand a mask))
 	| [] -> ""
 
 
+(* produces the suffix needed in C for the given number translated in C, currently only suffix for 64 bit const is returned *)
+let get_C_const_suffix gi =
+	if gi.length > 32 && gi.length <= 64 then "LL" else ""
+	
+
 (* returns the bits of the number as an Int32 list with left justified msb at head of list,
  * last element is left justified lsb (only msb are significative),
- * used to output as a C uint32_t list *)
+ * used to output as a C uint32_t list, bits ordered as read from memory *)
 let to_Int32_list gi =
-	let remainder = gi.length mod 32
-	in
+	let remainder = gi.length mod 32 in
 	let shift_val =
 		if remainder == 0 then
 			0
 		else
 			32 - remainder
 	in
-	let pre_res = shift_left gi shift_val
-	in
+	let pre_res = shift_left gi shift_val in
 		List.rev pre_res.number
