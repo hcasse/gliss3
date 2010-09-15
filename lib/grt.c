@@ -23,6 +23,28 @@
 #include <gliss/error.h>
 #include <gliss/grt.h>
 
+/**
+ * Convert float to 32-bits, bit to bits.
+ * @param 	Float to convert.
+ * @return	Converted float.
+ */
+uint32_t gliss_f2bits(float f) {
+	union { uint32_t i; float f; } u;
+	u.f = f;
+	return u.i;
+}
+
+/**
+ * Convert double to 64-bits, bit to bits.
+ * @param 	Double to convert.
+ * @return	Converted double.
+ */
+uint64_t gliss_d2bits(double d) {
+	union { uint64_t i; double d; } u;
+	u.d = d;
+	return u.i;
+}
+
 
 uint32_t gliss_rotate_left32(uint32_t v, int r)
 {

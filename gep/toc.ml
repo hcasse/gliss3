@@ -1,8 +1,6 @@
 (*
- * GLISS V2
- * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
- *
- * This file is part of OGliss.
+ * GLISS V2 -- translator from SimNML action to C
+ * Copyright (c) 2008-10, IRIT - UPS <casse@irit.fr>
  *
  * GLISS V2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +21,7 @@
 (*
   #directory "../irg";;
   #directory "../gep";;
-  
+
   #load "unix.cma";;
   #load "str.cma";;
   #load "config.cmo";;
@@ -1330,13 +1328,6 @@ and gen_bitfield info typ expr lo up =
 		| Irg.CAST(_, expr) -> is_const expr
 		| _ -> false in
 
-	(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10000000000000!) *)
-	let const_val e =
-		match e with
-		| Irg.CARD_CONST(i32) -> Int32.to_int i32
-		| Irg.CARD_CONST_64(i64) -> Int64.to_int i64
-		| _ -> failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)" in
-
 	let bitorder_to_int bo =
 		match bo with
 		| LOWERMOST -> 0
@@ -1356,30 +1347,28 @@ and gen_bitfield info typ expr lo up =
 		if arg3 then Printf.fprintf info.out ", %s )" (string_of_int b_o)
 		else output_string info.out ")" in
 
-	(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
-	if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
-		output_field_common_C_code "" lo up false 0
-	else
-		begin
-		let bo = bitorder_to_int info.bito
-		in
-		(* 2 const => we can decide right now if inversion is to be done or not *)
-		if (is_const lo) && (is_const up) then
-			begin
-			if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
-				if bo != 0 then
-					output_field_common_C_code "_inverted" up lo false 0
-				else
-					output_field_common_C_code "" up lo false 0
-			else
-				if bo != 0 then
-					output_field_common_C_code "" lo up false 0
-				else
-					output_field_common_C_code "_inverted" lo up false 0
-			end
-		else
-			output_field_common_C_code "_generic" lo up true bo;
-		end
+	let output_bit b =
+		Printf.fprintf info.out "%s_bit%s(" info.proc (type_to_mem (convert_type (Sem.get_type_expr expr)));
+		gen_expr info expr;
+		output_string info.out ", ";
+		gen_expr info b;
+		output_char info.out ')' in
+
+	try
+
+		(* check constant bounds *)
+		let up, lo = if info.bito = UPPERMOST then lo, up else up, lo in
+		let uc = Sem.to_int32 (Sem.eval_const up) in
+		let lc = Sem.to_int32 (Sem.eval_const lo) in
+		let cmp = Int32.compare uc lc in
+
+		(* generate ad-hoc field access *)
+		if cmp = 0 then output_bit up else
+		output_field_common_C_code (if cmp > 0 then "" else"_inverted") up lo false 0
+
+	(* no constant bounds *)
+	with Sem.SemError _ ->
+		output_field_common_C_code "_generic" lo up true (bitorder_to_int info.bito)
 
 
 (** Test if a statement is composed of multiple statements.
@@ -1427,105 +1416,6 @@ let rec gen_stat info stat =
 			true
 			args) in
 
-	let set_field typ id idx lo up expr =
-		let rec is_const e =
-			match e with
-			Irg.CONST(_, _) -> true
-			| Irg.ELINE(_, _, ee) -> is_const ee
-			| _ -> false
-		in
-		(* we assume bit position expressions will be only int32 (or int64, but we shouldn't have int64, we won't access the bit #10.000.000.000.000!) *)
-		let const_val e =
-			match e with
-			Irg.CARD_CONST(i32) ->
-				Int32.to_int i32
-			| Irg.CARD_CONST_64(i64) ->
-				Int64.to_int i64
-			| _ ->
-					failwith "shouldn't happen ! (toc.ml::gen_expr::Irg.BITFIELD::const_val)"
-		in
-		let bitorder_to_int bo =
-			match bo with
-			LOWERMOST -> 0
-			| UPPERMOST -> 1
-		in
-		let transform_expr sufx a b arg3 b_o =
-			let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o))
-			in
-			let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx)
-			in
-			if lo = Irg.NONE then
-				expr
-			else
-				(* !!DEBUG!! *)
-				(*begin
-				print_string "set_field, typ=";Irg.print_type_expr typ;print_string (", id=" ^ id);
-				if idx = Irg.NONE then
-					begin print_string ", REF{";Irg.print_expr (Irg.REF id); print_string "},type=";
-					Irg.print_type_expr (Sem.get_type_expr (Irg.REF id)) end
-				else
-					begin print_string ", ITM{";Irg.print_expr (Irg.ITEMOF (typ, id, idx)); print_string "},type=";
-					Irg.print_type_expr (Sem.get_type_expr (Irg.ITEMOF(typ,id,idx))) end;
-				print_string ",  expr=...";(*Irg.print_expr expr;*) print_string ",typ(expr)="; Irg.print_type_expr (Sem.get_type_expr expr);
-				print_string (", typ->%%d=" ^ (type_to_mem (convert_type typ)));
-				print_string "\n";*)
-
-				Irg.CANON_EXPR (
-					typ,
-					Printf.sprintf "%s_set_field%s%s"
-					(* !!DEBUG!! we'd better use the type of the expr which is gonna be bit-manipulated *)
-					(* this expr is REF(id) or ITEMOF(typ, id, idx) *)
-						info.proc (type_to_mem (convert_type (Sem.get_type_expr e))) sufx,
-						(*info.proc (type_to_mem (convert_type typ)) sufx,*)
-					if arg3 then
-					[	if idx = Irg.NONE then Irg.REF id
-						else Irg.ITEMOF (typ, id, idx);
-						expr;
-						a;
-						b;
-						e_bo
-					]
-					else
-					[	if idx = Irg.NONE then Irg.REF id
-						else Irg.ITEMOF (typ, id, idx);
-						expr;
-						a;
-						b
-					]
-				) (* !!DEBUG!! *)(*end*)
-		in
-		(* !!DEBUG!! *)
-		(*print_string "field up=";Irg.print_expr up;
-		print_string ", lo=";Irg.print_expr lo;*)
-		(* if 1 bit is extracted or written, we do not have to care about possible inversion *)
-		if (lo = up) || ((is_const lo) && (is_const up) && (const_val (Sem.eval_const lo) == const_val (Sem.eval_const up))) then
-			transform_expr "" up lo false 0
-		else
-			begin
-			let bo = bitorder_to_int info.bito
-			in
-			(* 2 const => we can decide right now if inversion is to be done or not *)
-			if (is_const lo) && (is_const up) then
-				begin
-				(* !!DEBUG!! *)
-				(*print_string "[<rien>/inv]";*)
-				if (const_val (Sem.eval_const lo)) < (const_val (Sem.eval_const up)) then
-					if bo != 0 then
-						transform_expr "_inverted" up lo false 0
-					else
-						transform_expr "" up lo false 0
-				else
-					if bo != 0 then
-						transform_expr "" lo up false 0
-					else
-						transform_expr "_inverted" lo up false 0
-				end
-			else
-				transform_expr "_generic" lo up true bo;
-				(* !!DEBUG!! *)
-				(*print_string "[gen]"*)
-			end;
-	in
 	match stat with
 	| Irg.NOP -> ()
 
@@ -1540,14 +1430,14 @@ let rec gen_stat info stat =
 				if idx <> Irg.NONE then
 					(out "["; gen_expr info idx; out "]");
 				out " = ";
-				gen_expr info (set_field typ id idx lo up expr);
+				gen_expr info (set_field info typ id idx lo up expr);
 				out ";"
 			| Irg.REG _ ->
 				out (state_macro info id);
 				if idx <> Irg.NONE then
 					(out "["; gen_expr info idx; out "]");
 				out " = ";
-				gen_expr info (set_field typ id idx lo up expr);
+				gen_expr info (set_field info typ id idx lo up expr);
 				out ";"
 			| Irg.MEM _ ->
 				out (Printf.sprintf "%s_mem_write%s(" info.proc
@@ -1556,7 +1446,7 @@ let rec gen_stat info stat =
 				out ", ";
 				gen_expr info idx;
 				out ", ";
-				gen_expr info (set_field typ id Irg.NONE lo up expr);
+				gen_expr info (set_field info typ id Irg.NONE lo up expr);
 				out ");"
 			| s ->
 				Printf.printf "==> %s\n" id;
@@ -1627,6 +1517,59 @@ let rec gen_stat info stat =
 	| Irg.SETSPE _ ->
 		failwith "must have been removed"
 
+(** Generate the code for setting a field.
+	@param typ	Type of set state item.
+	@param id	Identifier of state item.
+	@param idx	Index for an array state item.
+	@param lo	Lower bound.
+	@param up	Upper bound.
+	@param expr	Value to set. *)
+and set_field info typ id idx lo up expr =
+
+	let transform_expr sufx a b arg3 b_o =
+		let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o)) in
+		let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx) in
+		if lo = Irg.NONE then expr
+		else
+
+			Irg.CANON_EXPR (
+				typ,
+				Printf.sprintf "%s_set_field%s%s"
+					info.proc (type_to_mem (convert_type (Sem.get_type_expr e))) sufx,
+				if arg3 then
+				[	if idx = Irg.NONE then Irg.REF id
+					else Irg.ITEMOF (typ, id, idx);
+					expr;
+					a;
+					b;
+					e_bo
+				]
+				else
+				[	if idx = Irg.NONE then Irg.REF id
+					else Irg.ITEMOF (typ, id, idx);
+					expr;
+					a;
+					b
+				]
+			)
+	in
+
+	try
+
+		(* check constant bounds *)
+		let up, lo = if info.bito = UPPERMOST then lo, up else up, lo in
+		let uc = Sem.to_int32 (Sem.eval_const up) in
+		let lc = Sem.to_int32 (Sem.eval_const lo) in
+		let cmp = Int32.compare uc lc in
+
+		(* generate ad-hoc field set *)
+		transform_expr (if cmp > 0 then "" else"_inverted") up lo false 0
+
+	(* no constant bounds *)
+	with Sem.SemError _ ->
+		transform_expr "_generic" lo up true (if info.bito = LOWERMOST then 0 else 1);
+
+
 and gen_call info name =
 
 	(* recursive call ? *)
@@ -1668,7 +1611,7 @@ let find_recursives info name =
 				| Irg.NOP -> recs
 				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
 				| Irg.EVAL name -> look_attr name stack recs
-				| Irg.EVALIND _ -> failwith "find_recursives: EVALIND"
+				| Irg.EVALIND _ -> raise (PreError (fun ch -> Printf.fprintf ch "unsupported form"))
 				| Irg.SET _ -> recs
 				| Irg.CANON_STAT _ -> recs
 				| Irg.ERROR _ -> recs
@@ -1682,7 +1625,9 @@ let find_recursives info name =
 					(* !!TODO!! must no occurs next *)
 					(*failwith "find_recursives: SETSPE"*)
 					recs
-				| Irg.LINE (_, _, s) -> look_stat s recs
+				| Irg.LINE (file, line, s) ->
+					(try look_stat s recs
+					with PreError f -> raise (LocError (file, line, f)))
 				| Irg.INLINE _ -> recs in
 
 			match Iter.get_attr info.inst name with

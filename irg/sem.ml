@@ -886,13 +886,14 @@ let get_logic bop e1 e2 =
 	@param e2	Second operand.
 	@return		Checked expression. *)
 let get_bin bop e1 e2 =
-	(* TODO convert arguments to card *)
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
 	| UNKNOW_TYPE, _
 	| _, UNKNOW_TYPE ->
 		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| NO_TYPE, _
+	| _, NO_TYPE -> BINOP(NO_TYPE, bop, e1, e2)
 	| _, _ ->
 		let s1 = get_type_length t1 in
 		let s2 = get_type_length t2 in
@@ -1265,7 +1266,9 @@ let check_switch_expr test list_case default=
 	@param id	the id to check
 	@return True if the id is a valid memory location, false otherwise *)
 let rec is_location id=
-	let sym=Irg.get_symbol id
+	let sym =
+		try Irg.get_symbol id
+		with Irg.Symbol_not_found _ -> raise (SemError (Printf.sprintf "unknown symbol: %s" id))
 	and is_location_param id=
 		let sym=Irg.get_symbol id
 		in
@@ -1697,6 +1700,11 @@ let make_set loc expr =
 	if ltype = etype then Irg.SET (loc, expr) else
 	match ltype, etype with
 
+	(* HKC-SET *)
+	| _, NO_TYPE
+	| NO_TYPE, _ -> SET (loc, expr)
+	(* /HKC-SET *)
+
 	| BOOL, INT _
 	| BOOL, CARD _
 
@@ -1725,10 +1733,5 @@ let make_set loc expr =
 			output_char stderr '\n';
 			res
 
-	| _ ->	(* !!DEBUG!! *)
-		(*print_string "types, loc:";
-		Irg.print_type_expr ltype;
-		print_string ", e:";
-		Irg.print_type_expr etype;
-		print_string "\n";*)
+	| _ ->
 		raise (SemError "unsuppored assignment")
