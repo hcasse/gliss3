@@ -9,13 +9,13 @@
 
 @include gliss-intro.thot
 @include gliss-tuto.thot
-@include gliss-mods.thot
-@include gliss-spec.thot
 @include gliss-cmds.thot
+@include gliss-spec.thot
+@include gliss-mods.thot
 
 ====== Generated Sources ======
 
 @include gliss-temps.thot
 @include gliss-optimizing.thot
-
+@include gliss-hint.thot
 

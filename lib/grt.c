@@ -23,6 +23,28 @@
 #include <gliss/error.h>
 #include <gliss/grt.h>
 
+/**
+ * Convert float to 32-bits, bit to bits.
+ * @param 	Float to convert.
+ * @return	Converted float.
+ */
+uint32_t gliss_f2bits(float f) {
+	union { uint32_t i; float f; } u;
+	u.f = f;
+	return u.i;
+}
+
+/**
+ * Convert double to 64-bits, bit to bits.
+ * @param 	Double to convert.
+ * @return	Converted double.
+ */
+uint64_t gliss_d2bits(double d) {
+	union { uint64_t i; double d; } u;
+	u.d = d;
+	return u.i;
+}
+
 
 uint32_t gliss_rotate_left32(uint32_t v, int r)
 {
@@ -190,16 +212,12 @@ double gliss_invertd(double v, uint32_t n)
 }
 
 /* for these functions no inversion is done and l <= u */
+#ifdef COMPAT
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
     uint32_t mask = gliss_mask32(u - l + 1) << l;
-
-    /* !!DEBUG!! */
-    //printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
-    //printf("(mask=%08X) ", mask);
-    //printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
-
     return (v & ~mask) | ((s << l) & mask);
 }
+#endif
 
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = gliss_mask64(u - l + 1) << l;

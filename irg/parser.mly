@@ -395,42 +395,6 @@ OpSpec:
 
 
 /* external attribute */
-/*ExtendSpec:
-	ExtendHeader AttrDefList
-		{
-			Irg.attr_unstack $2;
-			match $1 with
-			| Irg.AND_MODE (id, pars, expr, attrs) ->
-				Irg.param_unstack pars;
-				Irg.rm_symbol id;
-				Irg.add_symbol id (Irg.AND_MODE (id, pars, expr, attrs @ $2))
-			| Irg.AND_OP (id, pars, attrs) ->
-				Irg.param_unstack pars;
-				Irg.rm_symbol id;
-				Irg.add_symbol id (Irg.AND_OP (id, pars, attrs @ $2))
-			| _ ->
-				()
-		}
-;
-
-ExtendHeader:
-	EXTEND ID
-		{
-			let sym = Irg.get_symbol $2 in
-			(match sym with
-			| Irg.AND_MODE (_, pars, _, _)
-			| Irg.AND_OP (_, pars, _) ->
-				List.iter Irg.add_param pars
-			| Irg.UNDEF ->
-				raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" $2))
-			| _ ->
-				raise (Irg.IrgError (Printf.sprintf "can not extend %s" $2)));
-			sym
-		}
-;*/
-
-
-/* trying to extend several ops at same time */
 ExtendSpec:
 	ExtendHeader AttrDefList
 		{
@@ -619,35 +583,16 @@ Statement:
 |	ACTION
 		{ Irg.EVAL "action" }
 |	ID
-		{
-		Irg.EVAL $1
-		(*if Irg.is_defined $1
-			then
-				Irg.EVAL $1
-			else
-				 raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))*)
-
-
-		}
+		{ Irg.EVAL $1 }
 |	ID DOT ACTION
 		{ Irg.EVALIND ($1, "action")  }
 |	ID DOT ID
 		{ Irg.EVALIND ($1, $3) }
 |	Location EQ Expr
 		{
-			if (Sem.is_setspe $1)
-				then
-					Irg.SETSPE ($1,$3)
-				else
-					if not ((Sem.get_type_expr $3)=Irg.STRING ||(Sem.get_type_expr $3)=Irg.NO_TYPE )
-						then
-							Sem.make_set $1 $3
-						else
-							let temp = match Sem.get_type_expr $3 with
-								Irg.STRING->"string"
-								|_->"<no_type>"
-							in
-							raise (Sem.SemError (Printf.sprintf "unable to assign an expression of type %s to a location" temp ))
+			if Sem.is_setspe $1
+			then Irg.SETSPE ($1,$3)
+			else Sem.make_set $1 $3
 		}
 |	ConditionalStatement
 		{ $1 }
