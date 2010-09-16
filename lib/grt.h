@@ -30,6 +30,23 @@
 #define GLISS_GRT_INIT(s)
 #define GLISS_GRT_DESTROY(s)
 
+/* compatibility */
+#ifndef INLINE
+#	if __GNUC__
+#		if !__GNUC_STDC_INLINE__
+#			define INLINE extern inline
+#		else
+#			define INLINE inline
+#		endif
+#	else
+#		ifdef _MSC_VER
+#			define INLINE __forceinline
+#		else
+#			define INLINE	inline
+#		endif
+#	endif
+#endif
+
 /* useful */
 uint32_t gliss_f2bits(float f);
 uint64_t gliss_d2bits(double f);
@@ -91,12 +108,18 @@ uint64_t gliss_exp64u(uint64_t v1, uint64_t v2);
  */
 
 /* simple set bit field (value to modify, set value, upper bits, lower bit) */
+#ifndef COMPAT
+INLINE uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
+    uint32_t mask = gliss_mask32(u - l + 1) << l;
+    return (v & ~mask) | ((s << l) & mask);
+}
+#endif
+
 #define gliss_set_field8(  v, s, u, l) ((int8_t)gliss_set_field32u((v), (s), (u), (l)))
 #define gliss_set_field8u( v, s, u, l) gliss_set_field32u((v), (s), (l), (u))
 #define gliss_set_field16( v, s, u, l) ((int16_t)gliss_set_field32u((v), (s), (u), (l)))
 #define gliss_set_field16u(v, s, u, l) gliss_set_field32u((v), (s), (l), (u))
 #define gliss_set_field32( v, s, u, l) ((int32_t)gliss_set_field32u((v), (s), (u), (l)))
-uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l);
 float gliss_set_fieldf(float v, uint32_t s, int32_t u, int32_t l);
 #define gliss_set_field64(v, s, u, l) ((int64_t)gliss_set_field64u(v, s, u, l))
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l);

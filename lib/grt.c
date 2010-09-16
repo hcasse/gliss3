@@ -212,16 +212,12 @@ double gliss_invertd(double v, uint32_t n)
 }
 
 /* for these functions no inversion is done and l <= u */
+#ifdef COMPAT
 uint32_t gliss_set_field32u(uint32_t v, uint32_t s, int32_t u, int32_t l) {
     uint32_t mask = gliss_mask32(u - l + 1) << l;
-
-    /* !!DEBUG!! */
-    //printf("gliss_set_field32u(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
-    //printf("(mask=%08X) ", mask);
-    //printf("0X%08X\n", (v & ~mask) | ((s << l) & mask));
-
     return (v & ~mask) | ((s << l) & mask);
 }
+#endif
 
 uint64_t gliss_set_field64u(uint64_t v, uint64_t s, int32_t u, int32_t l) {
 	uint64_t mask = gliss_mask64(u - l + 1) << l;

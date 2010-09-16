@@ -1563,7 +1563,7 @@ and set_field info typ id idx lo up expr =
 		let cmp = Int32.compare uc lc in
 
 		(* generate ad-hoc field set *)
-		transform_expr (if cmp > 0 then "" else"_inverted") up lo false 0
+		transform_expr (if cmp >= 0 then "" else"_inverted") up lo false 0
 
 	(* no constant bounds *)
 	with Sem.SemError _ ->
