@@ -30,6 +30,7 @@ exception IrgError of string
 (** May be set to true to dump line information during expression/statement
 	outpu. *)
 let dump_lines = ref false
+let dump_type = ref true
 
 (** Type expression *)
 type type_expr =
@@ -629,11 +630,6 @@ let rec output_expr out e =
 		let _ = List.fold_left print_arg true args in
 		output_string out ")"
 	| FIELDOF(t, e, n) ->
-		(* !!DEBUG!! *)
-		(*output_string out "(";
-		output_type_expr out t;
-		output_string out ":]";*)
-
 		output_string out e;
 		output_string out ".";
 		output_string out n
@@ -644,18 +640,8 @@ let rec output_expr out e =
 		output_string out "[";
 		output_expr out idx;
 		output_string out "]";
-		(* !!DEBUG!! *)
-		(*output_string out "(typ=";
-		output_type_expr out t;
-		output_string out ")"*)
 	| BITFIELD (t, e, l, u) ->
 		output_expr out e;
-
-		(* !!DEBUG!! *)
-		(*output_string out "[[";
-		output_type_expr out t;
-		output_string out "]]";*)
-
 		output_string out "<";
 		output_expr out l;
 		output_string out "..";
@@ -700,11 +686,12 @@ let rec output_expr out e =
 		output_expr out e;
 		if !dump_lines then output_string out ")"
 	| CONST (t, c) ->
-		output_string out "const(";
-		output_type_expr out t;
-		output_string out ", ";
+		if !dump_type then
+			(output_string out "const(";
+			output_type_expr out t;
+			output_string out ", ");
 		output_const out c;
-		output_string out ")"
+		if !dump_type then output_string out ")"
 	| EINLINE s ->
 		Printf.fprintf out "inline(%s)" s
 	| CAST (typ, expr) ->

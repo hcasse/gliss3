@@ -261,6 +261,25 @@ let str_to_int_n s n =
 			aux s (n+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (char01_to_int32 s.[n])) in
 	aux s 0 Generic_int.zero
 
+(** convert a string to an gen_int
+the string is supposed to represent a binary number (only 0 and 1) *)
+let str_to_gen_int s =
+	let size = String.length s in
+	let char01_to_int32 c =
+		match c with
+		| '0' ->
+			Int32.zero
+		| '1' ->
+			Int32.one
+		| _ ->
+			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int_n)") in
+	let rec aux s n accu =
+		if n = size then
+			accu
+		else
+			aux s (n+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (char01_to_int32 s.[n])) in
+	aux s 0 Generic_int.zero
+
 
 
 (* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
@@ -1043,7 +1062,8 @@ let output_table_C_decl_gen fetch_size out dt dl =
 		if fetch_size != fetch_generic then
 			Printf.fprintf out "static Table_Decodage _table%s = {0X%s%s, table_table%s};\n" name (Generic_int.to_string l_mask) (Generic_int.get_C_const_suffix l_mask) name
 		else
-			(Printf.fprintf out "static mask_t mask%s = {\n\t%s," name (to_C_list l_mask);
+			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (Generic_int.to_Int32_list l_mask)) (to_C_list l_mask);
+			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s;" name;
 			Printf.fprintf out "\t%d};\n" (Generic_int.length l_mask);
 			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
 			);

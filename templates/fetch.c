@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <$(proc)/mem.h>
 #include <$(proc)/fetch.h>
+$(if !is_RISC)#include <$(proc)/gen_int.h>$(end)
 
 #include "fetch_table.h"
 
@@ -99,16 +100,16 @@ static uint32_t valeur_sur_mask_bloc(uint$(C_inst_size)_t instr, uint$(C_inst_si
 
 
 /* Fonctions Principales */
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t code)
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t *code)
 {
 	uint32_t valeur;
 	Table_Decodage *ptr;
-	Table_Decodage *ptr2;
+	Table_Decodage *ptr2 = table;
+	*code = $(proc)_mem_read$(C_inst_size)(fetch->mem, address);
 
-	ptr2 = table;
 	do
 	{
-                valeur = valeur_sur_mask_bloc(code, ptr2->mask);
+                valeur = valeur_sur_mask_bloc(*code, ptr2->mask);
                 ptr  = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
 	}
@@ -120,91 +121,31 @@ $(else)
 
 /* here we deal with variable size instructions (CISC) */
 
-/* struct used to store masks and as buffer for instruction codes */
-/* chunks are arranged in the same order as in memory, msb first, lsb last */
-typedef struct {
-	uint32_t *mask;
-	int bit_length;
-} mask_t;
-
-
-/* shift a mask 1 bit to the left and add a given bit to the right,
- * mask should be long enough to add one bit */
-/*static void mask_left_shift_add_bit(mask_t *mask, uint32_t new_lsb)
-{
-	mask->bit_length++;
-	int n = (mask->bit_length / 32) + ((mask->bit_length % 32)? 1: 0);
-	uint32_t b1 = new_lsb, b2;
-	
-	for (int i = 0; i < n; i++) {
-		b2 = b1;
-		b1 = (0x80000000 & mask->mask[i]) >> 31;
-		mask->mask[i] = (mask->mask[i] << 1) | b2;
-	}
-}*/
-
-/* return bit n of a mask, result (0 or 1) is right justified in an uint32_t */
-static uint32_t get_bit_n(mask_t *mask, int n)
-{
-	if (n >= mask->bit_length)
-		/* index out of range, should be an error */
-		return 0;
-	int bit_idx = n % 32;
-	int idx = n / 32 + (bit_idx? 1: 0);
-	return ((mask->mask[idx] >> bit_idx) & 1)
-}
-
-/*static void set_bit_n(mask_t *mask, int n, uint32_t bit)
-{
-	if (n >= mask->bit_length)
-		return;
-	int bit_idx = n % 32;
-	int idx = n / 32 + (bit_idx? 1: 0);
-	uint64_t bit_mask = 1 << bit_idx;
-	mask->mask[idx] = (mask->mask[idx] & ~bit_mask) | (bit? bit_mask: 0);
-}*/
-
-/* generic version of valeur_sur_mask_bloc
- * inst->bit_length should be >= to mask->bit_length. we hope the result is 32 bit max as
- * it needs to be used as an array index so it mustn't be too huge or the fetch algorithm might be changed
- */
-static uint32_t value_on_mask(mask_t *inst, mask_t *mask)
-{
-	uint32_t res = 0;
-	int k = 0;
-	for (int i = mask->bit_length - 1; i >= 0; i++) {
-		if (get_bit_n(mask, i)) {
-			k++;
-			if (k > 32)
-				/* should be an error */
-				$(proc)_error("ERROR: a value on mask is more than 32 bit long\n");
-			res = ((res << 1) | get_bit_n(inst, i));
-		}
-	}
-}
-
 
 /* Fonctions Principales */
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address)
+
+/* code must be already initialized so it could contain any instruction (should be init to max size instr) */
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code)
 {
 	uint32_t value;
 	
 	Table_Decodage *ptr;
 	Table_Decodage *ptr2;
-	/* init a buffer for the read instr, size should max instr size for the given arch */
-	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	mask_t inst_buff = {i_buff, 0};
+	/* init a buffer for the read instr, size should be max instr size for the given arch */
+	/* code is the buffer, its already init */
+	/*uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];*/
+	/*mask_t inst_buff = {i_buff, 0}; */
 	ptr2 = table;
 	do
 	{
-		/* if inst_buffer has not enough bits to apply mask, read and add what's needed, read a chunk (like in mask_t) at a time */
-		while (inst_buff->bit_length < ptr2->mask->bit_length) {
-			i_buff[inst_buff->bit_length >> 5] = $(proc)_mem_read32(fetch->mem, address + (inst_buff->bit_length >> 2));
-			inst_buff->bit_length += 32;
+		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
+		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
+			set_mask_chunk(code, get_mask_length(code) >> 5, $(proc)_mem_read32(fetch->mem, address + (get_mask_length(code) >> 2)));
+			set_mask_length(get_mask_length(code) + 32);
 		}
 			
 		/* compute value on mask */
-		value = value_on_mask(&inst_buff, ptr2->mask);
+		value = value_on_mask(code, ptr2->mask);
                 ptr  = ptr2;
 		ptr2 = ptr->table[value].ptr;
 	}
