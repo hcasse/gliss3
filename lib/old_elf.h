@@ -46,9 +46,6 @@ gliss_address_t gliss_loader_start(gliss_loader_t *loader);
 
 
 /* system initialization (used internally during platform and state initialization) */
-/*void gliss_stack_fill_env(gliss_loader_t *loader, gliss_platform_t *platform, gliss_env_t *env);
-void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);*/
-/* compute the initial brk value */
 gliss_address_t gliss_brk_init(gliss_loader_t *loader);
 
 /* section access */
@@ -85,8 +82,6 @@ typedef struct {
 	} bind;
 } gliss_loader_sym_t;
 int gliss_loader_count_syms(gliss_loader_t *loader);
-/* the name of an ELF "element" (symbol, section...) cannot be accessed directly from an Elf32_* */
-/*const char *gliss_loader_name_of_sym(gliss_loader_t *loader, int sym);*/
 void gliss_loader_sym(gliss_loader_t *loader, int sym, gliss_loader_sym_t *data);
 
 

@@ -339,7 +339,11 @@ static memory_page_table_entry_t *mem_get_page(memory_64_t *mem, gliss_address_t
 		pte->addr = addr;
 
 		/* allocation of the page */
-		pte->storage = (uint8_t *)calloc(MEMORY_PAGE_SIZE,1);
+#		ifndef GLISS_NO_PAGE_INIT
+			pte->storage = (uint8_t *)calloc(MEMORY_PAGE_SIZE,1);
+#		else
+			pte->storage = (uint8_t *)malloc(MEMORY_PAGE_SIZE,1);
+#		endif
 		assertp(pte->storage != NULL, "Failed to allocate memory in mem_get_page\n");
 
 		/* adding the memory page to the list of memory page size entry*/

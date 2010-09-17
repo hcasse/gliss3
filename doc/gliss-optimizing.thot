@@ -117,11 +117,10 @@ in order to select the desired decode module
 
 Here two options which could possibly accelerate the simulation:
 
-<code>
--on GLISS_INSTR_FAST_STRUCT // Modifies the way an instruction is represented in GLISS
--on GLISS_NO_MALLOC         // Pre-allocated instructions objects at init time
-                            // instead of doing so dynamically at decode time
-</code>
+  * ''-on GLISS_INSTR_FAST_STRUCT'' -- modifies the way an instruction is represented in GLISS (in a more compact and fast way)
+  * ''-on GLISS_NO_MALLOC'' -- pre-allocated instructions objects at init time
+instead of doing so dynamically at decode time
+  * ''-on NO_PAGE_INIT'' -- disable initialization of memory page with 0 (improve speed)
 
 
 === Profiling ===

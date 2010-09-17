@@ -10,8 +10,12 @@ OBJECTS=$$(SOURCES:.c=.o)
 CLEAN = $$(OBJECTS)
 DISTCLEAN = lib$(proc).a
 
-CFLAGS += -g3 -O3 $(foreach modules)$(CFLAGS)$(end) -I../include 
+CFLAGS += -g3 -O3 $(foreach modules)$(CFLAGS)$(end) -I../include
 #-fno-jump-tables
+
+$(if NO_PAGE_INIT)
+CFLAGS += -D$(PROC)_NO_PAGE_INIT
+$(end)
 
 all: lib$(proc).a
 

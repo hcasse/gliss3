@@ -26,7 +26,7 @@
  * This module is mandatory and is currently implemented by
  * the @ref fast_mem and @ref vfast_mem .
  *
- * @author R. Vaillant 
+ * @author R. Vaillant
  *
  * @page vfast_mem	vfast_mem module
  *
@@ -45,6 +45,8 @@
 
 #define little	0
 #define big		1
+
+//#define STATS		// define it to collect and print statistics
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\
@@ -166,6 +168,10 @@ typedef struct gliss_memory_t
 	                     it permits to fetch informations about image structure
 	                     via an optionnal external system */
     page_entry_t* hashtable[HASHTABLE_SIZE];
+#	ifdef STATS
+	int stats_pages[HASHTABLE_SIZE];
+	int stats_accesses[HASHTABLE_SIZE];
+#	endif
 } memory_64_t;
 
 // Functions ----------------------------------------------------------------------------
@@ -180,13 +186,8 @@ gliss_memory_t* gliss_mem_new(void)
     unsigned int i;
     memory_64_t*   mem;
 
-    mem = (memory_64_t *)malloc(sizeof(memory_64_t));
-    if (mem != NULL) mem->image_link = NULL;
-    else             return NULL;
-
-    for(i = 0; i < HASHTABLE_SIZE; ++i)
-        mem->hashtable[i] =NULL;
-
+    mem = (memory_64_t *)calloc(sizeof(memory_64_t), 1);
+    assertp(mem != NULL, "no more memory")
     return (gliss_memory_t*) mem;
 }
 
@@ -201,6 +202,30 @@ void gliss_mem_delete(gliss_memory_t *memory)
     int i;
     page_entry_t* current;
     page_entry_t* tmp;
+
+	// dump statistics if activated
+#	ifdef STATS
+	{
+		int sum_pages = memory->stats_pages[0],
+			sum_accesses = memory->stats_accesses[0],
+			max_pages = memory->stats_pages[0],
+			min_pages = memory->stats_pages[0],
+			max_accesses = memory->stats_accesses[0],
+			min_accesses = memory->stats_accesses[0];
+		for(i = 1; i < HASHTABLE_SIZE; i++) {
+			int pages = memory->stats_pages[i],
+				accesses = memory->stats_accesses[i];
+			sum_pages += pages;
+			sum_accesses += accesses;
+			if(pages < min_pages) min_pages = pages;
+			if(pages > max_pages) max_pages = pages;
+			if(accesses < min_accesses) min_accesses = accesses;
+			if(accesses > max_accesses) max_accesses = accesses;
+		}
+		printf("pages: %f [%d, %d]\n", (float)sum_pages / HASHTABLE_SIZE, min_pages, max_pages);
+		printf("accesses: %f [%d, %d]\n", (float)sum_accesses / HASHTABLE_SIZE, min_accesses, max_accesses);
+	}
+#	endif
 
     // get right type
 	memory_64_t *mem64 = (memory_64_t *)memory;
@@ -242,15 +267,24 @@ static page_entry_t* mem_get_page(memory_64_t* mem, gliss_address_t addr)
     {
         entry = (page_entry_t*)malloc( sizeof(page_entry_t) );
         entry->storage = (uint8_t*)malloc(sizeof(uint8_t) * MEM_PAGE_SIZE);
-        memset(entry->storage, 0, sizeof(uint8_t) * MEM_PAGE_SIZE); // TODO : Est-ton obligé de garantir ça ??
+#		ifndef GLISS_NO_PAGE_INIT
+        	memset(entry->storage, 0, sizeof(uint8_t) * MEM_PAGE_SIZE); // TODO : Est-ton obligé de garantir ça ??
+#		endif
         entry->next = NULL;
         entry->addr = addr;
         h[hash1] = entry;
+#		ifdef STATS
+			mem->stats_pages[hash1]++;
+#		endif
         return entry;
     }
 
-    if(entry->addr == addr)
+    if(entry->addr == addr) {
+#		ifdef STATS
+			mem->stats_accesses[hash1]++;
+#		endif
         return entry;
+	}
 
     while(entry->next != NULL)
     {
@@ -264,10 +298,16 @@ static page_entry_t* mem_get_page(memory_64_t* mem, gliss_address_t addr)
     {
         tmp = (page_entry_t*)malloc( sizeof(page_entry_t) );
         tmp->storage = (uint8_t*)malloc(sizeof(uint8_t) * MEM_PAGE_SIZE);
-        memset(tmp->storage, 0, sizeof(uint8_t) * MEM_PAGE_SIZE); // TODO : Est-ton obligé de garantir ça ??
+#		ifndef GLISS_NO_PAGE_INIT
+        	memset(tmp->storage, 0, sizeof(uint8_t) * MEM_PAGE_SIZE); // TODO : Est-ton obligé de garantir ça ??
+#		endif
         entry->next = tmp;
         tmp->next   = NULL;
         tmp->addr   = addr;
+#		ifdef STATS
+			mem->stats_pages[hash1]++;
+			mem->stats_accesses[hash1]++;
+#		endif
         return tmp;
     }
 
@@ -493,9 +533,9 @@ uint16_t gliss_mem_read16(gliss_memory_t *mem, gliss_address_t address) {
         return *(uint16_t *)p;
     // unaligned !
 	else
-    { 
-        memcpy(val.bytes, p, 2); 
-        return val.half; 
+    {
+        memcpy(val.bytes, p, 2);
+        return val.half;
     }
 }
 // --------------------------------------------------------------------------------------
