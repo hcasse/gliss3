@@ -931,6 +931,11 @@ let output_table_C_decl out dt dl =
 		end
 
 
+exception CheckIsizeException
+(* special value for fetch size, represent generic fetch *)
+let fetch_generic = 0
+
+
 (* outputs the declaration of all structures related to the given DecTree dt in C language,
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
@@ -1032,7 +1037,7 @@ let output_table_C_decl_gen fetch_size out dt dl =
 	in
 	let to_C_list mask =
 		let list = Generic_int.to_Int32_list mask in
-		let rec aux l comma =
+		let rec aux comma l =
 			match l with
 			| [] -> ""
 			| a::b ->
@@ -1063,7 +1068,7 @@ let output_table_C_decl_gen fetch_size out dt dl =
 			Printf.fprintf out "static Table_Decodage _table%s = {0X%s%s, table_table%s};\n" name (Generic_int.to_string l_mask) (Generic_int.get_C_const_suffix l_mask) name
 		else
 			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (Generic_int.to_Int32_list l_mask)) (to_C_list l_mask);
-			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s;" name;
+			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s;" name name;
 			Printf.fprintf out "\t%d};\n" (Generic_int.length l_mask);
 			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
 			);
@@ -1131,9 +1136,6 @@ let sort_dectree_list_gen d_l =
 
 
 
-exception CheckIsizeException
-(* special value for fetch size, represent generic fetch *)
-let fetch_generic = 0
 
 
 let output_all_table_C_decl out =

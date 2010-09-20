@@ -171,6 +171,16 @@ let make_env info =
 		with
 			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with RISC ISA")
 	in
+	let to_C_list mask =
+		let list = Generic_int.to_Int32_list mask in
+		let rec aux comma l =
+			match l with
+			| [] -> ""
+			| a::b ->
+				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
+		in
+			aux false list
+	in
 	let max_op_nb = Iter.get_params_max_nb ()
 	in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
@@ -183,29 +193,24 @@ let make_env info =
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
 	let decoder_CISC inst idx out =
-		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
-		let mask = Fetch.str_to_gen_int string_mask in
-		let print_mask_decl _ =
-			Printf.fprintf out "\tuint32_t tab_mask%d[%d] = {%s};\n" idx (List.length (Generic_int.to_Int32_list mask)) (to_C_list mask);
-			Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" (Generic_int.length mask)
-		in
 		let extract _ = Printf.fprintf out "__EXTRACT(&mask%d, code_inst)" idx in
 		let exts n = Printf.fprintf out "__EXTS(&mask%d, code_inst, %d)" idx n in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
-	in
 	let output_mask_decl inst idx out =
 		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
 		let mask = Fetch.str_to_gen_int string_mask
 		in
-			Printf.fprintf out "\tuint32_t tab_mask%d[%d] = {%s};\n" idx (List.length (Generic_int.to_Int32_list mask)) (to_C_list mask);
-			Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" (Generic_int.length mask)
+			if min_size != max_size then
+				(Printf.fprintf out "\tuint32_t tab_mask%d[%d] = {" idx (List.length (Generic_int.to_Int32_list mask));
+				Printf.fprintf out "%s};\n" (to_C_list mask);
+				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Generic_int.length mask))
 	in
 
 	let add_mask_32_to_param inst idx _ _ dict =
-		("decoder", Templater.TEXT (if min_size == max_size then (decoder inst idx) else (decoder_CISC inst idx))) :: dict in
-		("mask_decl", Templater.TEXT (if min_size == max_size then () else (output_mask_decl inst idx))) :: dict in
+		("decoder", Templater.TEXT (if min_size == max_size then (decoder inst idx) else (decoder_CISC inst idx))) ::
+		("mask_decl", Templater.TEXT (output_mask_decl inst idx)) :: dict in
 
 	let add_size_to_inst inst dict =
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
