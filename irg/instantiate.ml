@@ -1424,7 +1424,16 @@ let instantiate_instructions name =
 		else
 			s_l
 	in
-	clean_instructions (aux [get_symbol name])
+	let rec instantiate_to_andop s_l =
+		let rec inst_one s =
+			match s with
+			| AND_OP(_, _, _) -> [s]
+			| OR_OP(_, str_list) -> List.flatten (List.map (fun x -> inst_one (get_symbol x)) str_list)
+			| _ -> failwith "shouldn't happen (instantiate.ml::instantiate_instructions::instantiate_to_andop::inst_one)"
+		in
+		List.flatten (List.map inst_one s_l)
+	in
+	clean_instructions (aux (instantiate_to_andop [get_symbol name]))
 
 
 

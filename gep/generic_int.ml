@@ -100,6 +100,7 @@ let right_shift_int32_list l n =
 	in
 	List.rev (aux (List.rev l) n Int32.zero)
 
+
 (* keep only the first n bits, unused bits get zeroed or dropped *)
 let rec clean_i32_list l n =
 	match l with
@@ -110,6 +111,7 @@ let rec clean_i32_list l n =
 			[ Int32.logand a (mask_i32 n)]
 		else
 			a :: (clean_i32_list b (n - 32))
+
 
 let rec compare_i32_list x y =
 		match x with
@@ -145,17 +147,45 @@ let expand_gen_int gi new_size =
 		number = clean_i32_list (add_zero_msb gi.number msb_to_add) new_size
 	}
 
+
+(** an "empty" generic int *)
+let null =
+	{
+		length = 0;
+		number = [Int32.zero];
+	}
+
+
 let zero =
 	{
 		length = 1;
-		number = [ Int32.zero ];
+		number = [Int32.zero];
 	}
+
 
 let one =
 	{
 		length = 1;
-		number = [ Int32.one ];
+		number = [Int32.one];
 	}
+
+
+(** produces a n bit number with all bits set *)
+let minus_one n =
+	let rec aux p =
+		if p == 0 then
+			[]
+		else
+			Int32.minus_one :: (aux (p - 1))
+	in
+	let remainder = n mod 32 in
+	let size = n / 32 in
+	let num = aux size in
+	{
+		length = n;
+		number = if remainder != 0 then (Int32.lognot (Int32.shift_right (Int32.of_string "0x80000000") (32 - remainder)))::num else num
+	}
+
 
 let of_int i =
 	{
@@ -163,72 +193,22 @@ let of_int i =
 		number = [Int32.of_int i];
 	}
 
-let lognot gi =
-	{
-		length = gi.length;
-		number = clean_i32_list (List.map Int32.lognot gi.number) gi.length;
-	}
 
-let logand gi1 gi2 =
-	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
-	in
-	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
-	in
-	{
-		length = arg1.length;
-		number = List.map2 Int32.logand arg1.number arg2.number;
-	}
+(* hexadecimal string, all bits concatenated, leading zeros are not output *)
+let rec to_string gi =
+	match gi.number with
+	| a::b ->
+		let gi2 = {length = gi.length - 32; number = b} in
+		let mask = if gi.length < 32 then Int32.sub (Int32.shift_left Int32.one gi.length) Int32.one else Int32.minus_one in
+		(* !!DEBUG!! "." before %08X is for debug only *)
+		((to_string gi2) ^ if b == [] then Printf.sprintf "%lX" a else Printf.sprintf ".%08lX" (Int32.logand a mask))
+	| [] -> ""
 
-let logor gi1 gi2 =
-	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
-	in
-	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
-	in
-	{
-		length = arg1.length;
-		number = List.map2 Int32.logor arg1.number arg2.number;
-	}
 
-let is_equals gi1 gi2 =
-	if gi1.length != gi2.length then
-		false
-	else
-		List.for_all2 (fun x y -> ((Int32.compare x y) == 0) ) gi1.number gi2.number
+(* produces the suffix needed in C for the given number translated in C, currently only suffix for 64 bit const is returned *)
+let get_C_const_suffix gi =
+	if gi.length > 32 && gi.length <= 64 then "LL" else ""
 
-let compare gi1 gi2 =
-	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1
-	in
-	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2
-	in
-	compare_i32_list arg1.number arg2.number
-
-let get_lowest_bit gi =
-	if gi.length < 1 then
-		failwith "cannot get lowest bit from a too small number"
-	else
-		Int32.logand (List.nth gi.number 0) Int32.one
-
-let set_lowest_bit gi i32 =
-	let set_bit _ =
-		Int32.logor (Int32.logand i32 (Int32.lognot Int32.one)) (Int32.logand i32 Int32.one)
-	in
-	let build_i32_list _ =
-		match gi.number with
-		[] ->
-			[]
-		| a::b ->
-			(set_bit ())::b
-	in
-	let res =
-		{
-			length = gi.length;
-			number = build_i32_list ();
-		}
-	in
-	if gi.length < 1 then
-		failwith "cannot set lowest bit from a too small number"
-	else
-		res
 
 let shift_left gi n =
 	let lsb_zeros = n / 32
@@ -256,8 +236,7 @@ let shift_left gi n =
 
 
 let shift_right_logical gi n =
-	let dropped_lsb = n / 32
-	in
+	let dropped_lsb = n / 32 in
 	let rec drop_lsb_from_list l num =
 		if num == 0 then
 			l
@@ -269,8 +248,7 @@ let shift_right_logical gi n =
 				[]
 			)
 	in
-	let shift_val = n mod 32
-	in
+	let shift_val = n mod 32 in
 	if n < 0 then
 		failwith "negative shift (generic_int.ml::gen_shift_right)"
 	else
@@ -285,28 +263,93 @@ let shift_right_logical gi n =
 			}
 
 
-(* hexadecimal string, all bits concatenated, leading zeros are not output *)
-let rec to_string gi =
-	match gi.number with
-	| a::b ->
-		let gi2 = {length = gi.length - 32; number = b} in
-		let mask = if gi.length < 32 then Int32.sub (Int32.shift_left Int32.one gi.length) Int32.one else Int32.minus_one in
-		((to_string gi2) ^ if b == [] then Printf.sprintf "%X" (Int32.to_int a) else Printf.sprintf "%08X" (Int32.to_int (Int32.logand a mask)))
-	| [] -> ""
+let lognot gi =
+	{
+		length = gi.length;
+		number = clean_i32_list (List.map Int32.lognot gi.number) gi.length;
+	}
 
+
+(** it is used to AND instruction binary codes, operands have to be left justified,
+ * result has same length as the smallest number *)
+let logand gi1 gi2 =
+	let arg1 = if gi1.length > gi2.length then shift_right_logical gi1 (gi1.length - gi2.length) else gi1 in
+	let arg2 = if gi1.length < gi2.length then shift_right_logical gi2 (gi2.length - gi1.length) else gi2 in
+	(* !!DEBUG!! *)
+	(*Printf.printf "logand g1:%d:%s, g2:%d:%s ; a1:%d:%s, a2:%d:%s\n" gi1.length (to_string gi1) gi2.length (to_string gi2) arg1.length (to_string arg1) arg2.length (to_string arg2) ;*)
+	{
+		length = arg1.length;
+		number = List.map2 Int32.logand arg1.number arg2.number;
+	}
+
+
+let logor gi1 gi2 =
+	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1 in
+	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2 in
+	{
+		length = arg1.length;
+		number = List.map2 Int32.logor arg1.number arg2.number;
+	}
+
+
+let is_equals gi1 gi2 =
+	if gi1.length != gi2.length then
+		false
+	else
+		List.for_all2 (fun x y -> ((Int32.compare x y) == 0) ) gi1.number gi2.number
+
+
+let compare gi1 gi2 =
+	let arg1 = if gi1.length < gi2.length then expand_gen_int gi1 gi2.length else gi1 in
+	let arg2 = if gi1.length > gi2.length then expand_gen_int gi2 gi1.length else gi2 in
+	compare_i32_list arg1.number arg2.number
+
+
+let get_lowest_bit gi =
+	if gi.length < 1 then
+		failwith "cannot get lowest bit from a too small number"
+	else
+		Int32.logand (List.nth gi.number 0) Int32.one
+
+
+let set_lowest_bit gi i32 =
+	let mask = Int32.lognot Int32.one in
+	let bit = Int32.logand i32 Int32.one in
+	let set_bit i =
+		Int32.logor (Int32.logand i mask) bit
+	in
+	let build_i32_list _ =
+		match gi.number with
+		[] ->
+			[]
+		| a::b ->
+			(set_bit a)::b
+	in
+	let res =
+		{
+			length = gi.length;
+			number = build_i32_list ();
+		}
+	in
+	(*!!DEBUG!!*)
+	(*Printf.printf "set_lowest_bit, length=%d, i32=%08lX, num=[" gi.length i32;
+	List.iter (fun x -> Printf.printf "%08lX," x) gi.number;
+	Printf.printf "]\n";*)
+	if gi.length < 1 then
+		failwith "cannot set lowest bit from a too small number"
+	else
+		res
 
 (* returns the bits of the number as an Int32 list with left justified msb at head of list,
  * last element is left justified lsb (only msb are significative),
- * used to output as a C uint32_t list *)
+ * used to output as a C uint32_t list, bits ordered as read from memory *)
 let to_Int32_list gi =
-	let remainder = gi.length mod 32
-	in
+	let remainder = gi.length mod 32 in
 	let shift_val =
 		if remainder == 0 then
 			0
 		else
 			32 - remainder
 	in
-	let pre_res = shift_left gi shift_val
-	in
+	let pre_res = shift_left gi shift_val in
 		List.rev pre_res.number

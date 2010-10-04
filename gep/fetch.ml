@@ -44,8 +44,7 @@
 (* return the string of a given Irg.expr which is supposed to be an image attribute *)
 let rec get_str e =
 	match e with
-	Irg.FORMAT(str, _) ->
-		str
+	| Irg.FORMAT(str, _) -> str
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
@@ -54,36 +53,52 @@ let rec get_str e =
 			| _ -> ""
 		else
 			""
-	| Irg.ELINE(_, _, e) ->
-		get_str e
-	| _ ->
-		""
+	| Irg.ELINE(_, _, e) -> get_str e
+	| _ -> ""
+
+
+exception Bad_bit_image_order of string
+(**
+returns the bit_image_order defined in nmp sources,
+used to know if images descriptions are written with bytes reversed compared to the memory disposition,
+this happens with the tricore processor for example.
+@return		0 if bit_image_order is 0 or undefined
+		1 if bit_image_order is defined and not 0
+@raise	Bad_bit_image_order	when incorrectly defined
+ *)
+let get_bit_image_order _ =
+	try
+		(match Irg.get_symbol "bit_image_order" with
+		| Irg.LET(_, c) ->
+			(match c with
+			| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
+			| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
+			)
+		| _ -> raise (Bad_bit_image_order "bit_image_order must be defined as a let, if defined.")
+		)
+	with
+	| Irg.Symbol_not_found _ -> false
+
 
 (* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)
 let get_length_from_format f =
 	let l = String.length f in
 	let new_f =
 		if l<=2 then
-		(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f or %s *)
+		(* shouldn't happen, we should have only formats like %[0-9]+b, not %d or %f or %s *)
 			failwith ("we shouldn't have something like [[" ^ f ^ "]] (fetch.ml::get_length_from_format)")
 		else
 			String.sub f 1 (l-2)
 	in
 	Scanf.sscanf new_f "%d" (fun x->x)
 
+
 (* remove any space (space or tab char) in a string, return a string as result *)
 let remove_space s =
-	let rec concat_str_list s_l =
-		match s_l with
-		[] ->
-			""
-		| h::q ->
-			h ^ (concat_str_list q)
-	in
-	concat_str_list (Str.split (Str.regexp "[ \t]+") s)
+	Str.global_replace (Str.regexp "[ \t]+") "" s
 
 
-(* return the mask of an op from its spec, the result will be a string
+(** returns the mask of an op from its spec, the result will be a string
 with only '0' or '1' chars representing the bits of the mask *)
 let get_string_mask_from_op sp =
 	let transform_str s =
@@ -122,10 +137,30 @@ let get_string_mask_from_op sp =
 		| _ ->
 			failwith "shouldn't happen (fetch.ml::get_string_mask_from_op::get_expr_from_iter_value)"
 	in
-	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
+	(* work only with strings with length multiple of 8, instructions have always length of 8*n bits so far *)
+	let revert_bytes s =
+		let rec aux length str =
+			if length < 8 then
+				""
+			else
+				(aux (length - 8) (String.sub str 8 (length - 8))) ^ (String.sub str 0 8)
+		in
+		if get_bit_image_order () then
+			aux (String.length s) s
+		else
+			s
+	in
+	(* !!DEBUG!! *)
+	(*print_string ((remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))^"::");
+	let res =*)
+	revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))))
+	(*in
+	let no_rev = get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
+	in print_string (no_rev ^ "::rev=" ^res^"\n");
+	res*)
 
 
-(** return the length of a given instruction, based on the image description *)
+(** returns the length of a given instruction, based on the image description *)
 let get_instruction_length sp =
 	let rec get_length_from_regexp_list l =
 		match l with
@@ -149,17 +184,15 @@ let get_instruction_length sp =
 	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
 
-
-
 (* returns the value of an instruction code considering only the bit set in the mask,
 the result is a '0' or '1' string with the bits not set in the mask being marked with an 'X' *)
 let get_string_value_on_mask_from_op sp =
 	let rec get_mask_from_regexp_list l =
 		match l with
-		[] -> ""
+		| [] -> ""
 		| h::t ->
 			(match h with
-			Str.Text(txt) ->
+			| Str.Text(txt) ->
 				(* here we assume that an image contains only %.., 01, x or X *)
 				txt ^ (get_mask_from_regexp_list t)
 			| Str.Delim(d) ->
@@ -169,51 +202,99 @@ let get_string_value_on_mask_from_op sp =
 	in
 	let get_expr_from_iter_value v =
 		match v with
-		Iter.EXPR(e) ->
+		| Iter.EXPR(e) ->
 			e
 		| _ ->
 			failwith "shouldn't happen (fetch.ml::get_string_value_on_mask_from_op::get_expr_from_iter_value)"
 	in
-	get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
+	(* work only with strings with length multiple of 8, instructions have always length of 8*n bits so far *)
+	let revert_bytes s =
+		let rec aux length str =
+			if length < 8 then
+				""
+			else
+				(aux (length - 8) (String.sub str 8 (length - 8))) ^ (String.sub str 0 8)
+		in
+		if get_bit_image_order () then
+			aux (String.length s) s
+		else
+			s
+	in
+	revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))))
 
 
 (* returns the value of an instruction code considering only the bit set in the mask,
 the result is a '0' or '1' string with the bits not set in the mask being discarded,
 so the result will have as many bits as the number of set bits in the mask *)
 let get_value_on_mask sp =
-	let v = get_string_value_on_mask_from_op sp
-	in
-	let str_to_char_list s =
-		let n = String.length s in
-		let rec aux str pos accu =
-			if pos <= n then
-				accu
+	Str.global_replace (Str.regexp "X+") "" (get_string_value_on_mask_from_op sp)
+
+
+(** returns the string result of a logical AND between 2 '0' or '1' string represented numbers,
+    length will be the min between v1 and v2 lengths
+*)
+let compute_logical_and v1 v2 =
+	let l = min (String.length v1) (String.length v2) in
+	let rec aux accu step =
+		if step >= l then
+			accu
+		else
+			(if v2.[step] == '1' then
+				(if v1.[step] == 'X' || v2.[step] == 'X' then
+					failwith "shouldn't happen (fetch.ml::compute_logical_and)"
+				else
+					aux (accu ^ (String.make 1 v1.[step])) (step + 1))
 			else
-				aux str (pos+1) accu@[str.[pos]]
-		in
-		aux s 0 []
+				aux (accu ^ "0") (step + 1))
 	in
-	let char_list_to_str l =
-		let rec aux cl s =
-		match cl with
-		[] ->
-			s
-		| a::b ->
-			(aux b (s^(String.make 1 a)))
-		in
-		aux l ""
-	in
-	let rec clear_X c_l =
-		match c_l with
-		[] ->
-			[]
-		| a::b ->
-			if a='x' || a='X' then
-				clear_X b
+	aux "" 0
+
+
+(** returns a '0' or '1' string from v, the bits returned are those indicated by the bits set in mask,
+    bits are concatenated and length will be the min between v and mask lengths
+*)
+let compute_value_with_mask v mask =
+	let l = min (String.length v) (String.length mask) in
+	let rec aux accu step =
+		if step >= l then
+			accu
+		else
+			(if mask.[step] == '1' then
+				(if v.[step] == 'X' then
+					failwith "shouldn't happen (fetch.ml::compute_value_with_mask)"
+				else
+					aux (accu ^ (String.make 1 v.[step])) (step + 1))
 			else
-				a::(clear_X b)
+				aux accu (step + 1))
 	in
-	char_list_to_str (clear_X (str_to_char_list v))
+	aux "" 0
+
+
+(** returns v (representing a mask) with the mask "removed", if a bit is set in the mask it will be 0 in the result,
+    otherwise it will the corresponding bit of v, the result will have same length as v
+*)
+let compute_value_without_mask v mask =
+	let lv = String.length v in
+	let l = min lv (String.length mask) in
+	let rec aux accu step =
+		if step >= l then
+			(if lv > l then
+				accu ^ (String.sub v step (lv - step))
+			else
+				accu)
+		else
+			if mask.[step] == '0' then
+				aux (accu ^ (String.make 1 v.[step])) (step + 1)
+			else
+				aux (accu ^ "0") (step + 1)
+	in
+	aux "" 0
+
+
+(** simple equality between 2 strings
+*)
+let string_is_equals s1 s2 =
+	((String.compare s1 s2) == 0)
 
 
 (** convert the 1st 32 chars of a string to an int32
@@ -241,6 +322,7 @@ let str01_to_int32 s =
 	else
 		aux s 0 Int32.zero
 
+
 (** convert the 1st n chars of a string to an int_n
 the string is supposed to represent a binary number (only 0 and 1) *)
 let str_to_int_n s n =
@@ -262,8 +344,47 @@ let str_to_int_n s n =
 	aux s 0 Generic_int.zero
 
 
+(** convert a string to an gen_int
+the string is supposed to represent a binary number (only 0 and 1) *)
+let str_to_gen_int s =
+	let size = String.length s in
+	let char01_to_int32 c =
+		match c with
+		| '0' -> Int32.zero
+		| '1' -> Int32.one
+		| _ -> failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int_n)") in
+	let rec aux s n accu =
+		if n = size then
+			accu
+		else
+			aux s (n+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (char01_to_int32 s.[n])) in
+	aux s 0 Generic_int.zero
 
-(* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) *)
+
+let str_to_int32_list s =
+	let l = String.length s in
+	let rec aux accu step =
+		match l - step with
+		| n when n == 0 -> accu (* end of string *)
+		| n when n >= 32 -> aux (accu @ [(Int32.of_string ("0b" ^ (String.sub s step 32)))]) (step + 32)
+		| n when n > 0 && n < 32 -> accu @ [Int32.shift_left (Int32.of_string ("0b" ^ (String.sub s step n))) (32 - n)] (* less than 32 bits from end of string *)
+		| _ -> failwith "shouldn't happen (fetch.ml::str_to_int32_list)"
+	in
+	aux [] 0
+
+
+(* produces the suffix needed in C for the given string number translated in C, currently only suffix for 64 bit const is returned *)
+let get_C_const_suffix s =
+	let l = String.length s in
+	if l > 32 && l <= 64 then "LL" else ""
+
+
+
+(* from here we assume we will deal only with 32bit instrs (32 bit optimized decode) or variable length ISAs *)
+
+(*****************************************************************
+ * 32 bit, NO MORE USED, everything is generated by generic part
+ ****************************************************************)
 
 (* for the next 2 functions, produce a warning if the instruction is more than 32 bit long *)
 
@@ -282,19 +403,8 @@ let get_int32_mask sp =
 	else
 		build_mask mask 0 Int32.zero
 
-(** return the mask of an arbitrary length instruction as a generic int *)
-let get_int_mask sp =
-	let mask = get_string_mask_from_op sp in
-	let rec build_mask str pos accu =
-		if pos >= String.length str then
-			accu
-		else
-			build_mask str (pos + 1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
-	in
-	build_mask mask 0 Generic_int.zero
 
-
-(* returns the 32 bit value of a 32 bit instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0 *)
+(** returns the 32 bit value of a 32 bit instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0 *)
 let get_int32_value sp =
 	let v = get_string_value_on_mask_from_op sp
 	in
@@ -309,34 +419,6 @@ let get_int32_value sp =
 	else
 		build_mask v 0 Int32.zero
 
-
-(** returns the value of an instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0, result is a generic int *)
-let get_int_value sp =
-	let v = get_string_value_on_mask_from_op sp in
-	let rec build_mask str pos accu =
-		if pos >= String.length str then
-			accu
-		else
-			build_mask str (pos+1) (Generic_int.set_lowest_bit (Generic_int.shift_left accu 1) (if str.[pos]='1' then Int32.one else Int32.zero))
-	in
-	build_mask v 0 Generic_int.zero
-
-
-(** perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
-let rec calcul_mask spec_list top_mask =
-	match spec_list with
-	[] ->
-		Int32.lognot top_mask
-	| h::t ->
-		Int32.logand (get_int32_mask h) (calcul_mask t top_mask)
-
-(** perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
-let rec calcul_mask_gen spec_list top_mask =
-	match spec_list with
-	[] ->
-		Generic_int.lognot top_mask
-	| h::t ->
-		Generic_int.logand (get_int_mask h) (calcul_mask_gen t top_mask)
 
 (** return the bits in a value num, only those indicated by the set bits in a given mask, bit are concatenated *)
 let keep_value_on_mask num mask =
@@ -354,34 +436,22 @@ let keep_value_on_mask num mask =
 	in
 	aux num mask Int32.zero 0 0
 
-(** return the bits in a value num, only those indicated by the set bits in a given mask, bit are concatenated *)
-let keep_value_on_mask_gen num mask =
-	let max_step = Generic_int.length mask in
-	let rec aux n m accu step numbit =
-		if step >= max_step then
-			accu
-		else
-			if Generic_int.get_lowest_bit m = Int32.zero then
-				aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) numbit
-			else
-				if Generic_int.get_lowest_bit n = Int32.one then
-					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) (Generic_int.logor accu (Generic_int.shift_left Generic_int.one numbit)) (step+1) (numbit+1)
-				else
-					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) (numbit+1)
-	in
-	aux num mask Generic_int.zero 0 0
 
-(** get the value of the given spec image on the given mask, bit not in the mask are discarded and so the result is the concatenation of the masked bits *)
+(** perform an AND between all the mask of the instrs in spec_list, ignoring the bits in top_mask *)
+let rec calcul_mask spec_list top_mask =
+	match spec_list with
+	[] ->
+		Int32.lognot top_mask
+	| h::t ->
+		Int32.logand (get_int32_mask h) (calcul_mask t top_mask)
+
+
 let calcul_value_on_mask sp mask =
 	keep_value_on_mask (Int32.logand (get_int32_value sp) mask) mask
-let calcul_value_on_mask_gen sp mask =
-	keep_value_on_mask_gen (Generic_int.logand (get_int_value sp) mask) mask
 
 
-
-(* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
 type dec_tree = DecTree of int32 list * Irg.spec list * int32 * int32 * dec_tree list
-type dec_tree_gen = DecTree_ of Generic_int.gen_int list * Irg.spec list * Generic_int.gen_int * Generic_int.gen_int * dec_tree_gen list
+
 
 let print_dec_tree tr =
 	let name_of t =
@@ -407,6 +477,7 @@ let print_dec_tree tr =
 		(*Printf.printf "\n"*)
 		end
 
+
 let print_dec_tree_list tl =
 	List.iter (fun x -> begin print_char '\n'; print_dec_tree x end) tl
 
@@ -418,17 +489,6 @@ let get_amount_of_set_bits num =
 			accu
 		else
 			aux (Int32.shift_right_logical n 1) (accu + (Int32.to_int (Int32.rem n (Int32.of_int 2)))) (step+1)
-	in
-	aux num 0 0
-	
-(* returns the amount of set bits in a generic int, help to get mask's "length" *)
-let get_amount_of_set_bits_gen num =
-	let max_step = Generic_int.length num in
-	let rec aux n accu step =
-		if step >= max_step then
-			accu
-		else
-			aux (Generic_int.shift_right_logical n 1) (accu + Int32.to_int (Generic_int.get_lowest_bit n)) (step+1)
 	in
 	aux num 0 0
 
@@ -447,22 +507,6 @@ let get_global_mask_length dt =
 let get_instr_list dt =
 	match dt with
 	DecTree(_, sl, _, _, _) ->
-		sl
-
-let get_local_mask_length_gen dt =
-	match dt with
-	DecTree_(_, _, ml, _, _) ->
-		get_amount_of_set_bits_gen ml
-
-
-let get_global_mask_length_gen dt =
-	match dt with
-	DecTree_(_, _, _, mg, _) ->
-		get_amount_of_set_bits_gen mg
-
-let get_instr_list_gen dt =
-	match dt with
-	DecTree_(_, sl, _, _, _) ->
 		sl
 
 
@@ -486,22 +530,6 @@ let create_son_list_of_dec_node dt =
 	DecTree(i_l, s_l, msk, gm, dt_l) ->
 		aux msk s_l
 
-let create_son_list_of_dec_node_gen dt =
-	let rec aux msk sl =
-		(match sl with
-		[] ->
-			(* one instr => terminal node *)
-			[]
-		| a::b ->
-			(* !!DEBUG!! *)
-			(*print_string "\ncreating dec_node son, val_on_mask=";
-			Printf.printf "%lX, spec=%s\n" (calcul_value_on_mask a msk) (Iter.get_name a);*)
-			((calcul_value_on_mask_gen a msk), a)::(aux msk b)
-		)
-	in
-	match dt with
-	DecTree_(i_l, s_l, msk, gm, dt_l) ->
-		aux msk s_l
 
 (* take the result given by the previous function and returns a list of tuples of the type
 (v_i, [i0,i1,...,in]) [ik] being the list of all instr with v_i as value on mask *)
@@ -522,27 +550,7 @@ let sort_son_list vl =
 	in
 	List.fold_left add_instr_in_tuple_list [] vl
 
-let sort_son_list_gen vl =
-	(* add one instr with a given value on mask to a tuple list (with inst list like the top result expected) *)
-	let rec add_instr_in_tuple_list l (v, sp) =
-		match l with
-		[] ->
-			[(v, [sp])]
-		| a::b ->
-			(match a with
-			(vv, sl) ->
-				if Generic_int.is_equals v vv then
-					(vv, sp::sl)::b
-				else
-					a::(add_instr_in_tuple_list b (v,sp))
-			)
-	in
-	List.fold_left add_instr_in_tuple_list [] vl
 
-(* with the result of the previous function we can build the list of dec_tree associated,
-we just have to calculate the local masks to do this we need the father's masks,
-we also need the father's vals on mask to add the new one,
-by default all trees will be created with no link between them (no tree structure) *)
 let rec build_dectrees vl msk gm il =
 	match vl with
 	[] ->
@@ -555,19 +563,6 @@ let rec build_dectrees vl msk gm il =
 			(* !!DEBUG!! *)
 			(*print_dec_tree dt;*)
 			dt::(build_dectrees b msk gm il)
-
-let rec build_dectrees_gen vl msk gm il =
-	match vl with
-	[] ->
-		[]
-	| a::b ->
-		match a with
-		(v, sl) ->
-			let dt = DecTree_(il@[v], sl, Generic_int.logand (calcul_mask_gen sl Generic_int.zero) (Generic_int.lognot gm), calcul_mask_gen sl Generic_int.zero, [])(* ::(build_dectrees b msk gm il) *)
-			in
-			(* !!DEBUG!! *)
-			(*print_dec_tree dt;*)
-			dt::(build_dectrees_gen b msk gm il)
 
 
 let build_sons_of_tree tr =
@@ -588,23 +583,6 @@ let build_sons_of_tree tr =
 		else
 			res
 
-let build_sons_of_tree_gen tr =
-	match tr with
-	DecTree_(int_l, sl, msk, gm, dt_l) ->
-		let res = build_dectrees_gen (sort_son_list_gen (create_son_list_of_dec_node_gen tr)) msk gm int_l
-		in
-		(* !!DEBUG!! *)
-		(*Printf.printf "build_sons, %d in father, %d sons\n" (List.length sl) (List.length res);flush stdout;*)
-		if (List.length res) == 1 && (List.length (get_instr_list_gen (List.hd res))) > 1 then
-			begin
-			output_string stderr "ERROR: some instructions seem to have same image.\n";
-			output_string stderr "here is the list: ";
-			List.iter (fun x -> Printf.fprintf stderr "%s, " (Iter.get_name x)) (get_instr_list_gen (List.hd res));
-			output_string stderr "\n";
-			failwith "cannot continue with 2 instructions with same image"
-			end
-		else
-			res
 
 let build_dec_nodes m =
 	let list_of_all_op_specs n =
@@ -652,51 +630,6 @@ let build_dec_nodes m =
 	| _ ->
 		[]
 
-let build_dec_nodes_gen m =
-	let list_of_all_op_specs n =
-		match n with
-		0 ->
-			Iter.iter (fun a x -> x::a) []
-		| _ ->
-			[]
-	in
-	let node_cond (DecTree_(_, sl, lmask, gmask, _)) =
-		((List.length sl)<=1)
-	in
-	let rec stop_cond l =
-		match l with
-		[] ->
-			(*print_string "stop_cond=true\n";flush stdout;*)
-			true
-		| a::b ->
-			if node_cond a then
-			(*begin print_string "stop_cond=[rec]\n";flush stdout;*)
-				stop_cond b (*end*)
-			else
-			(*begin print_string "stop_cond=false\n";flush stdout;*)
-				false (*end*)
-	in
-	let get_sons x =
-		match x with
-		DecTree_(int_l, sl, msk, gm, dt_l) ->
-			if (List.length sl)>1 then
-				DecTree_(int_l, [], msk, gm, dt_l)::(build_sons_of_tree_gen x)
-			else
-				[x]
-	in
-	let rec aux dl =
-		if stop_cond dl then
-			dl
-		else
-			aux (List.flatten (List.map get_sons dl))
-	in
-	match m with
-	| 0 ->
-		let specs = list_of_all_op_specs 0 in
-		let mask = calcul_mask_gen specs Generic_int.zero in
-		aux [DecTree_([], specs, mask, mask, [])]
-	| _ ->
-		[]
 
 (* returns a list of the direct sons of a given DecTree among a given list *)
 let find_sons_of_node node d_l =
@@ -738,47 +671,6 @@ let find_sons_of_node node d_l =
 	in
 	List.flatten (List.map (fun d -> if (is_son d node) then [d] else [] ) d_l)
 
-(* returns a list of the direct sons of a given DecTree among a given list *)
-let find_sons_of_node_gen node d_l =
-	let get_name d =
-		match d with
-		DecTree_(name, _, _, _, _) ->
-			name
-	in
-	let length_of_name d =
-		List.length (get_name d)
-	in
-	(* return true if l1 is a sub list at the beginning of l2,
-	ie if l2 can be the name of a son (direct or not) of a DecTree whose name is l1,
-	l1 and l2 are supposed to be two int list representing a name of a DecTree *)
-	let rec is_sub_name l1 l2 =
-		match l1 with
-		[] ->
-			true
-		| a1::b1 ->
-			(match l2 with
-			[] ->
-				false
-			| a2::b2 ->
-				if a1=a2 then
-					(is_sub_name b1 b2)
-				else
-					false
-			)
-	in
-	(* return true if d1 is a direct son of d2, false otherwise *)
-	let is_son d1 d2 =
-		if (length_of_name d1) = ((length_of_name d2) + 1) then
-			if (is_sub_name (get_name d2) (get_name d1)) then
-				true
-			else
-				false
-		else
-			false
-	in
-	List.flatten (List.map (fun d -> if (is_son d node) then [d] else [] ) d_l)
-
-
 
 (* outputs the declaration of all structures related to the given DecTree dt in C language,
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
@@ -797,7 +689,7 @@ let output_table_C_decl out dt dl =
 			[] ->
 				s
 			| a::b ->
-				aux b (if (String.length s)=0 then (string_of_int (Int32.to_int a)) else (s^"_"^(string_of_int (Int32.to_int a))))
+				aux b (if (String.length s)=0 then (Printf.sprintf "%lu" a) else (s^"_"^(Printf.sprintf "%lu" a)))
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->
@@ -821,7 +713,7 @@ let output_table_C_decl out dt dl =
 	(* is i the last element of i_l? i is an int32, i_l is an int32 list *)
 	let rec is_suffix i i_l =
 		match i_l with
-		a::b ->
+		| a::b ->
 			if b=[] then
 				i=a
 			else
@@ -912,6 +804,330 @@ let output_table_C_decl out dt dl =
 		end
 
 
+let sort_dectree_list d_l =
+	let name_of t =
+		match t with
+		DecTree(i, _, _, _, _) ->
+			i
+	in
+	(* same specification as a standard compare function, x>y means x is "bigger" than y (eg: 12_3 < 13_3_5, "nothing" < x for any x) *)
+	let rec comp_int32_list x y =
+		match x with
+		[] ->
+			-1
+		| x1::x2 ->
+			(match y with
+			[] ->
+				1
+			| y1::y2 ->
+				let diff = Int32.compare x1 y1
+				in
+				if diff=0 then
+					comp_int32_list x2 y2
+				else
+					diff
+			)
+	in
+	let comp_fun x y =
+		comp_int32_list (name_of y) (name_of x)
+	in
+	List.sort comp_fun d_l
+
+
+(*********************************************************************
+ * variable length
+ ********************************************************************)
+
+
+(** return the mask of an arbitrary length instruction as a generic int *)
+let get_int_mask sp =
+	(* !!DEBUG!! *)
+	(*let res =*)
+	str_to_gen_int (get_string_mask_from_op sp)
+	(*in
+	print_string ("get_int_mask, mask="^(get_string_mask_from_op sp)^", res =(");
+	Printf.printf "%d" (Generic_int.length res);
+	print_string (")"^(Generic_int.to_string res)^"\n");
+	res*)
+
+
+(** returns the value of an instruction code indicated by the set bits in the spec's mask, the bits not set in the mask are cleared to 0, result is a generic int *)
+let get_int_value sp =
+	str_to_gen_int (get_string_value_on_mask_from_op sp)
+
+
+(** perform an AND between the mask of all the instrs in spec_list *)
+let rec calcul_mask_gen sp_list =
+(* !!DEBUG!! *)
+	let rec aux sl =
+	match sl with
+	| [] -> ""
+	| [a] -> get_string_mask_from_op a
+	| h::t -> (* !!DEBUG!! *)(*Printf.printf "%20s-%s\n" (Irg.name_of h) (get_string_mask_from_op h); *)compute_logical_and (get_string_mask_from_op h) (aux t)
+	in
+	let res = aux sp_list in
+	(* !!DEBUG!! *)(*Printf.printf "calcul_mask_gen, #%d, res=%s\n" (List.length sp_list) res;*)
+	res
+
+
+(* return the bits in a value num, only those indicated by the set bits in a given mask, bits are concatenated *)
+(*let keep_value_on_mask_gen num mask =
+	let max_step = Generic_int.length mask in
+	let rec aux n m accu step numbit =
+		if step >= max_step then
+			accu
+		else
+			if Generic_int.get_lowest_bit m = Int32.zero then
+				aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) numbit
+			else
+				if Generic_int.get_lowest_bit n = Int32.one then
+					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) (Generic_int.logor accu (Generic_int.shift_left Generic_int.one numbit)) (step+1) (numbit+1)
+				else
+					aux (Generic_int.shift_right_logical n 1) (Generic_int.shift_right_logical m 1) accu (step+1) (numbit+1)
+	in
+	aux num mask Generic_int.zero 0 0*)
+
+
+(** get the value of the given spec image on the given mask, bit not in the mask are discarded and so the result is the concatenation of the masked bits *)
+let calcul_value_on_mask_gen sp mask =
+	compute_value_with_mask (get_string_value_on_mask_from_op sp) mask
+(*	keep_value_on_mask_gen (Generic_int.logand (get_int_value sp) mask) mask*)
+
+
+
+(* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
+
+(*type dec_tree_gen = DecTree_ of Generic_int.gen_int list * Irg.spec list * Generic_int.gen_int * Generic_int.gen_int * dec_tree_gen list*)
+type dec_tree_gen = DecTree_ of string list * Irg.spec list * string * string * dec_tree_gen list
+
+
+let print_dec_tree_gen tr =
+	let name_of t =
+		let rec aux l s =
+			match l with
+			[] ->
+				s
+			| a::b ->
+				aux b (if (String.length s)=0 then a else (s ^ "_" ^ a))
+		in
+		match t with
+		DecTree_(i, s, m, g, d) ->
+			aux i ""
+	in
+	match tr with
+	DecTree_(int_l, sl, msk, gm, dt_l) ->
+		begin
+		Printf.printf "================================================================\nPrinting tree, dectree's name : %s\n" (name_of tr);
+		Printf.printf "mask   : %s\n" msk;
+		Printf.printf "global : %s\n" gm;
+		Printf.printf "spec : ";
+		if sl == [] then print_string "<none>\n" else 
+		List.iter (fun x -> Printf.printf "\t%12s%20s, mask=%s, val=%s, val_mask=%s\n"
+			(Irg.name_of x) (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x) (get_value_on_mask x)) sl;
+		(*Printf.printf "\n"*)
+		end
+
+
+let print_dec_tree_list_gen tl =
+	List.iter (fun x -> begin print_char '\n'; print_dec_tree_gen x end) tl
+
+	
+(* returns the amount of set bits in a string int, help to get mask's "length" *)
+let get_amount_of_set_bits_gen num =
+	let max_step = String.length num in
+	let rec aux accu step =
+		if step >= max_step then
+			accu
+		else
+			aux (accu + (if num.[step] == '1' then 1 else 0)) (step + 1)
+	in
+	aux 0 0
+
+
+
+let get_local_mask_length_gen dt =
+	match dt with
+	DecTree_(_, _, ml, _, _) ->
+		get_amount_of_set_bits_gen ml
+
+
+let get_global_mask_length_gen dt =
+	match dt with
+	DecTree_(_, _, _, mg, _) ->
+		get_amount_of_set_bits_gen mg
+
+let get_instr_list_gen dt =
+	match dt with
+	DecTree_(_, sl, _, _, _) ->
+		sl
+
+
+let create_son_list_of_dec_node_gen dt =
+	let rec aux msk sl =
+		(match sl with
+		[] ->
+			(* one instr => terminal node *)
+			[]
+		| a::b ->
+			(* !!DEBUG!! *)
+			(*print_string ("\ncreating dec_node son, mask="^msk^", val_on_mask=");
+			Printf.printf "%s, inst_mask=%s, inst_val=%s, spec=%s\n" (calcul_value_on_mask_gen a msk) (get_string_mask_from_op a) (get_string_value_on_mask_from_op a) (Irg.name_of a);*)
+			((calcul_value_on_mask_gen a msk), a)::(aux msk b)
+		)
+	in
+	match dt with
+	DecTree_(i_l, s_l, msk, gm, dt_l) ->
+		aux msk s_l
+
+
+let sort_son_list_gen vl =
+	(* add one instr with a given value on mask to a tuple list (with inst list like the top result expected) *)
+	let rec add_instr_in_tuple_list l (v, sp) =
+		match l with
+		[] ->
+			[(v, [sp])]
+		| a::b ->
+			(match a with
+			(vv, sl) ->
+				if string_is_equals v vv then
+					(vv, sp::sl)::b
+				else
+					a::(add_instr_in_tuple_list b (v,sp))
+			)
+	in
+	List.fold_left add_instr_in_tuple_list [] vl
+
+
+(* with the result of the previous function we can build the list of dec_tree associated,
+we just have to calculate the local masks to do this we need the father's masks,
+we also need the father's vals on mask to add the new one,
+by default all trees will be created with no link between them (no tree structure) *)
+let rec build_dectrees_gen vl msk gm il =
+	match vl with
+	[] ->
+		[]
+	| a::b ->
+		match a with
+		(v, sl) ->
+			(*print_string "build_dectrees_gen\n";*)
+			let common_mask = calcul_mask_gen sl in
+			let dt = DecTree_(il@[v], sl, compute_value_without_mask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
+			in
+			(* !!DEBUG!! *)
+			(*print_dec_tree_gen dt;
+			print_string "build_tree_gen, sl=[";
+			List.iter (fun x -> Printf.printf "%s," (Irg.name_of x)) sl;
+			print_string "]\n";*)
+			dt::(build_dectrees_gen b msk gm il)
+
+
+
+
+let build_sons_of_tree_gen tr =
+	match tr with
+	DecTree_(int_l, sl, msk, gm, dt_l) ->
+		let res = build_dectrees_gen (sort_son_list_gen (create_son_list_of_dec_node_gen tr)) msk gm int_l
+		in
+		(* !!DEBUG!! *)
+		(*Printf.printf "build_sons_gen, %d in father, %d sons\n" (List.length sl) (List.length res);*)
+		if (List.length res) == 1 && (List.length (get_instr_list_gen (List.hd res))) > 1 then
+			begin
+			output_string stderr "ERROR: some instructions seem to have same image.\n";
+			output_string stderr "here is the list: ";
+			List.iter (fun x -> Printf.fprintf stderr "%s, " (Irg.name_of x)) (get_instr_list_gen (List.hd res));
+			List.iter (fun x -> (Irg.print_spec x)) (get_instr_list_gen (List.hd res));
+			output_string stderr "\n";
+			raise (Sys_error "cannot continue with 2 instructions with same image")
+			end
+		else
+			res
+
+
+let build_dec_nodes_gen _ =
+	let list_of_all_op_specs _ =
+			Iter.iter (fun a x -> x::a) []
+	in
+	let node_cond (DecTree_(_, sl, lmask, gmask, _)) =
+		((List.length sl)<=1)
+	in
+	let rec stop_cond l =
+		match l with
+		| [] ->
+			(*print_string "stop_cond=true\n";flush stdout;*)
+			true
+		| a::b ->
+			if node_cond a then
+			(*begin print_string "stop_cond=[rec]\n";flush stdout;*)
+				stop_cond b (*end*)
+			else
+			(*begin print_string "stop_cond=false\n";flush stdout;*)
+				false (*end*)
+	in
+	let get_sons x =
+		match x with
+		| DecTree_(int_l, sl, msk, gm, dt_l) ->
+			if (List.length sl)>1 then
+				DecTree_(int_l, [], msk, gm, dt_l)::(build_sons_of_tree_gen x)
+			else
+				[x]
+	in
+	let rec aux dl =
+		if stop_cond dl then
+			dl
+		else
+			aux (List.flatten (List.map get_sons dl))
+	in
+	let specs = list_of_all_op_specs () in
+	let mask = calcul_mask_gen specs in
+	aux [DecTree_([], specs, mask, mask, [])]
+
+
+(* returns a list of the direct sons of a given DecTree among a given list *)
+let find_sons_of_node_gen node d_l =
+	let get_name d =
+		match d with
+		DecTree_(name, _, _, _, _) ->
+			name
+	in
+	let length_of_name d =
+		List.length (get_name d)
+	in
+	(* return true if l1 is a sub list at the beginning of l2,
+	ie if l2 can be the name of a son (direct or not) of a DecTree whose name is l1,
+	l1 and l2 are supposed to be two int list representing a name of a DecTree *)
+	let rec is_sub_name l1 l2 =
+		match l1 with
+		[] ->
+			true
+		| a1::b1 ->
+			(match l2 with
+			[] ->
+				false
+			| a2::b2 ->
+				if string_is_equals a1 a2 then
+					(is_sub_name b1 b2)
+				else
+					false
+			)
+	in
+	(* return true if d1 is a direct son of d2, false otherwise *)
+	let is_son d1 d2 =
+		if (length_of_name d1) = ((length_of_name d2) + 1) then
+			if (is_sub_name (get_name d2) (get_name d1)) then
+				true
+			else
+				false
+		else
+			false
+	in
+	List.flatten (List.map (fun d -> if (is_son d node) then [d] else [] ) d_l)
+
+
+exception CheckIsizeException
+(* special value for fetch size, represent generic fetch *)
+let fetch_generic = 0
+
+
 (* outputs the declaration of all structures related to the given DecTree dt in C language,
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
@@ -922,12 +1138,12 @@ let output_table_C_decl_gen fetch_size out dt dl =
 			if s = "" then
 				s
 			else
-				"_"^s
+				"_" ^ s
 		in
 		let rec aux l s =
 			match l with
 			| [] -> s
-			| a::b -> aux b (if (String.length s)=0 then (Generic_int.to_string a) else (s^"_"^(Generic_int.to_string a)))
+			| a::b -> aux b (if (String.length s) == 0 then a else (s ^ "_" ^ a))
 		in
 		match t with
 		| DecTree_(i, s, m, g, d) -> correct_name (aux i "")
@@ -951,17 +1167,15 @@ let output_table_C_decl_gen fetch_size out dt dl =
 	in
 	let info = Toc.info () in
 	let sons = find_sons_of_node_gen dt dl in
-	(* is i the last element of i_l? i is an int, i_l is an gen_int list *)
+	(* is i the last element of i_l? i is an int, i_l is an string int list *)
 	let rec is_suffix i i_l =
-		let i2 = Generic_int.of_int i in
 		match i_l with
 		| a::b ->
 			if b=[] then
-				Generic_int.is_equals i2 a
+				i == (int_of_string ("0b" ^ a))
 			else
 				is_suffix i b
-		| [] ->
-			false
+		| [] -> false
 	in
 	let exists_in i d_l =
 		let predicate x =
@@ -1011,6 +1225,16 @@ let output_table_C_decl_gen fetch_size out dt dl =
 				Printf.fprintf out ",\n";
 			produce_decode_ent (i+1))
 	in
+	let to_C_list mask =
+		let list = str_to_int32_list mask in
+		let rec aux comma l =
+			match l with
+			| [] -> ""
+			| a::b ->
+				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
+		in
+			aux false list
+	in
 	(* !!DEBUG!! *)(*
 	match dt with
 	DecTree(i_l, s_l, lm, gm, ss) ->
@@ -1026,50 +1250,23 @@ let output_table_C_decl_gen fetch_size out dt dl =
 	else
 		(* !!DEBUG!! *)
 		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
-
+( (*print_string "tree_to_C :"; print_dec_tree_gen dt;*)
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		produce_decode_ent 0;
 		Printf.fprintf out "};\n";
-		(* !!TODO!! param mask (gen/not gen) *)
-		if fetch_size != 0 then
-			Printf.fprintf out "static Table_Decodage _table%s = {0X%s, table_table%s};\n" name (Generic_int.to_string l_mask) name
+		if fetch_size != fetch_generic then
+			Printf.fprintf out "static Table_Decodage _table%s = {0X%lX%s, table_table%s};\n" name (str01_to_int32 l_mask) (get_C_const_suffix l_mask) name
 		else
-			();
+			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (str_to_int32_list l_mask)) (to_C_list l_mask);
+			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s;" name name;
+			Printf.fprintf out "\t%d};\n" (String.length l_mask);
+			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
+			);
 		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
-		Printf.fprintf out "\n"
-
+		Printf.fprintf out "\n")
 
 
 (* sort the DecTree in a given list according to a reverse pseudo-lexicographic order among the name of the DecTrees *)
-let sort_dectree_list d_l =
-	let name_of t =
-		match t with
-		DecTree(i, _, _, _, _) ->
-			i
-	in
-	(* same specification as a standard compare function, x>y means x is "bigger" than y (eg: 12_3 < 13_3_5, "nothing" < x for any x) *)
-	let rec comp_int32_list x y =
-		match x with
-		[] ->
-			-1
-		| x1::x2 ->
-			(match y with
-			[] ->
-				1
-			| y1::y2 ->
-				let diff = Int32.compare x1 y1
-				in
-				if diff=0 then
-					comp_int32_list x2 y2
-				else
-					diff
-			)
-	in
-	let comp_fun x y =
-		comp_int32_list (name_of y) (name_of x)
-	in
-	List.sort comp_fun d_l
-	
 let sort_dectree_list_gen d_l =
 	let name_of t =
 		match t with
@@ -1084,9 +1281,8 @@ let sort_dectree_list_gen d_l =
 			(match y with
 			| [] -> 1
 			| y1::y2 ->
-				let diff = Generic_int.compare x1 y1
-				in
-				if diff=0 then
+				let diff = compare (int_of_string ("0b" ^ x1)) (int_of_string ("0b" ^ y1)) in
+				if diff == 0 then
 					comp_gen_int_list x2 y2
 				else
 					diff
@@ -1096,12 +1292,6 @@ let sort_dectree_list_gen d_l =
 		comp_gen_int_list (name_of y) (name_of x)
 	in
 	List.sort comp_fun d_l
-
-
-
-exception CheckIsizeException
-(* special value for fetch size, represent generic fetch *)
-let fetch_generic = 0
 
 
 let output_all_table_C_decl out =
@@ -1121,9 +1311,9 @@ let output_all_table_C_decl out =
 				else
 					accu
 		in
-		let init_val = List.hd (Irg.get_isize ())
-		in
-		Iter.iter iter_fun (init_val, init_val)
+		let init_max = 0 in
+		let init_min = 10000 in
+		Iter.iter iter_fun (init_min, init_max)
 	in
 	let get_min_max_instr_size_from_isize _ =
 		let min_fun a b_i =
@@ -1185,32 +1375,33 @@ let output_all_table_C_decl out =
 			if check_isize () then
 				get_fetch_size_from_min_max (get_min_max_instr_size_from_isize ())
 			else
-				failwith "isize definition incorrect, some instructions have a size not contained in isize."
+				raise (Sys_error "isize definition incorrect, some instructions have a size not contained in isize.")
 		else
 			get_fetch_size_from_min_max (get_min_max_instr_size_from_instr ())
 	in
 	let fetch_size = choose_fetch_size ()
 	in (* output the declaration of struct Table_Decodage *)
 	let output_table_type_decl _ =
-		if fetch_size == 0 then
+		if fetch_size == fetch_generic then
 			(* generic, mask is not an uintN_t here *)
-			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tlength;\n} mask_t;\n\n";
-			output_string out "typedef struct {\n\tmask_t\tmask0;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
+			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tbit_length;\n} mask_t;\n\n";
+			output_string out "typedef struct {\n\tmask_t\tmask;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 		else
-			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask0;\n" fetch_size;
+			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask;\n" fetch_size;
 			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 	in
 	let aux dl dt =
-		(* TODO: parametrize with fetch_size *)
-		output_table_C_decl out dt dl
+		output_table_C_decl_gen fetch_size out dt dl
 	in
-	let dl  = sort_dectree_list (build_dec_nodes 0)
+	let dl  = sort_dectree_list_gen (build_dec_nodes_gen 0)
 	in
 		output_table_type_decl ();
 		List.iter (aux dl) dl
 
+
+(* some testing *)
 
 
 let test_build_dec_nodes n =

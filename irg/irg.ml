@@ -714,7 +714,7 @@ let rec output_location out loc =
 	match loc with
 	| LOC_NONE ->
 		output_string out "<none>"
-	| LOC_REF (_, id, idx, lo, up) ->
+	| LOC_REF (t, id, idx, lo, up) ->
 	  	output_string out id;
 		if idx <> NONE then
 			begin
@@ -729,7 +729,9 @@ let rec output_location out loc =
 				output_string out "..";
 				output_expr out up;
 				output_string out ">"
-			end
+			end;
+		output_string out ": ";
+		output_type_expr out t
 	| LOC_CONCAT (_, l1, l2) ->
 		output_location out l1;
 		output_string out "::";
@@ -1016,7 +1018,7 @@ let print_spec spec =
     return the gliss_isize defined in nmp sources
 *)
 let get_isize _ =
-	let s = get_symbol "gliss_isize"
+	let s = try get_symbol "gliss_isize" with Symbol_not_found _ -> UNDEF
 	in
 	match s with
 	(* if gliss_isize not defined, we assume we have a cisc isa *)

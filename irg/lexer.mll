@@ -140,7 +140,8 @@ let flt		= flt1 | flt2 | flt3
 let id		= letter alpha*
 
 (**)
-let num=decint|hexint|binint
+(*let num=decint|hexint|binint*)
+let num=decint|hexint
 (**)
 
 rule main = parse
@@ -157,6 +158,12 @@ rule main = parse
 |num as v 		{	try(
 					CARD_CONST (Int32.of_string v)
 				)with Failure _-> CARD_CONST_64 (Int64.of_string v)
+			}
+
+| binint as v		{	let size = (String.length v) - 2 in
+				try(
+					BIN_CONST (Int32.of_string v, size)
+				)with Failure _-> BIN_CONST_64 (Int64.of_string v, size)
 			}
 
 (**)
