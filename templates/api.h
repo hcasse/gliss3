@@ -123,7 +123,7 @@ void $(proc)_load($(proc)_platform_t *platform, struct $(proc)_loader_t *loader)
 $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);
 void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
 $(if is_RISC)
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t code);
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t *code);
 $(else)
 $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code);
 $(end)
@@ -161,7 +161,7 @@ void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address);
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
 
-$(if is_RISC)
+$(if !is_RISC)
 /* variable length functions */
 uint32_t value_on_mask(mask_t *inst, mask_t *mask)
 $(end)

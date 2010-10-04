@@ -934,18 +934,13 @@ let rec get_binop e1 e2 bop =
 	let aff _ =
 		let t1 = get_type_expr e1 in
 		let t2 = get_type_expr e2 in
-		print_string "(";
 		print_expr e1;
-		print_string ") -";
+		print_string ": ";
 		print_type_expr t1;
-		print_string "- ";
-		print_string (string_of_binop bop);
-		print_string " ";
-		print_string "(";
+		print_string (" " ^ (string_of_binop bop) ^ " ");
 		print_expr e2;
-		print_string ") -";
+		print_string ": ";
 		print_type_expr t2;
-		print_string "-";
 		print_string "\n" in
 
 	try
@@ -956,7 +951,7 @@ let rec get_binop e1 e2 bop =
 			| MUL
 			| DIV
 			| MOD -> get_mult_div_mod  e1 e2 bop
-			| EXP -> BINOP (NO_TYPE, bop, e1, e2)	(* A changer (le type)  *)
+			| EXP -> BINOP (get_type_expr e1, bop, e1, e2)
 			| LSHIFT
 			| RSHIFT
 			| LROTATE
@@ -1349,7 +1344,7 @@ let rec is_loc_spe id=
 *)
 let is_setspe loc=
 	match loc with
-	LOC_REF (_, id, Irg.NONE, Irg.NONE, Irg.NONE) -> (let symb= get_symbol id
+	LOC_REF (_, id, Irg.NONE, _, _) -> (let symb= get_symbol id
 			in
 			match  symb with
 				|PARAM _->true
@@ -1734,4 +1729,13 @@ let make_set loc expr =
 			res
 
 	| _ ->
-		raise (SemError "unsuppored assignment")
+		Irg.print_location loc;
+		print_char '\n';
+		raise (SemErrorWithFun ("unsuppored assignment",
+			fun _ ->
+				print_string "LHS type:";
+				Irg.print_type_expr ltype;
+				print_string "\nRHS type:";
+				Irg.print_type_expr etype;
+				print_char '\n'
+			))

@@ -42,6 +42,8 @@ let get_spec_extend x =
 %token<Int64.t> CARD_CONST_64
 %token<float>	FIXED_CONST
 %token<string>	STRING_CONST
+%token<Int32.t * int>	BIN_CONST
+%token<Int64.t * int>	BIN_CONST_64
 
 %token    EOF
 %token    DOLLAR
@@ -1006,6 +1008,10 @@ Constant :
 			else
 				(Irg.STRING, Irg.STRING_CONST($1, false, Irg.NO_TYPE))
 		}
+|	BIN_CONST
+		{ (Irg.CARD (snd $1), Irg.CARD_CONST (fst $1)) }
+|	BIN_CONST_64
+		{ (Irg.CARD (snd $1), Irg.CARD_CONST_64 (fst $1)) }
 ;
 
 

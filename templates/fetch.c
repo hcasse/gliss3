@@ -38,7 +38,7 @@ $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state)
 	$(proc)_fetch_t *res = malloc(sizeof($(proc)_fetch_t));
 	if (res == NULL)
 		$(proc)_error("not enough memory to create a $(proc)_fetch_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
-	res->mem = $(proc)_get_memory(state, GLISS_MAIN_MEMORY);
+	res->mem = $(proc)_get_memory(state, $(PROC)_MAIN_MEMORY);
 	if (number_of_fetch_objects == 0)
 		init_fetch();
 	number_of_fetch_objects++;

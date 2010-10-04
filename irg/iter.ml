@@ -286,7 +286,12 @@ let iter_ext
 
 				rec_iter f (f init a) b param_l attr_l;
 			| _ ->
-				failwith "we should have only AND OP spec at this point (Iter)"
+				Printf.printf "nb inst %d, " (List.length !instr_set);
+				print_string "should failwith:\n";
+				Irg.print_spec a;
+
+				rec_iter f (f init a) b [] [];
+				(*failwith "we should have only AND OP spec at this point (Iter)"*)
 	in
 	begin
 	initialise_instrs;

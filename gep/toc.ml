@@ -196,7 +196,7 @@ let info _ =
 		Irg.StringHashtbl.fold aux Irg.syms "" in
 	let pc = get_attr_regs "pc" in
 	if pc = "" then
-		failwith "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )"
+		raise (Sys_error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )")
 	else
 		let path = Sys.getcwd () in {
 			out = stdout;
@@ -666,6 +666,7 @@ let resolve_alias name idx ub lb =
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
 		| _ ->
+
 			failwith "bad alias" in
 
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in

@@ -364,10 +364,16 @@ let _ =
 			App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
 			App.make_template "api.c" "src/api.c" dict;
 			App.make_template "platform.h" "src/platform.h" dict;
-			App.make_template "fetch_table32.h" "src/fetch_table.h" dict;
+			App.make_template "fetch_table.h" "src/fetch_table.h" dict;
+			App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;
+			App.make_template "fetch.c" "src/fetch.c" dict;
 			(if not !gen_with_trace 
-			 then App.make_template "decode_table32.h" "src/decode_table.h" dict
+			 then
+			 	(App.make_template "decode_table.h" "src/decode_table.h" dict;
+				App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
+				App.make_template "decode.c" "src/decode.c" dict)
 			 else 
+				(* !!TODO!! generalize also the specialized decode *)
 				if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
 				then App.make_template "decode_table32_dtrace.h" "src/decode_table.h" dict
 				else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
