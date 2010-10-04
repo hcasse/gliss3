@@ -157,9 +157,10 @@ double gliss_set_fieldd_generic(double v, uint64_t s, int32_t a, int32_t b, int 
 #define gliss_bit16u(v, b)	gliss_bit(v, b)
 #define gliss_bit32(v, b)	gliss_bit(v, b)
 #define gliss_bit32u(v, b)	gliss_bit(v, b)
-#define gliss_bit32f(v, b)	gliss_bit(gliss_f2bits((b)), b)
+#define gliss_bit32f(v, b)	gliss_bit(gliss_f2bits((v)), b)
 #define gliss_bit64(v, b)	gliss_bit(v, b)
 #define gliss_bit64u(v, b)	gliss_bit(v, b)
+#define gliss_bitf(v, b)	gliss_bit32f(v, b)
 #define gliss_bitd(v, b)	gliss_bit(gliss_d2bits((v)), b)
 
 /* simple field access (value, upper bit, lower bit) */
