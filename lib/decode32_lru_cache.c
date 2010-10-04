@@ -167,9 +167,7 @@ gliss_inst_t *gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     
     /* If not find : */
     /* first, fetch the instruction at the given address */
-    code = gliss_mem_read32(decoder->fetch->mem, address);
-
-    id   = gliss_fetch(decoder->fetch, address, code);
+    id   = gliss_fetch(decoder->fetch, address, &code);
     /* then decode it */
     #ifndef GLISS_NO_MALLOC
     res  = gliss_decode_table[id](code);

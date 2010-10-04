@@ -186,9 +186,7 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     res = (current->value);
     for(i=0; i < TRACE_DEPTH; i++)
     {
-        code = gliss_mem_read32(decoder->fetch->mem, block_addr + i*4);
-        id   = gliss_fetch(decoder->fetch, block_addr + i*4, code);
-
+        id = gliss_fetch(decoder->fetch, block_addr + i*4, &code);
         gliss_decode_table[id](code, (res+i));
         (res+i)->addr = block_addr + i*4;
     }

@@ -176,8 +176,7 @@ gliss_inst_t* gliss_decode(gliss_decoder_t *decoder, gliss_address_t address)
     for(i=0; i < TRACE_DEPTH && !is_branch; i++)
     {
         gliss_address_t a = address + i*4;
-        code      = gliss_mem_read32(decoder->fetch->mem, a);
-        id        = gliss_fetch(decoder->fetch, a, code);
+        id        = gliss_fetch(decoder->fetch, a, &code);
         is_branch = gliss_decode_table[id](code, (res+i));
         (res+i)->addr = a;
     }
