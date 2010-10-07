@@ -702,16 +702,8 @@ int main(int argc, char **argv)
 			}
 
 
-// !!DEBUG BEGIN!!
-//	cpt++;
-//	printf("state after instr %d\n", cpt);
-//	gliss_dump_state(sim->state, stdout);
-//	fflush(stdout);
-//	getchar();
-	//if (cpt > 500)
-		//break;
-// !!DEBUG END!!
 	}
+
 	/* verbose simulation */
 	else
 	{
@@ -735,21 +727,15 @@ int main(int argc, char **argv)
 		}
 	}
 
-// !!DEBUG BEGIN!!
-//	printf("state after simulation\n");
-//	gliss_dump_state(sim->state, stdout);
-//	fflush(stdout);
-// !!DEBUG END!!
-
 	/* produce statistics */
 	if(stats) {
 		struct rusage buf;
 		getrusage(RUSAGE_SELF, &buf);
 		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
 		delay = end_time - start_time;
-		printf("Simulated instructions = %u\n", inst_cnt);
-        printf("Time = %f ms\n", (double)delay / 1000.00);
-		printf("Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
+		fprintf(stderr, "Simulated instructions = %u\n", inst_cnt);
+        fprintf(stderr, "Time = %f ms\n", (double)delay / 1000.00);
+		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
 	}
 	if(more_stat)
 	{
@@ -765,11 +751,11 @@ int main(int argc, char **argv)
 		
 		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 		sys_delay = end_sys_time - start_sys_time;
-		printf("\nSystem (computed with rusage()): \n");
-		printf("Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
-		printf("\nUser+System (computed with gettimeofday()): \n");
-		printf("Time : %f sec\n", time);
-		printf("Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
+		fprintf(stderr, "\nSystem (computed with rusage()): \n");
+		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
+		fprintf(stderr, "\nUser+System (computed with gettimeofday()): \n");
+		fprintf(stderr, "Time : %f sec\n", time);
+		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
 	}
 
     if(profile)
@@ -779,8 +765,6 @@ int main(int argc, char **argv)
     }
 
 	/* cleanup */
-//	free_options(&options);
-	/* this will also delete the associated state and the platform (if no one is locked on it) */
     gliss_delete_sim(sim);
 	return 0;
 }
