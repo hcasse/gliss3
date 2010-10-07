@@ -238,16 +238,30 @@ let get_type instr var_name =
 	| _ ->
 		assert false
 
-(** *)
-let rec sort_instr_set instr_list stat_list = match stat_list with
-  | []       -> []
-  | name::q  ->
-	try
-		let inst = List.find (fun a -> (get_name a) = name) instr_list
-		in
-			(sort_instr_set instr_list q)  @ [inst]
-	with Not_found -> failwith "Profiled file instructions statistics doesn't match current instruction generation"
+module OrderedString = struct
+	type t = string
+	let compare v1 v2 = compare v1 v2
+end
+module StringMap = Map.Make(OrderedString)
 
+(** Sort instructions according the order of the passed statistic list.
+	@param instr_list	Instructions to sort.
+	@param stat_list	Statistic list (instruction names sorted from
+						less used to more used).
+	@return				Sorted instruction list. *)
+let sort_instr_set instr_list stat_list =
+(*match stat_list with*)
+	let rec assign lst map n =
+		match lst with
+		| [] -> map
+		| name::t -> assign t (StringMap.add name n map) (n + 1) in
+	let map = assign stat_list StringMap.empty 0 in
+	let get i =
+		try StringMap.find (get_name i)  map
+		with Not_found -> -1 in
+	
+	List.sort (fun a b -> (get b) - (get a)) instr_list	
+  
 
 (** Iteration over actual instruction using profiling order.
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
