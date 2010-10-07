@@ -99,13 +99,20 @@ void syntax_error(char *prog_name, const char *fmt, ...) {
 
 extern char **environ;
 
-typedef struct init_options_t
-{
+typedef struct init_options_t {
+	uint32_t flags;
+#		define FLAG_ALLOCATED_ARGV	0x00000001
 	int argc;
 	char **argv;
 	char **envp;
 } init_options;
 
+
+/**
+ * Copy options from simulator to GLISS enviroment.
+ * @param env	GLISS options to set.
+ * @param opts	Simulator options to get.
+ */
 void copy_options_to_gliss_env(gliss_env_t *env, init_options *opt)
 {
 	env->argc = opt->argc;
@@ -122,18 +129,24 @@ void copy_options_to_gliss_env(gliss_env_t *env, init_options *opt)
 	env->stack_pointer = 0;
 }
 
+
+/**
+ * Free the allocated options.
+ * @param opt	Options to free.
+ */
 void free_options(init_options *opt)
 {
 	int i = 0;
 
-	if (opt->argv)
-	{
+	/* cleanup argv */
+	if(opt->argv && (opt->flags & FLAG_ALLOCATED_ARGV)) {
 		for (i = 0; opt->argv[i]; i++)
 			free(opt->argv[i]);
 		free(opt->argv);
 	}
-	if (opt->envp)
-	{
+	
+	/* cleanup envp */
+	if (opt->envp) {
 		for (i = 0; opt->envp[i]; i++)
 			free(opt->envp[i]);
 		free(opt->envp);
@@ -284,6 +297,197 @@ void write_profiling_file(FILE* profile_id, int inst_stat[])
         fprintf(profile_id, " %d"  , entries[i].id   );             // instruction id
         fprintf(profile_id, " %d\n", entries[i].count);             // instruction stats
     }
+}
+
+
+/**
+ * Prepare options from a given table.
+ * @param argc		Argument count.
+ * @param argv		Argument list.
+ * @param options	Options to initialize.
+ */
+void make_argv_from_table(int argc, char **argv, init_options *options) {
+	options->argv = argv;
+	options->argc = argc;
+}
+
+
+/**
+ * Load argv from a configuration file.
+ * @param app		Application name.
+ * @param path		Path to the configuration file.
+ * @param options	Options to initialize.
+ */
+int make_argv_from_file(const char *app, const char *path, init_options *options) {
+	FILE *f;
+	char *argv_str, *c_ptr;
+	int file_size;
+	int nb, toto, i;
+	
+	/* open the file */
+	f = fopen(path, "r");
+	if(f == NULL)
+		return -1;
+
+	/* get file size */
+	fseek(f, 0, SEEK_END);
+	file_size = ftell(f);
+	rewind(f);
+
+	/* allocate buffer */
+	argv_str = malloc((file_size + 1) * sizeof(char));
+	if (argv_str == 0) {
+		error("ERROR: cannot allocate memory\n");
+		return -1;
+	}
+
+	/* copy the file */
+	if (fread(argv_str, sizeof(char), file_size, f) != file_size) {
+		error("ERROR: cannot read the whole option file\n");
+		return -1;
+	}
+	argv_str[file_size] = '\0';
+
+	/* close the file */
+	if (fclose(f)) {
+		error("ERROR: cannot close the option file\n");
+		return 1;
+	}
+	
+	/* allocate argv array */
+	nb = 0;
+	toto = strlen(argv_str);
+	nb = cut_multi_string(argv_str);
+	options->argv = malloc((nb + 2) * sizeof(char *));
+	if(options->argv == NULL) {
+		error("ERROR: cannot allocate memory\n");
+		return -1;
+	}
+	options->flags |= FLAG_ALLOCATED_ARGV;
+	
+	/* build first argument */
+	c_ptr = argv_str;
+	options->argv[0] = malloc(strlen(app) + 1);
+	strcpy(options->argv[0], app);
+	
+	/* build other arguments */
+	for(i = 1; i <= nb; i++) {
+		options->argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
+		if(options->argv[i] == 0) {
+			error("ERROR: cannot allocate memory\n");
+			return -1;
+		}
+		strcpy(options->argv[i], c_ptr);
+		c_ptr = next_multi_string(c_ptr);
+	}
+	
+	/* last empty argument */
+	options->argv[nb + 1] = 0;
+	options->argc = nb + 1;
+	
+	/* cleanup */
+	free(argv_str);
+}
+
+
+/**
+ * Load envp from a configuration file.
+ * @param path		Path to the configuration file.
+ * @return			String of envp.
+ */
+char *make_envp_from_file(const char *path) {
+	FILE *f;
+	char *envp_str;
+	int file_size;
+
+	/* get the envp file and copy it into a buffer */
+	f = fopen(path, "r");
+	if(f == NULL)
+		return NULL;
+
+	/* get file size */
+	fseek(f, 0, SEEK_END);
+	file_size = ftell(f);
+	rewind(f);
+
+	/* allocate buffer */
+	envp_str = malloc((file_size + 1) * sizeof(char));
+	if(envp_str == 0) {
+		error("ERROR: cannot allocate memory\n");
+		return NULL;
+	}
+	
+	/* copy the file */
+	if(fread(envp_str, sizeof(char), file_size, f) != file_size) {
+		error("ERROR: cannot read the whole option file\n");
+		return NULL;
+	}
+	envp_str[file_size] = '\0';
+
+	/* close the file */
+	if (fclose(f)) {
+		error("ERROR: cannot close the option file\n");
+		return envp_str;
+	}
+	return envp_str;
+}
+
+
+/**
+ * Build the envp in the given options.
+ * @param path		Path to the envp file.
+ * @param options	Options to initialize.
+ * @return			0 for success, <0 else.
+ */
+int make_envp(char *path, init_options *options) {
+	char *envp_str, *c_ptr;
+	int nb, nb_bis, i;
+	
+	/* from file */
+	envp_str = make_envp_from_file(path);
+
+	/* find default env size and added env size*/
+	nb = 0;
+	while(environ[nb])
+		nb++;
+	nb_bis = 0;
+	if(envp_str)
+		nb_bis = cut_multi_string(envp_str);
+
+	/* copy envs */
+	options->envp = malloc((nb + nb_bis + 1) * sizeof(char *));
+	if(options->envp == 0) {
+		error("ERROR: cannot allocate memory\n");
+		return -1;
+	}
+
+	/* 1st default env */
+	for(i = 0; i < nb; i++) {
+		options->envp[i] = malloc(sizeof(char) * (strlen(environ[i]) + 1));
+		if(options->envp[i] == 0) {
+			error("ERROR: cannot allocate memory\n");
+			return -1;
+		}
+		strcpy(options->envp[i], environ[i]);
+	}
+
+	/* then added env */
+	c_ptr = envp_str;
+	for(i = nb; i < nb + nb_bis; i++) {
+		options->envp[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
+		if (options->envp[i] == 0) {
+			error("ERROR: cannot allocate memory\n");
+			return -1;
+		}
+		strcpy(options->envp[i], c_ptr);
+		c_ptr = next_multi_string(c_ptr);
+	}
+
+	/* final */
+	options->envp[nb + nb_bis] = 0;
+	if(envp_str)
+		free(envp_str);
+	return 0;
 }
 
 
@@ -441,163 +645,18 @@ int main(int argc, char **argv)
 
 	options.argv = options.envp = 0;
 
-	/* get the argv file and copy it into a buffer */
-	argv_str = 0;
-	strcpy(buffer, argv[prog_index]);
-	strcat(buffer, ".argv");
-	f = fopen(buffer, "r");
-	if (f == 0)
-	{
-		/* no argv specifed */
-		argv_str = 0;
-	}
-	else
-	{
-		/* get file size */
-		fseek(f, 0, SEEK_END);
-		file_size = ftell(f);
-		//!!DEBUG!!
-		/*printf("argv file size %d\n", file_size);*/
-		rewind(f);
-		/* allocate buffer */
-		argv_str = malloc((file_size + 1) * sizeof(char));
-		if (argv_str == 0) {
-			error("ERROR: cannot allocate memory\n");
-			return 1;
-		}
-		/* copy the file */
-		if (fread(argv_str, sizeof(char), file_size, f) != file_size) {
-			error("ERROR: cannot read the whole option file\n");
-			return 1;
-		}
-		argv_str[file_size] = '\0';
-		//!!debug!!
-		//printf("argv file read [%s]\n", argv_str);
-		/* close the file */
-		if (fclose(f)) {
-			error("ERROR: cannot close the option file\n");
-			return 1;
-		}
-	}
+	/* prepare the simulated argv */
+	snprintf(buffer, sizeof(buffer), "%s.argv", argv[prog_index]);
+	if(make_argv_from_file(argv[prog_index], buffer, &options) < 0)
+		make_argv_from_table(argc - prog_index, argv + prog_index, &options);
 
-
-	/* get the envp file and copy it into a buffer */
-	envp_str = 0;
-	strcpy(buffer, argv[prog_index]);
-	strcat(buffer, ".envp");
-	f = fopen(buffer, "r");
-	if (f != 0)
-	{
-		/* get file size */
-		fseek(f, 0, SEEK_END);
-		file_size = ftell(f);
-		rewind(f);
-		/* allocate buffer */
-		envp_str = malloc((file_size + 1) * sizeof(char));
-		if (envp_str == 0) {
-			error("ERROR: cannot allocate memory\n");
-			return 1;
-		}
-		/* copy the file */
-		if (fread(envp_str, sizeof(char), file_size, f) != file_size) {
-			error("ERROR: cannot read the whole option file\n");
-			return 1;
-		}
-		envp_str[file_size] = '\0';
-		/* close the file */
-		if (fclose(f)) {
-			error("ERROR: cannot close the option file\n");
-			return 1;
-		}
-	}
-	/* else : no envp specifed */
-
-	/* copy argv */
-	nb = 0;
-	if(!argv_str) {
-		options.argv = argv + prog_index;
-		options.argc = argc - prog_index;		
-	}
-	else {
-		int toto = strlen(argv_str);
-		nb = cut_multi_string(argv_str);
-		options.argv = malloc((nb + 2) * sizeof(char *));
-		if (options.argv == 0) {
-			error("ERROR: cannot allocate memory\n");
-			return 1;
-		}
-		c_ptr = argv_str;
-		options.argv[0] = malloc(strlen(argv[0]) + 1);
-		strcpy(options.argv[0], argv[0]);
-		for (i = 1; i <= nb; i++)
-		{
-			options.argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
-			if (options.argv[i] == 0) {
-				error("ERROR: cannot allocate memory\n");
-				return 1;
-			}
-			strcpy(options.argv[i], c_ptr);
-
-			//!!DEBUG!!
-			/*printf("argv_str[%d]=(%d)[%s]\n", i, strlen(c_ptr), c_ptr); */
-			c_ptr = next_multi_string(c_ptr);
-		}
-		options.argv[nb + 1] = 0;
-		options.argc = nb + 1;
-		if (argv_str)
-			free(argv_str);
-	}
-
-
-	/* copy default env and add envp */
-
-	/* find default env size and added env size*/
-	nb = 0;
-	while (environ[nb])
-		nb++;
-
-	nb_bis = 0;
-	if (envp_str) {
-		nb_bis = cut_multi_string(envp_str);
-	}
-
-	/* copy envs */
-	options.envp = malloc((nb + nb_bis + 1) * sizeof(char *));
-	if (options.envp == 0) {
-		error("ERROR: cannot allocate memory\n");
+	/* prepare the simulated envp */
+	snprintf(buffer, sizeof(buffer), "%s.envp", argv[prog_index]);
+	if(make_envp(buffer, &options) < 0)
 		return 1;
-	}
 
-	/* 1st default env */
-	for (i = 0; i < nb; i++)
-	{
-		options.envp[i] = malloc(sizeof(char) * (strlen(environ[i]) + 1));
-		if (options.envp[i] == 0) {
-			error("ERROR: cannot allocate memory\n");
-			return 1;
-		}
-		strcpy(options.envp[i], environ[i]);
-	}
-
-	/* then added env */
-	c_ptr = envp_str;
-	for (i = nb; i < nb + nb_bis; i++)
-	{
-		options.envp[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
-		if (options.envp[i] == 0) {
-			error("ERROR: cannot allocate memory\n");
-			return 1;
-		}
-		strcpy(options.envp[i], c_ptr);
-		c_ptr = next_multi_string(c_ptr);
-	}
-
-	options.envp[nb + nb_bis] = 0;
-	if (envp_str)
-		free(envp_str);
-
+	/* close loader file */
     gliss_loader_close(loader);
-
 
 	/* make the platform */
     platform = gliss_new_platform();
@@ -635,16 +694,10 @@ int main(int argc, char **argv)
 	}
 
 
-// !!DEBUG BEGIN!!
-//state->GPR[1] = 0x7ffdfeb0;
-//	printf("entry point given by the loader to the platform then to the state NIA: %08X\n", state->NIA);
-//	printf("state before simulation\n");
-//	gliss_dump_state(sim->state, stdout);
 	fflush(stdout);
-	int cpt=0;
+	int cpt = 0;
 
-    // !!DEBUG END!!
-
+	/* profile generation */
     if(profile)
     {
         // Append correctly path and name
