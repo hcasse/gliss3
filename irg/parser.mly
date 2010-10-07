@@ -991,7 +991,7 @@ Expr :
 
 Constant :
 	FIXED_CONST
-		{ (Irg.FLOAT(24, 8), Irg.FIXED_CONST  $1) }
+		{ (Irg.FLOAT(23, 9), Irg.FIXED_CONST  $1) }
 		/* changed for convenience. Avoid typing problem between immediates values and const */
 |	CARD_CONST
 		{ (Irg.CARD 32, Irg.CARD_CONST $1) }
