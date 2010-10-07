@@ -39,7 +39,7 @@
  * @param prog_name	Program name.
  */
 void usage(const char *prog_name) {
-	fprintf(stderr, "SYNTAX: %s <exec_name> OPTIONS\n\n"
+	fprintf(stderr, "SYNTAX: %s OPTIONS <exec_name> <exec arguments>\n\n"
 			"OPTIONS may be a combination of \n"
 			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
 			"  -h, -help             : display usage message\n"
@@ -389,12 +389,10 @@ int main(int argc, char **argv)
 		}
 
 		/* free argument */
-		else if(prog_index != 0) {
-			syntax_error(argv[0], "garbage argument: %s\n", argv[i]);
-			return 2;
-		}
-		else
+		else {
 			prog_index = i;
+			break;
+		}
 	}
 
 	/* exec available ? */
@@ -513,44 +511,42 @@ int main(int argc, char **argv)
 		}
 	}
 	/* else : no envp specifed */
-	/* we have to store the default env */
 
 	/* copy argv */
 	nb = 0;
-	if (argv_str)
-	{
+	if(!argv_str) {
+		options.argv = argv + prog_index;
+		options.argc = argc - prog_index;		
+	}
+	else {
 		int toto = strlen(argv_str);
 		nb = cut_multi_string(argv_str);
-		// !!DEBUG!!
-		/*printf("%d args found\n", nb);
-		for (i=0; i<toto; i++)
-			printf("{%c|%02X}\n", argv_str[i], argv_str[i]);*/
-	}
-	options.argv = malloc((nb + 2) * sizeof(char *));
-	if (options.argv == 0) {
-		error("ERROR: cannot allocate memory\n");
-		return 1;
-	}
-	c_ptr = argv_str;
-	options.argv[0] = malloc(strlen(argv[0]) + 1);
-	strcpy(options.argv[0], argv[0]);
-	for (i = 1; i <= nb; i++)
-	{
-		options.argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
-		if (options.argv[i] == 0) {
+		options.argv = malloc((nb + 2) * sizeof(char *));
+		if (options.argv == 0) {
 			error("ERROR: cannot allocate memory\n");
 			return 1;
 		}
-		strcpy(options.argv[i], c_ptr);
+		c_ptr = argv_str;
+		options.argv[0] = malloc(strlen(argv[0]) + 1);
+		strcpy(options.argv[0], argv[0]);
+		for (i = 1; i <= nb; i++)
+		{
+			options.argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
+			if (options.argv[i] == 0) {
+				error("ERROR: cannot allocate memory\n");
+				return 1;
+			}
+			strcpy(options.argv[i], c_ptr);
 
-		//!!DEBUG!!
-		/*printf("argv_str[%d]=(%d)[%s]\n", i, strlen(c_ptr), c_ptr); */
-		c_ptr = next_multi_string(c_ptr);
+			//!!DEBUG!!
+			/*printf("argv_str[%d]=(%d)[%s]\n", i, strlen(c_ptr), c_ptr); */
+			c_ptr = next_multi_string(c_ptr);
+		}
+		options.argv[nb + 1] = 0;
+		options.argc = nb + 1;
+		if (argv_str)
+			free(argv_str);
 	}
-	options.argv[nb + 1] = 0;
-	options.argc = nb + 1;
-	if (argv_str)
-		free(argv_str);
 
 
 	/* copy default env and add envp */
@@ -559,15 +555,10 @@ int main(int argc, char **argv)
 	nb = 0;
 	while (environ[nb])
 		nb++;
-	// !!DEBUG!!
-	//printf("%d default env strings\n", nb);
 
 	nb_bis = 0;
-	if (envp_str)
-	{
+	if (envp_str) {
 		nb_bis = cut_multi_string(envp_str);
-		// !!DEBUG!!
-		//printf("%d added env strings\n", nb_bis);
 	}
 
 	/* copy envs */
@@ -614,6 +605,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "ERROR: cannot create platform\n");
 		return 2;
 	}
+
 	/* initialize system options */
     copy_options_to_gliss_env(gliss_get_sys_env(platform), &options);
 
@@ -624,6 +616,8 @@ int main(int argc, char **argv)
 	}
 
 	/* free argv and envp once copied to simulator's memory */
+	if(!argv_str)
+		options.argv = NULL;
 	free_options(&options);
 
 	/* make the state depending on the platform */
