@@ -48,7 +48,8 @@ let new_mod _iname _aname = {
 let modules = ref [
 	new_mod "mem" "fast_mem";
 	new_mod "grt" "grt";
-	new_mod "error" "error"
+	new_mod "error" "error";
+	new_mod "gen_int" "gen_int"
 ]
 
 (** Add a module to the list of module from arguments.
@@ -203,7 +204,7 @@ let make_env info =
 		let mask = Fetch.str_to_gen_int string_mask
 		in
 			if min_size != max_size then
-				(Printf.fprintf out "\tuint32_t tab_mask%d[%d] = {" idx (List.length (Generic_int.to_Int32_list mask));
+				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length (Generic_int.to_Int32_list mask));
 				Printf.fprintf out "%s};\n" (to_C_list mask);
 				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Generic_int.length mask))
 	in
@@ -218,6 +219,13 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
+			(*!!WARNING!!*)
+			(* gliss1 compatibility, predecode generation before action *)
+			try
+				let _ = Iter.get_attr inst "predecode" in
+				Toc.gen_action info "predecode"
+			with
+			| Not_found -> ();
 			Toc.gen_action info "action")) ::
 		dict
 	in
@@ -257,7 +265,8 @@ let make_env info =
 			(* stack params (none) and attrs (only action) for "init" op *)
 			Irg.attr_stack [init_action_attr];
 			let _ = Toc.get_stat_attr "action" in
-			Toc.gen_action info "action")) ::
+			Toc.gen_action info "action";
+			Irg.attr_unstack [init_action_attr])) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::

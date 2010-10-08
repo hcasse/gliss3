@@ -10,6 +10,7 @@ extern  "C"
 #endif
 
 #include <$(proc)/id.h>
+#include <$(proc)/gen_int.h>
 
 
 /* data structures */

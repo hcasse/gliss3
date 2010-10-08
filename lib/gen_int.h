@@ -15,6 +15,13 @@ extern  "C"
 #define GLISS_GEN_INT_DESTROY(s)
 
 
+/* struct used to store masks and as buffer for instruction codes or any binary value which cannot fit into an uintN_t */
+/* chunks are arranged in the same order as in memory, msb first, lsb last */
+struct mask_t {
+	uint32_t *mask;
+	int bit_length;
+};
+
 
 
 #if defined(__cplusplus)

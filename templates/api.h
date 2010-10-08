@@ -163,7 +163,7 @@ void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
 
 $(if !is_RISC)
 /* variable length functions */
-uint32_t value_on_mask(mask_t *inst, mask_t *mask)
+uint32_t value_on_mask(mask_t *inst, mask_t *mask);
 $(end)
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_API_H */

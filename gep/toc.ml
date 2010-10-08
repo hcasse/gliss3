@@ -577,8 +577,8 @@ let rec unaliased_mem_name name =
 					resource type) *)
 let resolve_alias name idx ub lb =
 
-	let printv msg (r, i, il, ub, lb, t) =
-	(*	Printf.printf "\t%s(%s [" msg r;
+	let printv msg (r, i, il, ub, lb, t) =(*
+		Printf.printf "\t%s(%s [" msg r;
 		Irg.print_expr i;
 		Printf.printf ":%d] < " il;
 		Irg.print_expr ub;
@@ -655,7 +655,8 @@ let resolve_alias name idx ub lb =
 		printv "process" v;
 		let (r, i, il, ub, lb, t) = v in
 		(*!!DEBUG!!*)
-		(*print_string ("processing alias for:" ^ r ^ "\n");*)
+		(*print_string ("processing alias for:" ^ r ^ "\n");
+		Irg.print_spec (Irg.get_symbol r);*)
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
 			process_alias tr attrs v
@@ -665,8 +666,13 @@ let resolve_alias name idx ub lb =
 			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
+		(*!!DEBUG!!*)
+		(* this should happen only when using gliss1 predecode *)
+		| Irg.PARAM (_, typ) ->
+			(match typ with
+			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
+			| _ -> failwith "OUPS!\n")
 		| _ ->
-
 			failwith "bad alias" in
 
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
@@ -920,7 +926,15 @@ let unalias_set info stats name idx ub lb expr =
 	| Irg.VAR (_, cnt, tt) ->
 		add_var info name cnt tt;
 		seq stats (set_full i ub lb expr)
-	| _ -> failwith "unalias_set"
+	(*!!DEBUG!!*)
+	(* this should happen only when using gliss1 predecode *)
+	| Irg.PARAM (_, typ) ->
+		(match typ with
+		| Irg.TYPE_EXPR(tt) -> process tt
+		| _ -> failwith "OUPS!\n")
+	| _ -> 
+	Irg.print_spec (Irg.get_symbol name);
+	failwith "unalias_set"
 
 
 (* !!TODO!! move to Sem *)
@@ -956,7 +970,10 @@ let rec prepare_stat info stat =
 			let (stats, l) = prepare_expr info stats l in
 			(match Irg.get_symbol r with
 			| Irg.MEM _ -> seq stats (Irg.SET ((Irg.LOC_REF (t, r, i, u, l)), expr))
-			| _ -> unalias_set info stats r i u l expr)
+			| _ -> 
+			(*!!DEBUG!!*)
+			(*print_string "about to unalias_set, loc=";Irg.print_location loc;print_char '\n';*)
+			unalias_set info stats r i u l expr)
 		| Irg.LOC_CONCAT (t, l1, l2) ->
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
@@ -1449,6 +1466,18 @@ let rec gen_stat info stat =
 				out ", ";
 				gen_expr info (set_field info typ id Irg.NONE lo up expr);
 				out ");"
+			(*!!DEBUG!!*)
+			(* this should happen only when using gliss1 predecode *)
+			| Irg.PARAM (_, typ) ->
+				(match typ with
+				| Irg.TYPE_EXPR(tt) ->
+					gen_ref info id;
+					if idx <> Irg.NONE then
+						(out "["; gen_expr info idx; out "]");
+					out " = ";
+					gen_expr info (set_field info tt id idx lo up expr);
+					out ";"
+				| _ -> failwith "OUUPS!\n")
 			| s ->
 				Printf.printf "==> %s\n" id;
 				Irg.print_spec s;

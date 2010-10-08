@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <$(proc)/api.h>
 #include <$(proc)/macros.h>
+#include <$(proc)/gen_int.h>
 
 #if defined(__cplusplus)
 extern  "C"
@@ -62,9 +63,11 @@ $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
 	/* put other parameters */
+
 	$(foreach params)
-	$(if !is_RISC)$(mask_decl)$(end)
+$(if !is_RISC)$(mask_decl)$(end)
 	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
+	
 	$(end)
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 }

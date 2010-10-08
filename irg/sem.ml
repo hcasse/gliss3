@@ -1728,8 +1728,15 @@ let make_set loc expr =
 			output_char stderr '\n';
 			res
 
+	| CARD _, UNKNOW_TYPE
+	| INT _, UNKNOW_TYPE ->
+		Lexer.display_warning "unknown in right of set";
+		Irg.SET (loc, Irg.CAST(ltype, expr))
+
 	| _ ->
 		Irg.print_location loc;
+		print_string " = ";
+		Irg.print_expr expr;
 		print_char '\n';
 		raise (SemErrorWithFun ("unsuppored assignment",
 			fun _ ->

@@ -1132,7 +1132,7 @@ let fetch_generic = 0
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
 dl is the global list of all nodes, used to find sons for instance *)
-let output_table_C_decl_gen fetch_size out dt dl =
+let output_table_C_decl_gen fetch_size out fetch_stat dt dl =
 	let name_of t =
 		let correct_name s =
 			if s = "" then
@@ -1200,30 +1200,34 @@ let output_table_C_decl_gen fetch_size out dt dl =
 		match d with
 		| DecTree_(_, s, _, _, _) -> List.hd s
 	in
+	(* returns the number of instruction nodes produced *)
 	let produce_i_th_son i =
 		if exists_in i sons then
 			if is_terminal_node (get_i_th_son i sons) then
 			(* TODO: decode or not decode ? *)
-				let x = get_spec_of_term (get_i_th_son i sons)
+				(let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x)
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x);
+				1)
 			else
-				Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons))
+				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons));
+				0)
 		else
-			Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc)
+			(Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc);
+			0)
 	in
-	let rec produce_decode_ent i =
+	let rec produce_decode_ent i nb_nodes =
 		if i >= num_dec_ent then
-			()
+			nb_nodes
 		else
 			(Printf.fprintf out "\t";
-			produce_i_th_son i;
+			let nb = produce_i_th_son i in
 			if i = (num_dec_ent-1) then
 				Printf.fprintf out "\n"
 			else
 				Printf.fprintf out ",\n";
-			produce_decode_ent (i+1))
+			produce_decode_ent (i+1) (nb_nodes + nb))
 	in
 	let to_C_list mask =
 		let list = str_to_int32_list mask in
@@ -1252,18 +1256,20 @@ let output_table_C_decl_gen fetch_size out dt dl =
 		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
 ( (*print_string "tree_to_C :"; print_dec_tree_gen dt;*)
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
-		produce_decode_ent 0;
+		let nb_nodes = produce_decode_ent 0 0 in
 		Printf.fprintf out "};\n";
 		if fetch_size != fetch_generic then
 			Printf.fprintf out "static Table_Decodage _table%s = {0X%lX%s, table_table%s};\n" name (str01_to_int32 l_mask) (get_C_const_suffix l_mask) name
 		else
 			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (str_to_int32_list l_mask)) (to_C_list l_mask);
-			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s;" name name;
+			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s," name name;
 			Printf.fprintf out "\t%d};\n" (String.length l_mask);
 			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
 			);
 		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
-		Printf.fprintf out "\n")
+		Printf.fprintf out "\n";
+
+		Printf.fprintf fetch_stat "%8d/%8d, name=%s\n" nb_nodes num_dec_ent name)
 
 
 (* sort the DecTree in a given list according to a reverse pseudo-lexicographic order among the name of the DecTrees *)
@@ -1384,21 +1390,23 @@ let output_all_table_C_decl out =
 	let output_table_type_decl _ =
 		if fetch_size == fetch_generic then
 			(* generic, mask is not an uintN_t here *)
-			(output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tbit_length;\n} mask_t;\n\n";
-			output_string out "typedef struct {\n\tmask_t\tmask;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
+			((*output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tbit_length;\n} mask_t;\n\n";*)
+			output_string out "typedef struct {\n\tmask_t\t*mask;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 		else
 			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask;\n" fetch_size;
 			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 	in
+	let fetch_stat = open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") in
 	let aux dl dt =
-		output_table_C_decl_gen fetch_size out dt dl
+		output_table_C_decl_gen fetch_size out fetch_stat dt dl
 	in
 	let dl  = sort_dectree_list_gen (build_dec_nodes_gen 0)
 	in
 		output_table_type_decl ();
-		List.iter (aux dl) dl
+		List.iter (aux dl) dl;
+		close_out fetch_stat
 
 
 (* some testing *)

@@ -2,16 +2,10 @@
 
 #include <stdio.h>
 #include <gliss/api.h>
+#include <gliss/gen_int.h>
 
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
-
-/* struct used to store masks and as buffer for instruction codes or any binary value which cannot fit into an uintN_t */
-/* chunks are arranged in the same order as in memory, msb first, lsb last */
-struct {
-	uint32_t *mask;
-	int bit_length;
-} mask_t;
 
 
 int get_mask_length(struct mask_t *mask)
@@ -61,7 +55,7 @@ static uint32_t get_bit_n(struct mask_t *mask, int n)
 		return 0;
 	int bit_idx = n % 32;
 	int idx = n / 32 + (bit_idx? 1: 0);
-	return ((mask->mask[idx] >> bit_idx) & 1)
+	return ((mask->mask[idx] >> bit_idx) & 1);
 }
 
 
@@ -85,7 +79,8 @@ uint32_t value_on_mask(struct mask_t *inst, struct mask_t *mask)
 {
 	uint32_t res = 0;
 	int k = 0;
-	for (int i = mask->bit_length - 1; i >= 0; i++) {
+	int i;
+	for (i = mask->bit_length - 1; i >= 0; i++) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 32)
@@ -103,7 +98,8 @@ uint64_t extract_mask(struct mask_t *inst, struct mask_t *mask)
 {
 	uint64_t res = 0;
 	int k = 0;
-	for (int i = mask->bit_length - 1; i >= 0; i++) {
+	int i;
+	for (i = mask->bit_length - 1; i >= 0; i++) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 64)
