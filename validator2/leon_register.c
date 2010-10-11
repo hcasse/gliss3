@@ -7,7 +7,7 @@
 /* the python script, as given, cannot "render" a "moving" register
  * like the windowed ones of the leon */
 
-uint32_t get_win_reg(PROC(_state_t) * st, unsigned int idx)
+uint32_t get_reg(PROC(_state_t) * st, unsigned int idx)
 {
 	/* return R[CWP * NWINDOWS + idx] unless idx indicates a global register
 	 * NWINDOWS == 8 in the leon */
@@ -16,7 +16,7 @@ uint32_t get_win_reg(PROC(_state_t) * st, unsigned int idx)
 	return st->R[(((st->PSR & 0x1F) << 4) + idx - 8) % (8<<4) + 8];
 }
 
-void set_win_reg(PROC(_state_t) * st, unsigned int idx, uint32_t val)
+void set_reg(PROC(_state_t) * st, unsigned int idx, uint32_t val)
 {
 	/* affects R[CWP * NWINDOWS + idx] unless idx indicates a global register
 	 * NWINDOWS == 8 in the leon */
@@ -80,6 +80,11 @@ void dump_float_registers(PROC(_state_t) * st)
 }
 
 
+
+/* !!TODO!! generate the following code automatically from register description */
+
+/* identifiers for each register bank monitored */
+
 #define REG_R	0
 #define REG_F	1
 #define REG_PSR	2
@@ -90,6 +95,11 @@ void dump_float_registers(PROC(_state_t) * st)
 #define	REG_PC	7
 #define	REG_nPC	8
 
+
+/* function called at initialization,
+ * desc contains a register name as given in validator.cfg,
+ * bank will indicate the GLISS2 bank to access,
+ * idx will be the optional index as given in validator.cfg, or 0 if no index is present (single register) */
 void get_gliss_reg_addr(char *desc, PROC(_state_t) * st, int *bank, int *idx)
 {
 	/*  let's hope we have only simple reg name or indexed by integer */
@@ -103,6 +113,7 @@ void get_gliss_reg_addr(char *desc, PROC(_state_t) * st, int *bank, int *idx)
 	else
 		*idx = 0;
 	
+	/* from here it should be auto generated */
 	if (strncmp("R", desc, 1) == 0)
 		*bank = REG_R;
 	else if (strncmp("PSR", desc, 3) == 0)
@@ -124,11 +135,13 @@ void get_gliss_reg_addr(char *desc, PROC(_state_t) * st, int *bank, int *idx)
 }
 
 
+/* after init, each register (even those in an array) will have a different idx
+ * which will allow IDing the GLISS2 bank and optional real index */
 uint64_t get_gliss_reg(PROC(_state_t) * st, int idx)
 {
 	switch (reg_infos[idx].gliss_reg) {
 	case REG_R:
-		return get_win_reg(st, reg_infos[idx].gliss_idx);
+		return get_reg(st, reg_infos[idx].gliss_idx);
 	case REG_F: {
 		union {
 			float f;

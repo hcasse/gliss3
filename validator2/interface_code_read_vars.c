@@ -87,6 +87,7 @@ static int get_next_reg_value(char **val_list, uint64_t *v)
 
 void init_gdb_regs(char * drive_gdb_reply_buffer)
 {
+	/* retrieves the list of all registers watched by gdb */
 	send_gdb_cmd("-data-list-register-names\n", drive_gdb_reply_buffer, display_replies);
 	match_gdb_output(drive_gdb_reply_buffer, "^done", IS_ERROR, "When trying to get register name list, ");
 	/* find beginning of register name list and "clean" the list */

@@ -41,6 +41,9 @@
   #load "toc.cmo";;
 *)
 
+(* flag: output or not fetch tables stats *)
+let output_fetch_stat    = ref false
+
 (* return the string of a given Irg.expr which is supposed to be an image attribute *)
 let rec get_str e =
 	match e with
@@ -1269,7 +1272,8 @@ let output_table_C_decl_gen fetch_size out fetch_stat dt dl =
 		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
 		Printf.fprintf out "\n";
 
-		Printf.fprintf fetch_stat "%8d/%8d, name=%s\n" nb_nodes num_dec_ent name)
+		if !output_fetch_stat then
+			Printf.fprintf fetch_stat "%8d/%8d, name=%s\n" nb_nodes num_dec_ent name)
 
 
 (* sort the DecTree in a given list according to a reverse pseudo-lexicographic order among the name of the DecTrees *)
@@ -1398,7 +1402,7 @@ let output_all_table_C_decl out =
 			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
 			output_string out "\n\n/* and now the tables */\n\n\n")
 	in
-	let fetch_stat = open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") in
+	let fetch_stat = if !output_fetch_stat then open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") else stdout in
 	let aux dl dt =
 		output_table_C_decl_gen fetch_size out fetch_stat dt dl
 	in
@@ -1406,7 +1410,8 @@ let output_all_table_C_decl out =
 	in
 		output_table_type_decl ();
 		List.iter (aux dl) dl;
-		close_out fetch_stat
+		if !output_fetch_stat then
+			close_out fetch_stat
 
 
 (* some testing *)

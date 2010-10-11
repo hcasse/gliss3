@@ -80,8 +80,22 @@ let get_string_mask_for_param_from_op sp n =
 	let frmt_params =
 		get_frmt_params image_attr
 	in
+	let rec get_str e =
+		match e with
+		| Irg.FORMAT(str, _) -> str
+		| Irg.CONST(t_e, c) ->
+			if t_e=Irg.STRING then
+				match c with
+				Irg.STRING_CONST(str, false, _) ->
+					str
+				| _ -> ""
+			else
+				""
+		| Irg.ELINE(_, _, e) -> get_str e
+		| _ -> ""
+	in
 	let str_params =
-		remove_space (Fetch.get_str image_attr)
+		remove_space (get_str image_attr)
 	in
 	let rec get_name_of_param e =
 		match e with

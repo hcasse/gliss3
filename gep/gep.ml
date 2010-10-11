@@ -95,7 +95,8 @@ let options = [
 	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
 		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
-	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch")
+	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch");
+	("-fstat", Arg.Set Fetch.output_fetch_stat, "generates stats about fetch tables in <proc_name>_fetch_tables.stat")
 ]
 
 

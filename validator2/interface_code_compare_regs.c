@@ -62,4 +62,3 @@ void compare_regs_this_instruction(char *drive_gdb_reply_buffer, leon_state_t *r
 	}
 }
 #endif /* INTERFACE_CODE_COMPARE_REGS */
-

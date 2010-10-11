@@ -230,16 +230,8 @@ int init_gliss(char * drive_gdb_reply_buffer)
 	gliss_pc = real_state->PC;
 	gliss_npc = real_state->nPC;
 
-	/* set gliss stack pointer with same value as gdb */
-	/* sp is o6, also r14, fp is i6, also r30, fsr is 0 */
-	/* TODO, see if tsim put something in stack */
-	/* only zeroes are in the stack up to the fp addr, then garbage (looks like undefined) */
-	// temp debug, set psr to the same value as gdb
-	real_state->PSR = 0xF30010E0;
-	set_win_reg(real_state, 14, sp);
-	set_win_reg(real_state, 30, fp);
-	real_state->WIM = 2;
-	real_state->FSR = 0;
+	/* processor specific initialization code */
+	PROC_INIT_CODE
 
 	return 0;
 }
