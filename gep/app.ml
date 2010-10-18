@@ -209,7 +209,9 @@ let get_param f dict t =
 
 let get_memory f dict key sym =
 	match sym with
-	  Irg.MEM (name, size, Irg.CARD(8), attrs) ->
+	 | Irg.MEM (name, size, Irg.CARD(8), attrs)
+	 (* you can find int(8) memories in some description (carcore, hcs12) *)
+	 | Irg.MEM (name, size, Irg.INT(8), attrs) ->
 	  	f (
 			("NAME", out (fun _ -> String.uppercase name)) ::
 			("name", out (fun _ -> name)) ::

@@ -1158,7 +1158,8 @@ let output_table_C_decl_gen fetch_size out fetch_stat dt dl =
 	 * if that unfortunate case happen => change the algorithm *)
 	(* don't forget also that caml int are 31 bit long,
 	 * let's limit ourself below this limit *)
-		if sz_l_mask > 30 then
+	 (* deactivated temporarily for testing with nml with only 1 instr (==> full length mask) *)
+		if sz_l_mask > 32 then
 			failwith "shouldn't happen? mask too big (fetch.ml::output_table_C_decl_gen::num_dec_ent)"
 		else
 			1 lsl sz_l_mask
@@ -1301,6 +1302,10 @@ let sort_dectree_list_gen d_l =
 	let comp_fun x y =
 		comp_gen_int_list (name_of y) (name_of x)
 	in
+	(*!!DEBUG!!*)
+	(*Printf.printf "sort %d nodes\n" (List.length d_l);*)
+	(*List.iter print_dec_tree_gen d_l;*)
+	flush stdout;
 	List.sort comp_fun d_l
 
 
