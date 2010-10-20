@@ -545,7 +545,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;
 	$(proc)_inst_t* inst;
-	while(!sim->ended()) {
+	while(!sim->ended) {
 		inst = $(proc)_decode(decoder, state->$(pc_name));
 $(if GLISS_PROFILED_JUMPS)
 		switch(inst->ident)
