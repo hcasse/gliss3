@@ -42,7 +42,6 @@ unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst)
  * @li the hardware memories,
  * @li the module data (including system calls and interruption support).
  */
-/* typedef struct $(proc)_platform_t $(proc)_platform_t;*/
 
 
 /**
@@ -450,15 +449,17 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	sim->decoder = $(proc)_new_decoder($(proc)_platform(state));
 	if (sim->decoder == NULL)
 		return NULL;
-
 	if (exit_addr)
 		sim->addr_exit = exit_addr;
 	if (start_addr)
 		sim->state->$(pc_name) = start_addr;
 
-
+	/* not ended at start */
+	sim->ended = 0;
 	return sim;
 }
+
+
 //======================================================================
 #if !defined($(PROC)_TRACE_CACHE) && !defined($(PROC)_DTRACE_CACHE)
 
@@ -522,6 +523,10 @@ $(if !GLISS_NO_MALLOC)
 #endif
 #endif
 $(end)
+
+	/* ended ? */
+	if(sim->addr_exit == state->$(pc_name))
+		sim->ended = 1;
 }
 
 
@@ -540,8 +545,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;
 	$(proc)_inst_t* inst;
-	while(addr_exit != state->$(pc_name))
-	{
+	while(!sim->ended()) {
 		inst = $(proc)_decode(decoder, state->$(pc_name));
 $(if GLISS_PROFILED_JUMPS)
 		switch(inst->ident)
@@ -570,6 +574,8 @@ $(if !GLISS_NO_MALLOC)
 #endif
 $(end)
 		i++;
+		if(addr_exit == state->$(pc_name))
+			sim->ended = 1;
 	}
 	return i;
 }
@@ -586,8 +592,7 @@ void $(proc)_run_sim($(proc)_sim_t *sim)
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;
 	$(proc)_inst_t* inst;
-	while(addr_exit != state->$(pc_name))
-	{
+	while(!sim->ended) {
 		inst = $(proc)_decode(decoder, state->$(pc_name));
 $(if GLISS_PROFILED_JUMPS)
 		switch(inst->ident)
@@ -611,11 +616,13 @@ $(if !GLISS_NO_MALLOC)
 #ifndef $(PROC)_FIXED_DECODE_CACHE
 #ifndef $(PROC)_LRU_DECODE_CACHE
     /* finally free it */
-	$(proc)_free_inst(inst);
+		$(proc)_free_inst(inst);
 #endif
 #endif
 #endif
 $(end)
+		if(addr_exit == state->$(pc_name))
+			sim->ended = 1;
 	}
 }
 #endif
@@ -671,6 +678,9 @@ $(if !GLISS_PROFILED_JUMPS)
 	$(proc)_code_table[inst->ident](state, inst);
 $(end)
 
+	/* ended ? */
+	if(addr_exit == state->$(pc_name))
+		sim->ended = 1;
 }
 
 
@@ -691,7 +701,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
     $(proc)_address_t  addr_exit = sim->addr_exit;
     $(proc)_inst_t*    inst, *trace;
 
-	while(addr_exit != state->$(pc_name))
+	while(!sim->ended)
 	{
         trace    = $(proc)_decode(decoder, state->$(pc_name));
         num_bloc = (state->$(pc_name) >> 2) >> TRACE_DEPTH_PW;
@@ -715,6 +725,10 @@ $(end)
 			}
 			i++;
 		}
+
+		/* ended ? */
+		if(addr_exit == state->$(pc_name))
+			sim->ended = 1;
 	}
 	return i;
 }
@@ -841,6 +855,8 @@ $(if !GLISS_PROFILED_JUMPS)
 	$(proc)_code_table[inst->ident](state, inst);
 $(end)
 
+		if(sim->addr_exit == state->$(pc_name))
+			sim->ended = 1;
 }
 
 
@@ -860,7 +876,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
     $(proc)_address_t  addr_exit = sim->addr_exit;
     $(proc)_inst_t*    inst;
 
-	while(addr_exit != state->$(pc_name))
+	while(!sim->ended)
 	{
         inst = $(proc)_decode(decoder, state->$(pc_name));
 
@@ -885,6 +901,11 @@ $(end)
 			inst++;
 			i++;
         }
+
+        /* ended ? */
+		if(addr_exit == state->$(pc_name))
+			sim->ended = 1;
+
 	}
 	return i;
 }
@@ -903,7 +924,7 @@ void $(proc)_run_sim($(proc)_sim_t *sim)
     $(proc)_address_t  addr_exit = sim->addr_exit;
     $(proc)_inst_t*    inst;
 
-	while(addr_exit != state->$(pc_name))
+	while(!sim->ended)
 	{
         inst = $(proc)_decode(decoder, state->$(pc_name));
 
@@ -927,22 +948,21 @@ $(else)
 $(end)
 			inst++;
         }
+
+        /* ended ? */
+		if(addr_exit == state->$(pc_name))
+			sim->ended = 1;
 	}
 }
 
 #endif
 //======================================================================
 /**
+ * @fn int $(proc)_is_sim_ended($(proc)_sim_t *sim);
  * Indicate if the simulation is finished on the given simulator
  * @param	sim	the simulator which we simulate within
  * @return	whether or not the simulation is ended (0 => false, anything!=0 => true)
  */
-int $(proc)_is_sim_ended($(proc)_sim_t *sim)
-{
-	/* we want to stop right before the exit address */
-	return (sim->addr_exit == sim->state->$(pc_name));
-}
-
 
 /**
  * destruction of a simulator object, the associated state and decoder are also destroyed

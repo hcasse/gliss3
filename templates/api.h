@@ -42,6 +42,7 @@ typedef struct $(proc)_sim_t {
 	/* on libc stripped programs it is difficult to find the exit point, so we specify it */
 	$(proc)_address_t addr_exit;
 	/* anything else? */
+	int ended;
 } $(proc)_sim_t;
 
 
@@ -151,12 +152,13 @@ $(proc)_inst_t *$(proc)_next_inst($(proc)_sim_t *sim);
 unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim);
 void $(proc)_run_sim($(proc)_sim_t *sim);
 void $(proc)_step($(proc)_sim_t *sim);
-int $(proc)_is_sim_ended($(proc)_sim_t *sim);
 void $(proc)_delete_sim($(proc)_sim_t *sim);
 $(proc)_address_t  $(proc)_next_addr($(proc)_sim_t *sim);
 void $(proc)_set_next_address($(proc)_sim_t *sim, $(proc)_address_t address);
 #define $(proc)_set_entry_address(sim, addr) $(proc)_set_next_address(sim, addr)
 void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address);
+#define $(proc)_set_sim_ended(sim) (sim)->ended = 1
+#define $(proc)_is_sim_ended(sim) ((sim)->ended)
 
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
