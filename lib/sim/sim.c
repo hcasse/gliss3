@@ -35,10 +35,17 @@
 
 /* interrupt handler */
 static gliss_sim_t *sim;
+
 static void handle_int(int signum) {
 	puts("Interrupt caught ! Terminating...");
 	gliss_set_sim_ended(sim);
 }
+
+static void handle_alarm(int signum) {
+	puts("Alarm caught ! Terminating...");
+	gliss_set_sim_ended(sim);	
+}
+
 
 /**
  * Display usage of the command.
@@ -48,15 +55,16 @@ void usage(const char *prog_name) {
 	fprintf(stderr, "SYNTAX: %s OPTIONS <exec_name> <exec arguments>\n\n"
 			"OPTIONS may be a combination of \n"
 			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
+			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
 			"  -h, -help             : display usage message\n"
             "  -s                    : display user statistics\n"
             "  -more-stats           : display more statistics \n"
-			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
-			"  -v, -verbose          : display simulated instructions\n"
-			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
             "  -p, -profile=<path>   : generate the file <exec_name>.profile wich contains a statistical array of called instructions.\n"
             "                          Results are added to the file <exec_name>.profile. If the file does not exists it will be created.\n"
             "                          By default <exec_name>.profile is loaded and saved from the caller's current directory\n"
+			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
+			"  -t time               : stop the simulation after time seconds\n"
+			"  -v, -verbose          : display simulated instructions\n"
 			"\n"
 			"if args or env strings must be passed to the simulated program,\n"
 			"put them in <exec_name>.argv or <exec_name>.envp,\n"
@@ -498,8 +506,7 @@ int make_envp(char *path, init_options *options) {
 }
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     gliss_state_t *state = 0;
     gliss_platform_t *platform = 0;
     gliss_loader_t *loader = 0;
@@ -533,6 +540,7 @@ int main(int argc, char **argv)
 	uint64_t start_time=0, end_time, delay = 0;
 	uint64_t start_sys_time=0, end_sys_time, sys_delay = 0;
 	struct timeval start_all_time;
+	int time;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -591,6 +599,16 @@ int main(int argc, char **argv)
 		/* -s option */
 		else if(strcmp(argv[i], "-s") == 0)
 			stats = 1;
+		
+		/* -t option */
+		else if(strcmp(argv[i], "-t") == 0) {
+			i++;
+			if(i >= argc) {
+				syntax_error(argv[0], "-t option requires a time argument");
+				return 2;
+			}
+			time = strtoul(argv[i], NULL, 10);
+		}
 
 		/* option ? */
 		else if(argv[i][0] == '-') {
@@ -739,8 +757,14 @@ int main(int argc, char **argv)
 		start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 	}
 
-	/* full speed simulation */
+	/* initialize signals */
 	signal(SIGINT, handle_int);
+	if(time) {
+		signal(SIGALRM, handle_alarm);
+		alarm(time);
+	}
+
+	/* full speed simulation */
     if(!verbose && !profile)
     {
 
