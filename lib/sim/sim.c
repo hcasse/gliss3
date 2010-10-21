@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -149,7 +150,7 @@ void free_options(init_options *opt)
 			free(opt->argv[i]);
 		free(opt->argv);
 	}
-	
+
 	/* cleanup envp */
 	if (opt->envp) {
 		for (i = 0; opt->envp[i]; i++)
@@ -244,11 +245,11 @@ FILE* load_profiling_file(char* profiling_file_name, int inst_stat[])
         dump_line(profile_id); // dump column's titles
 
         // Init stats with the profiling file
-        for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
-        {
+        for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++) {
+			int g;
             dump_word(profile_id);
-            fscanf(profile_id, "%d", &inst_id);
-            fscanf(profile_id, "%d", &stat);
+            g = fscanf(profile_id, "%d", &inst_id);
+            g = fscanf(profile_id, "%d", &stat);
             inst_stat[inst_id] = stat;
         }
         // Erasing old profile :
@@ -298,9 +299,10 @@ void write_profiling_file(FILE* profile_id, int inst_stat[])
     // Write stats
     for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
     {
-        fprintf(profile_id, gliss_get_string_ident(entries[i].id)); // instruction name
-        fprintf(profile_id, " %d"  , entries[i].id   );             // instruction id
-        fprintf(profile_id, " %d\n", entries[i].count);             // instruction stats
+        fprintf(profile_id, "%s %d %d\n",
+        	gliss_get_string_ident(entries[i].id),	// instruction name
+        	entries[i].id,							// instruction id
+        	entries[i].count);						// instruction stats
     }
 }
 
@@ -328,7 +330,7 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 	char *argv_str, *c_ptr;
 	int file_size;
 	int nb, toto, i;
-	
+
 	/* open the file */
 	f = fopen(path, "r");
 	if(f == NULL)
@@ -358,7 +360,7 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		error("ERROR: cannot close the option file\n");
 		return 1;
 	}
-	
+
 	/* allocate argv array */
 	nb = 0;
 	toto = strlen(argv_str);
@@ -369,12 +371,12 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		return -1;
 	}
 	options->flags |= FLAG_ALLOCATED_ARGV;
-	
+
 	/* build first argument */
 	c_ptr = argv_str;
 	options->argv[0] = malloc(strlen(app) + 1);
 	strcpy(options->argv[0], app);
-	
+
 	/* build other arguments */
 	for(i = 1; i <= nb; i++) {
 		options->argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
@@ -385,11 +387,11 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		strcpy(options->argv[i], c_ptr);
 		c_ptr = next_multi_string(c_ptr);
 	}
-	
+
 	/* last empty argument */
 	options->argv[nb + 1] = 0;
 	options->argc = nb + 1;
-	
+
 	/* cleanup */
 	free(argv_str);
 }
@@ -421,7 +423,7 @@ char *make_envp_from_file(const char *path) {
 		error("ERROR: cannot allocate memory\n");
 		return NULL;
 	}
-	
+
 	/* copy the file */
 	if(fread(envp_str, sizeof(char), file_size, f) != file_size) {
 		error("ERROR: cannot read the whole option file\n");
@@ -447,7 +449,7 @@ char *make_envp_from_file(const char *path) {
 int make_envp(char *path, init_options *options) {
 	char *envp_str, *c_ptr;
 	int nb, nb_bis, i;
-	
+
 	/* from file */
 	envp_str = make_envp_from_file(path);
 
@@ -738,6 +740,7 @@ int main(int argc, char **argv)
 	}
 
 	/* full speed simulation */
+	signal(SIGINT, handle_int);
     if(!verbose && !profile)
     {
 
@@ -803,10 +806,10 @@ int main(int argc, char **argv)
 		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 		sys_delay = end_sys_time - start_sys_time;
 		fprintf(stderr, "\nSystem (computed with rusage()): \n");
-		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
+		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);
 		fprintf(stderr, "\nUser+System (computed with gettimeofday()): \n");
 		fprintf(stderr, "Time : %f sec\n", time);
-		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
+		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );
 	}
 
     if(profile)
