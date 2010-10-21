@@ -128,7 +128,7 @@ $(else)
 $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code)
 {
 	uint32_t value;
-	
+
 	Table_Decodage *ptr;
 	Table_Decodage *ptr2;
 	/* init a buffer for the read instr, size should be max instr size for the given arch */
@@ -143,7 +143,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 			set_mask_chunk(code, get_mask_length(code) >> 5, $(proc)_mem_read32(fetch->mem, address + (get_mask_length(code) >> 2)));
 			set_mask_length(get_mask_length(code) + 32);
 		}
-			
+
 		/* compute value on mask */
 		value = value_on_mask(code, ptr2->mask);
                 ptr  = ptr2;

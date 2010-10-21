@@ -32,7 +32,12 @@
 #include <gliss/loader.h>
 #include <gliss/id.h>
 
-
+/* interrupt handler */
+static gliss_sim_t *sim;
+static void handle_int(int signum) {
+	puts("Interrupt caught ! Terminating...");
+	gliss_set_sim_ended(sim);
+}
 
 /**
  * Display usage of the command.
@@ -289,7 +294,6 @@ void write_profiling_file(FILE* profile_id, int inst_stat[])
 
 int main(int argc, char **argv)
 {
-    gliss_sim_t *sim = 0;
     gliss_state_t *state = 0;
     gliss_platform_t *platform = 0;
     gliss_loader_t *loader = 0;
@@ -678,11 +682,11 @@ int main(int argc, char **argv)
 		struct rusage buf;
 		getrusage(RUSAGE_SELF, &buf);
 		start_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
-	}	
+	}
 	if(more_stat)
 	{
 		struct rusage buf;
-		gettimeofday(&start_all_time, NULL);		
+		gettimeofday(&start_all_time, NULL);
 		start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 	}
 
@@ -762,14 +766,14 @@ int main(int argc, char **argv)
 		}
 		timersub(&end_all_time, &start_all_time, &all_delay);
 		time = all_delay.tv_sec + (double)all_delay.tv_usec * 10E-6;
-		
+
 		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 		sys_delay = end_sys_time - start_sys_time;
 		printf("\nSystem (computed with rusage()): \n");
-		printf("Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
+		printf("Sys time = %f sec\n", (double)sys_delay / 1000000.00);
 		printf("\nUser+System (computed with gettimeofday()): \n");
 		printf("Time : %f sec\n", time);
-		printf("Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
+		printf("Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );
 	}
 
     if(profile)
