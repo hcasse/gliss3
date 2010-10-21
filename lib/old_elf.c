@@ -299,7 +299,7 @@ static Elf_Tables Initial_Tables = {
 	0,
 	NULL
 };
-Elf_Tables Tables;
+static Elf_Tables Tables;
 static struct text_info Text;
 static struct data_info Data;
 static Elf32_Ehdr Ehdr;
