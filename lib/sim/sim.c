@@ -540,7 +540,7 @@ int main(int argc, char **argv) {
 	uint64_t start_time=0, end_time, delay = 0;
 	uint64_t start_sys_time=0, end_sys_time, sys_delay = 0;
 	struct timeval start_all_time;
-	int time;
+	int time = 0;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
