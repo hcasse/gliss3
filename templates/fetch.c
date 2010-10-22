@@ -141,7 +141,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
 		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
 			set_mask_chunk(code, get_mask_length(code) >> 5, $(proc)_mem_read32(fetch->mem, address + (get_mask_length(code) >> 2)));
-			set_mask_length(get_mask_length(code) + 32);
+			set_mask_length(code, get_mask_length(code) + 32);
 		}
 
 		/* compute value on mask */

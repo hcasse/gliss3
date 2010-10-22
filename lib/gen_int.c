@@ -31,6 +31,21 @@ void set_mask_chunk(struct mask_t *mask, int idx, uint32_t val)
 }
 
 
+/* for debug */
+void output_mask(FILE *out, struct mask_t *mask)
+{
+	int n32 = mask->bit_length / 32;
+	int rem = mask->bit_length % 32;
+	int i;
+	
+	fprintf(out, "[%d]", mask->bit_length);
+	for (i = 0; i < n32; i++)
+		fprintf(out, "%08X", mask->mask[i]);
+	if (rem)
+		fprintf("(%d)%08X\n", rem, mask->mask[i]);
+}
+
+
 /* shift a mask 1 bit to the left and add a given bit to the right,
  * mask should be long enough to add one bit */
 /*static void mask_left_shift_add_bit(struct mask_t *mask, uint32_t new_lsb)
@@ -80,7 +95,10 @@ uint32_t value_on_mask(struct mask_t *inst, struct mask_t *mask)
 	uint32_t res = 0;
 	int k = 0;
 	int i;
-	for (i = mask->bit_length - 1; i >= 0; i++) {
+	
+	if (mask->bit_length == 0)
+		return 0;
+	for (i = mask->bit_length - 1; i >= 0; i--) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 32)
@@ -89,6 +107,7 @@ uint32_t value_on_mask(struct mask_t *inst, struct mask_t *mask)
 			res = ((res << 1) | get_bit_n(inst, i));
 		}
 	}
+	return res;
 }
 
 /* same as previous but we can use mask with more than 32 bits (64 max),
@@ -99,7 +118,10 @@ uint64_t extract_mask(struct mask_t *inst, struct mask_t *mask)
 	uint64_t res = 0;
 	int k = 0;
 	int i;
-	for (i = mask->bit_length - 1; i >= 0; i++) {
+	
+	if (mask->bit_length == 0)
+		return 0;
+	for (i = mask->bit_length - 1; i >= 0; i--) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 64)
@@ -108,6 +130,7 @@ uint64_t extract_mask(struct mask_t *inst, struct mask_t *mask)
 			res = ((res << 1) | get_bit_n(inst, i));
 		}
 	}
+	return res;
 }
 
 /* End of file gen_int.c */
