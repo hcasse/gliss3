@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -34,10 +35,17 @@
 
 /* interrupt handler */
 static gliss_sim_t *sim;
+
 static void handle_int(int signum) {
 	puts("Interrupt caught ! Terminating...");
 	gliss_set_sim_ended(sim);
 }
+
+static void handle_alarm(int signum) {
+	puts("Alarm caught ! Terminating...");
+	gliss_set_sim_ended(sim);	
+}
+
 
 /**
  * Display usage of the command.
@@ -47,15 +55,16 @@ void usage(const char *prog_name) {
 	fprintf(stderr, "SYNTAX: %s OPTIONS <exec_name> <exec arguments>\n\n"
 			"OPTIONS may be a combination of \n"
 			"  -exit=<hexa_address>] : simulation exit address (default symbol _exit)\n"
+			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
 			"  -h, -help             : display usage message\n"
             "  -s                    : display user statistics\n"
             "  -more-stats           : display more statistics \n"
-			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
-			"  -v, -verbose          : display simulated instructions\n"
-			"  -f, -fast             : Step by step simulation is disable and straightforward execution is prefered (through run_sim())\n"
             "  -p, -profile=<path>   : generate the file <exec_name>.profile wich contains a statistical array of called instructions.\n"
             "                          Results are added to the file <exec_name>.profile. If the file does not exists it will be created.\n"
             "                          By default <exec_name>.profile is loaded and saved from the caller's current directory\n"
+			"  -start=<hexa_address> : simulation start address (default symbol _start)\n"
+			"  -t time               : stop the simulation after time seconds\n"
+			"  -v, -verbose          : display simulated instructions\n"
 			"\n"
 			"if args or env strings must be passed to the simulated program,\n"
 			"put them in <exec_name>.argv or <exec_name>.envp,\n"
@@ -149,7 +158,7 @@ void free_options(init_options *opt)
 			free(opt->argv[i]);
 		free(opt->argv);
 	}
-	
+
 	/* cleanup envp */
 	if (opt->envp) {
 		for (i = 0; opt->envp[i]; i++)
@@ -244,11 +253,11 @@ FILE* load_profiling_file(char* profiling_file_name, int inst_stat[])
         dump_line(profile_id); // dump column's titles
 
         // Init stats with the profiling file
-        for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
-        {
+        for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++) {
+			int g;
             dump_word(profile_id);
-            fscanf(profile_id, "%d", &inst_id);
-            fscanf(profile_id, "%d", &stat);
+            g = fscanf(profile_id, "%d", &inst_id);
+            g = fscanf(profile_id, "%d", &stat);
             inst_stat[inst_id] = stat;
         }
         // Erasing old profile :
@@ -298,9 +307,10 @@ void write_profiling_file(FILE* profile_id, int inst_stat[])
     // Write stats
     for(i = 0; i<GLISS_INSTRUCTIONS_NB; i++)
     {
-        fprintf(profile_id, gliss_get_string_ident(entries[i].id)); // instruction name
-        fprintf(profile_id, " %d"  , entries[i].id   );             // instruction id
-        fprintf(profile_id, " %d\n", entries[i].count);             // instruction stats
+        fprintf(profile_id, "%s %d %d\n",
+        	gliss_get_string_ident(entries[i].id),	// instruction name
+        	entries[i].id,							// instruction id
+        	entries[i].count);						// instruction stats
     }
 }
 
@@ -328,7 +338,7 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 	char *argv_str, *c_ptr;
 	int file_size;
 	int nb, toto, i;
-	
+
 	/* open the file */
 	f = fopen(path, "r");
 	if(f == NULL)
@@ -358,7 +368,7 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		error("ERROR: cannot close the option file\n");
 		return 1;
 	}
-	
+
 	/* allocate argv array */
 	nb = 0;
 	toto = strlen(argv_str);
@@ -369,12 +379,12 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		return -1;
 	}
 	options->flags |= FLAG_ALLOCATED_ARGV;
-	
+
 	/* build first argument */
 	c_ptr = argv_str;
 	options->argv[0] = malloc(strlen(app) + 1);
 	strcpy(options->argv[0], app);
-	
+
 	/* build other arguments */
 	for(i = 1; i <= nb; i++) {
 		options->argv[i] = malloc(sizeof(char) * (strlen(c_ptr) + 1));
@@ -385,11 +395,11 @@ int make_argv_from_file(const char *app, const char *path, init_options *options
 		strcpy(options->argv[i], c_ptr);
 		c_ptr = next_multi_string(c_ptr);
 	}
-	
+
 	/* last empty argument */
 	options->argv[nb + 1] = 0;
 	options->argc = nb + 1;
-	
+
 	/* cleanup */
 	free(argv_str);
 }
@@ -421,7 +431,7 @@ char *make_envp_from_file(const char *path) {
 		error("ERROR: cannot allocate memory\n");
 		return NULL;
 	}
-	
+
 	/* copy the file */
 	if(fread(envp_str, sizeof(char), file_size, f) != file_size) {
 		error("ERROR: cannot read the whole option file\n");
@@ -447,7 +457,7 @@ char *make_envp_from_file(const char *path) {
 int make_envp(char *path, init_options *options) {
 	char *envp_str, *c_ptr;
 	int nb, nb_bis, i;
-	
+
 	/* from file */
 	envp_str = make_envp_from_file(path);
 
@@ -496,8 +506,7 @@ int make_envp(char *path, init_options *options) {
 }
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     gliss_state_t *state = 0;
     gliss_platform_t *platform = 0;
     gliss_loader_t *loader = 0;
@@ -531,6 +540,7 @@ int main(int argc, char **argv)
 	uint64_t start_time=0, end_time, delay = 0;
 	uint64_t start_sys_time=0, end_sys_time, sys_delay = 0;
 	struct timeval start_all_time;
+	int time = 0;
 
 	/* scan arguments */
 	for(i = 1; i < argc; i++) {
@@ -589,6 +599,16 @@ int main(int argc, char **argv)
 		/* -s option */
 		else if(strcmp(argv[i], "-s") == 0)
 			stats = 1;
+		
+		/* -t option */
+		else if(strcmp(argv[i], "-t") == 0) {
+			i++;
+			if(i >= argc) {
+				syntax_error(argv[0], "-t option requires a time argument");
+				return 2;
+			}
+			time = strtoul(argv[i], NULL, 10);
+		}
 
 		/* option ? */
 		else if(argv[i][0] == '-') {
@@ -737,6 +757,13 @@ int main(int argc, char **argv)
 		start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 	}
 
+	/* initialize signals */
+	signal(SIGINT, handle_int);
+	if(time) {
+		signal(SIGALRM, handle_alarm);
+		alarm(time);
+	}
+
 	/* full speed simulation */
     if(!verbose && !profile)
     {
@@ -803,10 +830,10 @@ int main(int argc, char **argv)
 		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
 		sys_delay = end_sys_time - start_sys_time;
 		fprintf(stderr, "\nSystem (computed with rusage()): \n");
-		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);	
+		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);
 		fprintf(stderr, "\nUser+System (computed with gettimeofday()): \n");
 		fprintf(stderr, "Time : %f sec\n", time);
-		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );	
+		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );
 	}
 
     if(profile)
