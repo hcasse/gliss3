@@ -222,12 +222,17 @@ let make_env info =
 			Toc.set_inst info inst;
 			(*!!WARNING!!*)
 			(* gliss1 compatibility, predecode generation before action *)
-			try
+			(try
 				let _ = Iter.get_attr inst "predecode" in
 				Toc.gen_action info "predecode"
 			with
-			| Not_found -> ();
+			| Not_found -> ());
 			Toc.gen_action info "action")) ::
+		("gen_pc_incr", Templater.TEXT (fun out ->
+			let info = Toc.info () in
+			info.Toc.out <- out;
+			Toc.set_inst info inst;
+			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
 		dict
 	in
 	let maker = App.maker() in
@@ -248,10 +253,6 @@ let make_env info =
 	("msb_mask", App.out (fun _ -> (get_msb_mask min_size))) ::
 	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
  	("max_operand_nb", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_op_nb)  ) ::
-	("gen_pc_incr", Templater.TEXT (fun out ->
-			let info = Toc.info () in
-			info.Toc.out <- out;
-			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
 	("gen_init_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			let spec_init = Irg.get_symbol "init" in
@@ -268,6 +269,10 @@ let make_env info =
 			let _ = Toc.get_stat_attr "action" in
 			Toc.gen_action info "action";
 			Irg.attr_unstack [init_action_attr])) ::
+	("gen_pc_incr_unknown", Templater.TEXT (fun out ->
+			let info = Toc.info () in
+			info.Toc.out <- out;
+			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
 	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
 	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::

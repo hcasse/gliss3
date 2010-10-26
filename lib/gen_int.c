@@ -42,7 +42,7 @@ void output_mask(FILE *out, struct mask_t *mask)
 	for (i = 0; i < n32; i++)
 		fprintf(out, "%08X", mask->mask[i]);
 	if (rem)
-		fprintf("(%d)%08X\n", rem, mask->mask[i]);
+		fprintf(out, "(%d)%08X\n", rem, mask->mask[i]);
 }
 
 
@@ -63,14 +63,15 @@ void output_mask(FILE *out, struct mask_t *mask)
 
 
 /* return bit n of a mask, result (0 or 1) is right justified in an uint32_t */
+/* bit order starts from 0 (msb on the left) to mask->bit_length-1 (lsb on the right) */
 static uint32_t get_bit_n(struct mask_t *mask, int n)
 {
 	if (n >= mask->bit_length)
 		/* index out of range, should be an error */
 		return 0;
 	int bit_idx = n % 32;
-	int idx = n / 32 + (bit_idx? 1: 0);
-	return ((mask->mask[idx] >> bit_idx) & 1);
+	int idx = n / 32;
+	return ((mask->mask[idx] >> (31 - bit_idx)) & 1);
 }
 
 
@@ -98,7 +99,7 @@ uint32_t value_on_mask(struct mask_t *inst, struct mask_t *mask)
 	
 	if (mask->bit_length == 0)
 		return 0;
-	for (i = mask->bit_length - 1; i >= 0; i--) {
+	for (i = 0; i < mask->bit_length; i++) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 32)
