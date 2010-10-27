@@ -1219,11 +1219,15 @@ and gen_binop info t op e1 e2 =
 	| Irg.BIN_AND	-> exts info t (fun _ -> out "(" " & " ")")
 	| Irg.BIN_OR	-> exts info t (fun _ -> out "(" " | " ")")
 	| Irg.BIN_XOR	-> exts info t (fun _ -> out "(" " ^ " ")")
-	| Irg.CONCAT	-> 
-	(*!!DEBUG!!*)
-	(*print_string "########concat,\n\t"; Irg.print_expr e1;print_string"\n\t";Irg.print_type_expr (Sem.get_type_expr e1); print_string "\n\t";
-	Irg.print_expr e2;print_string "\n\t";Irg.print_type_expr (Sem.get_type_expr e2); print_char '\n';*)
-	out (Printf.sprintf "%s_concat%s(" info.proc (type_to_mem(convert_type t))) ", " ")"
+	| Irg.CONCAT	->
+		let l1 = Sem.get_type_length (Sem.get_type_expr e1) in
+		let l2 = Sem.get_type_length (Sem.get_type_expr e2) in
+		(*!!DEBUG!!*)
+		(*print_string "########concat,\n\t"; Irg.print_expr e1;print_string"\n\t";Irg.print_type_expr (Sem.get_type_expr e1); print_string "\n\t";
+		Irg.print_expr e2;print_string "\n\t";Irg.print_type_expr (Sem.get_type_expr e2); print_char '\n';*)
+		Printf.fprintf info.out "%s_concat%s(" info.proc (type_to_mem(convert_type t));
+		out "" ", " ", ";
+		Printf.fprintf info.out "%d, %d)" l1 l2
 
 
 (** Generate code for coercition.

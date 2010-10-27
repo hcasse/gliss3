@@ -82,8 +82,8 @@ uint64_t gliss_rotate_right64(uint64_t v, int r);
 /* concatenation */
 #define gliss_concat32(v1, v2, n1, n2)  ((((uint32_t)(v1) << n2) | ((v2) & gliss_mask32(n2))))
 #define gliss_concat8(v1, v2, n1, n2) gliss_concat32(v1, v2, n1, n2)
-#define gliss_concat16(v1, v2, n1, n2) gliss_concat16(v1, v2, n1, n2)
-#define gliss_concat64(v1, v2, n1, n2)  ((((uint64_t)(v1) << n2) | ((v2) & gliss_mask32(n2))))
+#define gliss_concat16(v1, v2, n1, n2) gliss_concat32(v1, v2, n1, n2)
+#define gliss_concat64(v1, v2, n1, n2)  ((((uint64_t)(v1) << n2) | ((v2) & gliss_mask64(n2))))
 
 /* exponent */
 #define gliss_exp8(v1, v2) gliss_exp32(v1, v2)
