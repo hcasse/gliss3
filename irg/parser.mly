@@ -351,7 +351,8 @@ MemLocation:
 	MemLocBase
 		{ Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, Irg.NONE, Irg.NONE) }
 |	MemLocBase BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{ Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, $3, $5) }
+		{ 
+		Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, $3, $5) }
 ;
 
 MemLocBase:
@@ -849,11 +850,19 @@ Expr :
 		}
 |	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
-		if Irg.is_defined $1
+			if Irg.is_defined $1
 			then
 				if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
 					then
-						eline (Irg.BITFIELD ((Sem.get_type_ident $1),Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8)) (* A changer *)
+						(* copied from Expr<Bit_Expr..Bit_Expr> *)
+						try
+							let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $6)) in
+							let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $8)) in
+							let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
+							(* !!TODO!! check type (only scalar allowed) and length if possible *)
+								eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8))
+						with Sem.SemError _ ->
+							eline (Irg.BITFIELD ((Sem.get_type_ident $1), Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8)) (* A changer *)
 					else
 						let dsp = fun _->(
 								print_string "Type : ";
