@@ -124,7 +124,12 @@ let disassemble inst out info =
 			  Iter.STAT _ -> raise (Toc.Error "syntax must be an expression")
 			| Iter.EXPR e -> e
 		with Not_found -> raise (Toc.Error "no attribute") in
-
+	(* predecode *)
+	(try
+		let _ = Iter.get_attr inst "predecode" in
+		Toc.gen_action info "predecode"
+	with
+	| Not_found -> ());
 	(* disassemble *)
 	let params = Iter.get_params inst in
 	Irg.param_stack params;
