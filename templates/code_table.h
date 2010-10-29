@@ -24,16 +24,12 @@ $(end)
 
 #define $(PROC)__SIZE	$(min_instruction_size)
 static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
-	$(if !is_RISC)/* automatic Pc(s) incrementation for CISC ISA */
-	$(gen_pc_incr_unknown)$(end)
 	/* must not be executed ! */
 	$(proc)_execute_unknown(state, $(PROC)_UNKNOWN___IADDR);
 }
 
 $(foreach mapped_instructions)
 static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
-	$(if !is_RISC)/* automatic Pc(s) incrementation for CISC ISA */
-	$(gen_pc_incr)$(end)
 $(gen_code)
 }
 

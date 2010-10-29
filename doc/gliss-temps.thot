@@ -166,34 +166,40 @@ the NML ''proc'' definition
 
 ''SOURCE_PATH'' (//text//) -- path to the generated sources
 
-''values'' (//collect//) -- collection of constant values
-(as defined by the ''let''  NML instruction)
+''values'' (//collect//) -- collection of the different types of all the parameters from every fully derived instructions,
+types are all "rounded" to the smallest C type that can contain them
 
 ''version'' (//text//) -- identification of the generation version
 of @(GLISS)
 
+
 === Collection symbols ===
+
+
 
 == ''instruction'' (//collect//) And ''profiled_instructions'' (//collect//) ==
 
-In this example you will find a summary of the availables symbols for this collection :
+In this example you will find a summary of the availables symbols for this collection:
 <code>
 $(foreach instructions) // or $(foreach profiled_instructions)
-     $(IDENT)      // Name of the current instruction
-     $(ident)      // Name of the current instruction (lower case)
-     $(size)       // Bit number of the instruction
-     $(ICODE)      // Integer identifier of the instruction
-     $(has_param)  // True if instruction has operands
-     $(num_params) // Number of 
-     $(gen_code)   // code C de l'instruction pour la simuler
-     $(is_inst_branch) // True if it is a branch instruction
-     $(foreach params) // Collection of instruction's operands
-          $(PARAM)     // Name of the operand
-          $(INDEX)     // index of the operand when operands are represented with an array
+     $(IDENT)      // (text) Name of the current instruction
+     $(ident)      // (text) Name of the current instruction (lower case)
+     $(size)       // (text) Bit size of the instruction
+     $(ICODE)      // (text) Integer identifier of the instruction
+     $(has_param)  // (bool) True if instruction has operands
+     $(num_params) // (text) Number of parameters of the fully derived instruction
+     $(gen_code)   // (text) C code traduction of the current instruction's action
+     $(gen_pc_incr)// (text) generates C code sequence for automatic PC(s) incrementation,
+                   // can be used if ''__attr'' keyword defines PC and, eventually, next and previous PC
+		   // and if no PC(s) incrementation is written in NML sources
+     $(is_inst_branch) // (bool) True if it is a branch instruction
+     $(foreach params) // (collect) Collection of instruction's operands
+          $(PARAM)     // (text) Name of the operand
+          $(INDEX)     // (text) index of the operand when operands are represented with an array
                        // which is not always the case (see section optimisation option GLISS_INSTR_FAST_STRUCT
-          $(TYPE)      // C type of the operand (uint8_t, int32_t etc.)
-          $(PARAM_TYPE)// Type of the operand (uint8, int32 etc.)
-          $(param_type)// Operand's Type (lower case)
+          $(TYPE)      // (text) C type of the operand (uint8_t, int32_t etc.)
+          $(PARAM_TYPE)// (text) Type of the operand (uint8, int32 etc.)
+          $(param_type)// (text) Operand's Type (lower case)
      $(end)
 $(end)
 </code>
@@ -201,7 +207,38 @@ $(end)
 
 == ''registers'' (//collect//) ==
 
+Example with summary of available symbols for the ''registers'' collection:
+<code>
+$(foreach registers)
+     $(type)       // (text) Name of the C type used to represent the given register
+     $(name)       // (text) Name of the given register
+     $(NAME)       // (text) Name of the given register (uppercase)
+     $(aliased)    // (bool) True if the given register is declared as an alias to another register
+     $(array)      // (bool) True if the given register is declared as a bank of more than one rgister
+     $(size)       // (text) If the given register is a bank, it returns the bank's size,
+                   // else it returns 1
+</code>
+
+
 == ''memories'' (//collect//) ==
+
+Example with summary of available symbols for the ''memories'' collection:
+<code>
+$(foreach memories)
+     $(name)       // (text) Name of the given memory
+     $(NAME)       // (text) Name of the given memory (uppercase)
+     $(aliased)    // (bool) True if the given memory is declared as an alias to another memory
+</code>
+
+
+== ''values'' (//collect//) ==
+
+Example with summary of available symbols for the ''values'' collection:
+<code>
+$(foreach values)
+     $(name)       // (text) Name of the field in the gliss_value_t union (defined in api.h) used to access a value of the given value type
+     $(type)       // (text) Name of the C type of the given value type
+</code>
 
 
 ==== Fetch Symbols ====
