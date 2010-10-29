@@ -51,8 +51,14 @@ the generation templates
 the generation templates
   * ''-q'' -- quiet mode, does not display anything except errors
   * ''-S'' -- generate also the default ISS
-  * ''-s'' //SIZE// -- request image size check againt the given size
+  * ''-s'' //SIZE// -- request image size check against the given size
   * ''-v'' -- display verbose information about the generation
+  * ''-gen-with-trace'' -- Generate simulator with decoding of dynamic traces of instructions (faster). module decode32_dtrace must be use with this option
+  * ''-p'' //PROFILING FILE// -- Optimized generation with a profiling file given its path. Instructions handlers are sorted to optimized host simulator cache
+  * ''-PJ'' //PROFILED SWITCH SIZE// -- Stands for profiled jumps : enable better branch prediction if -p option is also activated
+  * ''-off'' //SWITCH// -- unactivate the given switch
+  * ''-on'' //SWITCH// -- activate the given switch
+  * ''-fstat'' -- generates stats about fetch tables in the file <proc_name>_fetch_tables.stat
 
 
 ===== gliss-nmp2nml.pl =====

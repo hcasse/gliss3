@@ -88,7 +88,14 @@ machine and the simulated machine have different endianness.
 
 Their value may be 0 for little endian, 1 for big endian.
 
-Implementing modules: ''fast_mem'' and ''vfast_mem''.
+Implementing modules: 
+  * ''fast_mem'' -- standard memory module with a two-levels depth hashtable.
+  * ''vfast_mem'' --  faster module with a one level hashtable, and a better endianness handling (it does not byte swap memory at each memory acces when endianness differs from NML to host machine),
+should be used as default module for standard simulation.
+  * ''mem16'' -- fast module for 16 bit addressed memory, data are stored directly in a 2^16 bytes array.
+  * ''io_mem'' -- modified ''fast_mem'' module useful to simulate memory mapped peripherics or other exotic memory accesses. A callback function can be specified for each page, when accessing a page, if a callback fucntion is present,
+it is called with informations about the address, size, type (read/write) and data (if written) of the access. This function will provide the real read data or simulate the writing regarding of the access type.
+
 
 ==== Types ====
 <code c>
@@ -100,6 +107,20 @@ This type is used to represent addresses.
 typedef struct gliss_memory_t gliss_memory_t;
 </code>
 This type represents the memory.
+
+
+=== Types for ''io_mem'' only ===
+
+<code c>
+#define GLISS_MEM_READ  0
+#define GLISS_MEM_WRITE 1
+</code>
+Type access values to specify to the callback function.
+
+<code c>
+typedef void (*gliss_callback_fun_t)(gliss_address_t addr, int size, void *data, int type_access);
+</code>
+Callback function prototype.
 
 ==== Functions ====
 <code c>
@@ -199,6 +220,19 @@ Write a block of memory of the given size from the given buffer in
 the memory at the given address.
 
 
+=== ''io_mem'' callback related functions ===
+
+<code c>
+void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end, gliss_callback_fun_t f);
+</code>
+Sets a callback function for the smallest set of pages covering the given memory range, replace the former callback function if present.
+
+<code c>
+void gliss_unset_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end);
+</code>
+Removes the callback function for the smallest set of pages covering the given memory range, do nothing if no callback fucntion is present.
+
+
 ===== ''fetch'' interface =====
 
 This module implements the fetch phase, that is, find the instruction
@@ -206,7 +240,8 @@ identifier from the instruction address. Usually, the fetch phase
 usually includes the fetch table found in ''fetch_table.h''.
 
 Implementing modules:
-  * ''fetch32'' -- fetch for 32-bits instruction set
+  * ''fetch'' -- implements specialized fetch for RISC architectures or a generic fetch for CISC architectures,
+this module will be produced by default by GEP even if you do not specify it on command line.
 
 ==== Types ====
 
@@ -243,7 +278,8 @@ of an instruction and generates a ''gliss_inst_t *'' object.
 The decoder table are provided by GEP in the file ''decode_table.h''.
 
 Implementing modules:
-  * ''decode32'' -- decoder for 32-bits instruction set.
+  * ''decode'' -- implements specialized decoder for RISC architectures or a generic decoder for CISC architectures,
+this module will be produced by default by GEP if you do not specify any decode module on command line.
 
 ==== Types ====
 
@@ -486,6 +522,7 @@ Module preparing the initial stack of the program.
 
 Implementing modules:
   * ''void_env'' -- no stack is built.
+  * ''linux_env'' -- for PowerPC linux stack initialization.
 
 ==== Functions ====
 

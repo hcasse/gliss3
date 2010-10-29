@@ -81,12 +81,14 @@ you can improve performances by using the right modules and options
 
 Here is a list of different decoding modules sort by order of speed:
 
-   * ''decode32'' -- standard module (slowest speed)
+   * ''decode'' -- standard module (slowest speed)
    * ''decode32_inf_cache'' -- every decoded instruction is cached (use this module at your own risk as itcould severly bloat your memory!)
    * ''decode32_fixed_cache'' -- every instructions are cached erasing the oldest inserted instruction (FIFO replacement)
    * ''decode32_lru_cache'' -- every instruction is cached erasing the oldest used instruction (LRU replacement)
    * ''decode32_trace'' -- provide a method to decode an entire block of instructions and thus accelerate the simulation by reducing the calls to decode
    * ''decode32_dtrace'' -- identical to the previous module but size of decoded block is dynamic
+
+N.B. ''decode32_*'' modules are specialized to deal with 32 bit instructions only.
 
 Blocks are decoded up to the next instruction branch as it guaranties a consistent execution when executing an entire block without any further check.
 **WARNING** this module must be used with the option ''-gen-with-trace'' which indicates to GEP that NML has been consistently written with attribute ''set_attr_branch = 1''.
@@ -98,9 +100,10 @@ To select a decoder module, call GEP with options:
 -m decode:MODULE_NAME
 </code>
 
-Two memory modules are availables :
+Three optimized memory modules are availables :
    * ''fast_mem'' -- standard memory module with a two-levels depth hashtable.
    * ''vfast_mem'' --  faster module with a one level hashtable, and a better endianness handling (it does not byte swap memory at each memory acces when endianness differs from NML to host machine)
+   * ''mem16'' -- fast module for 16 bit addressed memory, data are stored directly in a 2^16 bytes array.
 
 Call GEP with:
 <code>
