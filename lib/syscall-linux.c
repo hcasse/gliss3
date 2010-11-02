@@ -631,7 +631,7 @@ static BOOL gliss_syscall_read(gliss_state_t *state) {
 	size_t count;
 	gliss_address_t buf_addr;
 	void *buf;
-	size_t ret;
+	int64_t ret;
 
 	PARM_BEGIN
 		fd = _fd(gliss_platform(state), PARM(0));
