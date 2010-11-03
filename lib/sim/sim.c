@@ -43,7 +43,7 @@ static void handle_int(int signum) {
 
 static void handle_alarm(int signum) {
 	puts("Alarm caught ! Terminating...");
-	gliss_set_sim_ended(sim);	
+	gliss_set_sim_ended(sim);
 }
 
 
@@ -536,7 +536,7 @@ int main(int argc, char **argv) {
     int profile = 0;
     int fast_sim = 0;
     int more_stat = 0;
-	unsigned int inst_cnt = 0;
+	uint64_t inst_cnt = 0;
 	uint64_t start_time=0, end_time, delay = 0;
 	uint64_t start_sys_time=0, end_sys_time, sys_delay = 0;
 	struct timeval start_all_time;
@@ -599,7 +599,7 @@ int main(int argc, char **argv) {
 		/* -s option */
 		else if(strcmp(argv[i], "-s") == 0)
 			stats = 1;
-		
+
 		/* -t option */
 		else if(strcmp(argv[i], "-t") == 0) {
 			i++;
@@ -811,7 +811,7 @@ int main(int argc, char **argv) {
 		getrusage(RUSAGE_SELF, &buf);
 		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
 		delay = end_time - start_time;
-		fprintf(stderr, "Simulated instructions = %u\n", inst_cnt);
+		fprintf(stderr, "Simulated instructions = %llu\n", inst_cnt);
         fprintf(stderr, "Time = %f ms\n", (double)delay / 1000.00);
 		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
 	}

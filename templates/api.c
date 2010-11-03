@@ -538,9 +538,9 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+uint64_t $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
-	unsigned int i = 0;
+	uint64_t i = 0;
     $(proc)_state_t*   state     = sim->state;
     $(proc)_decoder_t* decoder   = sim->decoder;
     $(proc)_address_t  addr_exit = sim->addr_exit;
