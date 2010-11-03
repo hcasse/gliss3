@@ -126,6 +126,18 @@ if(!(c)) { \
  *                                                                                      *
  !  The bottom line is : if your are writting something into the memory that is not     !
  !  in the host endianness you need to byte swap it using mem8 or mem buffer operations !
+ *																						*
+ * SPECIAL: write accross pages															*
+ * 		write 4-bits x=ABCD at address p:PAGE-1											*
+ * 		x[0]=A, x[1]=B, x[2]=C, x[3]=D													*
+ * 	both big endian:																	*
+ * 		mem[PAGE-1]=A, mem[PAGE]=B, mem[PAGE + 1]=C, mem[PAGE + 2]=D					*
+ * 		<=> p[PAGE-1]=A, p+1[0]=B, p+1[1]=C, p+2[2]=C									*
+ * 		<=> mem_write(PAGE - 1, &x, 4)													*
+ *	host big, target little:															*
+ * 		mem[PAGE-1]=D, mem[PAGE]=C, mem[PAGE + 1]=B, mem[PAGE + 2]=A					*
+ * 		<=> p[0]=D, p+1[PAGE - 1]=C, p+1[PAGE - 2]=B, p+1[PAGE - 3]=A					*
+ * 		<=> mem_write(PAGE - 1, &x, 4)													*
  *                                                                                      *
  ***************************************************************************************/
 
@@ -513,10 +525,6 @@ uint8_t gliss_mem_read8(gliss_memory_t *mem, gliss_address_t address)
  * @ingroup memory
  */
 uint16_t gliss_mem_read16(gliss_memory_t *mem, gliss_address_t address) {
-    union {
-		uint8_t bytes[2];
-		uint16_t half;
-	} val;
 
 	/* get page */
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
@@ -528,13 +536,15 @@ uint16_t gliss_mem_read16(gliss_memory_t *mem, gliss_address_t address) {
     uint8_t* p = pte->storage + offset;
 #   endif
 
-    // aligned ?
-    if( FMOD(address, 2) == 0)
+    // aligned or cross-page ?
+    if(!((offset & 0x1) | ((offset + 1) & MEM_PAGE_SIZE)))
         return *(uint16_t *)p;
-    // unaligned !
-	else
-    {
-        memcpy(val.bytes, p, 2);
+	else {
+		union {
+			uint8_t bytes[2];
+			uint16_t half;
+		} val;
+        gliss_mem_read(mem, address, val.bytes, 2);
         return val.half;
     }
 }
@@ -549,10 +559,6 @@ uint16_t gliss_mem_read16(gliss_memory_t *mem, gliss_address_t address) {
  */
 uint32_t gliss_mem_read32(gliss_memory_t *mem, gliss_address_t address)
 {
-	union {
-		uint8_t bytes[4];
-		uint32_t word;
-	} val;
 
 	/* get page */
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
@@ -565,12 +571,16 @@ uint32_t gliss_mem_read32(gliss_memory_t *mem, gliss_address_t address)
 #   endif
 
     // aligned ?
-    if( FMOD(address, 4) == 0)
+    if(!((offset & 0x3) | ((offset + 3) & MEM_PAGE_SIZE)))
         return *(uint32_t *)p;
     // unaligned !
     else
     {
-        memcpy(val.bytes, p, 4);
+		union {
+			uint8_t bytes[4];
+			uint32_t word;
+		} val;
+		gliss_mem_read(mem, address, val.bytes, 4);
         return val.word;
     }
 }
@@ -584,10 +594,6 @@ uint32_t gliss_mem_read32(gliss_memory_t *mem, gliss_address_t address)
  * @ingroup memory
  */
 uint64_t gliss_mem_read64(gliss_memory_t *mem, gliss_address_t address) {
-    union {
-		uint8_t bytes[8];
-		uint64_t dword;
-	} val;
 
 	/* get page */
     page_entry_t* pte    = mem_get_page(mem, address);
@@ -599,13 +605,17 @@ uint64_t gliss_mem_read64(gliss_memory_t *mem, gliss_address_t address) {
     uint8_t* p = pte->storage + offset;
 #endif
 
-    // aligned ?
-    if(FMOD(address, 8) == 0)
+    // aligned or cross-page ?
+    if(!((offset & 0x7) | ((offset + 7) & MEM_PAGE_SIZE)))
         return *(uint64_t *)p;
     // unaligned !
     else
     {
-        memcpy(val.bytes, p, 8);
+		union {
+			uint8_t bytes[8];
+			uint64_t dword;
+		} val;
+        gliss_mem_read(mem, address, val.bytes, 8);
         return val.dword;
     }
 }
@@ -694,10 +704,6 @@ void gliss_mem_write8(gliss_memory_t* mem, gliss_address_t address, uint8_t val)
 void gliss_mem_write16(gliss_memory_t* mem, gliss_address_t address, uint16_t val)
 {
     gliss_address_t offset;
-	union val_t {
-		uint8_t bytes[2];
-		uint16_t half;
-	} *p = (union val_t *)&val;
     uint16_t* q;
 
 	/* compute address */
@@ -711,11 +717,16 @@ void gliss_mem_write16(gliss_memory_t* mem, gliss_address_t address, uint16_t va
     q = (uint16_t *)(pte->storage + offset);
 # endif
 
-    // aligned ?
-    if(FMOD(address, 2) == 0)
-        *q = p->half;
-    else
-        memcpy(q, p->bytes, 2);
+    // aligned or inter-page ?
+    if(!((offset & 0x1) | ((offset + 1) & MEM_PAGE_SIZE)))
+        *q = val;
+    else {
+		union val_t {
+			uint8_t bytes[2];
+			uint16_t half;
+		} *p = (union val_t *)&val;
+		gliss_mem_write(mem, address, p->bytes, 2);
+	}
 }
 // --------------------------------------------------------------------------------------
 
@@ -726,16 +737,10 @@ void gliss_mem_write16(gliss_memory_t* mem, gliss_address_t address, uint16_t va
  * @param val		Integer to write.
  * @ingroup memory
  */
-void gliss_mem_write32(gliss_memory_t* mem, gliss_address_t address, uint32_t val)
-{
+void gliss_mem_write32(gliss_memory_t* mem, gliss_address_t address, uint32_t val) {
+	uint32_t* q;
     gliss_address_t offset;
     page_entry_t*   pte;
-
-	union val_t {
-		uint8_t bytes[4];
-		uint32_t word;
-	} *p = (union val_t *)&val;
-    uint32_t* q;
 
 	/* compute address */
     pte    = mem_get_page(mem, address);
@@ -747,11 +752,16 @@ void gliss_mem_write32(gliss_memory_t* mem, gliss_address_t address, uint32_t va
     q      = (uint32_t *)(pte->storage + offset);
 #   endif
 
-    // aligned ?
-    if(FMOD(address, 4) == 0)
-        *q = p->word;
-    else
-        memcpy(q, p->bytes, 4);
+    // aligned or cross-page ?
+    if(!((offset & 0x3) | ((offset + 3) & MEM_PAGE_SIZE)))
+        *q = val;
+    else {
+		union val_t {
+			uint8_t bytes[4];
+			uint32_t word;
+		} *p = (union val_t *)&val;
+        gliss_mem_write(mem, address, p->bytes, 4);
+	}
 }
 // --------------------------------------------------------------------------------------
 
@@ -765,10 +775,6 @@ void gliss_mem_write32(gliss_memory_t* mem, gliss_address_t address, uint32_t va
 void gliss_mem_write64(gliss_memory_t *mem, gliss_address_t address, uint64_t val)
 {
     gliss_address_t offset;
-	union val_t {
-		uint8_t bytes[8];
-		uint64_t dword;
-	} *p = (union val_t *)&val;
     uint64_t* q;
 
 	/* compute address */
@@ -782,11 +788,16 @@ void gliss_mem_write64(gliss_memory_t *mem, gliss_address_t address, uint64_t va
     q = (uint64_t *)(pte->storage + offset);
 #   endif
 
-    // aligned ?
-    if(FMOD(address, 8) == 0)
-        *q = p->dword;
-    else
-        memcpy(q, p->bytes, 8);
+    // aligned or cross-page?
+    if(!((offset & 0x7) | ((offset + 7) & MEM_PAGE_SIZE)))
+        *q = val;
+    else {
+		union val_t {
+			uint8_t bytes[8];
+			uint64_t dword;
+		} *p = (union val_t *)&val;
+        gliss_mem_write(mem, address, p->bytes, 8);
+	}
 }
 // --------------------------------------------------------------------------------------
 
