@@ -692,7 +692,7 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+uint64_t $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
 	unsigned int i = 0;
     uint32_t num_bloc;
@@ -706,7 +706,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
         trace    = $(proc)_decode(decoder, state->$(pc_name));
         num_bloc = (state->$(pc_name) >> 2) >> TRACE_DEPTH_PW;
 
-        while((((state->$(pc_name) >> 2)>> TRACE_DEPTH_PW) == num_bloc) && (addr_exit != state->$(pc_name)))
+        while((((state->$(pc_name) >> 2)>> TRACE_DEPTH_PW) == num_bloc) && (!sim->ended) && (addr_exit != state->$(pc_name)))
         {
 			inst = trace + ((state->NIA >> 2) & (TRACE_DEPTH-1));
             $(if GLISS_PROFILED_JUMPS)
@@ -868,7 +868,7 @@ $(end)
  * @param	sim	the simulator which we simulate within
  * @return number of executed instructions
  * */
-unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
+uint64_t $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 {
 	unsigned int i = 0;
     $(proc)_state_t*   state     = sim->state;
@@ -880,7 +880,7 @@ unsigned int $(proc)_run_and_count_inst($(proc)_sim_t *sim)
 	{
         inst = $(proc)_decode(decoder, state->$(pc_name));
 
-        while( (inst->ident != -1) && (addr_exit != state->$(pc_name)))
+        while( (inst->ident != -1) && (!sim->ended) && (addr_exit != state->$(pc_name)))
         {
             $(if GLISS_PROFILED_JUMPS)
 			switch(inst->ident)
