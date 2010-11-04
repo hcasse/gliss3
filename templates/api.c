@@ -679,7 +679,7 @@ $(if !GLISS_PROFILED_JUMPS)
 $(end)
 
 	/* ended ? */
-	if(addr_exit == state->$(pc_name))
+	if(sim->addr_exit == state->$(pc_name))
 		sim->ended = 1;
 }
 
