@@ -126,9 +126,9 @@ let get_source f dict source =
 *)
 let find_first_bit mask =
   let rec aux index shifted_mask =
-    if (Int32.logand shifted_mask 1l) <> 0l || index >= 32
+    if (Int64.logand shifted_mask 1L) <> 0L || index >= 32
     then index
-    else aux (index+1) (Int32.shift_right shifted_mask 1)
+    else aux (index+1) (Int64.shift_right shifted_mask 1)
   in
     aux 0 mask
 
@@ -154,6 +154,18 @@ let make_env info =
 				in if size > max then size else max)
 			0
 	in
+	let is_RISC =
+		if min_size == max_size then
+			(match min_size with
+			| 8
+			| 16
+			| 32
+			| 64 -> true
+			| _ -> false
+			)
+		else
+			false
+	in
 	let get_C_size n =
 		match n with
 		| _ when n > 0 && n <= 8 -> 8
@@ -174,23 +186,24 @@ let make_env info =
 			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with RISC ISA")
 	in
 	let to_C_list mask =
-		let list = Generic_int.to_Int32_list mask in
 		let rec aux comma l =
 			match l with
 			| [] -> ""
 			| a::b ->
 				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
 		in
-			aux false list
+			aux false mask
 	in
 	let max_op_nb = Iter.get_params_max_nb ()
 	in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 	let decoder inst idx out =
-		let mask = Fetch.str01_to_int32 (Decode.get_string_mask_for_param_from_op inst idx)                         in
-		let extract _ = Printf.fprintf out "__EXTRACT(0x%08lX, %d, code_inst)"  mask (find_first_bit mask)          in
-		let exts    n = Printf.fprintf out "__EXTS(0x%08lX, %d, code_inst, %d)" mask (find_first_bit mask) (32 - n) in
+		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
+		let cst_suffix = Fetch.get_C_const_suffix string_mask in
+		let mask = Fetch.str01_to_int64 string_mask in
+		let extract _ = Printf.fprintf out "__EXTRACT(0x%LX%s, %d, code_inst)"  mask cst_suffix (find_first_bit mask)          in
+		let exts    n = Printf.fprintf out "__EXTS(0x%LX%s, %d, code_inst, %d)" mask cst_suffix (find_first_bit mask) (32 - n) in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
@@ -202,16 +215,16 @@ let make_env info =
 		| _ -> extract () in
 	let output_mask_decl inst idx out =
 		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
-		let mask = Fetch.str_to_gen_int string_mask
+		let mask = Fetch.str_to_int32_list string_mask
 		in
-			if min_size != max_size then
-				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length (Generic_int.to_Int32_list mask));
-				Printf.fprintf out "%s};\n" (to_C_list mask);
-				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Generic_int.length mask))
+			if not is_RISC then
+				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length mask);
+				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) string_mask;
+				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (String.length string_mask))
 	in
 
 	let add_mask_32_to_param inst idx _ _ dict =
-		("decoder", Templater.TEXT (if min_size == max_size then (decoder inst idx) else (decoder_CISC inst idx))) ::
+		("decoder", Templater.TEXT (if is_RISC then (decoder inst idx) else (decoder_CISC inst idx))) ::
 		("mask_decl", Templater.TEXT (output_mask_decl inst idx)) :: dict in
 
 	let add_size_to_inst inst dict =
@@ -245,7 +258,7 @@ let make_env info =
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	("max_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_size)) ::
-	("is_RISC", Templater.BOOL (fun _ -> min_size == max_size)) ::
+	("is_RISC", Templater.BOOL (fun _ -> is_RISC)) ::
 	(* next 2 things have meaning only if a RISC ISA is considered as we use min_size *)
 	(* stands for the most appropriate standard C size (uintN_t) *)
 	("C_inst_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (try (get_C_size min_size) with BadCSize -> raise (Sys_error "template $(C_inst_size) should be used only with RISC ISA")))) ::

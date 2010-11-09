@@ -147,10 +147,15 @@ let get_string_mask_for_param_from_op sp n =
 			else
 				get_i_th_param_name (i-1) b
 	in
-	(* !!DEBUG!! *)
-	(*Irg.print_spec sp;
+(* !!DEBUG!! 
+	let res =*)
+	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp)))
+(* !!DEBUG!!
+	in
+	print_string "===============================================";
+	Irg.print_spec sp;
 	print_string ("[["^str_params^"]]\n");
 	Irg.print_param_list (Iter.get_params sp);
-	print_string "n="; Printf.printf "%d\n" n;*)
+	print_string "n="; Printf.printf "%d\n==res:%s\n" n res;
 	
-	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp)))
+	res*)

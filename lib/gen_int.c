@@ -111,6 +111,7 @@ uint32_t value_on_mask(struct mask_t *inst, struct mask_t *mask)
 	return res;
 }
 
+
 /* same as previous but we can use mask with more than 32 bits (64 max),
  * used to extract instruction parameters during decode
  */
@@ -122,7 +123,7 @@ uint64_t extract_mask(struct mask_t *inst, struct mask_t *mask)
 	
 	if (mask->bit_length == 0)
 		return 0;
-	for (i = mask->bit_length - 1; i >= 0; i--) {
+	for (i = 0; i < mask->bit_length; i++) {
 		if (get_bit_n(mask, i)) {
 			k++;
 			if (k > 64)
