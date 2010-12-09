@@ -12,7 +12,7 @@ while test "$1" != ""; do
 			echo "-I$(INCLUDE_PATH)"
 			;;
         --libs)
-        	echo "-L$(SOURCE_PATH) -l$(proc) $(foreach modules)$(LIBADD)$(end)"
+        	echo "-L$(SOURCE_PATH) -l$(proc) $(foreach modules) $(LIBADD)$(end)"
 			;;
         --help|-h)
         		syntax

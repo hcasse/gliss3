@@ -109,6 +109,14 @@ int main(void) {
 	u32 = gliss_mem_read32(mem, PAGE - 2);
 	assert(u32 == 0x12345678);
 
+	gliss_mem_write32(mem, PAGE - 1, 0x12345678);
+	u32 = gliss_mem_read32(mem, PAGE - 1);
+	assert(u32 == 0x12345678);
+
+	gliss_mem_write32(mem, PAGE - 3, 0x12345678);
+	u32 = gliss_mem_read32(mem, PAGE - 3);
+	assert(u32 == 0x12345678);
+
 	gliss_mem_write64(mem, PAGE - 4, 0x123456789abcdef0LL);
 	u64 = gliss_mem_read64(mem, PAGE - 4);
 	assert(u64 == 0x123456789abcdef0LL);

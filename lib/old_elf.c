@@ -37,7 +37,7 @@
 		if(!(c)) { \
 			fprintf(stderr, "assertion failure %s:%d: %s", __FILE__, __LINE__, m); \
 			abort(); }
-#	define TRACE /*fprintf(stderr, "%s:%d\n", __FILE__, __LINE__)*/
+#	define TRACE 	/*fprintf(stderr, "%s:%d\n", __FILE__, __LINE__)*/
 #else
 #	define assertp(c, m)
 #	define TRACE
@@ -571,6 +571,7 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	foffset = lseek(fd,0,SEEK_CUR);
 	lseek(fd,Ehdr->e_shoff,SEEK_SET);
 
+	TRACE;
 	for(i=0; i<Ehdr->e_shnum; ++i) {
 		if((Tables.sec_header_tbl[i].sh_type == SHT_PROGBITS)
 		&& (Tables.sec_header_tbl[i].sh_flags & SHF_ALLOC)
@@ -620,6 +621,7 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	}
 
     /* ??? */
+    TRACE;
 	Text.address = Text.secs->address;
 	ptr1 = Text.secs;
 	while(ptr1->next != NULL)
@@ -631,6 +633,8 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 		return -1;
 	}
 	memset(Text.bytes,0,Text.size);
+
+	TRACE;
 	ptr1 = Text.secs;
 	while(ptr1 != NULL){
 		if(!strcmp(ptr1->name,".text")){
@@ -647,6 +651,8 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	}
 	lseek(fd,foffset,SEEK_SET);
 	Text.txt_addr = Ehdr->e_entry; // modification par Tahiry l'entrée du programme est entry et non le debut du segment de prog
+
+	TRACE;
     return 0;
 }
 
