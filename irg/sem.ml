@@ -697,7 +697,14 @@ let num_auto_coerce e1 e2 =
 	| FLOAT _, RANGE _
 	| FLOAT _, ENUM _ -> (e1, COERCE(t1, e2))
 
-	| _ -> raise (SemError "forbidden operation")
+	| _ -> 
+	(* !!DEBUG!! *)
+	print_string "num_auto_coerce, t1=";
+	Irg.print_type_expr t1;
+	print_string ", t2=";
+	Irg.print_type_expr t2;
+	print_string "\n";
+	raise (SemError "forbidden operation")
 
 
 (** Check the matching of a binary operation and the type of its operands.
@@ -1730,7 +1737,7 @@ let make_set loc expr =
 
 	| CARD _, UNKNOW_TYPE
 	| INT _, UNKNOW_TYPE ->
-		Lexer.display_warning "unknown in right of set";
+		(* !!DEBUG!! Lexer.display_warning "unknown in right of set";*)
 		Irg.SET (loc, Irg.CAST(ltype, expr))
 
 	| _ ->

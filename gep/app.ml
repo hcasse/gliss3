@@ -54,7 +54,8 @@ module TypeSet = Set.Make(OrderedType);;
 (** Gather information useful for the generation. *)
 type maker_t = {
 	mutable get_params: Iter.inst -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
-	mutable get_instruction: Iter.inst -> Templater.dict_t -> Templater.dict_t
+	mutable get_instruction: Iter.inst -> Templater.dict_t -> Templater.dict_t;
+	mutable get_instruction_set: Iter.inst list -> Templater.dict_t -> Templater.dict_t
 }
 
 
@@ -181,6 +182,95 @@ let get_ninstruction maker f dict nb_inst cpt i =
 		else cpt
 
 
+exception BadCSize
+
+let get_instruction_set maker f dict i_set =
+	let min_size =
+		List.fold_left
+			(fun min inst ->
+				let size = Iter.get_instruction_length inst
+				in if size < min then size else min)
+			1024 i_set
+	in
+	let max_size =
+		List.fold_left
+			(fun max inst ->
+				let size = Iter.get_instruction_length inst
+				in if size > max then size else max)
+			0 i_set
+	in
+	let is_RISC =
+		if min_size == max_size then
+			(match min_size with
+			| 8
+			| 16
+			| 32
+			| 64 -> true
+			| _ -> false
+			)
+		else
+			false
+	in
+	let get_C_size n =
+		match n with
+		| _ when n > 0 && n <= 8 -> 8
+		| _ when n > 8 && n <= 16 -> 16
+		| _ when n > 16 && n <= 32 -> 32
+		| _ when n > 32 && n <= 64 -> 64
+		| _ -> raise BadCSize
+	in
+	let get_msb_mask n =
+		try
+			(match get_C_size min_size with
+			| 8 -> "0x80"
+			| 16 -> "0x8000"
+			| 32 -> "0x80000000"
+			| 64 -> "0x8000000000000000LL"
+			| _ -> raise BadCSize)
+		with
+			BadCSize -> raise (Sys_error "template $(msb_mask_iset) should be used only with a RISC ISA")
+	in
+	let find_idx _ =
+		let l_mem = List.map (fun x -> x = i_set) !Iter.multi_set in
+		let rec aux l i =
+			match l with
+			| [] -> failwith "shouldn't happen (app.ml::get_instruction_set::find_idx)"
+			| a::b -> if a then i else aux b (i + 1)
+		in
+		aux l_mem 0
+	in f
+	(maker.get_instruction_set i_set
+		(("is_RISC_iset", Templater.BOOL (fun _ -> is_RISC)) ::
+		("C_size_iset", Templater.TEXT (fun out -> Printf.fprintf out "%d" (try (get_C_size min_size) with BadCSize -> raise (Sys_error "template $(C_inst_size_iset) should be used only with a RISC ISA")))) ::
+		(* return a mask for the most significant bit, size depends on the C size needed *)
+		("msb_mask_iset", out (fun _ -> (get_msb_mask (min_size)))) ::
+		(* iset select condition *)
+		("select_iset", Templater.TEXT (fun out ->
+			let info = Toc.info () in
+			let spec_ = List.hd i_set in
+			let select_attr =
+				match Iter.get_attr spec_ "instruction_set_select" with
+				| Iter.EXPR(e) -> e
+				| _ -> failwith "(app.ml::get_instruction_set::$(iset_select)) attr instruction_set_select for op init must be an expr"
+			in
+			info.Toc.out <- out;
+			info.Toc.inst <- spec_;
+			info.Toc.iname <- "";
+			(* stack params and attrs for the chosen instr *)
+			match spec_ with
+			| Irg.AND_OP(_, param_l, attr_l) ->
+				Irg.param_stack param_l;
+				Irg.attr_stack attr_l;
+				Toc.gen_expr info select_attr;
+				Irg.param_unstack param_l;
+				Irg.attr_unstack attr_l
+			| _ -> failwith "(app.ml::get_instruction_set::$(iset_select)) shouldn't happen.")) ::
+		(* index, 0 to n, as in !Iter.multi_set *)
+		("idx", Templater.TEXT (fun out -> Printf.fprintf out "%d" (find_idx ()))) ::
+		dict))
+
+
+
 let get_register f dict _ sym =
 	match sym with
 	  Irg.REG (name, size, t, attrs) -> f (
@@ -223,7 +313,8 @@ let get_memory f dict key sym =
 
 let maker _ = {
 	get_params = (fun _ _ _ _ dict -> dict);
-	get_instruction = (fun _ dict -> dict)
+	get_instruction = (fun _ dict -> dict);
+	get_instruction_set = (fun _ dict -> dict)
 }
 
 let profiled_switch_size = ref 0
@@ -250,6 +341,7 @@ let make_env info maker =
 	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction maker f dict) () true)) ::
 	("profiled_instructions", Templater.COLL ( fun f dict ->
 	  let _ = Iter.iter_ext (get_ninstruction maker f dict (!profiled_switch_size)) 0 true in () )) ::
+	("instruction_sets", Templater.COLL (fun f dict -> List.iter (get_instruction_set maker f dict) !Iter.multi_set )) ::
 	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::

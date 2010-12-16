@@ -21,6 +21,8 @@ struct $(proc)_fetch_t
 {
 	/* the memory which we are supposed to fetch from, useful on Harvard architectures where we deal with several memories */
 	$(proc)_memory_t *mem;
+$(if is_multi_set)/* state used to determine correct fetch */
+	$(proc)_state_t *state;$(end)
 };
 
 #if defined(__cplusplus)

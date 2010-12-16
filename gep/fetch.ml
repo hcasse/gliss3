@@ -45,6 +45,10 @@
 let output_fetch_stat    = ref false
 
 
+	
+
+
+
 (*******************************************************
  **             String manipulations
  *******************************************************)
@@ -169,28 +173,6 @@ let get_string_mask_from_op sp =
 	res*)
 
 
-(** returns the length of a given instruction, based on the image description *)
-let get_instruction_length sp =
-	let rec get_length_from_regexp_list l =
-		match l with
-		[] -> 0
-		| h::t ->
-			(match h with
-			Str.Text(txt) ->
-				(* here we assume that an image contains only %.. , 01, X or x *)
-				(String.length txt) + (get_length_from_regexp_list t)
-			| Str.Delim(d) ->
-				(get_length_from_format d) + (get_length_from_regexp_list t)
-			)
-	in
-	let get_expr_from_iter_value v  =
-		match v with
-		Iter.EXPR(e) ->
-			e
-		| _ ->
-			failwith "shouldn't happen (fetch.ml::get_instruction_length::get_expr_from_iter_value)"
-	in
-	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
 
 
 (* returns the value of an instruction code considering only the bit set in the mask,
@@ -520,10 +502,7 @@ let build_sons_of_tree tr =
 			res
 
 
-let build_dec_nodes _ =
-	let list_of_all_op_specs _ =
-			Iter.iter (fun a x -> x::a) []
-	in
+let build_dec_nodes sp_l =
 	let node_cond (DecTree(_, sl, lmask, gmask, _)) =
 		((List.length sl)<=1)
 	in
@@ -554,7 +533,7 @@ let build_dec_nodes _ =
 		else
 			aux (List.flatten (List.map get_sons dl))
 	in
-	let specs = list_of_all_op_specs () in
+	let specs = sp_l in
 	let mask = calcul_mask specs in
 	aux [DecTree([], specs, mask, mask, [])]
 
@@ -601,7 +580,7 @@ let find_sons_of_node node d_l =
 
 
 exception CheckIsizeException
-(* special value for fetch size, represent generic fetch *)
+(* special value for fetch size, represent generic fetch (CISC) *)
 let fetch_generic = 0
 
 
@@ -609,7 +588,7 @@ let fetch_generic = 0
 all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
 everything will be output in the given channel,
 dl is the global list of all nodes, used to find sons for instance *)
-let output_table_C_decl fetch_size out fetch_stat dt dl =
+let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 	let name_of t =
 		let correct_name s =
 			if s = "" then
@@ -638,7 +617,13 @@ let output_table_C_decl fetch_size out fetch_stat dt dl =
 		else
 			1 lsl sz_l_mask
 	in
-	let name = name_of dt in
+	let name = (suffix ^ (name_of dt)) in
+	let type_suffix =
+		if (List.length !Iter.multi_set) > 1 then
+			(if fetch_size != 0 then Printf.sprintf "_%d" fetch_size else "_CISC")
+		else
+			""
+	in
 	let l_mask =
 		match dt with
 		| DecTree(_, _, lm, _, _) -> lm
@@ -686,10 +671,10 @@ let output_table_C_decl fetch_size out fetch_stat dt dl =
 				(let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x);
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (Iter.get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x);
 				1)
 			else
-				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (name_of (get_i_th_son i sons));
+				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (suffix ^ (name_of (get_i_th_son i sons)));
 				0)
 		else
 			(Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc);
@@ -737,14 +722,14 @@ let output_table_C_decl fetch_size out fetch_stat dt dl =
 		let nb_nodes = produce_decode_ent 0 0 in
 		Printf.fprintf out "};\n";
 		if fetch_size != fetch_generic then
-			Printf.fprintf out "static Table_Decodage _table%s = {0X%LX%s, table_table%s};\n" name (str01_to_int64 l_mask) (get_C_const_suffix l_mask) name
+			Printf.fprintf out "static Table_Decodage%s _table%s = {0X%LX%s, table_table%s};\n" type_suffix name (str01_to_int64 l_mask) (get_C_const_suffix l_mask) name
 		else
 			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (str_to_int32_list l_mask)) (to_C_list l_mask);
 			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s," name name;
 			Printf.fprintf out "\t%d};\n" (String.length l_mask);
-			Printf.fprintf out "static Table_Decodage _table%s = {&mask%s, table_table%s};\n" name name name
+			Printf.fprintf out "static Table_Decodage%s _table%s = {&mask%s, table_table%s};\n" type_suffix name name name
 			);
-		Printf.fprintf out "static Table_Decodage *table%s = &_table%s;\n" name name;
+		Printf.fprintf out "static Table_Decodage%s *table%s = &_table%s;\n" type_suffix name name;
 		Printf.fprintf out "\n";
 
 		if !output_fetch_stat then
@@ -783,67 +768,49 @@ let sort_dectree_list d_l =
 	List.sort comp_fun d_l
 
 
-let output_all_table_C_decl out =
-	let isize = Irg.get_isize ()
+let find_fetch_size spec_list =
+	let isize = Irg.get_isize () in
+	(* returns (min(l), max(l)) for a list l *)
+	let get_min_max_from_list l =
+		let min_fun a b_i = if b_i < a then b_i else a in
+		let max_fun a b_i = if b_i > a then b_i else a in
+		(List.fold_left min_fun (List.hd l) (List.tl l),
+		 List.fold_left max_fun (List.hd l) (List.tl l))
 	in
-	let get_min_max_instr_size_from_instr _ =
-		let iter_fun accu inst =
-			let size = get_instruction_length inst
-			in
-			let (min_size, max_size) = accu
-			in
-			if size < min_size then
-				(size, max_size)
-			else
-				if size > max_size then
-					(min_size, size)
+	(* return list of different inst sizes for a given inst list *)
+	let get_sizes sp_l =
+		let rec aux l accu =
+			match l with
+			| [] -> accu
+			| a::b ->
+				let s = Iter.get_instruction_length a in
+				if List.exists (fun x -> x == s) accu then
+					aux b accu
 				else
-					accu
+					aux b (s::accu)
 		in
-		let init_max = 0 in
-		let init_min = 10000 in
-		Iter.iter iter_fun (init_min, init_max)
+		aux sp_l []
 	in
-	let get_min_max_instr_size_from_isize _ =
-		let min_fun a b_i =
-			if b_i < a then
-				b_i
-			else
-				a
-		in
-		let max_fun a b_i =
-			if b_i > a then
-				b_i
-			else
-				a
-		in
-		(List.fold_left min_fun (List.hd isize) (List.tl isize),
-		 List.fold_left max_fun (List.hd isize) (List.tl isize))
-	in
-	let is_isize _ =
-		isize != []
-	in
-	(* check if all instr have their size in isize *)
-	let check_isize _ =
-		let iter_fun accu inst =
-			let size = get_instruction_length inst
-			in
-			if List.exists (fun x -> x==size) isize then
+	(* given a list of instr sizes, returns true if all is in isize, false otherwise *)
+	let check_size_validity l =
+		let test_fun accu i =
+			if List.exists (fun x -> x == i) isize then
 				true
 			else
 				raise CheckIsizeException
 		in
 		try
-			Iter.iter iter_fun false
+			List.fold_left test_fun false l
 		with
-		CheckIsizeException ->
-			false
+		| CheckIsizeException -> false
 	in
+	(* is gliss_isize defined? *)
+	let is_isize _ = (isize != []) in
 	(* list of the specialized fixed fetch sizes (for RISC ISA),
 	 * they correspond to the size of C's standard integer types (uintN_t)
 	 * other or variable sizes imply use of generic fetch and decode *)
-	let fetch_sizes = [8; 16; 32; 64]
-	in
+	let fetch_sizes = [8; 16; 32; 64] in
+	(* find a standard fetch size from bounds of instr length *)
 	let get_fetch_size_from_min_max min_max =
 		let (min_size, max_size) = min_max
 		in
@@ -859,38 +826,55 @@ let output_all_table_C_decl out =
 			(* variable size or diff *)
 			fetch_generic
 	in
-	let choose_fetch_size _ =
-		if is_isize () then
-			if check_isize () then
-				get_fetch_size_from_min_max (get_min_max_instr_size_from_isize ())
-			else
-				raise (Sys_error "isize definition incorrect, some instructions have a size not contained in isize.")
-		else
-			get_fetch_size_from_min_max (get_min_max_instr_size_from_instr ())
+	let choose_fetch_size sp_l =
+		let sizes = get_sizes sp_l in
+		let min_max = get_min_max_from_list sizes in
+		if (is_isize ()) && (not (check_size_validity sizes)) then
+			raise (Sys_error "isize definition incorrect, some instructions have a size not contained in isize.");
+		get_fetch_size_from_min_max min_max
 	in
-	let fetch_size = choose_fetch_size ()
-	in (* output the declaration of struct Table_Decodage *)
-	let output_table_type_decl _ =
-		if fetch_size == fetch_generic then
-			(* generic, mask is not an uintN_t here *)
-			((*output_string out "typedef struct {\n\tuint32_t\t*mask;\n\tint\tbit_length;\n} mask_t;\n\n";*)
-			output_string out "typedef struct {\n\tmask_t\t*mask;\n\tDecode_Ent\t*table;\n} Table_Decodage;\n";
-			output_string out "\n\n/* and now the tables */\n\n\n")
-		else
-			(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask;\n" fetch_size;
-			output_string out "\tDecode_Ent\t*table;\n} Table_Decodage;\n";
-			output_string out "\n\n/* and now the tables */\n\n\n")
-	in
+	choose_fetch_size spec_list
+
+
+(* output table struct C decl, if idx >= 0 struct name will be suffixed *)
+let output_struct_decl out fetch_size idx =
+	let suffix = if idx < 0 then "" else (string_of_int idx) in
+	if fetch_size == fetch_generic then
+		(* generic, mask is not an uintN_t here *)
+		output_string out ("typedef struct {\n\tmask_t\t*mask;\n\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n")
+	else
+		(Printf.fprintf out "typedef struct {\n\tuint%d_t\tmask;\n" fetch_size;
+		output_string out ("\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n"))
+
+
+(** output a table C decl, if idx >= 0 table name will be suffixed *)
+let output_table out sp_l fetch_size idx fetch_stat =
+	let suffix = if idx < 0 then "" else ("_" ^ (string_of_int idx)) in
+	let aux dl dt = output_table_C_decl fetch_size suffix out fetch_stat dt dl in
+	let dl = sort_dectree_list (build_dec_nodes sp_l) in
+		List.iter (aux dl) dl
+
+
+(** output all C struct declarations and fetch tables *)
+let output_all_table_C_decl out =
+	let iss = !Iter.multi_set in
+	let iss_sizes = List.map (fun x -> (find_fetch_size x, x)) iss in
+	let num_iss = List.length iss in
 	let fetch_stat = if !output_fetch_stat then open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") else stdout in
-	let aux dl dt =
-		output_table_C_decl fetch_size out fetch_stat dt dl
-	in
-	let dl  = sort_dectree_list (build_dec_nodes 0)
-	in
-		output_table_type_decl ();
-		List.iter (aux dl) dl;
-		if !output_fetch_stat then
-			close_out fetch_stat
+	(* table and struct names must be suffixed if several tables generated *)
+	let idx = ref (-1) in
+	if num_iss > 1 then idx := 0;
+	(*List.iter (fun x -> (output_struct_decl out (fst x) !idx); idx := !idx + 1) iss_sizes;*)
+	idx := if num_iss > 1 then 0 else -1;
+	List.iter
+		(fun x ->
+			if !output_fetch_stat && num_iss > 1 then
+				Printf.fprintf fetch_stat "Table set number %d\n" !idx;
+			Printf.fprintf out "\n/* Table set number %d */\n\n\n" !idx;
+			output_table out (snd x) (fst x) !idx fetch_stat;
+			idx := !idx + 1)
+		iss_sizes;
+	if !output_fetch_stat then close_out fetch_stat
 
 
 (*************************************************
@@ -903,7 +887,7 @@ let test_build_dec_nodes n =
 	0 ->
 		begin
 		Printf.printf "\n\ntest build decode nodes\n";
-		print_dec_tree_list (build_dec_nodes 0)
+		print_dec_tree_list (build_dec_nodes [])
 		end
 	| _ ->
 		()
@@ -921,7 +905,7 @@ let test_sort _ =
 		DecTree(i, s, m, g, d) ->
 			aux i "name:"
 	in
-	let dl = (*sort_dectree_list ( *)build_dec_nodes 0
+	let dl = (*sort_dectree_list ( *)build_dec_nodes []
 	in
 	let aux x =
 		Printf.printf "%s\n" (name_of x)

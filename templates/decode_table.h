@@ -17,7 +17,7 @@ extern  "C"
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 
 /* hack : Enable cache if gep option is on 
-(without having to  move decode32.c to templates) */
+(without having to  move decode.c to templates) */
 $(if GLISS_INF_DECODE_CACHE)
 #define $(PROC)_INF_DECODE_CACHE
 $(end)
@@ -33,16 +33,27 @@ $(end)
 
 
 /* decoder macros */
-$(if is_RISC)
+$(if !is_multi_set)$(if is_RISC)
 #define __EXTRACT(mask, offset_mask, inst)	  ( (uint$(C_inst_size)_t)((inst) & (mask)) >> (offset_mask))
 #define __EXTS(mask, offset_mask, inst, n)    (((int$(C_inst_size)_t)__EXTRACT(mask, offset_mask, inst) << (n)) >> (n))
 $(else)
 /* CISC, decoded parameters should be 64 bit max */
 #define __EXTRACT(mask, inst)	extract_mask(inst, mask)
 #define __EXTS(mask, inst, n)	(((int64_t)__EXTRACT(mask, inst) << (n)) >> (n))
-$(end)
+$(end)$(end)
+$(if is_multi_set)
+$(foreach instr_sets_sizes)
+$(if is_RISC_size)
+#define __EXTRACT_$(C_size)(mask, offset_mask, inst)	  ( (uint$(C_size)_t)((inst) & (mask)) >> (offset_mask))
+#define __EXTS_$(C_size)(mask, offset_mask, inst, n)    (((int$(C_size)_t)__EXTRACT_$(C_size)(mask, offset_mask, inst) << (n)) >> (n))
+$(else)
+/* decoded parameters should be 64 bit max */
+#define __EXTRACT_CISC(mask, inst)	extract_mask(inst, mask)
+#define __EXTS_CISC(mask, inst, n)	(((int64_t)__EXTRACT_CISC(mask, inst) << (n)) >> (n))
+$(end)$(end)$(end)
 
-static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_UNKNOWN_decode($(if is_RISC)uint$(C_inst_size)_t $(else)mask_t *$(end)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
+
+static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_UNKNOWN_decode($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
 {
 $(if !GLISS_NO_MALLOC)
 	$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
@@ -53,19 +64,19 @@ $(end)
 }
 
 $(foreach instructions)
-static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode($(if is_RISC)uint$(C_inst_size)_t $(else)mask_t *$(end)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
+static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end))
 {
 	$(if has_param)
 	
 $(if !GLISS_NO_MALLOC)
-	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t) );
+	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t));
 $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
 	/* put other parameters */
 
 	$(foreach params)
-$(if !is_RISC)$(mask_decl)$(end)
+$(if !is_RISC_inst)$(mask_decl)$(end)
 	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
 	
 	$(end)
@@ -84,7 +95,9 @@ $(end)
 $(end)
 
 
-typedef $(if !GLISS_NO_MALLOC)$(proc)_inst_t *$(else)void $(end)$(proc)_decode_function_t($(if is_RISC)uint$(C_inst_size)_t $(else)mask_t *$(end)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end));
+
+
+typedef $(if !GLISS_NO_MALLOC)$(proc)_inst_t *$(else)void $(end)$(proc)_decode_function_t($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end));
 
 static $(proc)_decode_function_t *$(proc)_decode_table[] =
 {
@@ -96,17 +109,11 @@ static $(proc)_decode_function_t *$(proc)_decode_table[] =
 void $(proc)_free_inst($(proc)_inst_t *inst) {
 	assert(inst);
 	// NB : inst->instrinput is allocate with the same malloc which allocate an instr
-	
-	$(if !GLISS_NO_MALLOC)
-	#ifndef $(PROC)_INF_DECODE_CACHE
-	#ifndef $(PROC)_FIXED_DECODE_CACHE
-	#ifndef $(PROC)_LRU_DECODE_CACHE
+
+	$(if !GLISS_NO_MALLOC)$(if !GLISS_INF_DECODE_CACHE)$(if !GLISS_FIXED_DECODE_CACHE)$(if !GLISS_LRU_DECODE_CACHE)
     /* finally free it */
 	free(inst);
-	#endif
-	#endif
-	#endif
-	$(end)
+	$(end)$(end)$(end)$(end)
 }
 
 #if defined(__cplusplus)

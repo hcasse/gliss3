@@ -12,12 +12,12 @@ open Irg
 	@return		true if the attribute is recursive,
 			false otherwise
 *)
-let is_attr_recursive sp name =
+let is_stat_attr_recursive sp name =
 	let get_attr sp n =
 		let rec aux al =
 			match al with
 			| [] ->
-				failwith ("attribute " ^ name ^ " not found or not a statement (instantiate.ml::is_attr_recursive)")
+				failwith ("attribute " ^ name ^ " not found or not a statement (instantiate.ml::is_stat_attr_recursive)")
 			| ATTR_STAT(nm, s)::t ->
 				if (String.compare nm n) == 0 then
 					s
@@ -31,7 +31,7 @@ let is_attr_recursive sp name =
 		| AND_MODE(_, _, _, a_l) ->
 			aux a_l
 		| _ ->
-			failwith "shouldn't happen (instantiate.ml::is_attr_recursive::get_attr)"
+			failwith "shouldn't happen (instantiate.ml::is_stat_attr_recursive::get_attr)"
 	in
 	(* return true if there is a call to a stat attr whose name is str in the st stat,
 	we look for things like 'EVAL(str)' *)
@@ -65,6 +65,8 @@ let is_attr_recursive sp name =
 	in
 	let a = get_attr sp name
 	in
+	(* !!DEBUG!! *)
+	(*print_string ("is_attr_rec, sp="^(Irg.name_of sp)^", name="^name^"\n");*)
 	find_occurence name a
 
 
@@ -88,6 +90,8 @@ let get_stat_from_attr_from_spec sp name_attr =
 				get_attr n t
 		| _::t -> get_attr n t
 	in
+	(* !!DEBUG!! *)
+	(*print_string ("get_s_a_from_e, sp="^(Irg.name_of sp)^", name_attr="^name_attr^"\n");*)
 		match sp with
 		  AND_OP(_, _, attrs) ->
 			get_attr name_attr attrs
@@ -214,6 +218,8 @@ let get_expr_from_attr_from_op_or_mode sp name_attr =
 				get_attr n t
 		| _::t -> get_attr n t
 	in
+	(* !!DEBUG!! *)
+	(*print_string ("get_e_from_a_from_o|m, sp="^(Irg.name_of sp)^", name_attr="^name_attr^"\n");*)
 		match sp with
 		AND_OP(_, _, attrs) ->
 			get_attr name_attr attrs
@@ -243,6 +249,9 @@ let rec substitute_in_expr name op ex =
 		AND_MODE(_, _, v, _) -> v
 		| _-> NONE
 	in
+	(* !!DEBUG!! *)
+	(*print_string ("subs_in_e name="^name^", op="^(Irg.name_of op)^", expr=");
+	Irg.print_expr ex; print_char '\n';*)
 	match ex with
 	NONE ->
 		NONE
@@ -301,6 +310,9 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		else
 			s
 	in
+	(* !!DEBUG!! *)
+	(*print_string ("chg_var_in_e var_name="^var_name^", new_name="^new_name^", expr=");
+	Irg.print_expr ex; print_char '\n';*)
 	match ex with
 	NONE ->
 		NONE
@@ -344,6 +356,9 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 	@return		the location with the given var renamed
 *)
 let rec change_name_of_var_in_location loc var_name new_name =
+	(* !!DEBUG!! *)
+	(*print_string ("chg_var_in_l var_name="^var_name^", new_name="^new_name^", loc=");
+	Irg.print_location loc; print_char '\n';*)
 	match loc with
 	| LOC_NONE -> loc
 	| LOC_REF(t, s, i, l, u) ->
@@ -379,7 +394,9 @@ let rec substitute_in_location name op loc =
 		match sp with
 		AND_MODE(_, _, _, _) -> true
 		| _ -> false
-	in
+	in(* !!DEBUG!! *)
+	(*print_string ("subs_in_l name="^name^", op="^(Irg.name_of op)^", loc=");
+	Irg.print_location loc; print_char '\n';*)
 	match loc with
 	LOC_NONE ->
 		loc
@@ -411,6 +428,10 @@ let rec substitute_in_location name op loc =
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->
+				print_string "loc=";Irg.print_location loc;
+				print_string ("\name="^name^"\nmv=");
+				Irg.print_expr mv;print_string "\nspec=";
+				Irg.print_spec op;
 				if i=NONE then
 					if u=NONE && l=NONE then
 						failwith "cannot substitute here (_ 1), (instantiate.ml::substitute_in_location)"
@@ -441,6 +462,9 @@ let rec substitute_in_location name op loc =
 	@return		the instantiated statement
 *)
 let rec substitute_in_stat name op statement =
+	(* !!DEBUG!! *)
+	(*print_string ("subs_in_s name="^name^", op="^(Irg.name_of op)^", stat=");
+	Irg.print_statement statement; print_char '\n';*)
 	match statement with
 	NOP ->
 		NOP
@@ -451,7 +475,7 @@ let rec substitute_in_stat name op statement =
 	| EVALIND(n, attr) ->
 		if (String.compare n name) == 0 then
 		begin
-			if is_attr_recursive op attr then
+			if is_stat_attr_recursive op attr then
 				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
 				EVAL(n ^ "_" ^ attr)
 			else
@@ -485,6 +509,9 @@ let rec substitute_in_stat name op statement =
 	@return		the statement with the given var renamed
 *)
 let rec change_name_of_var_in_stat sta var_name new_name =
+	(* !!DEBUG!! *)
+	(*print_string ("chg_var_in_s var_name="^var_name^", new_name="^new_name^", sta=");
+	Irg.print_statement sta; print_char '\n';*)
 	match sta with
 	NOP ->
 		NOP
@@ -523,6 +550,9 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 	@return		the attribute with the given var renamed
 *)
 let change_name_of_var_in_attr a var_name new_name =
+	(* !!DEBUG!! *)
+	(*print_string ("chg_var_in_a var_name="^var_name^", new_name="^new_name^", a=");
+	Irg.print_attr a; print_char '\n';*)
 	match a with
 	ATTR_EXPR(str, e) ->
 		ATTR_EXPR(str, change_name_of_var_in_expr e var_name new_name)
@@ -934,6 +964,8 @@ let rec remove_const_param_from_format f =
 	@return		the instantiated statement
 *)
 let rec instantiate_in_stat sta param_list =
+(* !!DEBUG!! *)
+(*print_string "inst_in_s, param_list=";Irg.print_param_list param_list;Irg.print_statement sta; print_char '\n';*)
 	match param_list with
 	[] ->
 		sta
@@ -951,6 +983,8 @@ let rec instantiate_in_stat sta param_list =
 	@return		the instantiated expression
 *)
 let rec instantiate_in_expr ex param_list =
+(* !!DEBUG!! *)
+(*print_string "inst_in_e, param_list=";Irg.print_param_list param_list;Irg.print_expr ex; print_char '\n';*)
 	let rec aux e p_l =
 		match p_l with
 		| [] ->
@@ -1182,7 +1216,7 @@ let add_attr_to_spec sp param =
 			if List.exists (fun x -> compare_attrs a x) a_l then
 				(match a with
 				| ATTR_STAT(n, _) ->
-					if is_attr_recursive (spec_of_param param) n then
+					if is_stat_attr_recursive (spec_of_param param) n then
 						(prefix_recursive_attr a (name_of_param param))::(search_in_attrs a_l b)
 					else
 						search_in_attrs a_l b
@@ -1203,7 +1237,9 @@ let add_attr_to_spec sp param =
 	| AND_OP(name, p_l, a_l) ->
 		(match spec_of_param param with
 		(* we shouldn't add attributes from a mode to an op spec *)
-		| AND_MODE(_, _, _, _) -> sp
+		(* may be we should *)
+		(*| AND_MODE(_, _, _, _) -> sp*)
+		| AND_MODE(n, pl, e, al) -> AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
 		| _ -> AND_OP(name, p_l, a_l@(search_in_attrs attr_spec attr_param))
 		)
 	| AND_MODE(name, p_l, e, a_l) ->

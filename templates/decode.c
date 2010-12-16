@@ -14,18 +14,20 @@
 
 /* endianness */
 typedef enum $(proc)_endianness_t {
-  little = 0,
-  big = 1
+	little = 0,
+	big = 1
 } $(proc)_endianness_t;
 
 /* decode structure */
 struct $(proc)_decoder_t
 {
-    /* the fetch unit used to retrieve instruction ID */
-    $(proc)_fetch_t* fetch;
-    #ifdef GLISS_NO_MALLOC
+	/* the fetch unit used to retrieve instruction ID */
+	$(proc)_fetch_t *fetch;
+$(if is_multi_set)	/* help determine which decode type if several instr sets defined */
+	$(proc)_state_t *state;$(end)
+$(if GLISS_NO_MALLOC)
     $(proc)_inst_t*  tmp_inst;
-    #endif
+$(end)
 };
 
 /* Extern Modules */
@@ -38,29 +40,30 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 /* initialization and destruction of $(proc)_decode_t object */
 static int number_of_decoder_objects = 0;
 
-static void init_decoder($(proc)_decoder_t *d, $(proc)_platform_t *state)
+static void init_decoder($(proc)_decoder_t *d, $(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end))
 {
-        d->fetch = $(proc)_new_fetch(state);
-        #ifdef GLISS_NO_MALLOC
+        d->fetch = $(proc)_new_fetch(pf$(if is_multi_set), state$(end));
+	$(if is_multi_set)d->state = state;$(end)
+$(if GLISS_NO_MALLOC)
         d->tmp_inst = ($(proc)_inst_t*)malloc(sizeof($(proc)_inst_t));
-        #endif
+$(end)
 }
 
 static void halt_decoder($(proc)_decoder_t *d)
 {
         $(proc)_delete_fetch(d->fetch);
-        #ifdef GLISS_NO_MALLOC
+$(if GLISS_NO_MALLOC)
         free(d->tmp_inst);
-        #endif       
+$(end)     
 }
 
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *state)
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end))
 {
     $(proc)_decoder_t *res = malloc(sizeof($(proc)_decoder_t));
     if (res == NULL)
                 $(proc)_error("not enough memory to create a $(proc)_decoder_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
     /*assert(number_of_decode_objects >= 0);*/
-    init_decoder(res, state);
+    init_decoder(res, pf$(if is_multi_set), state$(end));
     number_of_decoder_objects++;
     return res;
 }
@@ -77,6 +80,7 @@ void $(proc)_delete_decoder($(proc)_decoder_t *decode)
     
 }
 
+$(if !is_multi_set)
 $(if is_RISC)
 /* Fonctions Principales */
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address)
@@ -87,20 +91,19 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
+	
 	/* then decode it */
-#ifndef $(PROC)_NO_MALLOC
-	res = $(proc)_decode_table[id](code);
-#else
+$(if GLISS_NO_MALLOC)
 	res = decoder->tmp_inst;
 	$(proc)_decode_table[id](code, res);
-#endif
+$(else)
+	res = $(proc)_decode_table[id](code);
+$(end)
 	res->addr = address;
     
 	return res;
 }
 $(else)
-
-
 /* Fonctions Principales */
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
@@ -113,16 +116,57 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
 	/* then decode it */
-#ifndef GLISS_NO_MALLOC
+$(if !GLISS_NO_MALLOC)
 	res  = $(proc)_decode_table[id](&code);
-#else
+$(else)
 	res = decoder->tmp_inst;
 	$(proc)_decode_table[id](&code, res);
-#endif
+$(end)
 	res->addr = address;
         
 	return res;
 }
+$(end)$(end)
+
+$(if is_multi_set)
+$(foreach instr_sets_sizes)
+/* Fonctions Principales */
+$(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(proc)_decoder_t *decoder, $(proc)_address_t address)
+{
+	$(proc)_inst_t *res = 0;
+	$(proc)_ident_t id;
+	code_t code;
+	$(if !is_RISC_size)/* init a buffer for the read instr, size should be max instr size for the given arch */
+	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
+	code.mask = {i_buff, 0};$(end)
+
+	/* first, fetch the instruction at the given address */
+	id = $(proc)_fetch(decoder->fetch, address, &code);
+	
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	res = decoder->tmp_inst;
+	$(proc)_decode_table[id](&code, res);
+$(else)
+	res = $(proc)_decode_table[id](&code);
+$(end)
+	res->addr = address;
+    
+	return res;
+}
+$(end)
+
+$(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address)
+{
+	$(proc)_state_t *state = decoder->state;
+	$(foreach instruction_sets)
+	if ($(select_iset)) {
+		$(if is_RISC_iset)return $(proc)_decode_$(C_size_iset)(decoder, address);
+		$(else)return $(proc)_decode_CISC(decoder, address)$(end)
+	}
+	$(end)
+}
+
 $(end)
 
 /* End of file $(proc)_decode.c */

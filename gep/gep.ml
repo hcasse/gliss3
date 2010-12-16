@@ -143,14 +143,14 @@ let make_env info =
 	let min_size =
 		Iter.iter
 			(fun min inst ->
-				let size = Fetch.get_instruction_length inst
+				let size = Iter.get_instruction_length inst
 				in if size < min then size else min)
 			1024 
 	in
 	let max_size =
 		Iter.iter
 			(fun max inst ->
-				let size = Fetch.get_instruction_length inst
+				let size = Iter.get_instruction_length inst
 				in if size > max then size else max)
 			0
 	in
@@ -173,6 +173,19 @@ let make_env info =
 		| _ when n > 16 && n <= 32 -> 32
 		| _ when n > 32 && n <= 64 -> 64
 		| _ -> raise BadCSize
+	in
+	let instr_sets = !Iter.multi_set in
+	let rec suppress_double l =
+		match l with
+		| [] -> []
+		| a::b -> if List.mem a b then suppress_double b else a::(suppress_double b)
+	in
+	let instr_sets_sizes_map = List.map (Fetch.find_fetch_size) instr_sets in
+	let instr_sets_sizes = suppress_double instr_sets_sizes_map in
+	let find_iset_size_of_inst inst =
+		let member = List.map (List.mem inst) instr_sets in
+		let member_size = List.map2 (fun x y -> if x then [y] else []) member instr_sets_sizes_map in
+		List.hd (List.flatten member_size)
 	in
 	let get_msb_mask n =
 		try
@@ -198,37 +211,44 @@ let make_env info =
 	in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
-	let decoder inst idx out =
+	let decoder inst idx sfx size out =
 		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
 		let cst_suffix = Fetch.get_C_const_suffix string_mask in
 		let mask = Fetch.str01_to_int64 string_mask in
-		let extract _ = Printf.fprintf out "__EXTRACT(0x%LX%s, %d, code_inst)"  mask cst_suffix (find_first_bit mask)          in
-		let exts    n = Printf.fprintf out "__EXTS(0x%LX%s, %d, code_inst, %d)" mask cst_suffix (find_first_bit mask) (32 - n) in
+		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
+		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
+		let extract _ = Printf.fprintf out "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
+		let exts    n = Printf.fprintf out "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
-	let decoder_CISC inst idx out =
-		let extract _ = Printf.fprintf out "__EXTRACT(&mask%d, code_inst)" idx in
-		let exts n = Printf.fprintf out "__EXTS(&mask%d, code_inst, %d)" idx n in
+	let decoder_CISC inst idx sfx out =
+		let suffix = if sfx then "_CISC" else "" in
+		let suffix_code = if sfx then "->mask" else "" in
+		let extract _ = Printf.fprintf out "__EXTRACT%s(&mask%d, code_inst%s)" suffix idx suffix_code in
+		let exts n = Printf.fprintf out "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
 		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
-	let output_mask_decl inst idx out =
+	let output_mask_decl inst idx is_risc out =
 		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
 		let mask = Fetch.str_to_int32_list string_mask
 		in
-			if not is_RISC then
+			if not is_risc then
 				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length mask);
 				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) string_mask;
 				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (String.length string_mask))
 	in
 
 	let add_mask_32_to_param inst idx _ _ dict =
-		("decoder", Templater.TEXT (if is_RISC then (decoder inst idx) else (decoder_CISC inst idx))) ::
-		("mask_decl", Templater.TEXT (output_mask_decl inst idx)) :: dict in
-
+		let isize = find_iset_size_of_inst inst in
+		let is_risc = isize <> 0 in
+		let is_multi = (List.length instr_sets) > 1 in
+		("decoder", Templater.TEXT (if is_risc then (decoder inst idx is_multi isize) else (decoder_CISC inst idx is_multi))) ::
+		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) :: dict in
 	let add_size_to_inst inst dict =
-		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Fetch.get_instruction_length inst))) ::
+		let iset_size = find_iset_size_of_inst inst in
+		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_instruction_length inst))) ::
 		("gen_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
@@ -246,7 +266,25 @@ let make_env info =
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
+		(* true if inst belongs to a RISC instr set *)
+		("is_RISC_inst", Templater.BOOL (fun _ -> iset_size <> 0)) ::
+		(* instr size of the instr set where belongs inst (meaning stg only if instr set is RISC) *)
+		("iset_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" iset_size)) ::
 		dict
+	in
+	let get_instr_set_size f dict size =
+	f (
+		("is_RISC_size", Templater.BOOL (fun _ -> size <> 0)) ::
+		("C_size", 
+			if size = 0 then
+				raise (Sys_error "template $(C_size) in $(instr_sets_sizes) collection should be used only with RISC ISA")
+			else Templater.TEXT (fun out -> Printf.fprintf out "%d" size)) ::
+		("msb_size_mask", 
+			if size = 0 then
+				raise (Sys_error "template $(msb_size_mask) in $(instr_sets_sizes) collection should be used only with RISC ISA")
+			else Templater.TEXT (fun out -> output_string out (get_msb_mask size))) ::
+		dict
+	)
 	in
 	let maker = App.maker() in
 	maker.App.get_params <- add_mask_32_to_param;
@@ -256,14 +294,60 @@ let make_env info =
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
+(* create a iss coll were these attr will have meaning *)
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	("max_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_size)) ::
-	("is_RISC", Templater.BOOL (fun _ -> is_RISC)) ::
+	("is_RISC", Templater.BOOL (fun _ ->
+		if (List.length instr_sets) > 1 then
+			raise (Sys_error "template $(is_RISC) should be used only when only one instruction set is defined")
+		else is_RISC)) ::
+	("is_CISC_present", Templater.BOOL (fun _ -> List.exists (fun x -> x = 0) instr_sets_sizes)) ::
 	(* next 2 things have meaning only if a RISC ISA is considered as we use min_size *)
 	(* stands for the most appropriate standard C size (uintN_t) *)
-	("C_inst_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (try (get_C_size min_size) with BadCSize -> raise (Sys_error "template $(C_inst_size) should be used only with RISC ISA")))) ::
+	("C_inst_size",
+		Templater.TEXT (fun out ->
+			if (List.length instr_sets) > 1 then
+				raise (Sys_error "template $(C_inst_size) should be used only when only one instruction set is defined")
+			else
+				(Printf.fprintf out "%d"
+					(try (get_C_size min_size) with
+					| BadCSize -> raise (Sys_error "template $(C_inst_size) should be used only with RISC ISA"))))) ::
 	(* return a mask for the most significant bit, size depends on the C size needed *)
-	("msb_mask", App.out (fun _ -> (get_msb_mask min_size))) ::
+	("msb_mask",
+		(App.out (fun _ ->
+			if (List.length instr_sets) > 1 then
+				raise (Sys_error "template $(msb_mask) should be used only when only one instruction set is defined")
+			else (get_msb_mask min_size)))) ::
+
+	("is_multi_set", Templater.BOOL (fun _ -> ((List.length instr_sets) > 1))) ::
+	(* quantity of instruction sets *)
+	("num_instr_sets", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length instr_sets)) ) ::
+	(* different sizes of the instr sets (no double) *)
+	("instr_sets_sizes", Templater.COLL (fun f dict -> List.iter (get_instr_set_size f dict) instr_sets_sizes)) ::
+	(* declaration of the value type that holds an instr code in read only, used in decode, should be concat directly to var name in C code *)
+	("code_read_param_decl", Templater.TEXT (fun out ->
+		Printf.fprintf out "%s"
+			(if (List.length instr_sets) > 1 then
+				"code_t *"
+			else (if is_RISC then
+				(Printf.sprintf "uint%d_t " (get_C_size min_size))
+			else "mask_t *")))) ::
+	(* declaration of the value type that holds an instr code in write mode, used in decode, should be concat directly to var name in C code *)
+	("code_write_param_decl", Templater.TEXT (fun out ->
+		Printf.fprintf out "%s"
+			(if (List.length instr_sets) > 1 then
+				"code_t *"
+			else (if is_RISC then
+				(Printf.sprintf "uint%d_t *" (get_C_size min_size))
+			else "mask_t *")))) ::
+	(* declaration of the value type that holds an instr code in read only, used in decode, should be concat directly to var name in C code *)
+	("code_read_decl", Templater.TEXT (fun out ->
+		Printf.fprintf out "%s"
+			(if (List.length instr_sets) > 1 then
+				"code_t "
+			else (if is_RISC then
+				(Printf.sprintf "uint%d_t " (get_C_size min_size))
+			else "mask_t ")))) ::
 	("total_instruction_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" inst_count)  ) ::
  	("max_operand_nb", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_op_nb)  ) ::
 	("gen_init_code", Templater.TEXT (fun out ->

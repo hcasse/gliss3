@@ -97,9 +97,13 @@ let check_coerce spec =
 		(* shouldn't happen *)
 		spec
 
+
 (** structure containing the specifications of all instantiated instructions,
 initialised with something meaningless to help determine type of ref *)
 let instr_set = ref [Irg.UNDEF]
+
+(** will contains instr sorted by instruction set if multi, each set in a list *)
+let multi_set = ref []
 (** List of instruction names sorted by ascending order of call number
 	This list is initialize if -p option is activated when calling GEP *)
 let instr_stats : (string list ref) = ref [];;
@@ -260,7 +264,52 @@ let sort_instr_set instr_list stat_list =
 		try StringMap.find (get_name i)  map
 		with Not_found -> -1 in
 	
-	List.sort (fun a b -> (get b) - (get a)) instr_list	
+	List.sort (fun a b -> (get b) - (get a)) instr_list
+
+
+(** sort instr into instr sets if multi defined *)
+let enumerate_instr_sets i_l =
+	let is_same_i_set sp1 sp2 =
+		let a1 = try get_attr sp1 "instruction_set_select" with | Not_found -> EXPR Irg.NONE in
+		let a2 = try get_attr sp2 "instruction_set_select" with | Not_found -> EXPR Irg.NONE in
+		a1 = a2
+	in
+	let add_to_list l sp =
+		match l with
+		| [] -> []
+		| a::b -> if is_same_i_set a sp then sp::l else l
+	in
+	let sort_inst sp l =
+		match l with
+		| [] -> [[sp]]
+		| a::b ->
+			(let res = List.map (fun x -> add_to_list x sp) l in
+			if res = l then
+				(* we found an instr from a new instr set *)
+				[sp]::l
+			else
+				res)
+	in(*
+	let print_list l =
+		match l with
+		| [] -> print_string "[0] "
+		| a::b -> 
+			let cond =
+				try
+					(match (get_attr a "instruction_set_select") with
+					| EXPR(e) -> e
+					| _ -> failwith "should not happen ()")
+				with | Not_found -> Irg.NONE
+			in
+			Printf.printf "[%d, cond=" (List.length l);
+			Irg.print_expr cond;
+			print_string "]\n"
+	in*)
+	let res = List.fold_left (fun a sp -> sort_inst sp a) [] i_l
+	in
+	(*  !!DEBUG!!
+	print_string "[";List.iter print_list res;print_string "]\n"; *)
+	multi_set := res
   
 
 (** Iteration over actual instruction using profiling order.
@@ -269,13 +318,29 @@ let sort_instr_set instr_list stat_list =
      val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a
 	@param with_profiling	If true, profiling order is used.
 	*)
-let iter_ext
- fun_to_iterate init_val with_profiling =
+let iter_ext fun_to_iterate init_val with_profiling =
+	let is_defined id =
+		try
+			match Irg.get_symbol id with
+			| _ -> true
+		with Irg.Symbol_not_found _ -> false
+	in
+	let root_inst =
+		if is_defined "multi" then
+			"multi"
+		else if is_defined "instruction" then
+			"instruction"
+		else
+			raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
+	in
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
-			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions "instruction")
+			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst)
 		else
-			()
+			();
+		if !multi_set = [] then
+			enumerate_instr_sets !instr_set
+		else ()
 	in
 
 	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
@@ -322,7 +387,8 @@ let iter_ext
 *)
 let iter fun_to_iterate init_val = iter_ext fun_to_iterate init_val false
 
-
+	
+	
 (** Compute the maximum params numbers of all instructions
 	from the current loaded IRG
 *)
@@ -335,3 +401,57 @@ let get_params_max_nb () =
 		  else acc
 	in
 	  iter aux 0
+
+
+
+(** returns the length of a given instruction, based on the image description *)
+let get_instruction_length sp =
+	(* return the string of a given Irg.expr which is supposed to be an image attribute *)
+	let rec get_str e =
+		match e with
+		| Irg.FORMAT(str, _) -> str
+		| Irg.CONST(t_e, c) ->
+			if t_e=Irg.STRING then
+				match c with
+				Irg.STRING_CONST(str, false, _) ->
+					str
+				| _ -> ""
+			else
+				""
+		| Irg.ELINE(_, _, e) -> get_str e
+		| _ -> ""
+	in
+	(* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)
+	let get_length_from_format f =
+		let l = String.length f in
+		let new_f =
+			if l<=2 then
+			(* shouldn't happen, we should have only formats like %[0-9]+b, not %d or %f or %s *)
+				failwith ("we shouldn't have something like [[" ^ f ^ "]] (iter.ml::get_instruction_length::get_length_from_format)")
+			else
+				String.sub f 1 (l-2)
+		in
+		Scanf.sscanf new_f "%d" (fun x->x)
+	in
+	(* remove any space (space or tab char) in a string, return a string as result *)
+	let remove_space s =
+		Str.global_replace (Str.regexp "[ \t]+") "" s
+	in
+	let rec get_length_from_regexp_list l =
+		match l with
+		| [] -> 0
+		| h::t ->
+			(match h with
+			Str.Text(txt) ->
+				(* here we assume that an image contains only %.. , 01, X or x *)
+				(String.length txt) + (get_length_from_regexp_list t)
+			| Str.Delim(d) ->
+				(get_length_from_format d) + (get_length_from_regexp_list t)
+			)
+	in
+	let get_expr_from_iter_value v  =
+		match v with
+		| EXPR(e) -> e
+		| _ -> failwith "shouldn't happen (iter.ml::get_instruction_length::get_expr_from_iter_value)"
+	in
+	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (get_attr sp "image")))))
