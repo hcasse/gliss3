@@ -219,7 +219,9 @@ int main(int argc, char **argv) {
 	gliss_loader_load(loader, pf);
 	/* CAUTION: C99 valid declarations, BUT C89 invalid */
 	int i_sect;
-	gliss_decoder_t *d = gliss_new_decoder(pf);
+	/* !!TODO!! indiquer comment choisir le type de decodage si plusieurs jeu d'insts */
+	gliss_state_t *st = gliss_new_state(pf);
+	gliss_decoder_t *d = gliss_new_decoder(pf, st);
 
 	/* disassemble the sections */
 	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++)

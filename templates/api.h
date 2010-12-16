@@ -19,7 +19,7 @@ typedef struct $(proc)_platform_t $(proc)_platform_t;
 typedef struct $(proc)_fetch_t $(proc)_fetch_t;
 typedef struct $(proc)_decoder_t $(proc)_decoder_t;
 struct $(proc)_loader_t;
-$(if !is_RISC)typedef struct mask_t mask_t;
+$(if is_CISC_present)typedef struct mask_t mask_t;
 $(end)
 
 /* $(proc)_state_t type */
@@ -121,16 +121,19 @@ int $(proc)_load_platform($(proc)_platform_t *platform, const char *path);
 void $(proc)_load($(proc)_platform_t *platform, struct $(proc)_loader_t *loader);
 
 /* fetching */
-$(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *state);
+$(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end));
 void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
-$(if is_RISC)
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t *code);
-$(else)
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code);
-$(end)
+
+$(if is_multi_set)
+typedef union {
+$(foreach instr_sets_sizes)
+	$(if is_RISC_size)uint$(C_size)_t u$(C_size)$(else)mask_t *mask$(end);
+$(end)} code_t;$(end)
+
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, $(code_write_param_decl)code);
 
 /* decoding */
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *state);
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end));
 void $(proc)_delete_decoder($(proc)_decoder_t *decoder);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);
@@ -163,7 +166,7 @@ void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address);
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
 
-$(if !is_RISC)
+$(if is_CISC_present)
 /* variable length functions */
 uint32_t value_on_mask(mask_t *inst, mask_t *mask);
 $(end)
