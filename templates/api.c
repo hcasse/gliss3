@@ -446,7 +446,8 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	sim->state = state;
 
 	/* create a new decoder */
-	sim->decoder = $(proc)_new_decoder($(proc)_platform(state)$(if is_multi_set), state$(end));
+	sim->decoder = $(proc)_new_decoder($(proc)_platform(state));
+	$(if is_multi_set)$(proc)_set_cond_state(sim->decoder, state);$(end)
 	if (sim->decoder == NULL)
 		return NULL;
 	if (exit_addr)

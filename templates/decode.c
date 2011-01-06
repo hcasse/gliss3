@@ -24,7 +24,8 @@ struct $(proc)_decoder_t
 	/* the fetch unit used to retrieve instruction ID */
 	$(proc)_fetch_t *fetch;
 $(if is_multi_set)	/* help determine which decode type if several instr sets defined */
-	$(proc)_state_t *state;$(end)
+	$(proc)_state_t *state;
+	$(proc)_platform_t *pf;$(end)
 $(if GLISS_NO_MALLOC)
     $(proc)_inst_t*  tmp_inst;
 $(end)
@@ -40,10 +41,13 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 /* initialization and destruction of $(proc)_decode_t object */
 static int number_of_decoder_objects = 0;
 
-static void init_decoder($(proc)_decoder_t *d, $(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end))
+static void init_decoder($(proc)_decoder_t *d, $(proc)_platform_t *pf)
 {
-        d->fetch = $(proc)_new_fetch(pf$(if is_multi_set), state$(end));
-	$(if is_multi_set)d->state = state;$(end)
+	$(if is_multi_set)d->fetch = NULL;
+	d->state = NULL;
+	d->pf = pf;
+	$(else)d->fetch = $(proc)_new_fetch(pf);
+	$(end)
 $(if GLISS_NO_MALLOC)
         d->tmp_inst = ($(proc)_inst_t*)malloc(sizeof($(proc)_inst_t));
 $(end)
@@ -57,13 +61,13 @@ $(if GLISS_NO_MALLOC)
 $(end)     
 }
 
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end))
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf)
 {
     $(proc)_decoder_t *res = malloc(sizeof($(proc)_decoder_t));
     if (res == NULL)
                 $(proc)_error("not enough memory to create a $(proc)_decoder_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
     /*assert(number_of_decode_objects >= 0);*/
-    init_decoder(res, pf$(if is_multi_set), state$(end));
+    init_decoder(res, pf);
     number_of_decoder_objects++;
     return res;
 }
@@ -79,6 +83,26 @@ void $(proc)_delete_decoder($(proc)_decoder_t *decode)
     free(decode);
     
 }
+
+/** set the state which is used to determine which instruction set we decode for,
+ *  selection conditions are expressions using some state registers,
+ *  the registers of the given state will be used after a call to this function.
+ *  The fetch object will be created here for multi set descriptions.
+ *  Does nothing if only one instr set is defined.
+*/
+void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state)
+{
+	$(if is_multi_set)if (decoder == NULL)
+                $(proc)_error("cannot set cond state for a NULL $(proc)_decoder_t object");
+	if (state == NULL)
+                $(proc)_error("cannot set cond state with a NULL $(proc)_state_t object");
+	decoder->state = state;
+	/* state is given, we can finally create fetch object here */
+	decoder->fetch = $(proc)_new_fetch(decoder->pf, state);
+	$(end)
+
+}
+
 
 $(if !is_multi_set)
 $(if is_RISC)

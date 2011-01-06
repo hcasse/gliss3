@@ -133,10 +133,13 @@ $(end)} code_t;$(end)
 $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, $(code_write_param_decl)code);
 
 /* decoding */
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end));
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf);
 void $(proc)_delete_decoder($(proc)_decoder_t *decoder);
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address);
 void $(proc)_free_inst($(proc)_inst_t *inst);
+/* only used if several ISS defined to fully initialize decoder structure,
+ * does nothing if one inst set only is defined */
+void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state);
 
 /* code execution */
 void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);
