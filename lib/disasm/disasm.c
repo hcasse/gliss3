@@ -220,11 +220,11 @@ int main(int argc, char **argv) {
 	/* CAUTION: C99 valid declarations, BUT C89 invalid */
 	int i_sect;
 	/* !!TODO!! indiquer comment choisir le type de decodage si plusieurs jeu d'insts */
-	gliss_state_t *st = gliss_new_state(pf);
+	gliss_state_t *state = gliss_new_state(pf);
 	gliss_decoder_t *d = gliss_new_decoder(pf);
 	/* not really useful as select condition for instr set will never change as we don't execute here,
-	 * changing instr set should be done manually by manipulating st*/
-	gliss_set_cond_state(d, st);
+	 * changing instr set should be done manually by manipulating state */
+	gliss_set_cond_state(d, state);
 
 	/* disassemble the sections */
 	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++)

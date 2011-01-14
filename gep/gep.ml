@@ -189,14 +189,14 @@ let make_env info =
 	in
 	let get_msb_mask n =
 		try
-			(match get_C_size min_size with
+			(match get_C_size n with
 			| 8 -> "0x80"
 			| 16 -> "0x8000"
 			| 32 -> "0x80000000"
 			| 64 -> "0x8000000000000000LL"
 			| _ -> raise BadCSize)
 		with
-			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with RISC ISA")
+			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with a RISC ISA")
 	in
 	let to_C_list mask =
 		let rec aux comma l =
