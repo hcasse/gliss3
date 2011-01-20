@@ -267,6 +267,19 @@ let get_instruction_set maker f dict i_set =
 			| _ -> failwith "(app.ml::get_instruction_set::$(iset_select)) shouldn't happen.")) ::
 		(* index, 0 to n, as in !Iter.multi_set *)
 		("idx", Templater.TEXT (fun out -> Printf.fprintf out "%d" (find_idx ()))) ::
+		(* as described in nmp attr "instruction_set_name" *)
+		("iset_name", Templater.TEXT (fun out ->
+			let spec_ = List.hd i_set in
+			let name_attr =
+				match Iter.get_attr spec_ "instruction_set_name" with
+				| Iter.EXPR(e) -> e
+				| _ -> failwith "(app.ml::get_instruction_set::$(name)) attr instruction_set_name must be an expr"
+			in
+			match name_attr with
+			(* name should be just a string *)
+			| (Irg.CONST(Irg.STRING, Irg.STRING_CONST(n, _, _))) ->
+				output_string out n
+			| _ -> failwith "(app.ml::get_instruction_set::$(name)) attr instruction_set_name must be a const string")) ::
 		dict))
 
 

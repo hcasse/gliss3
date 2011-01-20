@@ -140,6 +140,11 @@ void $(proc)_free_inst($(proc)_inst_t *inst);
 /* only used if several ISS defined to fully initialize decoder structure,
  * does nothing if one inst set only is defined */
 void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state);
+$(if is_multi_set)
+/* decoding functions for one specific instr set */
+$(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
+$(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address);
+$(end)
 
 /* code execution */
 void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);

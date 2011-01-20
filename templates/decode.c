@@ -180,6 +180,37 @@ $(end)
 }
 $(end)
 
+$(if is_multi_set)/* decoding functions for one specific instr set */
+
+/* access to a speicific fetch table */
+#include "fetch_table.h"
+$(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
+$(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address)
+{
+	$(proc)_inst_t *res = 0;
+	$(proc)_ident_t id;
+	code_t code;
+	$(if !is_RISC_iset)/* init a buffer for the read instr, size should be max instr size for the given arch */
+	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
+	code.mask = {i_buff, 0};$(end)
+
+	/* first, fetch the instruction at the given address, call specialized fetch */
+	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), table_$(idx));
+	$(else)id = $(proc)_fetch_CISC(decoder->fetch, address, &code.mask, table_$(idx));$(end)
+	
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	res = decoder->tmp_inst;
+	$(proc)_decode_table[id](&code, res);
+$(else)
+	res = $(proc)_decode_table[id](&code);
+$(end)
+	res->addr = address;
+    
+	return res;
+}
+$(end)
+
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
 	$(proc)_state_t *state = decoder->state;
