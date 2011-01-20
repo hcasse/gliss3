@@ -69,5 +69,5 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state)
  * @param address       New address of the brk base.
  */
 void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address) {
-	/*pf->brk_base = (address + GLISS_PAGE_SIZE - 1) & ~(GLISS_PAGE_SIZE - 1);*/
+	/* do nothing */
 }

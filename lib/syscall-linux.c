@@ -1511,11 +1511,3 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
 }
 
 
-/**
- * Fix the position of the brk base (top address of memory).
- * @param pf		Platform to work with.
- * @param address	New address of the brk base.
- */
-void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address) {
-	pf->brk_base = (address + GLISS_PAGE_SIZE - 1) & ~(GLISS_PAGE_SIZE - 1);
-}
