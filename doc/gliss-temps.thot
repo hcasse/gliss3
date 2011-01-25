@@ -172,6 +172,10 @@ types are all "rounded" to the smallest C type that can contain them
 ''version'' (//text//) -- identification of the generation version
 of @(GLISS)
 
+''is_multi_set'' (//bool//) -- True if several ISAs defined in a same NMP description, false if only one ISA present
+
+''num_instr_set'' (//text//) -- number of ISAs defined in a NMP description
+
 
 === Collection symbols ===
 
@@ -239,6 +243,43 @@ $(foreach values)
      $(name)       // (text) Name of the field in the gliss_value_t union (defined in api.h) used to access a value of the given value type
      $(type)       // (text) Name of the C type of the given value type
 </code>
+
+
+== ''instruction_sets'' (//collect//) ==
+
+Collection used only if several instruction sets are defined in a same description, contains informations
+about each ISA defined.
+
+Example with summary of available symbols for the ''instruction_sets'' collection:
+<code>
+$(foreach values)
+     $(iset_name)     // (text) name of the instruction set, as given in NMP sources
+     $(select_iset)   // (text) boolean-like expression whose result indicates if we choose the given instruction set
+     $(is_RISC_iset)  // (bool) indicates if the given instruction set can be considered a RISC ISA (ie. constant instruction size of 8, 16, 32 or 64 bits)
+     $(C_size_iset)   // (text) intruction size if it is a RISC instruction set, invalid otherwise
+     $(msb_mask_iset) // (text) mask for the most significant bit of a $(C_size_iset)-bit value, invalid if not a RISC ISA
+     $(idx)           // (text) index from 0 to n-1 (if n ISAs defined), seems to be in the order as the NMP definitions
+</code>
+
+
+== ''instruction_sets_sizes'' (//collect//) ==
+
+Collection used only if several instruction sets are defined in a same description, one element
+represent a different ISA size among all ISAs defined, as some ISAs might have same size, you might
+have less elements in this collection than in ''instructions_sets''.
+
+The different sizes are 8, 16, 32, 64 bits (sizes directly representable using scalar C types) and a special value
+for anything that is not of this form (either constant size differents from those values, or variable size)
+which is called CISC (even if not real CISC) in the rest of the documentation.
+
+Example with summary of available symbols for the ''instruction_sets_sizes'' collection:
+<code>
+$(foreach values)
+     $(is_RISC_size)  // (bool) True if the size is a RISC ISA size (ie. constant size of 8, 16, 32 or 64 bits)
+     $(C_size)        // (bool) size of the C scalar type used to represent an instruction of an ISA of given size, invalid if not a RISC size
+     $(msb_size_mask) // (text) mask for the most significant bit of a $(C_size)-bit value, invalid if not a RISC size
+</code>
+
 
 
 ==== Fetch Symbols ====

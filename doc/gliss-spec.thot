@@ -123,3 +123,55 @@ function_name ::= string	// name of the canonical function
 to put a pair of '"' around the name.
 
 
+===== Definition of several instruction sets in a same description =====
+
+Some processors supports more than one instruction set (see the ARM with his default 32-bit instruction set
+and several pure 16-bit or 16-bit 32-bit mixed THUMB instruction set) and can pass from one to the other
+decoding scheme just with a special instruction, as codes compiled for different instruction sets can be
+mixed into a single program, we added the support for multiple instruction sets in a same description.
+
+If several instruction sets are to be defined in a same descritpion, you just need to change the root
+node from ''instruction'' to ''multi'', each son and its resulting tree will be considered an
+autonomous instruction set and a set of fetch tables will be ouput for each one.
+
+Each node from the resulting tree of a son of the ''multi'' node must have some attribute defined (practically, they should be defined
+directly at the root of such a sub-tree, ie. in a direct son of ''multi''), here is the list:
+  * ''instruction_set_select'': boolean (or boolean like) expression based on processor register values, it will be translated in generated C sources
+  and evaluated to know if a given instruction set is to be used o fecth and decode the next instruction.
+  * ''instruction_set_name'': name of the defined instruction set, in a humanly readable form.
+
+Example with the ARM processor (standard and THUMB instruction set):
+
+<code>
+op multi = ARM | THUMB  // and not op instruction!
+
+op ARM(x : ARM_instr)
+	image = x.image
+	syntax = x.syntax
+	action = {
+                PIA = CIA;
+                CIA = NIA;
+                NIA = NIA + 4;
+		x.action;
+	}
+	instruction_set_select = TFLAG == 0 // ARM mode if state bit TFLAG is cleared
+	instruction_set_name = "ARM"        // human readable name for the ARM instruction set
+
+              
+op ARM_instr = ... // (tree of ARM instructions)
+
+op THUMB(x : THUMB_instr)
+	image = x.image
+	syntax = x.syntax
+	action = {
+                PIA = CIA;
+                CIA = NIA;
+                NIA = NIA + 2;
+		x.action;
+	}
+	instruction_set_select = TFLAG == 1 // THUMB mode if state bit TFLAG is set
+	instruction_set_name = "THUMB"      // human readable name
+
+op THUMB_instr = ... // (tree of ARM instructions)
+</code>
+

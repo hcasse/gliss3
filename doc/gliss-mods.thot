@@ -310,6 +310,21 @@ void gliss_delete_decoder(gliss_decoder_t *decode);
 </code>
 Delete a decoder handler.
 
+==== Multi instruction set decode related functions ====
+
+Functions which can be used if several instruction sets are defined in the same description.
+
+<code c>
+void gliss_set_cond_state(gliss_decoder_t *decoder, gliss_state_t *state);
+</code>
+A condition (expression based on state registers, given in NMP sources) is calculated to choose which instruction set a decoder will decode for,
+so you need to give the decoder a state whose registers will be used to know which decoding will be chosen.
+
+<code c>
+gliss_inst_t *gliss_decode_<ISET_NAME>(gliss_decoder_t *decoder, gliss_address_t address);
+</code>
+Force decoding for one given instruction set (<ISET_NAME> being the instruction set name given in NMP sources),
+one function is automatically generated for each instruction set defined in NMP sources.
 
 ===== ''code'' module =====
 
