@@ -15,28 +15,15 @@ op init()
 
 
      
-op instruction(xx : reg_a)
+op instruction(xx : card(4))
 	image = format("00000000 00000000 00000000 0000 %s", xx.image)
 	syntax = "bof"
 	action = {
-		// A[0] = B<B<2..2> .. B<3..3> >
 		// syntax error on the '..' of B<2..2>
-		A[0] = 
-		B
-		< 
-		B
-		<
-		2
-		..
-		2
-		>
-		 .. 
-		 B
-		 <
-		 3
-		 ..
-		 3
-		 >
-		  >;
+	 	A[xx] = B<B<2..2> .. B<3..3> >;
 	}
+	// syntax error at same place
+	toto = B<B<2 .. 2> .. B<3..3> >
 
+// bug still present if Bit_Expr is extended or replaced (by Expr) in parser
+// => a bit tricky
