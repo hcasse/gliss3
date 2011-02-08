@@ -1215,12 +1215,6 @@ let check_switch_expr test list_case default=
 			match list_c with
 			| [] -> true
 			| (_,e)::l -> (get_type_expr e)=t  && sub_fun l  t in
-		(* !!DEBUG!! *)
-		print_string "check_switch_ret_type, default=";
-		Irg.print_type_expr type_default;
-		print_string "\n";
-		List.iter (fun x -> Irg.print_type_expr (get_type_expr (snd x)); print_string " : ";Irg.print_expr (snd x);print_string "\n") list_case;
-		print_string "end switch\n";
 		if type_default = NO_TYPE
 		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
 		else sub_fun list_case type_default
