@@ -1215,6 +1215,12 @@ let check_switch_expr test list_case default=
 			match list_c with
 			| [] -> true
 			| (_,e)::l -> (get_type_expr e)=t  && sub_fun l  t in
+		(* !!DEBUG!! *)
+		print_string "check_switch_ret_type, default=";
+		Irg.print_type_expr type_default;
+		print_string "\n";
+		List.iter (fun x -> Irg.print_type_expr (get_type_expr (snd x)); print_string " : ";Irg.print_expr (snd x);print_string "\n") list_case;
+		print_string "end switch\n";
 		if type_default = NO_TYPE
 		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
 		else sub_fun list_case type_default
@@ -1254,7 +1260,7 @@ let check_switch_expr test list_case default=
 	if not check_switch_cases then
 		raise (SemError "the cases of a functional switch must be consistent with the expression to test")
 	else if not check_switch_return_type then
-		raise (SemError "the return values of a functionnal switch must be of the sames type")
+		raise (SemError "the return values of a functional switch must be of the sames type")
 	else if not check_switch_all_possibilities then
 		raise (SemError "the cases of a functional switch must cover all possibilities or contain a default")
 	else if (get_type_expr default != NO_TYPE)

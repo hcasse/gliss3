@@ -107,8 +107,8 @@ let get_string_mask_for_param_from_op sp n =
 			get_name_of_param ee
 		| _ ->
 			(* !!DEBUG!! *)
-			(*print_string "trouble with:";
-			Irg.print_expr e;*)
+			print_string "trouble with:";
+			Irg.print_expr e;
 			failwith "(Decode) bad parameter in image format"
 	in
 	let get_rank_of_named_param n =
