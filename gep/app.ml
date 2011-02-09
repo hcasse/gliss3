@@ -382,10 +382,27 @@ let add_switch name value dict =
  * (and capture and display all exceptions).
  * @param file	File to process.
  * @param f		Function to work with definitions.
+ * @param opti             set or unset instruction tree optimization (optirg) 
  *)
-let process file f =
+let process file f opti =
+	let find_irg_root_node _ =
+		let is_defined id =
+			try
+				match Irg.get_symbol id with
+				| _ -> true
+			with Irg.Symbol_not_found _ -> false
+		in
+		if is_defined "multi" then
+			"multi"
+		else if is_defined "instruction" then
+			"instruction"
+		else
+			raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
+	in
 	try
 		IrgUtil.load file;
+		if opti then
+			Optirg.optimize (find_irg_root_node ());
 		let info = Toc.info () in
 		f info
 	with
@@ -439,9 +456,11 @@ let rec find_lib source paths =
 let nmp: string ref = ref ""
 let quiet = ref false
 let verbose = ref false
+let optirg = ref false
 let options = [
 	("-v", Arg.Set verbose, "verbose mode");
 	("-q", Arg.Set quiet, "quiet mode");
+	("-O",   Arg.Set     optirg, "try to optimize instructions tree (see doc in optirg for description)");
 ]
 
 
@@ -462,7 +481,7 @@ let run args help f =
 			exit 1
 		end
 	else
-		process !nmp f
+		process !nmp f !optirg
 
 
 (** Build a template, possibly informing the user.

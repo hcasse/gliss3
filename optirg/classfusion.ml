@@ -87,6 +87,7 @@ let fusion_by_classes (node_to_optimize:Irg.spec) :unit =
 		let or_node = match t with
 			| Irgp.Op 	-> Irg.OR_OP(name,sons_name_list)
 			| Irgp.Mode 	-> Irg.OR_MODE(name,sons_name_list)
+			| Irgp.NotANode -> Irg.UNDEF (* should never happen as we filter this out in a higher if *)
 		in 
 		Irgp.replace_symbol name or_node
 (** 

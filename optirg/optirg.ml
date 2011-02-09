@@ -17,6 +17,7 @@ let lrs = ref []
 let lrp = ref []
 let la = ref []
 let stats_assoc_list = ref []
+let root_name = ref ""
 
 
 
@@ -68,7 +69,7 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.expr) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
-		Irg.get_expr_from_attr_from_op_or_mode and_node attr_name
+		Instantiate.get_expr_from_attr_from_op_or_mode and_node attr_name
 	)
 
 (**
@@ -86,7 +87,7 @@ let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*I
 let case_from_attr_stat size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.stat) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
-		Irg.get_stat_from_attr_from_spec and_node attr_name
+		Instantiate.get_stat_from_attr_from_spec and_node attr_name
 	)
 
 (**
@@ -124,6 +125,7 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.CONST (type_expr,_)-> type_expr
 	| 	Irg.ELINE (_,_,e)-> type_of_expr e
 	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
+	|	Irg.CAST(type_expr, _) -> type_expr
 
 (**
 	Create an opt_t_struct with the name of the node.
@@ -227,7 +229,7 @@ let is_opt (struc:opt_struct) :bool =
 			let size = (try let _= Image_attr_size.sizeOfNodeKey name in true with | _ -> false) in 
 			
 			(* Treatments for display *)
-			let ncall = syms_fold_right (fun loc_name cpt -> if name=loc_name then cpt+1 else cpt) "instruction" 0 in
+			let ncall = syms_fold_right (fun loc_name cpt -> if name=loc_name then cpt+1 else cpt) !root_name 0 in
 			let _ = stats_assoc_list := (name,(ncall,List.length sons))::!stats_assoc_list in
 			if (not param) && attr && size then (lrp:=(union_add name !lrp)) else ();
 			if param && (not attr) && size then (lra:=(union_add name !lra)) else ();
@@ -381,11 +383,21 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 			| _ -> []
 		in	
 		match (Irg.get_symbol name) with 
-		| Irg.AND_OP(_,list_param,list_attr)|Irg.AND_MODE(_,list_param,_,list_attr)->
+		| Irg.AND_OP(_,list_param,list_attr)
+		| Irg.AND_MODE(_,list_param,_,list_attr)->
 			(* get the statements attributes *)
-			let attr_stats = List.filter (function ATTR_STAT(_,_) -> true | _ -> false) list_attr in
+			let attr_stats = List.filter
+				(function
+					| ATTR_STAT(_,_) -> true
+					| _ -> false)
+				list_attr in
 			(* look for names of parameters that will be on the left side of a assigment *)						
-			let forbiddens_param = List.fold_right (fun (ATTR_STAT(_,s)) r-> (get_location s)@r) attr_stats [] in
+			let forbiddens_param = List.fold_right
+				(fun a r ->
+					match a with
+					| ATTR_STAT(_, s) -> (get_location s)@r
+					| _ -> failwith "optirg.ml::affect_constraint_del::del_flat::forbidden_param: should not happen")
+				attr_stats [] in
 			(* look for names of parameters that will be excluded *)			
 			let forbiddens = List.map 
 					(
@@ -400,7 +412,7 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 				List.filter (fun (s,_) -> not (List.exists ((=)(name_of s)) forbiddens )) list_opt
 		| _ -> list_opt
 	in
-	syms_fold_right (del_flat) "instruction" list_opt
+	syms_fold_right (del_flat) !root_name list_opt
 
 (**
 	Get the string from an ref expression.
@@ -430,8 +442,11 @@ let rec string_of_ref_expr ref_expr = match ref_expr with
 let affect_constraint (list_name: string list) :unit=
 
 	(* (4) *) 	
-	let create_case_stat  (LOC_REF(a, _, b, c, d)) expr (code,ref_expr) = 
-		(code,SET(LOC_REF(a, (string_of_ref_expr ref_expr), b, c, d),expr ) )
+	let create_case_stat loc expr (code,ref_expr) =
+		match loc with
+		| LOC_REF(a, _, b, c, d) ->
+			(code,SET(LOC_REF(a, (string_of_ref_expr ref_expr), b, c, d),expr ) )
+		| _ -> failwith "optirg.ml::affect_constraint: should not happen"
 	in
 
 	(* Deletes struct_opt from list_opt if they are used in left side of an assigment. Not recursive.*)
@@ -502,7 +517,7 @@ let affect_constraint (list_name: string list) :unit=
 			
 		| _ -> ()
 	in
-	syms_fold_right (del_flat) "instruction" ()
+	syms_fold_right (del_flat) !root_name ()
 
 
 
@@ -529,7 +544,7 @@ let number_of_instr () =
 				arglist 1
 	| 	OR_MODE(_,arglist)| 	OR_OP(_,arglist) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0
 	|_ -> 1 
-	in count (get_symbol "instruction")
+	in count (get_symbol !root_name)
 	 	
 		
 
@@ -545,7 +560,8 @@ let string_of_optname_list opt_list = List.fold_right (fun name res -> res^"\t"^
 		the name of the root
 *)
 let optimize (name : string) :unit =
-	begin	
+	begin
+	root_name := name;
 	let n_instr_before = number_of_instr () in
 	let list_opt = set_of_struct [] name in 
 	let list_clean = list_opt in 

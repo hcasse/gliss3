@@ -178,9 +178,11 @@ and
 	begin
 	match spec with 
 	| 	AND_MODE (_,listeParam,_,attr_list) | AND_OP(_,listeParam, attr_list) -> sizeOfExpr listeParam (get_expr_of_image attr_list)
-	| 	OR_MODE (_,st_list) | OR_OP (_,st_list) -> 
-		let h::size_list = (List.map (sizeOfNodeKey) st_list) in
-		List.fold_right (fun s size -> if(s <> size) then raise  InconsistentSize else size ) size_list h
+	| 	OR_MODE (_,st_list) | OR_OP (_,st_list) ->
+			(match (List.map (sizeOfNodeKey) st_list) with
+			| [] -> failwith "sizeOfSpec : OR node with no sons"
+			| h::size_list ->
+				List.fold_right (fun s size -> if(s <> size) then raise  InconsistentSize else size ) size_list h)
 	| _ ->	failwith "sizeOfSpec : Node of spec not implemented "
 	end
 

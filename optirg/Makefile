@@ -9,7 +9,7 @@
 ##############
 
 # Ocaml Compiler
-OCC=ocamlc
+OCC=ocamlc -g
 # Ocaml Doc Compiler
 DOCC=ocamldoc -html
 # Doc path
@@ -39,13 +39,13 @@ optirg: $(IRG)/irg.cma optirg.cma main.cmo
 # Linking LIB
 optirg.cma: $(IRG)/irg.cma formatlexer.cmo string_of_expr.cmo image_attr_size.cmo sw_fun.cmo irgp.cmo canon.cmo node_classes.cmo classfusion.cmo optirg.cmo 
 	@echo "### Linking optirg/optirg.cma ###"
-	$(OCC) $(INC) str.cma $(IRG)/irg.cma formatlexer.cmo string_of_expr.cmo image_attr_size.cmo sw_fun.cmo irgp.cmo canon.cmo node_classes.cmo classfusion.cmo optirg.cmo -a -o optirg.cma
+	$(OCC) $(INC) unix.cma str.cma $(IRG)/irg.cma formatlexer.cmo string_of_expr.cmo image_attr_size.cmo sw_fun.cmo irgp.cmo canon.cmo node_classes.cmo classfusion.cmo optirg.cmo -a -o optirg.cma
 	@echo ""
 
 # Compilation
 main.cmo: $(IRG)/irg.cma main.ml optirg.cma
 	@echo "### Compile optirg/main.ml ###"
-	$(OCC) $(INC) -c main.ml -o main.cmo 
+	$(OCC) $(INC) unix.cma -c main.ml -o main.cmo 
 	@echo ""
 
 optirg.cmo: $(IRG)/irg.cma optirg.ml string_of_expr.cmo image_attr_size.cmo canon.cmo irgp.cmo classfusion.cmo
@@ -82,7 +82,7 @@ formatlexer.cmo: formatlexer.mll
 	@echo "### Translate optirg/formatlexer.mll ###"
 	ocamllex formatlexer.mll
 	@echo "### Compile optirg/formatlexer.ml ###"
-	$(OCC) formatlexer.ml
+	$(OCC) $(INC) -c formatlexer.ml -o formatlexer.cmo
 	@echo ""
 
 string_of_expr.cmo: string_of_expr.ml $(IRG)/irg.cma
@@ -107,8 +107,12 @@ doc: optirg.ml
 
 # Cleaning
 clean: 
-	(cd $(IRG) ; make clean)
 	@echo "### Clean optirg ###"
-	rm -rf *.cmo *.cmi $(DOCP)
+	rm -rf *.cmo *.cmi $(DOCP) formatlexer.ml
+	@echo ""
+	
+distclean:
+	@echo "### Clean optirg completely ###"
+	rm -rf *.cmo *.cmi $(DOCP) formatlexer.ml optirg optirg.cma
 	@echo ""
 

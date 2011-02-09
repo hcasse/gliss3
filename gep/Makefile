@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.13 2009/09/15 07:50:48 casse Exp $
 include ../Makefile.head
 
-OCAML_FLAGS=-I ../irg
+OCAML_FLAGS=-I ../irg -I ../optirg
 ifndef NDEBUG
 OCAML_FLAGS+=-g
 OCAML_LDFLAGS+=-g
@@ -23,7 +23,7 @@ GEP_SOURCES = \
 	fetch.ml \
 	decode.ml \
 	gep.ml
-gep_LIBS = str unix  ../irg/irg ../gep/libgep
+gep_LIBS = str unix  ../irg/irg ../optirg/optirg ../gep/libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
 
 gep: ../irg/irg.cma ../gep/libgep.cma
@@ -32,7 +32,7 @@ gep: ../irg/irg.cma ../gep/libgep.cma
 DISASM_SOURCES = \
 	disasm.ml
 
-gliss-disasm_LIBS = str unix ../irg/irg libgep
+gliss-disasm_LIBS = str unix ../irg/irg ../optirg/optirg libgep
 $(eval $(call ocaml_prog,gliss-disasm,$(DISASM_SOURCES)))
 gliss-disasm: ../irg/irg.cma  libgep.cma
 
@@ -41,7 +41,7 @@ gliss-disasm: ../irg/irg.cma  libgep.cma
 ATTR_SOURCES = \
 	gliss_attr.ml
 
-gliss-attr_LIBS = str unix ../irg/irg libgep
+gliss-attr_LIBS = str unix ../irg/irg ../optirg/optirg libgep
 $(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))
 gliss-attr: ../irg/irg.cma libgep.cma
 

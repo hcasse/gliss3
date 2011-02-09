@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.3 2009/07/31 09:09:42 casse Exp $
 include Makefile.head
 
-SUBDIRS=irg gep
+SUBDIRS=irg optirg gep
 
 include Makefile.tail
 
@@ -12,7 +12,7 @@ DOCS = \
 	gep/toc.ml \
 	gep/app.ml
 DOCFLAGS = \
-	-I irg -I gep
+	-I irg -I gep -I optirg
 
 autodoc: autodoc-force
 

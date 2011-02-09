@@ -67,7 +67,7 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.expr) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
-		Irg.get_expr_from_attr_from_op_or_mode and_node attr_name
+		Instantiate.get_expr_from_attr_from_op_or_mode and_node attr_name
 	)
 
 
@@ -87,7 +87,7 @@ let case_from_attr_expr size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*I
 let case_from_attr_stat size (attr_name:string) (and_node:Irg.spec) :(Irg.expr*Irg.stat) = 
 	(
 		Irg.CONST(Irg.CARD(size),Irg.CARD_CONST(Int32.of_int (case_code_from_spec and_node))), 
-		Irg.get_stat_from_attr_from_spec and_node attr_name
+		Instantiate.get_stat_from_attr_from_spec and_node attr_name
 	)
 
 
@@ -130,6 +130,7 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.CONST (type_expr,_)-> type_expr
 	| 	Irg.ELINE (_,_,e)-> type_of_expr e
 	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
+	|	Irg.CAST(type_expr, _) -> type_expr
 
 
 (**

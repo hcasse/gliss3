@@ -59,6 +59,7 @@ the generation templates
   * ''-off'' //SWITCH// -- unactivate the given switch
   * ''-on'' //SWITCH// -- activate the given switch
   * ''-fstat'' -- generates stats about fetch tables in the file <proc_name>_fetch_tables.stat
+  * ''-O'' -- activates instruction tree various optimizations as implemented in optirg
 
 
 ===== gliss-nmp2nml.pl =====

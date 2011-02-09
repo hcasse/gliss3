@@ -35,7 +35,7 @@ let or_fusion () =
 		| OR_OP(_,sons) -> 
 			replace name (OR_OP(name, flat_sons sons)) ; flat_sons sons
 		| _ -> 
-			(flat_sons (next name)) ; [name]
+			ignore (flat_sons (next name)) ; [name]
 	in
 loop "instruction"
 
@@ -45,7 +45,7 @@ loop "instruction"
 let canon () = 
 	begin
 	print_string "Vertical : " ;
-	or_fusion ();
+	ignore (or_fusion ());
 	print_string "OK\n" 
 	end
 

@@ -20,6 +20,22 @@ let arg_error msg =
 		Arg.usage options usage_msg;
 		exit 1
 
+let find_irg_root_node _ =
+	let is_defined id =
+		try
+			match Irg.get_symbol id with
+			| _ -> true
+		with Irg.Symbol_not_found _ -> false
+	in
+	if is_defined "multi" then
+		"multi"
+	else if is_defined "instruction" then
+		"instruction"
+	else
+		raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
+	
+	
+
 let _ =
 	Arg.parse options free_arg usage_msg;
 	if !irg = "" then arg_error "one IRG source file must be given !\n";
@@ -29,7 +45,7 @@ let _ =
 	try	
 		begin
 			Irg.load !irg;
-			Optirg.optimize "instruction" ;
+			Optirg.optimize (find_irg_root_node ());
 			Irg.save !out
 		end
 	with

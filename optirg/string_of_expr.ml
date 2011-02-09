@@ -84,6 +84,12 @@ let rec string_of_expr (expr:Irg.expr) : string = match expr with
                 "CONST"
         | EINLINE s ->
                 "inline()"
+	| CAST(t, e) ->
+		"coerce("^
+		", "^ 
+                string_of_expr e^ 
+                ")"
+		
 (**
 	Describe an expression by showing its ocaml type.
 	@param expr
@@ -169,4 +175,9 @@ let rec name_of_expr (expr:Irg.expr) : string = match expr with
                 "CONST"
         | EINLINE s ->
                 "inline()"
+        | CAST (t, e) ->
+                "coerce[CAST]("^ 
+                ", "^ 
+                name_of_expr e^ 
+                ")"
 
