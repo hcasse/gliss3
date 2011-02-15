@@ -45,294 +45,6 @@
 let output_fetch_stat    = ref false
 
 
-	
-
-
-
-(*******************************************************
- **             String manipulations
- *******************************************************)
-
-
-(* return the string of a given Irg.expr which is supposed to be an image attribute *)
-let rec get_str e =
-	match e with
-	| Irg.FORMAT(str, _) -> str
-	| Irg.CONST(t_e, c) ->
-		if t_e=Irg.STRING then
-			match c with
-			Irg.STRING_CONST(str, false, _) ->
-				str
-			| _ -> ""
-		else
-			""
-	| Irg.ELINE(_, _, e) -> get_str e
-	| _ -> ""
-
-
-exception Bad_bit_image_order of string
-(**
-returns the bit_image_order defined in nmp sources,
-used to know if images descriptions are written with bytes reversed compared to the memory disposition,
-this happens with the tricore processor for example.
-@return		0 if bit_image_order is 0 or undefined
-		1 if bit_image_order is defined and not 0
-@raise	Bad_bit_image_order	when incorrectly defined
- *)
-let get_bit_image_order _ =
-	try
-		(match Irg.get_symbol "bit_image_order" with
-		| Irg.LET(_, c) ->
-			(match c with
-			| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
-			| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
-			)
-		| _ -> raise (Bad_bit_image_order "bit_image_order must be defined as a let, if defined.")
-		)
-	with
-	| Irg.Symbol_not_found _ -> false
-
-
-(* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)
-let get_length_from_format f =
-	let l = String.length f in
-	let new_f =
-		if l<=2 then
-		(* shouldn't happen, we should have only formats like %[0-9]+b, not %d or %f or %s *)
-			failwith ("we shouldn't have something like [[" ^ f ^ "]] (fetch.ml::get_length_from_format)")
-		else
-			String.sub f 1 (l-2)
-	in
-	Scanf.sscanf new_f "%d" (fun x->x)
-
-
-(* remove any space (space or tab char) in a string, return a string as result *)
-let remove_space s =
-	Str.global_replace (Str.regexp "[ \t]+") "" s
-
-
-(** returns the mask of an op from its spec, the result will be a string
-with only '0' or '1' chars representing the bits of the mask *)
-let get_string_mask_from_op sp =
-	let transform_str s =
-		let n = String.length s in
-		let rec aux str pos accu =
-			if pos >= n then
-				accu
-			else
-				begin
-					(* a 'X' or 'x' in an image means a useless bit => not in the mask *)
-					if s.[pos]='x' || s.[pos]='X' then
-						accu.[pos] <- '0'
-					else
-						();
-					aux s (pos+1) accu
-				end
-		in
-		aux s 0 (String.make n '1')
-	in
-	let rec get_mask_from_regexp_list l =
-		match l with
-		[] -> ""
-		| h::t ->
-			(match h with
-			Str.Text(txt) ->
-				(* here we assume that an image contains only %.. , 01, X or x *)
-				(transform_str txt) ^ (get_mask_from_regexp_list t)
-			| Str.Delim(d) ->
-				(String.make (get_length_from_format d) '0') ^ (get_mask_from_regexp_list t)
-			)
-	in
-	let get_expr_from_iter_value v  =
-		match v with
-		Iter.EXPR(e) ->
-			e
-		| _ ->
-			failwith "shouldn't happen (fetch.ml::get_string_mask_from_op::get_expr_from_iter_value)"
-	in
-	(* work only with strings with length multiple of 8, instructions have always length of 8*n bits so far *)
-	let revert_bytes s =
-		let rec aux length str =
-			if length < 8 then
-				""
-			else
-				(aux (length - 8) (String.sub str 8 (length - 8))) ^ (String.sub str 0 8)
-		in
-		if get_bit_image_order () then
-			aux (String.length s) s
-		else
-			s
-	in
-	(* !!DEBUG!! *)
-	(*print_string ((remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))^"::");
-	let res =*)
-	revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))))
-	(*in
-	let no_rev = get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
-	in print_string (no_rev ^ "::rev=" ^res^"\n");
-	res*)
-
-
-
-
-(* returns the value of an instruction code considering only the bit set in the mask,
-the result is a '0' or '1' string with the bits not set in the mask being marked with an 'X' *)
-let get_string_value_on_mask_from_op sp =
-	let rec get_mask_from_regexp_list l =
-		match l with
-		| [] -> ""
-		| h::t ->
-			(match h with
-			| Str.Text(txt) ->
-				(* here we assume that an image contains only %.., 01, x or X *)
-				txt ^ (get_mask_from_regexp_list t)
-			| Str.Delim(d) ->
-				(* put an X for unused bits *)
-				(String.make (get_length_from_format d) 'X') ^ (get_mask_from_regexp_list t)
-			)
-	in
-	let get_expr_from_iter_value v =
-		match v with
-		| Iter.EXPR(e) ->
-			e
-		| _ ->
-			failwith "shouldn't happen (fetch.ml::get_string_value_on_mask_from_op::get_expr_from_iter_value)"
-	in
-	(* work only with strings with length multiple of 8, instructions have always length of 8*n bits so far *)
-	let revert_bytes s =
-		let rec aux length str =
-			if length < 8 then
-				""
-			else
-				(aux (length - 8) (String.sub str 8 (length - 8))) ^ (String.sub str 0 8)
-		in
-		if get_bit_image_order () then
-			aux (String.length s) s
-		else
-			s
-	in
-	revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))))
-
-
-(* returns the value of an instruction code considering only the bit set in the mask,
-the result is a '0' or '1' string with the bits not set in the mask being discarded,
-so the result will have as many bits as the number of set bits in the mask *)
-let get_value_on_mask sp =
-	Str.global_replace (Str.regexp "X+") "" (get_string_value_on_mask_from_op sp)
-
-
-(** returns the string result of a logical AND between 2 '0' or '1' string represented numbers,
-    length will be the min between v1 and v2 lengths
-*)
-let compute_logical_and v1 v2 =
-	let l = min (String.length v1) (String.length v2) in
-	let rec aux accu step =
-		if step >= l then
-			accu
-		else
-			(if v2.[step] == '1' then
-				(if v1.[step] == 'X' || v2.[step] == 'X' then
-					failwith "shouldn't happen (fetch.ml::compute_logical_and)"
-				else
-					aux (accu ^ (String.make 1 v1.[step])) (step + 1))
-			else
-				aux (accu ^ "0") (step + 1))
-	in
-	aux "" 0
-
-
-(** returns a '0' or '1' string from v, the bits returned are those indicated by the bits set in mask,
-    bits are concatenated and length will be the min between v and mask lengths
-*)
-let compute_value_with_mask v mask =
-	let l = min (String.length v) (String.length mask) in
-	let rec aux accu step =
-		if step >= l then
-			accu
-		else
-			(if mask.[step] == '1' then
-				(if v.[step] == 'X' then
-					failwith "shouldn't happen (fetch.ml::compute_value_with_mask)"
-				else
-					aux (accu ^ (String.make 1 v.[step])) (step + 1))
-			else
-				aux accu (step + 1))
-	in
-	aux "" 0
-
-
-(** returns v (representing a mask) with the mask "removed", if a bit is set in the mask it will be 0 in the result,
-    otherwise it will the corresponding bit of v, the result will have same length as v
-*)
-let compute_value_without_mask v mask =
-	let lv = String.length v in
-	let l = min lv (String.length mask) in
-	let rec aux accu step =
-		if step >= l then
-			(if lv > l then
-				accu ^ (String.sub v step (lv - step))
-			else
-				accu)
-		else
-			if mask.[step] == '0' then
-				aux (accu ^ (String.make 1 v.[step])) (step + 1)
-			else
-				aux (accu ^ "0") (step + 1)
-	in
-	aux "" 0
-
-
-(** simple equality between 2 strings
-*)
-let string_is_equals s1 s2 =
-	((String.compare s1 s2) == 0)
-
-
-(** convert the 1st 64 chars of a string to an int64
-the string is supposed to represent a binary number (only 0 and 1) of less than 64 bits *)
-let str01_to_int64 s =
-	let size = String.length s
-	in
-	let char01_to_int64 c =
-		match c with
-		'0' ->
-			Int64.zero
-		| '1' ->
-			Int64.one
-		| _ ->
-			failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (fetch.ml::str01_to_int64)")
-	in
-	let rec aux s n accu =
-		if n = size then
-			accu
-		else
-			aux s (n+1) (Int64.add (Int64.shift_left accu 1) (char01_to_int64 s.[n]))
-	in
-	if size > 64 then
-		failwith "string too long, 64 chars max allowed (fetch.ml::str01_to_int64)"
-	else
-		aux s 0 Int64.zero
-
-
-let str_to_int32_list s =
-	let l = String.length s in
-	let rec aux accu step =
-		match l - step with
-		| n when n == 0 -> accu (* end of string *)
-		| n when n >= 32 -> aux (accu @ [(Int32.of_string ("0b" ^ (String.sub s step 32)))]) (step + 32)
-		| n when n > 0 && n < 32 -> accu @ [Int32.shift_left (Int32.of_string ("0b" ^ (String.sub s step n))) (32 - n)] (* less than 32 bits from end of string *)
-		| _ -> failwith "shouldn't happen (fetch.ml::str_to_int32_list)"
-	in
-	aux [] 0
-
-
-(* produces the suffix needed in C for the given string number translated in C, currently only suffix for 64 bit const is returned *)
-let get_C_const_suffix s =
-	let l = String.length s in
-	if l > 32 && l <= 64 then "LL" else ""
-
-
-
 
 (*********************************************************************
  **    mask calculation, generic, for RISC or CISC
@@ -340,24 +52,19 @@ let get_C_const_suffix s =
 
 
 (** perform an AND between the mask of all the instrs in spec_list *)
-let rec calcul_mask sp_list =
+let rec spec_list_mask sp_list =
 (* !!DEBUG!! *)
 	let rec aux sl =
 	match sl with
-	| [] -> ""
-	| [a] -> get_string_mask_from_op a
-	| h::t -> (* !!DEBUG!! *)(*Printf.printf "%20s-%s\n" (Irg.name_of h) (get_string_mask_from_op h); *)compute_logical_and (get_string_mask_from_op h) (aux t)
+	| [] -> Bitmask.void_mask
+	| [a] -> Bitmask.get_mask a
+	| h::t -> Bitmask.logand (Bitmask.get_mask h) (aux t)
 	in
 	aux sp_list
 
 
-(** get the value of the given spec image on the given mask, bit not in the mask are discarded and so the result is the concatenation of the masked bits *)
-let calcul_value_on_mask sp mask =
-	compute_value_with_mask (get_string_value_on_mask_from_op sp) mask
-
-
-(* "name" of the tree (list of int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
-type dec_tree = DecTree of string list * Irg.spec list * string * string * dec_tree list
+(* "name" of the tree (list of mask int : all vals on mask beginning from the top), list of the instr, local mask, global mask (from ancestors), list of sons *)
+type dec_tree = DecTree of Bitmask.bitmask list * Irg.spec list * Bitmask.bitmask * Bitmask.bitmask * dec_tree list
 
 
 let print_dec_tree tr =
@@ -367,7 +74,8 @@ let print_dec_tree tr =
 			[] ->
 				s
 			| a::b ->
-				aux b (if (String.length s)=0 then a else (s ^ "_" ^ a))
+				let sa = Bitmask.to_string a in
+				aux b (if (String.length s)=0 then sa else (s ^ "_" ^ sa))
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->
@@ -377,12 +85,17 @@ let print_dec_tree tr =
 	DecTree(int_l, sl, msk, gm, dt_l) ->
 		begin
 		Printf.printf "================================================================\nPrinting tree, dectree's name : %s\n" (name_of tr);
-		Printf.printf "mask   : %s\n" msk;
-		Printf.printf "global : %s\n" gm;
+		Printf.printf "mask   : %s\n" (Bitmask.to_string msk);
+		Printf.printf "global : %s\n" (Bitmask.to_string gm);
 		Printf.printf "spec : ";
 		if sl == [] then print_string "<none>\n" else 
 		List.iter (fun x -> Printf.printf "\t%12s%20s, mask=%s, val=%s, val_mask=%s\n"
-			(Irg.name_of x) (Iter.get_name x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x) (get_value_on_mask x)) sl;
+			(Irg.name_of x)
+			(Iter.get_name x)
+			(Bitmask.to_string (Bitmask.get_mask x))
+			(Bitmask.to_string (Bitmask.get_value_mask x))
+			(Bitmask.to_string (Bitmask.get_value x)))
+			sl;
 		(*Printf.printf "\n"*)
 		end
 
@@ -390,30 +103,17 @@ let print_dec_tree tr =
 let print_dec_tree_list tl =
 	List.iter (fun x -> begin print_char '\n'; print_dec_tree x end) tl
 
-	
-(* returns the amount of set bits in a string int, help to get mask's "length" *)
-let get_amount_of_set_bits num =
-	let max_step = String.length num in
-	let rec aux accu step =
-		if step >= max_step then
-			accu
-		else
-			aux (accu + (if num.[step] == '1' then 1 else 0)) (step + 1)
-	in
-	aux 0 0
-
-
 
 let get_local_mask_length dt =
 	match dt with
 	DecTree(_, _, ml, _, _) ->
-		get_amount_of_set_bits ml
+		Bitmask.bit_count ml
 
 
 let get_global_mask_length dt =
 	match dt with
 	DecTree(_, _, _, mg, _) ->
-		get_amount_of_set_bits mg
+		Bitmask.bit_count mg
 
 let get_instr_list dt =
 	match dt with
@@ -431,7 +131,8 @@ let create_son_list_of_dec_node dt =
 			(* !!DEBUG!! *)
 			(*print_string ("\ncreating dec_node son, mask="^msk^", val_on_mask=");
 			Printf.printf "%s, inst_mask=%s, inst_val=%s, spec=%s\n" (calcul_value_on_mask a msk) (get_string_mask_from_op a) (get_string_value_on_mask_from_op a) (Irg.name_of a);*)
-			((calcul_value_on_mask a msk), a)::(aux msk b)
+			(*((calcul_value_on_mask a msk), a)::(aux msk b)*)
+			((Bitmask.masked_value (Bitmask.get_value_mask a) msk), a)::(aux msk b)
 		)
 	in
 	match dt with
@@ -448,7 +149,7 @@ let sort_son_list vl =
 		| a::b ->
 			(match a with
 			(vv, sl) ->
-				if string_is_equals v vv then
+				if Bitmask.is_equals v vv then
 					(vv, sp::sl)::b
 				else
 					a::(add_instr_in_tuple_list b (v,sp))
@@ -463,21 +164,21 @@ we also need the father's vals on mask to add the new one,
 by default all trees will be created with no link between them (no tree structure) *)
 let rec build_dectrees vl msk gm il =
 	match vl with
-	[] ->
+	| [] ->
 		[]
 	| a::b ->
-		match a with
-		(v, sl) ->
+		(match a with
+		| (v, sl) ->
 			(*print_string "build_dectrees\n";*)
-			let common_mask = calcul_mask sl in
-			let dt = DecTree(il@[v], sl, compute_value_without_mask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
+			let common_mask = spec_list_mask sl in
+			let dt = DecTree(il@[v], sl, Bitmask.unmask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
 			in
 			(* !!DEBUG!! *)
 			(*print_dec_tree dt;
 			print_string "build_tree, sl=[";
 			List.iter (fun x -> Printf.printf "%s," (Irg.name_of x)) sl;
 			print_string "]\n";*)
-			dt::(build_dectrees b msk gm il)
+			dt::(build_dectrees b msk gm il))
 
 
 
@@ -534,7 +235,7 @@ let build_dec_nodes sp_l =
 			aux (List.flatten (List.map get_sons dl))
 	in
 	let specs = sp_l in
-	let mask = calcul_mask specs in
+	let mask = spec_list_mask specs in
 	aux [DecTree([], specs, mask, mask, [])]
 
 
@@ -550,7 +251,7 @@ let find_sons_of_node node d_l =
 	in
 	(* return true if l1 is a sub list at the beginning of l2,
 	ie if l2 can be the name of a son (direct or not) of a DecTree whose name is l1,
-	l1 and l2 are supposed to be two int list representing a name of a DecTree *)
+	l1 and l2 are supposed to be two Bitmask list representing a name of a DecTree *)
 	let rec is_sub_name l1 l2 =
 		match l1 with
 		[] ->
@@ -560,7 +261,7 @@ let find_sons_of_node node d_l =
 			[] ->
 				false
 			| a2::b2 ->
-				if string_is_equals a1 a2 then
+				if Bitmask.is_equals a1 a2 then
 					(is_sub_name b1 b2)
 				else
 					false
@@ -599,7 +300,9 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 		let rec aux l s =
 			match l with
 			| [] -> s
-			| a::b -> aux b (if (String.length s) == 0 then a else (s ^ "_" ^ a))
+			| a::b ->
+				let sa = Bitmask.to_string a in
+				aux b (if (String.length s) == 0 then sa else (s ^ "_" ^ sa))
 		in
 		match t with
 		| DecTree(i, s, m, g, d) -> correct_name (aux i "")
@@ -635,7 +338,7 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 		match i_l with
 		| a::b ->
 			if b=[] then
-				i == (int_of_string ("0b" ^ a))
+				Bitmask.is_equals i a
 			else
 				is_suffix i b
 		| [] -> false
@@ -643,14 +346,14 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 	let exists_in i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
+			| DecTree(i_l, _, _, _, _) -> is_suffix (Bitmask.of_int i) i_l
 		in
 		List.exists predicate d_l
 	in
 	let get_i_th_son i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
+			| DecTree(i_l, _, _, _, _) -> is_suffix (Bitmask.of_int i) i_l
 		in
 		List.find predicate d_l
 	in (* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
@@ -671,7 +374,7 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 				(let x = get_spec_of_term (get_i_th_son i sons)
 				in
 				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (Iter.get_instruction_length x) (get_string_mask_from_op x) (get_string_value_on_mask_from_op x);
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (Iter.get_instruction_length x) (Bitmask.to_string (Bitmask.get_mask x)) (Bitmask.to_string (Bitmask.get_value_mask x));
 				1)
 			else
 				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (suffix ^ (name_of (get_i_th_son i sons)));
@@ -693,7 +396,7 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 			produce_decode_ent (i+1) (nb_nodes + nb))
 	in
 	let to_C_list mask =
-		let list = str_to_int32_list mask in
+		let list = Bitmask.to_int32_list mask in
 		let rec aux comma l =
 			match l with
 			| [] -> ""
@@ -722,11 +425,11 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 		let nb_nodes = produce_decode_ent 0 0 in
 		Printf.fprintf out "};\n";
 		if fetch_size != fetch_generic then
-			Printf.fprintf out "static Table_Decodage%s _table%s = {0X%LX%s, table_table%s};\n" type_suffix name (str01_to_int64 l_mask) (get_C_const_suffix l_mask) name
+			Printf.fprintf out "static Table_Decodage%s _table%s = {0X%LX%s, table_table%s};\n" type_suffix name (Bitmask.to_int64 l_mask) (Bitmask.c_const_suffix l_mask) name
 		else
-			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (str_to_int32_list l_mask)) (to_C_list l_mask);
+			(Printf.fprintf out "static uint32_t tab_mask%s[%d] = {%s};\n" name (List.length (Bitmask.to_int32_list l_mask)) (to_C_list l_mask);
 			Printf.fprintf out "static mask_t mask%s = {\n\ttab_mask%s," name name;
-			Printf.fprintf out "\t%d};\n" (String.length l_mask);
+			Printf.fprintf out "\t%d};\n" (Bitmask.length l_mask);
 			Printf.fprintf out "static Table_Decodage%s _table%s = {&mask%s, table_table%s};\n" type_suffix name name name
 			);
 		Printf.fprintf out "static Table_Decodage%s *table%s = &_table%s;\n" type_suffix name name;
@@ -751,7 +454,7 @@ let sort_dectree_list d_l =
 			(match y with
 			| [] -> 1
 			| y1::y2 ->
-				let diff = compare (int_of_string ("0b" ^ x1)) (int_of_string ("0b" ^ y1)) in
+				let diff = Bitmask.compare x1 y1 in
 				if diff == 0 then
 					comp_gen_int_list x2 y2
 				else
@@ -899,7 +602,8 @@ let test_sort _ =
 			[] ->
 				s
 			| a::b ->
-				aux b (if (String.length s) == 0 then a else (s^"_"^a))
+				let sa = Bitmask.to_string a in
+				aux b (if (String.length s) == 0 then sa else (s^"_"^sa))
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->
@@ -928,7 +632,8 @@ let print_dot_dec_tree tr =
 			[] ->
 				s
 			| a::b ->
-				aux b (s^"_"^a)
+				let sa = Bitmask.to_string a in
+				aux b (s^"_"^sa)
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->
@@ -976,7 +681,8 @@ let print_dot_edges edge =
 			[] ->
 				s
 			| a::b ->
-				aux b (s^"_"^a)
+				let sa = Bitmask.to_string a in
+				aux b (s^"_"^sa)
 		in
 		match t with
 		DecTree(i, s, m, g, d) ->

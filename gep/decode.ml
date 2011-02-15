@@ -22,7 +22,7 @@
 (* return the mask giving the nth param (counting from 0) of an instr of the given spec sp, the result will be a string
 with only '0' or '1' chars representing the bits of the mask,
 the params' order is the one given by the Iter.get_params method *)
-let get_string_mask_for_param_from_op sp n =
+let get_mask_for_param sp n =
 	let get_length_from_format f =
 		let l = String.length f in
 		let new_f =
@@ -149,7 +149,7 @@ let get_string_mask_for_param_from_op sp n =
 	in
 (* !!DEBUG!! 
 	let res =*)
-	change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp)))
+	Bitmask.BITMASK(change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp))))
 (* !!DEBUG!!
 	in
 	print_string "===============================================";

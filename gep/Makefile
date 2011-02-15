@@ -9,7 +9,7 @@ endif
 
 # libgep build
 LIBGEP_SOURCES=\
-	generic_int.ml \
+	bitmask.ml \
 	config.ml \
 	toc.ml \
 	templater.mll \
@@ -20,6 +20,7 @@ $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build
 GEP_SOURCES = \
+	bitmask.ml \
 	fetch.ml \
 	decode.ml \
 	gep.ml

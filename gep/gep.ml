@@ -212,9 +212,9 @@ let make_env info =
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 	let decoder inst idx sfx size out =
-		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
-		let cst_suffix = Fetch.get_C_const_suffix string_mask in
-		let mask = Fetch.str01_to_int64 string_mask in
+		let string_mask = Decode.get_mask_for_param inst idx in
+		let cst_suffix = Bitmask.c_const_suffix string_mask in
+		let mask = Bitmask.to_int64 string_mask in
 		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
 		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
 		let extract _ = Printf.fprintf out "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
@@ -231,13 +231,13 @@ let make_env info =
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
 	let output_mask_decl inst idx is_risc out =
-		let string_mask = Decode.get_string_mask_for_param_from_op inst idx in
-		let mask = Fetch.str_to_int32_list string_mask
+		let string_mask = Decode.get_mask_for_param inst idx in
+		let mask = Bitmask.to_int32_list string_mask
 		in
 			if not is_risc then
 				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length mask);
-				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) string_mask;
-				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (String.length string_mask))
+				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) (Bitmask.to_string string_mask);
+				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Bitmask.length string_mask))
 	in
 
 	let add_mask_32_to_param inst idx _ _ dict =

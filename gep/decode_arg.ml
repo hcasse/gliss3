@@ -19,38 +19,13 @@
 
 let asis str chan = output_string chan str
 
+
+(* length of range interval *)
 let range32 u l =
 	Int32.add Int32.one (Int32.sub u l)
 let mask32 n =
 	Int32.sub (Int32.shift_left Int32.one (Int32.to_int n)) Int32.one
-let maski n =
-	Int32.sub (Int32.shift_left Int32.one n) Int32.one
-let of_int32 i =
-	{ Generic_int.length = 32; Generic_int.number = [i] }
-let to_int32 i =
-	List.nth i.Generic_int.number 0
 
-let is_null g =
-	let rec test l =
-		match l with
-		| [] -> true
-		| f::t when (Int32.compare f Int32.zero) = 0 -> test t
-		| _ -> false in
-	test g.Generic_int.number
-
-(** Test if two generic integer are equals, whatever their length.
-	@param g1	First generic integer.
-	@param g2	Second generic integer.
-	@return		True if they are equals, false else. *)
-let equals g1 g2 =
-	let rec test l1 l2 =
-		match l1, l2 with
-		| [], [] -> true
-		| h1::t1, h2::t2 when (Int32.compare h1 h2) = 0 -> test t1 t2
-		| [], h::t when (Int32.compare h Int32.zero) = 0 -> test [] t
-		| h::t, [] when (Int32.compare h Int32.zero) = 0 -> test t []
-		| _ -> false in
-	test g1.Generic_int.number g2.Generic_int.number
 
 
 let add e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.ADD, e1, e2)
@@ -66,26 +41,20 @@ let getb e1 e2 e3 = Irg.BITFIELD (Sem.get_type_expr e1, e1, e2, e3)
 let concat e1 e2 = Irg.BINOP(Irg.CARD ((Sem.get_length_from_expr e1) + (Sem.get_length_from_expr e2)), Irg.CONCAT, e1, e2)
 
 (** A 32-bits integer with all bits to 1. *)
-let all_ones = Int32.sub Int32.zero Int32.one
+let all_ones = Bitmask.mask_fill 32
 
 
 (** Build a mask of n bits (initialized to one).
 	@param n	Number of bits.
 	@return		Generic integer. *)
-let mask n =
-	let rec make n =
-		if n = 0 then [] else
-		if n < 32 then  [Int32.sub (Int32.shift_left Int32.one n) Int32.one] else
-		all_ones :: (make (n - 32)) in
-	{ Generic_int.length = n; Generic_int.number = make n }
+let mask n = Bitmask.mask_fill n
 
 
 (** Build a mask with ones from bit m to bit n.
 	@param n	Upper mask bound.
 	@param m	Lower mask bound.
 	@return		Built mask. *)
-let mask_range n m =
-	Generic_int.shift_left (mask (n + 1 - m)) m
+let mask_range n m = Bitmask.mask_range n m
 
 
 (** Get the mask of bits enclosing the given expression result.
@@ -102,7 +71,7 @@ let mask_of_expr e =
 let rec or_masks l m =
 	match l with
 	| [] -> m
-	| (_, m', _)::t -> or_masks t (Generic_int.logor m m')
+	| (_, m', _)::t -> or_masks t (Bitmask.logor m m')
 
 
 
@@ -143,7 +112,7 @@ let rec scan_decode_argument e m y =
 			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
 		scan_decode_argument
 			b
-			(Generic_int.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))
+			(Bitmask.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))
 			(shl (and_ y (cst (mask32 (range32 uc lc)))) (cst lc))
 
 	| Irg.BINOP (t, Irg.ADD, e1, e2) ->
@@ -171,41 +140,41 @@ let rec scan_decode_argument e m y =
 	| Irg.BINOP (t, Irg.LSHIFT, e1, e2) ->
 		(try
 			let k = Sem.to_int32 (Sem.eval_const e2) in
-				scan_decode_argument e1 (Generic_int.shift_right_logical m (Int32.to_int k)) (shr y (cst k))
+				scan_decode_argument e1 (Bitmask.shift_right_logical m (Int32.to_int k)) (shr y (cst k))
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x << k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.RSHIFT, e1, e2) ->
 		(try
 			let k = Sem.to_int32 (Sem.eval_const e2) in
-				scan_decode_argument e1 (Generic_int.shift_left m (Int32.to_int k)) (shl y (cst k))
+				scan_decode_argument e1 (Bitmask.shift_left m (Int32.to_int k)) (shl y (cst k))
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x << k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
 		let s1 = Sem.get_length_from_expr e1 in
 		let s2 = Sem.get_length_from_expr e2 in
-		(scan_decode_argument e1 (Generic_int.logand m (mask s1)) (shr y (csti s2))) @
-		(scan_decode_argument e2 (Generic_int.logand m (mask s2)) y)
+		(scan_decode_argument e1 (Bitmask.logand m (mask s1)) (shr y (csti s2))) @
+		(scan_decode_argument e2 (Bitmask.logand m (mask s2)) y)
 
 	| Irg.BINOP (t, Irg.BIN_AND, e1, e2) ->
 		(try
 			let k = Sem.to_int32 (Sem.eval_const e2) in
-			scan_decode_argument e1 (Generic_int.logand m (of_int32 k)) (and_ y (cst k))
+			scan_decode_argument e1 (Bitmask.logand m (Bitmask.of_int32 k)) (and_ y (cst k))
 		with Sem.SemError _ ->
 			try
 			let k = Sem.to_int32 (Sem.eval_const e1) in
-			scan_decode_argument e2 (Generic_int.logand m (of_int32 k)) (and_ y (cst k))
+			scan_decode_argument e2 (Bitmask.logand m (Bitmask.of_int32 k)) (and_ y (cst k))
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x & k' or 'k & x' are supported in image")))
 
 	| Irg.BINOP (t, Irg.BIN_OR, e1, e2) ->
 		let l1 = scan_decode_argument e1 m y in
 		let l2 = scan_decode_argument e2 m y in
-		let m1 = or_masks l1 Generic_int.zero in
-		let m2 = or_masks l2 Generic_int.zero in
-		let mr = Generic_int.logand m1 m2 in
-		if Generic_int.is_equals mr Generic_int.zero then l1 @ l2
+		let m1 = or_masks l1 Bitmask.void_mask in
+		let m2 = or_masks l2 Bitmask.void_mask in
+		let mr = Bitmask.logand m1 m2 in
+		if Bitmask.is_null mr then l1 @ l2
 		else raise (Toc.PreError (asis "both parts of the OR must be independent in an image"))
 
 	| _
@@ -231,15 +200,15 @@ let decode_parameters params args vals =
 	let t = scan_decode_arguments args vals in
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then (p, m, e) else
-		if is_null (Generic_int.logand m m')
-		then (p, Generic_int.logor m m', or_ e (and_ e' (cst (to_int32 m'))))
+		if Bitmask.is_null (Bitmask.logand m m')
+		then (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))))
 		else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p)) in
 	List.map
 		(fun p ->
-			let (p, m, e) = List.fold_left process (p, Generic_int.zero, cst Int32.zero) t in
+			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
 			let m' = mask (Sem.get_type_length (Sem.get_type_ident p)) in
-			if equals m m' then  (p, e)
+			if Bitmask.is_equals m m' then  (p, e)
 			else
 				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
-					(Generic_int.to_string m') p (Generic_int.to_string m))))
+					(Bitmask.to_string m') p (Bitmask.to_string m))))
 		params
