@@ -144,7 +144,7 @@ $(if is_multi_set)
 /* decoding functions for one specific instr set */
 $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address);
-$(end)
+$(end)$(end)
 
 /* code execution */
 void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);

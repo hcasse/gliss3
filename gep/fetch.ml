@@ -53,7 +53,6 @@ let output_fetch_stat    = ref false
 
 (** perform an AND between the mask of all the instrs in spec_list *)
 let rec spec_list_mask sp_list =
-(* !!DEBUG!! *)
 	let rec aux sl =
 	match sl with
 	| [] -> Bitmask.void_mask
@@ -188,8 +187,6 @@ let build_sons_of_tree tr =
 	DecTree(int_l, sl, msk, gm, dt_l) ->
 		let res = build_dectrees (sort_son_list (create_son_list_of_dec_node tr)) msk gm int_l
 		in
-		(* !!DEBUG!! *)
-		(*Printf.printf "build_sons, %d in father, %d sons\n" (List.length sl) (List.length res);*)
 		if (List.length res) == 1 && (List.length (get_instr_list (List.hd res))) > 1 then
 			begin
 			output_string stderr "ERROR: some instructions seem to have same image.\n";
@@ -236,7 +233,12 @@ let build_dec_nodes sp_l =
 	in
 	let specs = sp_l in
 	let mask = spec_list_mask specs in
+	(*!!DEBUG!!*)
+	(*let res =*)
 	aux [DecTree([], specs, mask, mask, [])]
+	(*in
+	Printf.printf ", res: %d nodes\n" (List.length res);
+	res*)
 
 
 (* returns a list of the direct sons of a given DecTree among a given list *)
@@ -290,6 +292,10 @@ all needed Decode_Ent and Table_Decodage structures will be output and already i
 everything will be output in the given channel,
 dl is the global list of all nodes, used to find sons for instance *)
 let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
+(*!!DEBUG!!*)
+(*Printf.printf "output_table_C_decl, fsize=%d, suffix=%s, #dl=%d\n" fetch_size suffix (List.length dl);
+print_dec_tree dt;
+print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 	let name_of t =
 		let correct_name s =
 			if s = "" then
@@ -338,7 +344,7 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 		match i_l with
 		| a::b ->
 			if b=[] then
-				Bitmask.is_equals i a
+				i == (Bitmask.to_int a)
 			else
 				is_suffix i b
 		| [] -> false
@@ -346,14 +352,14 @@ let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 	let exists_in i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix (Bitmask.of_int i) i_l
+			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
 		in
 		List.exists predicate d_l
 	in
 	let get_i_th_son i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix (Bitmask.of_int i) i_l
+			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
 		in
 		List.find predicate d_l
 	in (* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
@@ -467,7 +473,6 @@ let sort_dectree_list d_l =
 	(*!!DEBUG!!*)
 	(*Printf.printf "sort %d nodes\n" (List.length d_l);*)
 	(*List.iter print_dec_tree d_l;*)
-	flush stdout;
 	List.sort comp_fun d_l
 
 
@@ -566,14 +571,14 @@ let output_all_table_C_decl out =
 	let fetch_stat = if !output_fetch_stat then open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") else stdout in
 	(* table and struct names must be suffixed if several tables generated *)
 	let idx = ref (-1) in
-	if num_iss > 1 then idx := 0;
 	(*List.iter (fun x -> (output_struct_decl out (fst x) !idx); idx := !idx + 1) iss_sizes;*)
 	idx := if num_iss > 1 then 0 else -1;
 	List.iter
 		(fun x ->
-			if !output_fetch_stat && num_iss > 1 then
-				Printf.fprintf fetch_stat "Table set number %d\n" !idx;
-			Printf.fprintf out "\n/* Table set number %d */\n\n\n" !idx;
+			if num_iss > 1 then
+				(Printf.fprintf out "\n/* Table set number %d */\n\n\n" !idx;
+				if !output_fetch_stat then
+					Printf.fprintf fetch_stat "Table set number %d\n" !idx);
 			output_table out (snd x) (fst x) !idx fetch_stat;
 			idx := !idx + 1)
 		iss_sizes;

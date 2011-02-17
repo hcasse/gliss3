@@ -21,8 +21,8 @@
 
 #include <string.h>
 #include <gliss/env.h>
-#include <gliss/config.h>
-#include <gliss/loader.h>
+#include <gliss/syscall.h>
+#include "platform.h"
 
 
 
@@ -34,6 +34,10 @@
 /* no size advised, to my knowledge */
 #define STACKSIZE_DEFAULT 0x1000000
 
+/* default page size */
+#ifndef GLISS_PAGE_SIZE
+#	define GLISS_PAGE_SIZE	4096
+#endif
 
 
 /**

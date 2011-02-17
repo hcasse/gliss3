@@ -158,7 +158,14 @@ let logand m1 m2 =
 		else
 			(if c1 == '1' then c2 else '0')
 	in
+	(*!!DEBUG!!*)
+	(*let res =*)
 	BITMASK(string_map2 bit_and (String.sub v1 0 l) (String.sub v2 0 l))
+	(*in
+	let s = get_intern_val res in
+	Printf.printf "logand, [%s](%d) & [%s](%d) = [%s](%d)\n"
+	v1 (String.length v1) v2 (String.length v2) s (String.length s);
+	res*)
 
 
 (** logical OR between 2 masks,
@@ -186,7 +193,14 @@ let logor m1 m2 =
 				c2
 			)
 	in
+	(*!!DEBUG!!*)
+	(*let res =*)
 	BITMASK((string_map2 bit_or v1_start v2_start) ^ v_suffix)
+	(*in
+	let s = get_intern_val res in
+	Printf.printf "logor, [%s](%d) & [%s](%d) = [%s](%d)\n"
+	v1 (String.length v1) v2 (String.length v2) s (String.length s);
+	res*)
 
 
 (* left shift, just add trailing 0s *)
@@ -227,20 +241,19 @@ let masked_value m mask =
 	let v = get_intern_val m in
 	let vmask = get_intern_val mask in
 	let l = min (String.length v) (String.length vmask) in
-	let v1 = (String.sub v 0 l) in
-	let m1 = (String.sub vmask 0 l) in
-	let res = String.create l in
+	let lr = min l (bit_count mask) in
+	let res = String.create lr in
 	let set_res n n_res =
-		if v1.[n] <> '0' && v1.[n] <> '1' then
+		if v.[n] <> '0' && v.[n] <> '1' then
 			failwith "shouldn't happen (bitmask.ml::masked_value)"
 		else
-			res.[n_res] <- v1.[n]
+			res.[n_res] <- v.[n]
 	in		
 	let rec aux step step_res =
 		if step >= l then
 			()
 		else
-			(if m1.[step] == '1' then
+			(if vmask.[step] == '1' then
 				(set_res step step_res;
 				aux (step + 1) (step_res + 1))
 			else
@@ -248,6 +261,10 @@ let masked_value m mask =
 			)
 	in
 	aux 0 0;
+	(*!!DEBUG!!*)
+	(*Printf.printf "masked_value, v=%s, vmask=%s, l=%d, lr=%d\n" v vmask l lr;
+	Printf.printf "masked_value, m= [%s](%d), mask= [%s](%d), res = [%s](%d)\n"
+	v (String.length v) vmask (String.length vmask) res (String.length res);*)
 	BITMASK(res)
 
 
@@ -279,6 +296,8 @@ let unmask m mask =
 			)
 	in
 	aux 0;
+	(*!!DEBUG!!*)
+	(*Printf.printf "unmask, m= [%s](%d), mask= [%s](%d), res= [%s](%d)\n" v lv vm (String.length vm) (res^v_suffix) (String.length (res^v_suffix));*)
 	BITMASK(res ^ v_suffix)
 
 
@@ -311,48 +330,62 @@ let to_string m =
 	get_intern_val m
 
 
+(*takes a hex string s and returns binary equivalent*)
+let string_hex_to_bin s =
+	let convert c =
+		let cc = Char.uppercase c in
+		match cc with
+		| '0' -> "0000"
+		| '1' -> "0001"
+		| '2' -> "0010"
+		| '3' -> "0011"
+		| '4' -> "0100"
+		| '5' -> "0101"
+		| '6' -> "0110"
+		| '7' -> "0111"
+		| '8' -> "1000"
+		| '9' -> "1001"
+		| 'A' -> "1010"
+		| 'B' -> "1011"
+		| 'C' -> "1100"
+		| 'D' -> "1101"
+		| 'E' -> "1110"
+		| 'F' -> "1111"
+		| _ -> failwith "shouldn't happen (bitmask.ml::string_hex_to_bin)"
+	in
+	let aux accu c =
+		accu ^ (convert c)
+	in
+	string_fold_left aux "" s
+	
+
+
 (** convert the 1st 64 bits of a mask to an int64
 the mask is supposed to be less or equal than 64 bits *)
 let to_int64 m =
 	let s = get_intern_val m in
-	let size = String.length s
-	in
-	let char01_to_int64 c =
-		match c with
-		| '0' -> Int64.zero
-		| '1' -> Int64.one
-		| _ -> 	failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (bitmask.ml::to_int64)")
-	in
-	let aux accu v =
-		let vv = char01_to_int64 v in
-		Int64.logor (Int64.shift_left accu 1) vv
-	in
+	let size = String.length s in
 	if size > 64 then
 		failwith "mask too long, 64 bits max allowed (bitmask.ml::to_int64)"
 	else
-		string_fold_left aux Int64.zero s
+		try
+			Int64.of_string ("0b" ^ s)
+		with
+		| Failure "int_of_string" -> failwith "cannot convert mask to int64 (bitmask.ml::to_int64)"
 
 
 (** convert the 1st 32 bits of a mask to an int32
 the mask is supposed to be less or equal than 32 bits *)
 let to_int32 m =
 	let s = get_intern_val m in
-	let size = String.length s
-	in
-	let char01_to_int32 c =
-		match c with
-		| '0' -> Int32.zero
-		| '1' -> Int32.one
-		| _ -> 	failwith ("we shouldn't have this char (" ^ (String.make 1 c) ^ ") here (bitmask.ml::to_int32)")
-	in
-	let aux accu v =
-		let vv = char01_to_int32 v in
-		Int32.logor (Int32.shift_left accu 1) vv
-	in
+	let size = String.length s in
 	if size > 32 then
 		failwith "mask too long, 32 bits max allowed (bitmask.ml::to_int32)"
 	else
-		string_fold_left aux Int32.zero s
+		try
+			Int32.of_string ("0b" ^ s)
+		with
+		| Failure "int_of_string" -> failwith "cannot convert mask to int32 (bitmask.ml::to_int32)"
 
 
 let to_int m = Int32.to_int (to_int32 m)
@@ -360,31 +393,17 @@ let to_int m = Int32.to_int (to_int32 m)
 
 (* don't forget caml int are 31 bit long *)
 let of_int i =
-	let rec aux saccu iaccu n =
-		if n >= 31 then
-			saccu
-		else
-			(if iaccu mod 2 == 1 then
-				aux ("1" ^ saccu) (iaccu lsr 1) (n + 1)
-			else
-				aux ("0" ^ saccu) (iaccu lsr 1) (n + 1)
-			)
-	in
-	BITMASK(aux "" 0 i)
+	let si = Printf.sprintf "%08X" i in
+	(*!!DEBUG!!*)
+	(*let res =*)
+	BITMASK(string_hex_to_bin si)
+	(*in Printf.printf "Bitmask.of_int, i=%d, res=[%s]\n" i (get_intern_val res);
+	res*)
 
 
 let of_int32 i =
-	let rec aux saccu iaccu n =
-		if n >= 31 then
-			saccu
-		else
-			(if Int32.rem iaccu (Int32.of_int 2) == Int32.one then
-				aux ("1" ^ saccu) (Int32.shift_right_logical iaccu 1) (n + 1)
-			else
-				aux ("0" ^ saccu) (Int32.shift_right_logical iaccu 1) (n + 1)
-			)
-	in
-	BITMASK(aux "" i 0)
+	let si = Printf.sprintf "%08lX" i in
+	BITMASK(string_hex_to_bin si)
 
 
 (* should check if only 1, 0 and X *)
@@ -520,7 +539,7 @@ let get_mask sp =
 		[] -> ""
 		| h::t ->
 			(match h with
-			Str.Text(txt) ->
+			| Str.Text(txt) ->
 				(* here we assume that an image contains only %.. , 01, X or x *)
 				(transform_str txt) ^ (get_mask_from_regexp_list t)
 			| Str.Delim(d) ->
@@ -529,7 +548,7 @@ let get_mask sp =
 	in
 	let get_expr_from_iter_value v  =
 		match v with
-		Iter.EXPR(e) ->
+		| Iter.EXPR(e) ->
 			e
 		| _ ->
 			failwith "shouldn't happen (bitmap.ml::get_string_mask_from_op::get_expr_from_iter_value)"
@@ -548,12 +567,11 @@ let get_mask sp =
 			s
 	in
 	(* !!DEBUG!! *)
-	(*print_string ((remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image"))))^"::");
-	let res =*)
+	(*let res =*)
 	BITMASK(revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
 	(*in
-	let no_rev = get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))
-	in print_string (no_rev ^ "::rev=" ^res^"\n");
+	let s = get_intern_val res in
+	Printf.printf "get_mask, [%s] (%d)\n" s (String.length s);
 	res*)
 
 
@@ -595,7 +613,13 @@ let get_value_mask sp =
 		else
 			s
 	in
+	(*!DEBUG!!*)
+	(*let res =*)
 	BITMASK(revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
+	(*in
+	let s = get_intern_val res in
+	Printf.printf "get_value_mask, [%s] (%d)\n" s (String.length s);
+	res*)
 
 
 (* returns the value of an instruction code considering only the bit set in the mask,
@@ -603,4 +627,10 @@ the result is a '0' or '1' string with the bits not set in the mask being discar
 so the result will have as many bits as the number of set bits in the mask *)
 let get_value sp =
 	let vm = get_intern_val (get_value_mask sp) in
+	(*!DEBUG!!*)
+	(*let res =*)
 	BITMASK(Str.global_replace (Str.regexp "X+") "" vm)
+	(*in
+	let s = get_intern_val res in
+	Printf.printf "get_value, [%s] (%d)\n" s (String.length s);
+	res*)

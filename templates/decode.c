@@ -27,7 +27,7 @@ $(if is_multi_set)	/* help determine which decode type if several instr sets def
 	$(proc)_state_t *state;
 	$(proc)_platform_t *pf;$(end)
 $(if GLISS_NO_MALLOC)
-    $(proc)_inst_t*  tmp_inst;
+	$(proc)_inst_t*  tmp_inst;
 $(end)
 };
 
@@ -178,11 +178,11 @@ $(end)
     
 	return res;
 }
-$(end)
+$(end)$(end)
 
 $(if is_multi_set)/* decoding functions for one specific instr set */
 
-/* access to a speicific fetch table */
+/* access to a specific fetch table */
 #include "fetch_table.h"
 $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address)
