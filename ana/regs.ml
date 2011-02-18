@@ -589,8 +589,6 @@ module Make(T: TRANSFORMATION) = struct
 			| BINOP (_, _, e1, e2) -> scan_multi [e1; e2]
 			| SWITCH_EXPR (_, e1, cs, e2) ->
 				scan_multi (e1::e2::(snd (List.split cs)))
-			| REF id ->
-
 			| _ -> ()
 		and scan_multi exprs =
 			List.iter scan_expr exprs in
