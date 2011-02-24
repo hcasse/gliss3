@@ -286,6 +286,12 @@ let make_env info =
 		dict
 	)
 	in
+	let print_name n out info =
+		let o = info.Toc.out in
+		info.Toc.out <- out;
+		Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP (Irg.REF n))) false;
+		info.Toc.out <- o
+	in
 	let maker = App.maker() in
 	maker.App.get_params <- add_mask_32_to_param;
 	maker.App.get_instruction <- add_size_to_inst;
@@ -370,13 +376,14 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
-	("NPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.npc_name))) ::
-	("npc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.npc_name))) ::
+	("NPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.npc_name) out info)) ::
+	("npc_name", Templater.TEXT (fun out -> print_name (info.Toc.npc_name) out info)) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::
-	("PC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.pc_name))) ::
-	("pc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.pc_name))) ::
-	("PPC_NAME", Templater.TEXT (fun out -> output_string out  (String.uppercase info.Toc.ppc_name))) ::
-	("ppc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.ppc_name))) ::
+	("PC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.pc_name) out info)) ::
+	(*("pc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.pc_name))) ::*)
+	("pc_name", Templater.TEXT (fun out -> print_name info.Toc.pc_name out info)) ::
+	("PPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.ppc_name) out info)) ::
+	("ppc_name", Templater.TEXT (fun out -> print_name (info.Toc.ppc_name) out info)) ::
 	(App.make_env info maker)
 
 

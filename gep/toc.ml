@@ -407,9 +407,13 @@ let rec type_to_int t =
 
 (** Get the name of a state macro.
 	@param info	Generation information.
-	@param name	Register or memory name. *)
-let state_macro info name =
-	Printf.sprintf "%s_%s" (String.uppercase info.proc) (String.uppercase name)
+	@param name	Register or memory name.
+	@param prfx	prefix or not by PROC_NAME *)
+let state_macro info name prfx =
+	if prfx then
+		Printf.sprintf "%s_%s" (String.uppercase info.proc) (String.uppercase name)
+	else
+		String.uppercase name
 
 
 (** Get the name of a parameter macro.
@@ -1034,35 +1038,37 @@ and prepare_call info name =
 
 (** Generate a prepared expression.
 	@param info		Generation information.
-	@param expr		Expression to generate. *)
-let rec gen_expr info (expr: Irg.expr) =
+	@param expr		Expression to generate.
+	@param prfx		Boolean indicating if state members (reg, mem, ...) should be prefixed by PROC_NAME,
+				transmitted to most of the other gen_xxx expr related functions *)
+let rec gen_expr info (expr: Irg.expr) prfx =
 	let out = output_string info.out in
 
 	match expr with
 	| Irg.NONE -> ()
-	| Irg.CONST (typ, cst) -> gen_const info typ cst
-	| Irg.REF name -> gen_ref info name
-	| Irg.ITEMOF (_, name, idx) -> gen_itemof info name idx
-	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up
-	| Irg.UNOP (t, op, e) -> gen_unop info t op e
-	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2
-	| Irg.COERCE (typ, sube) -> coerce info typ sube expr
+	| Irg.CONST (typ, cst) -> gen_const info typ cst prfx
+	| Irg.REF name -> gen_ref info name prfx
+	| Irg.ITEMOF (_, name, idx) -> gen_itemof info name idx prfx
+	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
+	| Irg.UNOP (t, op, e) -> gen_unop info t op e prfx
+	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2 prfx
+	| Irg.COERCE (typ, sube) -> coerce info typ sube expr prfx
 	| Irg.CANON_EXPR (_, name, args) ->
 		Printf.fprintf info.out "%s(" name;
 		ignore (List.fold_left
-			(fun com arg -> if com then out ", "; gen_expr info arg; true)
+			(fun com arg -> if com then out ", "; gen_expr info arg prfx; true)
 			false args);
 		out ")"
 	| Irg.EINLINE s ->
 		out s
 	| Irg.ELINE (file, line, expr) ->
-		(try gen_expr info expr
+		(try gen_expr info expr prfx
 		with PreError f -> raise (LocError (file, line, f)))
 	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
 	| Irg.IF_EXPR _
 	| Irg.SWITCH_EXPR _
 	| Irg.FIELDOF _ -> failwith "should have been reduced"
-	| Irg.CAST (size, expr) -> gen_cast info size expr
+	| Irg.CAST (size, expr) -> gen_cast info size expr prfx
 
 
 (** Apply a mask for a type that does not match a C type.
@@ -1105,7 +1111,7 @@ and exts info t f =
 	@param info		Generation information.
 	@param typ		Constant type.
 	@param cst		Constant. *)
-and gen_const info typ cst =
+and gen_const info typ cst prfx =
 	match typ, cst with
 	| _, Irg.NULL -> failwith "null constant"
 	| Irg.CARD _, Irg.CARD_CONST v ->
@@ -1134,12 +1140,12 @@ and gen_const info typ cst =
 
 (** Generate a reference to a state item.
 	@param name		Name of the state item. *)
-and gen_ref info name =
+and gen_ref info name prfx =
 	match Irg.get_symbol name with
-	| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst))
+	| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) prfx
 	| Irg.VAR _ -> output_string info.out name
-	| Irg.REG _ -> output_string info.out (state_macro info name)
-	| Irg.MEM _ -> output_string info.out (state_macro info name)
+	| Irg.REG _ -> output_string info.out (state_macro info name prfx)
+	| Irg.MEM _ -> output_string info.out (state_macro info name prfx)
 	| Irg.PARAM _ -> output_string info.out (param_macro info name)
 	| Irg.ENUM_POSS (_, _, v, _) -> output_string info.out (Int32.to_string v)
 	| s -> output_string info.out name (*failwith "expression form must have been removed")*)
@@ -1149,22 +1155,22 @@ and gen_ref info name =
 	@param info		Generation information.
 	@param name		Name of the state item.
 	@param idx		Index. *)
-and gen_itemof info name idx =
+and gen_itemof info name idx prfx =
 	match Irg.get_symbol name with
 	| Irg.VAR _ ->
 		Printf.fprintf info.out "%s[" name;
-		gen_expr info idx;
+		gen_expr info idx prfx;
 		output_string info.out "]"
 	| Irg.REG _ ->
-		Printf.fprintf info.out "%s[" (state_macro info name);
-		gen_expr info idx;
+		Printf.fprintf info.out "%s[" (state_macro info name prfx);
+		gen_expr info idx prfx;
 		output_string info.out "]"
 	| Irg.MEM (_, _, typ, _)  ->
 		Printf.fprintf info.out "%s_mem_read%s(%s, "
 			info.proc
 			(type_to_mem (convert_type typ))
-			(state_macro info (unaliased_mem_name name));
-		gen_expr info idx;
+			(state_macro info (unaliased_mem_name name) prfx);
+		gen_expr info idx prfx;
 		output_string info.out ")"
 	| _ -> failwith "invalid itemof"
 
@@ -1174,11 +1180,11 @@ and gen_itemof info name idx =
 	@param t		Type of result.
 	@param op		Operation.
 	@param e		Operand. *)
-and gen_unop info t op e =
+and gen_unop info t op e prfx =
 	match op with
-	| Irg.NOT		-> Printf.fprintf info.out "!"; gen_expr info e
-	| Irg.BIN_NOT	-> mask info t (fun _ -> Printf.fprintf info.out "~"; gen_expr info e)
-	| Irg.NEG		-> mask info t (fun _ -> Printf.fprintf info.out "-"; gen_expr info e)
+	| Irg.NOT		-> Printf.fprintf info.out "!"; gen_expr info e prfx
+	| Irg.BIN_NOT	-> mask info t (fun _ -> Printf.fprintf info.out "~"; gen_expr info e prfx)
+	| Irg.NEG		-> mask info t (fun _ -> Printf.fprintf info.out "-"; gen_expr info e prfx)
 
 
 (** Generate code for binary operation.
@@ -1187,12 +1193,12 @@ and gen_unop info t op e =
 	@param op		Operation.
 	@param op1		First operand
 	@param e2		Second operand. *)
-and gen_binop info t op e1 e2 =
+and gen_binop info t op e1 e2 prfx =
 	let out pref sep suff =
 		output_string info.out pref;
-		gen_expr info e1;
+		gen_expr info e1 prfx;
 		output_string info.out sep;
-		gen_expr info e2;
+		gen_expr info e2 prfx;
 		output_string info.out suff in
 	match op with
 	| Irg.ADD 		-> mask info t (fun _ -> out "(" " + " ")")
@@ -1233,8 +1239,8 @@ and gen_binop info t op e1 e2 =
 (** Generate code for coercition.
 	@param typ	Type to coerce to.
 	@param expr	Expression to coerce. *)
-and coerce info t1 expr parent =
-	let asis _ = gen_expr info expr in
+and coerce info t1 expr parent prfx =
+	let asis _ = gen_expr info expr prfx in
 
 	(* simple equality *)
 	let t2 = Sem.get_type_expr expr in
@@ -1317,12 +1323,12 @@ and coerce info t1 expr parent =
 	@param info		Generation information.
 	@param size		Size in bits.
 	@param expr		Expression to cast. *)
-and gen_cast info typ expr =
+and gen_cast info typ expr prfx =
 	let etyp = Sem.get_type_expr expr in
 
 	let do_cast _ =
 		Printf.fprintf info.out "((%s)(" (type_to_string (convert_type typ));
-		gen_expr info expr;
+		gen_expr info expr prfx;
 		output_string info.out "))" in
 
 	match typ, etyp with
@@ -1332,7 +1338,7 @@ and gen_cast info typ expr =
 		let etyp = convert_type etyp in
 		let ctyp = convert_type typ in
 		Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
-		gen_expr info expr;
+		gen_expr info expr prfx;
 		output_char info.out ')'
 	| Irg.INT n, _
 	| Irg.CARD n, _ -> do_cast ()
@@ -1345,7 +1351,7 @@ and gen_cast info typ expr =
 	@param expr		Accessed expression.
 	@param lo		Lower bit index.
 	@param hi		Higher bit index. *)
-and gen_bitfield info typ expr lo up =
+and gen_bitfield info typ expr lo up prfx =
 
 	let rec is_const e =
 		match e with
@@ -1365,19 +1371,19 @@ and gen_bitfield info typ expr lo up =
 			info.proc
 			(type_to_mem (convert_type (Sem.get_type_expr expr)))
 			sufx;
-		gen_expr info expr;
+		gen_expr info expr prfx;
 		output_string info.out ", ";
-		gen_expr info a;
+		gen_expr info a prfx;
 		output_string info.out ", ";
-		gen_expr info b;
+		gen_expr info b prfx;
 		if arg3 then Printf.fprintf info.out ", %s )" (string_of_int b_o)
 		else output_string info.out ")" in
 
 	let output_bit b =
 		Printf.fprintf info.out "%s_bit%s(" info.proc (type_to_mem (convert_type (Sem.get_type_expr expr)));
-		gen_expr info expr;
+		gen_expr info expr prfx;
 		output_string info.out ", ";
-		gen_expr info b;
+		gen_expr info b prfx;
 		output_char info.out ')' in
 
 	try
@@ -1438,7 +1444,7 @@ let rec gen_stat info stat =
 		ignore(List.fold_left
 			(fun first arg ->
 				if not first then out ", ";
-				ignore (gen_expr info arg); false)
+				ignore (gen_expr info arg true); false)
 			true
 			args) in
 
@@ -1454,36 +1460,36 @@ let rec gen_stat info stat =
 			| Irg.VAR _ ->
 				out id;
 				if idx <> Irg.NONE then
-					(out "["; gen_expr info idx; out "]");
+					(out "["; gen_expr info idx true; out "]");
 				out " = ";
-				gen_expr info (set_field info typ id idx lo up expr);
+				gen_expr info (set_field info typ id idx lo up expr) true;
 				out ";"
 			| Irg.REG _ ->
-				out (state_macro info id);
+				out (state_macro info id true);
 				if idx <> Irg.NONE then
-					(out "["; gen_expr info idx; out "]");
+					(out "["; gen_expr info idx true; out "]");
 				out " = ";
-				gen_expr info (set_field info typ id idx lo up expr);
+				gen_expr info (set_field info typ id idx lo up expr) true;
 				out ";"
 			| Irg.MEM _ ->
 				out (Printf.sprintf "%s_mem_write%s(" info.proc
 					(type_to_mem (convert_type typ)));
-				out (state_macro info (unaliased_mem_name id));
+				out (state_macro info (unaliased_mem_name id) true);
 				out ", ";
-				gen_expr info idx;
+				gen_expr info idx true;
 				out ", ";
-				gen_expr info (set_field info typ id Irg.NONE lo up expr);
+				gen_expr info (set_field info typ id Irg.NONE lo up expr) true;
 				out ");"
 			(*!!DEBUG!!*)
 			(* this should happen only when using gliss1 predecode *)
 			| Irg.PARAM (_, typ) ->
 				(match typ with
 				| Irg.TYPE_EXPR(tt) ->
-					gen_ref info id;
+					gen_ref info id true;
 					if idx <> Irg.NONE then
-						(out "["; gen_expr info idx; out "]");
+						(out "["; gen_expr info idx true; out "]");
 					out " = ";
-					gen_expr info (set_field info tt id idx lo up expr);
+					gen_expr info (set_field info tt id idx lo up expr) true;
 					out ";"
 				| _ -> failwith "OUUPS!\n")
 			| s ->
@@ -1509,7 +1515,7 @@ let rec gen_stat info stat =
 		let emult = multiple_stats epart in
 		line (fun _ ->
 			out "if(";
-			gen_expr info cond;
+			gen_expr info cond true;
 			out (if tmult then ") {" else ")"));
 		indented (fun _ -> if (is_nop tpart) then line (fun _ -> out ";") else gen_stat info tpart);
 		if tmult then line (fun _ -> out "}");
@@ -1523,13 +1529,13 @@ let rec gen_stat info stat =
 	| Irg.SWITCH_STAT (cond, cases, def) ->
 		line (fun _ ->
 			out "switch(";
-			gen_expr info cond;
+			gen_expr info cond true;
 			out ") {");
 		List.iter
 			(fun (case, stat) ->
 				line (fun _ ->
 					out "case ";
-					gen_expr info case;
+					gen_expr info case true;
 					out ":");
 				indented (fun _ -> gen_stat info stat; line (fun _ -> out "break;"))
 				(*line (fun _ -> out "break;")*))

@@ -12,6 +12,9 @@ extern  "C"
 #include <$(proc)/id.h>
 #include <$(proc)/gen_int.h>
 
+$(foreach modules)
+#include <$(proc)/$(name).h>
+$(end)
 
 /* data structures */
 

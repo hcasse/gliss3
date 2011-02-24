@@ -261,7 +261,8 @@ let get_instruction_set maker f dict i_set =
 			| Irg.AND_OP(_, param_l, attr_l) ->
 				Irg.param_stack param_l;
 				Irg.attr_stack attr_l;
-				Toc.gen_expr info select_attr;
+				(*Toc.gen_expr info select_attr true;*)
+				Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP select_attr)) true;
 				Irg.param_unstack param_l;
 				Irg.attr_unstack attr_l
 			| _ -> failwith "(app.ml::get_instruction_set::$(iset_select)) shouldn't happen.")) ::

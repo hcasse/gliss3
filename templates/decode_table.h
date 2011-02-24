@@ -3,15 +3,19 @@
 #ifndef GLISS_$(PROC)_INCLUDE_$(PROC)_DECODE_TABLE_H
 #define GLISS_$(PROC)_INCLUDE_$(PROC)_DECODE_TABLE_H
 
+#if defined(__cplusplus)
+extern  "C"
+{
+#endif
+
 #include <assert.h>
 #include <$(proc)/api.h>
 #include <$(proc)/macros.h>
 #include <$(proc)/gen_int.h>
 
-#if defined(__cplusplus)
-extern  "C"
-{
-#endif
+$(foreach modules)
+#include <$(proc)/$(name).h>
+$(end)
 
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))

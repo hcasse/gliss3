@@ -70,7 +70,7 @@ let process inst out info =
 				Toc.declare_temps info;
 				Toc.gen_stat info s;
 				output_string info.Toc.out "\treturn ";
-				Toc.gen_expr info e;
+				Toc.gen_expr info e true;
 				output_string info.Toc.out ";\n";
 				Toc.cleanup_temps info;
 				Irg.param_unstack params

@@ -5,7 +5,7 @@ let gliss_isize = "32"
 reg pc[1, card(32)] __attr(pc)
 
 
-reg A[16, card(32)]
+reg A[1, card(32)]
 reg B[1, card(32)]
 
 
@@ -20,10 +20,9 @@ op instruction(xx : card(4))
 	syntax = "bof"
 	action = {
 		// syntax error on the '..' of B<2..2>
-	 	A[xx] = B<B<2..2> .. B<3..3> >;
+	 	A = B<A<2..2> .. B<3..3> >;
+	 	A = B<(A<2..2>) .. (B<3..3>) >;
 	}
-	// syntax error at same place
-	toto = B<B<2 .. 2> .. B<3..3> >
 
 // bug still present if Bit_Expr is extended or replaced (by Expr) in parser
 // => a bit tricky
