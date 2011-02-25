@@ -76,6 +76,7 @@ _DEPS += $$(patsubst %.cmo,$(DEP_DIR)/%.d,$$($(1)_CMO)) \
 _PRE_DEPS += $$($(1)_MLO)
 _DIST_CLEAN += $(1).cma $$($(1)_CMIO)
 _CLEAN += $$($(1)_CMO) \
+	$$(patsubst %.cmo,%.cmi,$$($(1)_CMO)) \
 	$$(patsubst %.mll,%.ml,$$($(1)_MLLO)) \
 	$$(patsubst %.mly,%.ml,$$($(1)_MLYO)) \
 	$$(patsubst %.mly,%.mli,$$($(1)_MLYO))

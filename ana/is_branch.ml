@@ -73,12 +73,16 @@ let _ =
 	let process pc _ inst =
 		let perform _ =
 			IsBranchAna.run pc "action" in
-		let res = match Irg.get_symbol "is_branch" with
-			| Irg.ATTR (Irg.ATTR_EXPR (_, expr)) ->
-				(match Sem.eval_const expr with
-				| Irg.CARD_CONST n -> (Int32.compare n Int32.zero) <> 0
+		let res =
+			try
+				(match Irg.get_symbol "is_branch" with
+				| Irg.ATTR (Irg.ATTR_EXPR (_, expr)) ->
+					(match Sem.eval_const expr with
+					| Irg.CARD_CONST n -> (Int32.compare n Int32.zero) <> 0
+					| _ -> perform ())
 				| _ -> perform ())
-			| _ -> perform () in
+			with Irg.Symbol_not_found _ ->
+				perform () in
 		Printf.printf "%s = %b\n" (Iter.get_name inst) res in
 
 	App.run

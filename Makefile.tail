@@ -7,7 +7,7 @@ _subdirs_all:
 clean: _clean _subdirs_clean
 
 _clean:
-	rm -rf .dep $(_CLEAN)
+	rm -rf .dep $(_CLEAN) $(CLEAN)
 
 _subdirs_clean:
 	@for d in $(SUBDIRS); do cd $$d; $(MAKE) clean; cd ..; done
