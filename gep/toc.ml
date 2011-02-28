@@ -405,15 +405,15 @@ let rec type_to_int t =
 
 
 
-(** Get the name of a state macro.
+(** Get the name of a state macro, or returns the name as it is.
 	@param info	Generation information.
 	@param name	Register or memory name.
-	@param prfx	prefix or not by PROC_NAME *)
+	@param prfx	prefix or not by PROC_NAME and uppercase or not *)
 let state_macro info name prfx =
 	if prfx then
 		Printf.sprintf "%s_%s" (String.uppercase info.proc) (String.uppercase name)
 	else
-		String.uppercase name
+		name
 
 
 (** Get the name of a parameter macro.
