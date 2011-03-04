@@ -52,4 +52,6 @@ config.ml:
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
 	echo "let source_dir = \"$(PWD)/..\"" >> config.ml
 
+CLEAN += config.ml
+
 include ../Makefile.tail

@@ -393,8 +393,13 @@ void $(proc)_dump_state($(proc)_state_t *state, FILE *out)
 	/* dump all the registers */
 $(foreach registers)$(if !aliased)$(if array)
 	fprintf(out, "$(name)\n");
-	for (i = 0; i < $(size); i++)
-		fprintf(out, "\t[%d] = $(printf_format)\n", i, state->$(name)[i]);
+	for (i = 0; i < $(size); i++) {
+		fprintf(out, "\t[%d] = $(printf_format)", i, state->$(name)[i]);
+		if(i % 4 == 3)
+			fputc('\n', out);
+	}
+	if(i % 4 != 3)
+		fputc('\n', out);
 $(else)
 	fprintf(out, "$(name) = $(printf_format)\n", state->$(name));
 $(end)$(end)$(end)
