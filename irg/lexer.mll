@@ -122,6 +122,16 @@ let gt lexbuf token size =
 		GT
 	end
 
+let append s c = s ^ (String.make 1 c)
+
+let appends s c =
+	let c =
+		match c with
+		| 'n' -> '\n'
+		| 't' -> '\t'
+		| 'r' -> '\r'
+		| c -> c in
+	append s c
 }
 
 let letter	= ['a' - 'z' 'A' - 'Z' '_']
@@ -234,14 +244,14 @@ and comment = parse
 (* string recognition *)
 and str res = parse
 	"\""			{ res }
-|	"\\" (_	as v)	{ str (res ^ (String.make 1 v)) lexbuf }
-|	_ as v			{ str (res ^ (String.make 1 v)) lexbuf }
+|	"\\" (_	as v)	{ str (appends res v) lexbuf }
+|	_ as v			{ str (append res v) lexbuf }
 
 (* character recognition *)
 and chr res = parse
 	"\'"			{ STRING_CONST res }
-|	"\\" (_	as v)	{ chr (res ^ (String.make 1 v)) lexbuf }
-|	_ as v			{ chr (res ^ (String.make 1 v)) lexbuf }
+|	"\\" (_	as v)	{ chr (appends res v) lexbuf }
+|	_ as v			{ chr (append res v) lexbuf }
 
 and scan_line = parse
 	digit+ as l	{ line := (int_of_string l) - 1 }

@@ -455,8 +455,7 @@ $(proc)_sim_t *$(proc)_new_sim($(proc)_state_t *state, $(proc)_address_t start_a
 	$(if is_multi_set)$(proc)_set_cond_state(sim->decoder, state);$(end)
 	if (sim->decoder == NULL)
 		return NULL;
-	if (exit_addr)
-		sim->addr_exit = exit_addr;
+	sim->addr_exit = exit_addr;
 	if (start_addr)
 		sim->state->$(pc_name) = start_addr;
 

@@ -541,6 +541,10 @@ let cstring str =
 		match String.get str i with
 		  '\"' -> aux str (i + 1) (res ^ "\\\"")
 		| '\\' -> aux str (i + 1) (res ^ "\\\\")
+		| '\n' -> aux str (i + 1) (res ^ "\\n")
+		| '\t' -> aux str (i + 1) (res ^ "\\t")
+		| '\r' -> aux str (i + 1) (res ^ "\\r")
+		| c when c < ' ' -> aux str (i + 1) (res ^ (Printf.sprintf "\\x%02x" (Char.code c)))
 		| c -> aux str (i + 1) (res ^ (String.make 1 c)) in
 
 	aux str 0 ""
@@ -1409,15 +1413,14 @@ and gen_bitfield info typ expr lo up prfx =
 let rec multiple_stats stat =
 	match stat with
 	| Irg.NOP
-	| Irg.EVAL _
-	| Irg.EVALIND _
 	| Irg.SET _
 	| Irg.CANON_STAT _
 	| Irg.ERROR _
-	| Irg.IF_STAT(_, _, Irg.NOP)
 	| Irg.SWITCH_STAT _
 	| Irg.SETSPE _
 	| Irg.INLINE _ -> false
+	| Irg.EVAL _
+	| Irg.EVALIND _
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
 	| Irg.LINE (_, _, stat) -> multiple_stats stat
