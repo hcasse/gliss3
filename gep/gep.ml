@@ -462,6 +462,18 @@ let _ =
 				(fun d (n, v) -> App.add_switch n v d)
 				dict !switches in
 
+			(*let binor n e1 e2 =
+			in
+			let bitf n b1 b2 =
+				Irg.BITFIELD(
+					Irg.CARD(b1 - b2 +1),
+					Irg.REF(n),
+					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b1)),
+					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b2))
+				) in
+			let ll = Decode_arg.decode_parameters ["a"] [bitf "a" 7 4; bitf "a" 3 2; bitf "a" 1 0 ] [Irg.REF("a"); Irg.REF("a"); Irg.REF("a")] in
+			List.iter (fun x -> print_string "dec_arg, ("; print_string (fst x); print_string ", "; Irg.print_expr (snd x); print_string ")\n") ll;
+*)
 			(* include generation *)
 
 			List.iter find_mod !modules;

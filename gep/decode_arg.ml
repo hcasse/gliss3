@@ -202,7 +202,7 @@ let decode_parameters params args vals =
 		if p <> p' then (p, m, e) else
 		if Bitmask.is_null (Bitmask.logand m m')
 		then (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))))
-		else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p)) in
+		else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image, m=%s, m\'=%s" p (Bitmask.to_string m) (Bitmask.to_string m'))) in
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
