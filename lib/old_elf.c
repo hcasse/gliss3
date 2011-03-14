@@ -719,7 +719,10 @@ static int ElfReadDataSecs(int fd, const Elf32_Ehdr *Ehdr) {
 		if(res != 0)
 			return -1;
     }
-	Data.address = Data.secs->address;
+    if(Data.secs != NULL)
+		Data.address = Data.secs->address;
+	else
+		Data.address = 0;
 	lseek(fd,foffset,SEEK_SET);
     return 0;
 }
