@@ -472,6 +472,7 @@ let _ =
 			App.makedir info.Toc.hpath;
 			App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 			App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
+			App.make_template "debug.h" ("include/" ^ info.Toc.proc ^ "/debug.h") dict;
 			App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 
 			(* source generation *)
@@ -482,6 +483,7 @@ let _ =
 			App.make_template "Makefile" "src/Makefile" dict;
 			App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
 			App.make_template "api.c" "src/api.c" dict;
+			App.make_template "debug.c" "src/debug.c" dict;
 			App.make_template "platform.h" "src/platform.h" dict;
 			App.make_template "fetch_table.h" "src/fetch_table.h" dict;
 			App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;

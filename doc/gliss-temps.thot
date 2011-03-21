@@ -221,6 +221,13 @@ $(foreach registers)
      $(array)      // (bool) True if the given register is declared as a bank of more than one rgister
      $(size)       // (text) If the given register is a bank, it returns the bank's size,
                    // else it returns 1
+     $(format)     // (text) format to display the name of the register (if register is multiple, contains a %d)
+     $(is_float)   // (bool) True if type of register is a float
+     $(is_64)      // (bool) True if the register type occupies more than 32 bits
+     $(id)         // (text) unique integer identifier for the register
+     $(is_pc)      // (bool) True if the register represents the PC
+     $(type_size)  // (text) number of bits of the register type
+$(end)
 </code>
 
 
