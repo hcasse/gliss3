@@ -22,6 +22,8 @@ In @(GLISS), the following attributes are used:
 
 ^ Attribute ^ Description ^
 | ''pc'' | designs the register containing the address of the instruction to execute |
+[ ''format''(STRING) | defines a string format to display the register name |
+|  | (if register is multiple, the string must contains a ''%d'') |
 
 
 ===== Specific Symbols =====
