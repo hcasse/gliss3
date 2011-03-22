@@ -6,7 +6,7 @@ This section describes the extension of @(GLISS) to the NMP language.
 
 In @(GLISS), some properties may be linked to state declarations
 (registers, memories, etc) thanks to attributes. This properties are
-used to generate the simulator or to express specific informations.
+used to help the generation of the simulator or to express specific information.
 
 An attribute is declared with the following syntax:
 <code>
@@ -16,19 +16,19 @@ AttrArg ::= Attr | Constant
 </code>
 
 Any application using the IRG implementation of @(GLISS) can have
-access to the state attribute definitions that may be used for any goal.
+access to the state attribute definitions and this attributes may be used for any goal.
 
-In @(GLISS), the following attributes are used:
+In @(GLISS) V2, the following attributes are used:
 
 ^ Attribute ^ Description ^
-| ''pc'' | designs the register containing the address of the instruction to execute |
-[ ''format''(STRING) | defines a string format to display the register name |
+| ''pc'' | designs the program counter (address of executed instruction) |
+[ ''fmt''(STRING) | defines a string format to display the register name |
 |  | (if register is multiple, the string must contains a ''%d'') |
 
 
 ===== Specific Symbols =====
 
-To manage its work, @(GLISS) uses a set of symbols defined in the NMP
+To control its work, @(GLISS) V2 uses a set of symbols defined in the NMP
 file.
 
 ==== Processor Name ====
@@ -49,22 +49,22 @@ There is no standard for the order of bits in the instruction representation
 as used either in bit fields, or in image format. To define this,
 the constant definition ''bit_order'' can be used. It can only takes
 two values:
-  * "UPPERMOST" -- the left bit is the upper most bit (default)
-  * "LOWERMOST" -- the left bit is the lower most bit.
+  * "UPPERMOST" -- the leftmost bit is the uppermost bit (default)
+  * "LOWERMOST" -- the leftmost bit is the lowermost bit.
 
 
 
 ==== Instruction Size ====
 
 An important issue in defining the ISA images is to not forget constants
-bits or to errors in image size. To prevent this, one can define the list
+bits or to perform mistakes in image size. To prevent this, one can define the list
 of supported sizes in the ''gliss_isize'' definition. This constant
 takes as value a string where all possible size are listed separated
 by commas.
 
-If the @(GLISS) detects an instruction image size that does not fit
-any sizes in the ''gliss_isize'' definition, the run will stop and
-display all details about the error.
+If the @(GLISS) V2 detects an instruction image size that does not fit
+one of sizes in the ''gliss_isize'' definition, the generation stops and
+displays details about the error.
 
 For example, a 32-bits fixed-size ISA is declared by:
 <code>
@@ -72,7 +72,7 @@ let gliss_isize="32"
 </code>
 
 In the opposite, the TriCore ISA supports two sizes of instructions,
-16-bits and 32-bits, is declared by:
+16-bits and 32-bits and ''gliss_isize'' is declared as:
 <code>
 let gliss_isize="32,16"
 </code>
@@ -81,10 +81,10 @@ let gliss_isize="32,16"
 
 ===== Declaration of canonical functions =====
 
-These C functions, defined in external C files and used in NMP files, cannot get
-correctly typed as is. To ensure type verification of operands and result, you have
-to give a prototype of each canonical function in the NML file(s) where it is used.
-Writing such a prototype in NML is done with the ''canon'' keyword like in these examples:
+Canonical functions are C functions, defined in external C files and used in NMP files
+but they cannot be correctly typed as is. To ensure type verification of operands and result, you have
+to give a prototype of each canonical function in the NML file(s) where they are used.
+Writing such a prototype in NML is done with the ''canon'' keyword as in these examples:
 
 First we define some types to make things more readable,
 <code>
@@ -121,28 +121,32 @@ TypeParams ::=				// NML type of the params
 function_name ::= string	// name of the canonical function
 </code>
 
-**WARNING** Whatever you call or declare an canonical, do not forget
+**WARNING** Whatever the canonical you declare, do not forget
 to put a pair of '"' around the name.
 
 
-===== Definition of several instruction sets in a same description =====
+===== Definition of several instruction sets in the same description =====
 
-Some processors supports more than one instruction set (see the ARM with his default 32-bit instruction set
-and several pure 16-bit or 16-bit 32-bit mixed THUMB instruction set) and can pass from one to the other
-decoding scheme just with a special instruction, as codes compiled for different instruction sets can be
+Some processors supports more than one instruction set. For example, the ARM processor family
+supports its default 32-bit instruction set
+and several pure 16-bit (THUMB1) or 16-bit/32-bit mixed THUMB2 instruction set.
+According to its state, such a processor can pass from a decoding scheme to the another one,
+just with a special instruction. As codes compiled for different instruction sets can be
 mixed into a single program, we added the support for multiple instruction sets in a same description.
 
-If several instruction sets are to be defined in a same descritpion, you just need to change the root
-node from ''instruction'' to ''multi'', each son and its resulting tree will be considered an
-autonomous instruction set and a set of fetch tables will be ouput for each one.
+If several instruction sets have to be defined in a same descritpion, you just need to change the root
+node from ''instruction'' to ''multi'', each child of this operation and its resulting tree is considered as
+autonomous instruction set and a separate fetch tables is generated for each one.
 
-Each node from the resulting tree of a son of the ''multi'' node must have some attribute defined (practically, they should be defined
-directly at the root of such a sub-tree, ie. in a direct son of ''multi''), here is the list:
-  * ''instruction_set_select'': boolean (or boolean like) expression based on processor register values, it will be translated in generated C sources
-  and evaluated to know if a given instruction set is to be used o fecth and decode the next instruction.
-  * ''instruction_set_name'': name of the defined instruction set, in a humanly readable form.
+Each node from the resulting tree of a child of the ''multi'' node must have specific attributes defined
+to drive the fetch process. Practically, these attribute should be defined
+directly at the root of the child a sub-trees, ie. in a direct child of ''multi''):
+  * ''instruction_set_select'': boolean (or boolean like) expression based on processor register values,
+it will be translated into C sources and evaluated to know if a given instruction set has to be used
+to fecth and decode the next instruction,
+  * ''instruction_set_name'': name of the defined instruction set, in a human readable form.
 
-Example with the ARM processor (standard and THUMB instruction set):
+**Example with the ARM processor (standard and THUMB instruction set)**
 
 <code>
 op multi = ARM | THUMB  // and not op instruction!
