@@ -43,8 +43,8 @@ typedef union {
 
 /* functions */
 register_bank_t *gliss_get_registers(void);
-register_value_t gliss_get_register(gliss_state_t *state, int id, int index);
-void gliss_set_register(gliss_state_t *state, int id, int index, register_value_t value);
+register_value_t gliss_get_register($(proc)_state_t *state, int id, int index);
+void gliss_set_register($(proc)_state_t *state, int id, int index, register_value_t value);
 
 /* macros avoiding customisation in debugger */
 #define debug_get_registers()				gliss_get_registers()

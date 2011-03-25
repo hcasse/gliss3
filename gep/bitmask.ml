@@ -634,3 +634,16 @@ let get_value sp =
 	let s = get_intern_val res in
 	Printf.printf "get_value, [%s] (%d)\n" s (String.length s);
 	res*)
+
+(** Print the mask.
+	@param m	Mask to print. *)
+let print m =
+	match m with
+	| BITMASK m -> print_string m
+
+
+(** Convert bitmask to string.
+	@param m	Mask to convert. *)
+let to_string m =
+	match m with
+	| BITMASK m -> m

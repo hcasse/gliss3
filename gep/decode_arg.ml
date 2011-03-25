@@ -200,9 +200,14 @@ let decode_parameters params args vals =
 	let t = scan_decode_arguments args vals in
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then (p, m, e) else
-		if Bitmask.is_null (Bitmask.logand m m')
-		then (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))))
-		else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p)) in
+		begin
+			Printf.printf "base %s: %s\n" p (Bitmask.to_string m);
+			Printf.printf "add %s: %s\n" p' (Bitmask.to_string m');
+			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (Bitmask.logand m m'));
+			if Bitmask.is_null (Bitmask.logand m m')
+			then (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))))
+			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
+		end in
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in

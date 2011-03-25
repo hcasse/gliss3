@@ -3,6 +3,7 @@
 SOURCES = api.c \
 	fetch.c \
 	decode.c \
+	debug.c \
 	$(foreach modules) \
 	$(name).c$(end)$(foreach sources) \
 	$(path)$(end)
