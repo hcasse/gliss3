@@ -4,6 +4,7 @@
 @VERSION=0.1
 @LANG=en_EN
 @ENCODING=UTF-8
+@HTML_STYLES=gliss.css
 
 @GLISS=**//GLISS//**
 

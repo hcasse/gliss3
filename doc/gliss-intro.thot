@@ -11,24 +11,35 @@ and full support of the NML language. NML is the input language of
 -- ISA) of a processor. This description includes the instruction binary
 code, the assembly form, the semantics expression and the processor
 state (including registers and memory). The semantics of the instruction
-is performed with a language close to algorithmics with specific
+is performed with a language close to algorithmics with C-like
 expressions for bit-level data handling.
 
-Applied on an NML file, @(GLISS) version 2 will generate a C library,
-a set of C header files and possibly with a simulator and a disassembler command.
-The generated library may be called by any C or C-compatible program.
+Applied to an NML file, @(GLISS) version 2 will generate a C library,
+a set of C header files and possibly simulator and disassembler commands.
+The generated library may be called from any C or C-compatible program.
 
 ===== Information =====
 
 Authors:
   * J. Barre <barre@irit.fr>
   * H. Cassé <casse@irit.fr>
+  * R. Vaillant <vaillant@irit.fr>
 
+
+
+===== Acronyms and Definitions =====
+
+**ISA** -- Instruction Set Architecture, the description of programming
+model of a processing including instruction set and processor state.
+
+**NML** -- Neutral Machine Language, ISA description language designed
+by M. Freericks in A. Fauth, J. Van Praet, M. Freericks, //Describing instruction set processors using nML//,
+EDTC '95 Proceedings, 1995.
 
 
 ===== Licence =====
 
-The @(GLISS) sources are delivered under the GPL license V2.
+@(GLISS) sources is delivered under the GPL license V2.
 
 **GNU GENERAL PUBLIC LICENSE**
 

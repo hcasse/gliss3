@@ -74,7 +74,7 @@ Preprocessor of the macro and includes commands found in the given
 
 ===== gliss-disasm =====
 
-<code>
+<code sh>
 > gliss-disasm [options] FILE
 </code>
 
@@ -89,4 +89,31 @@ Options are:
 
 
 ===== gliss-attr =====
+
+<code sh>
+> gliss-attr [options] FILE -a ATTRIBUTE -t TEMPLATE -d DEFAULT
+</code>
+
+This command allows to generate special processing associated with
+instruction. In @(GLISS) V2, you can add custom attributes (different
+of standard ones ''syntax'', ''image'' or ''action'') to associate
+a special processing with each instruction. Then, a C source file may
+be generated with this command.
+
+The generated source is obtained from the //TEMPLATE// file that
+is interpreted as the template files of GEP (see section "Generation Templates").
+It may contain reference to the given //ATTRIBUTE//. If it exists an
+instruction which the attribute is not defined for, the //DEFAULT//
+value is used instead.
+
+Options are:
+  * ''-a'' ATTRIBUTTE -- attribute name to generate for,
+  * ''-d'' DEFAULT -- default value,
+  * ''-e'' FILE -- an extension file to add definitions to the NML definition,
+  * ''-f'' -- the attribute is an expression attribute,
+  * ''-o'' FILE -- generate output to the given file,
+  * ''-p'' -- the attribute is an action attribute,
+  * ''-q'' -- quiet mode,
+  * ''-t'' TEMPLATE -- select the template flag,
+  * ''-v'' -- verbose mode.
 

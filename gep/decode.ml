@@ -377,4 +377,4 @@ let is_complex_param sp n =
 		(* if a spec's param appears more than once in a format it needs a complex decoding *)
 		true
 	else
-		is_complex (List.hd param_occurrences)
+		is_complex (fst (List.hd param_occurrences))

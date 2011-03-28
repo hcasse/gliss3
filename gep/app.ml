@@ -284,17 +284,40 @@ let get_instruction_set maker f dict i_set =
 		dict))
 
 
+let rec is_pc attrs =
+	match attrs with
+	| [] -> false
+	| Irg.NMP_ATTR ("pc", _) :: _ -> true
+	| _ :: tl -> is_pc tl
 
-let get_register f dict _ sym =
+let is_float t =
+	match t with
+	| Irg.FLOAT _ -> true
+	| _ -> false
+
+let rec reg_format id size attrs =
+	match attrs with
+	| [] -> if size > 1 then id ^ "%d" else id
+	| Irg.NMP_ATTR ("fmt", [Irg.ATTR_VAL (Irg.STRING_CONST (f, _, _))]) :: _ -> f
+	| _ :: tl -> reg_format id size tl
+
+let get_register id f dict _ sym =
 	match sym with
-	  Irg.REG (name, size, t, attrs) -> f (
+	  Irg.REG (name, size, t, attrs) ->
+		incr id; f (
 	  	("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
 		("name", out (fun _ -> name)) ::
 		("NAME", out (fun _ -> String.uppercase name)) ::
 		("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
 		("array", Templater.BOOL (fun _ -> size > 1)) ::
 		("size", out (fun _ -> string_of_int size)) ::
+		("id", out (fun _ -> string_of_int !id)) ::
+		("type_size", out (fun _ -> string_of_int (Sem.get_type_length t))) ::
+		("is_pc", Templater.BOOL (fun _ -> is_pc attrs)) ::
+		("is_float", Templater.BOOL (fun _ -> is_float t)) ::
+		("format", out (fun _ -> "\"" ^ (reg_format name size attrs) ^ "\"")) ::
 		("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
+		
 		dict)	(* make_array size*)
 	| _ -> ()
 
@@ -337,6 +360,7 @@ let profiled_switch_size = ref 0
 make_env : Toc.info_t -> maker_t -> (string * Templater.value_t) list
 *)
 let make_env info maker =
+	let reg_id = ref 0 in
 
 	let param_types =
 		let collect_field set (name, t) =
@@ -356,7 +380,7 @@ let make_env info maker =
 	("profiled_instructions", Templater.COLL (fun f dict -> 
 	  let _ = Iter.iter_ext (get_ninstruction maker f dict (!profiled_switch_size)) 0 true in () )) ::
 	("instruction_sets", Templater.COLL (fun f dict -> List.iter (get_instruction_set maker f dict) !Iter.multi_set )) ::
-	("registers", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_register f dict ) Irg.syms)) ::
+	("registers", Templater.COLL (fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
 	("memories", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_memory f dict) Irg.syms)) ::

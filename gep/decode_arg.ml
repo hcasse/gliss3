@@ -248,20 +248,17 @@ let scan_decode_arguments args vals =
 	@param vals		Expression to access the actual argument value.
 	@return			Decoding pairs. *)
 let decode_parameters params args vals =
-let print_tripl (p, m, e) = Printf.printf "[p=%s, m=%s, e=" p (Bitmask.to_string m); Irg.print_expr e; print_string "]\n" in
-
 	let t = scan_decode_arguments args vals in
-	List.iter print_tripl t;
-	
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then (p, m, e) else
-		if Bitmask.is_null (Bitmask.logand m m') then
-			(print_string "processing: ";
-			print_tripl (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))));
-			(p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m')))))
-		else
-			raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image, m=%s, m\'=%s" p (Bitmask.to_string m) (Bitmask.to_string m')))
-	in
+		begin
+			Printf.printf "base %s: %s\n" p (Bitmask.to_string m);
+			Printf.printf "add %s: %s\n" p' (Bitmask.to_string m');
+			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (Bitmask.logand m m'));
+			if Bitmask.is_null (Bitmask.logand m m')
+			then (p, Bitmask.logor m m', or_ e (and_ e' (cst (Bitmask.to_int32 m'))))
+			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
+		end in
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
