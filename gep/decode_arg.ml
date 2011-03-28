@@ -17,6 +17,49 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+
+
+
+(*
+ * takes the syntax expression of the given op and returns the expr list allowing to access
+ * each param of the format from the complete binary image
+ *)
+(*let get_expr_of_format op =
+	let get_expr_from_iter_value v =
+		match v with
+		| Iter.EXPR(e) ->
+			e
+		| _ ->
+			failwith "shouldn't happen (decode_arg.ml::get_expr_from_format::get_expr_from_iter_value)"
+	in
+	let f = Str.full_split (Str.regexp "%[0-9]+b") (Bitmask.remove_space (Bitmask.get_str (get_expr_from_iter_value (Iter.get_attr op "image")))) in
+	let length l =
+		let aux accu v =
+			match v with
+			| Str.Text(txt) -> accu + String.length txt
+			| Str.Delim(d) -> accu + Bitmask.get_length_from_format d
+		in
+		List.fold_left aux 0 l in
+	let l_f = length f in
+	let positions ff =
+		let aux v (pos, accu) =
+			match v with
+			| Str.Text(txt) ->
+				let lt = String.length txt in
+				(pos + lt, accu)
+			| Str.Delim(d) ->
+				let ld = Bitmask.get_length_from_format d in
+				(pos + ld, [d; (pos; ld)] :: accu)
+		in
+		List.fold_right aux ff (0, []) in
+	let pos_f = snd (positions f) in
+	let gen_expr start length =
+	()	
+	in()*)
+	
+
+
+
 let asis str chan = output_string chan str
 
 
@@ -54,7 +97,13 @@ let mask n = Bitmask.mask_fill n
 	@param n	Upper mask bound.
 	@param m	Lower mask bound.
 	@return		Built mask. *)
-let mask_range n m = Bitmask.mask_range n m
+let mask_range n m = 
+(*!!DEBUG!!*)
+let r =
+Bitmask.mask_range n m
+in
+Printf.printf "mask_range %d %d = %s\n" n m (Bitmask.to_string r);
+r 
 
 
 (** Get the mask of bits enclosing the given expression result.
@@ -82,6 +131,7 @@ let rec or_masks l m =
 	@return		list of triplets (operation parameter, maskn reverse expression).
 	@throw		*)
 let rec scan_decode_argument e m y =
+print_string "scan_decode_argument, e=";Irg.print_expr e; print_string (", m="^(Bitmask.to_string m)); print_string ", y=";Irg.print_expr y;print_string "\n";
 	match e with
 
 	| Irg.NONE -> failwith "scan_decode_argument"
@@ -109,10 +159,11 @@ let rec scan_decode_argument e m y =
 			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
 		let lc =
 			try Sem.to_int32 (Sem.eval_const l)
-			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
+			with Sem.SemError _ -> raise (Toc.PreError (asis "lower bitfield bound must be constant")) in
 		scan_decode_argument
 			b
-			(Bitmask.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))
+			(Bitmask.reverse (Bitmask.shift_left (Bitmask.reverse m) (Int32.to_int lc)))
+			(*(Bitmask.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))*)
 			(shl (and_ y (cst (mask32 (range32 uc lc)))) (cst lc))
 
 	| Irg.BINOP (t, Irg.ADD, e1, e2) ->
