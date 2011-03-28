@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.13 2009/09/15 07:50:48 casse Exp $
 include ../Makefile.head
 
-OCAML_FLAGS=-I ../irg -I ../optirg
+OCAML_FLAGS=-I ../irg -I ../optirg -annot
 ifndef NDEBUG
 OCAML_FLAGS+=-g
 OCAML_LDFLAGS+=-g
@@ -23,6 +23,7 @@ GEP_SOURCES = \
 	bitmask.ml \
 	fetch.ml \
 	decode.ml \
+	decode_arg.ml \
 	gep.ml
 gep_LIBS = str unix  ../irg/irg ../optirg/optirg ../gep/libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))

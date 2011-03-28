@@ -125,6 +125,16 @@ let string_fold_right2 f a s1 s2 =
 	else
 		aux a 0
 
+let string_rev s =
+	let l = String.length s in
+	let res = String.create l in
+	let aux i c =
+		res.[i] <- c;
+		i - 1
+	in
+	ignore (string_fold_left aux (l - 1) s);
+	res
+
 
 
 (***************************************************)
@@ -143,6 +153,11 @@ let bit_count m =
 
 let length m =
 	String.length (get_intern_val m)
+
+
+let reverse m =
+	let v = get_intern_val m in
+	BITMASK(string_rev v)
 
 
 (** logical AND between 2 masks,
@@ -170,7 +185,7 @@ let logand m1 m2 =
 
 (** logical OR between 2 masks,
     length will be the max between m1 and m2 lengths,
-    as if the smallest one is extended with 0s
+    as if the smaller one is extended with 0s
 *)
 let logor m1 m2 =
 	let v1 = get_intern_val m1 in
@@ -442,7 +457,7 @@ let mask_fill n =
 	BITMASK(String.make n '1')
 
 
-(** Build a mask with ones from bit m to bit n.
+(** Build a mask with ones from bit m to bit n (1st bit is bit 0).
 	@param n	Upper mask bound.
 	@param m	Lower mask bound.
 	@return		Built mask, length will be n + 1 (no leading 0s in front of bit n). *)
