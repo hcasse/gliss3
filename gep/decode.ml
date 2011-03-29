@@ -222,7 +222,6 @@ let get_instr_info inst =
 	}
 
 
-
 let get_decode_for_format_param inst idx =
 	let inst_info = get_instr_info inst in
 	let find_first_bit mask =
@@ -290,6 +289,35 @@ let get_mask_decl_for_format_param inst idx =
 				idx (List.length mask) (to_C_list mask) (Bitmask.to_string string_mask) idx idx (Bitmask.length string_mask)
 		else
 			failwith "shouldn't happen (decode.ml::get_mask_decl_for_format_param)"
+
+
+(* return a list with all mask declarations for each image format param of the given spec *)
+let get_mask_decl_all_format_params inst =
+	let get_expr_from_iter_value v  =
+		match v with
+		| Iter.EXPR(e) -> e
+		| _ -> Irg.NONE
+	in
+	let image_attr = get_expr_from_iter_value (Iter.get_attr sp "image") in
+	let rec get_frmt_params e =
+		match e with
+		| Irg.FORMAT(_, params) -> params
+		| Irg.ELINE(_, _, e) -> get_frmt_params e
+		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+	in
+	let frmt_params = get_frmt_params image_attr in
+	let frmt_params_numbered =
+		let rec aux pl i =
+			match pl with
+			| [] -> []
+			| a::b -> i::(aux b (i + 1))
+		in
+		aux frmt_params 0
+	in
+	let aux i =
+		get_mask_decl_for_format_param inst i
+	in
+		List.map aux frmt_params_numbered
 
 
 (* returns a list of format param with their indexes (indexes start at 0, couples (param, index) returned)
