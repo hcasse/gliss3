@@ -107,6 +107,14 @@ void gliss_delete_decoder(gliss_decoder_t *decode)
     free(decode);
 }
 
+
+/** used only if several iss defined, does nothing here
+*/
+void gliss_set_cond_state(gliss_decoder_t *decoder, gliss_state_t *state)
+{
+}
+
+
 /* Fonctions Principales */
 /** @brief Return a trace of instructions given an address.
  *  The function loads up an entire trace of instructions from a given address
