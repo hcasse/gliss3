@@ -377,7 +377,7 @@ let make_env info maker =
 
 	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
 	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction maker f dict) () true)) ::
-	("profiled_instructions", Templater.COLL ( fun f dict ->
+	("profiled_instructions", Templater.COLL (fun f dict -> 
 	  let _ = Iter.iter_ext (get_ninstruction maker f dict (!profiled_switch_size)) 0 true in () )) ::
 	("instruction_sets", Templater.COLL (fun f dict -> List.iter (get_instruction_set maker f dict) !Iter.multi_set )) ::
 	("registers", Templater.COLL (fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict) Irg.syms)) ::

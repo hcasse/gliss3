@@ -78,6 +78,7 @@ let paths = [
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
 let sim                  = ref false
+let decode_arg           = ref false
 let gen_with_trace       = ref false
 let memory               = ref "fast_mem"
 let size                 = ref 0
@@ -88,6 +89,7 @@ let options = [
 	("-s",   Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
 	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
 	("-S",   Arg.Set     sim, "generate the simulator application");
+	("-D",   Arg.Set     decode_arg, "activate complex arguments decoding");
 	("-gen-with-trace", Arg.Set gen_with_trace, 
         "Generate simulator with decoding of dynamic traces of instructions (faster). module decode32_dtrace must be use with this option" );
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
@@ -132,14 +134,20 @@ let find_first_bit mask =
   in
     aux 0 mask
 
+
 (* thrown when not succeeding to find the smallest C type uintN_t for a given size *)
 exception BadCSize
+
+
+(* will contain the result of decode_arg.decode_parameters so that
+ * it is done once for all params of one spec *)
+let inst_decode_arg = ref []
+
 
 (** Build a template environment.
 	@param info		Information for generation.
 	@return			Default template environement. *)
 let make_env info =
-
 	let min_size =
 		Iter.iter
 			(fun min inst ->
@@ -207,8 +215,7 @@ let make_env info =
 		in
 			aux false mask
 	in
-	let max_op_nb = Iter.get_params_max_nb ()
-	in
+	let max_op_nb = Iter.get_params_max_nb () in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 	let decoder inst idx sfx size out =
@@ -239,13 +246,61 @@ let make_env info =
 				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) (Bitmask.to_string string_mask);
 				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Bitmask.length string_mask))
 	in
-
+	let output_decoder_complex inst idx out =
+		let get_expr_from_iter_value v  =
+			match v with
+			| Iter.EXPR(e) -> e
+			| _ -> Irg.NONE
+		in
+		let image_attr = get_expr_from_iter_value (Iter.get_attr inst "image") in
+		let rec get_frmt_params e =
+			match e with
+			| Irg.FORMAT(_, params) -> params
+			| Irg.ELINE(_, _, e) -> get_frmt_params e
+			| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+		in
+		let frmt_params = get_frmt_params image_attr in
+		let num_frmt_params = List.length frmt_params in
+		let spec_params = Iter.get_params inst in
+		let spec_params_name = List.map fst spec_params in
+		let get_nth_expr n = snd (List.nth !inst_decode_arg n) in
+		let output_expr e =
+			let info = Toc.info () in
+			let o = info.Toc.out in
+			info.Toc.out <- out;
+			Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP e)) false;
+			info.Toc.out <- o
+		in
+		if !inst_decode_arg == [] then
+			let rec aux n =
+				if n < num_frmt_params then
+					(Irg.REF (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
+				else
+					[]
+			in
+			let expr_frmt_params = aux 0 in
+			(* storage empty, call decode_parameters for the current spec *)
+			inst_decode_arg := Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params;
+			output_expr (get_nth_expr idx)
+		else
+			(output_expr (get_nth_expr idx);
+			if idx == (num_frmt_params - 1) then
+				(* we read the last param for this spec, we do not need the spec's data anymore *)
+				inst_decode_arg := [])
+	in
 	let add_mask_32_to_param inst idx _ _ dict =
 		let isize = find_iset_size_of_inst inst in
 		let is_risc = isize <> 0 in
 		let is_multi = (List.length instr_sets) > 1 in
 		("decoder", Templater.TEXT (if is_risc then (decoder inst idx is_multi isize) else (decoder_CISC inst idx is_multi))) ::
-		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) :: dict in
+		("decoder_complex", Templater.TEXT (fun out ->
+			if not !decode_arg then
+				raise (Sys_error "template $(decoder_complex) should be used only if complex argument decoding is activated (option -D)")
+			else
+				output_decoder_complex inst idx out)) ::
+		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) ::
+		("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::
+		dict in
 	let add_size_to_inst inst dict =
 		let iset_size = find_iset_size_of_inst inst in
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_instruction_length inst))) ::
@@ -298,6 +353,8 @@ let make_env info =
 
 	("modules", Templater.COLL (fun f dict -> List.iter (get_module f dict) !modules)) ::
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
+
+	("is_complex_decode", Templater.BOOL (fun _ -> !decode_arg)) ::
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
 (* create a iss coll were these attr will have meaning *)
@@ -461,6 +518,23 @@ let _ =
 			let dict = List.fold_left
 				(fun d (n, v) -> App.add_switch n v d)
 				dict !switches in
+
+
+			let bitf n b1 b2 =
+				Irg.BITFIELD(
+					Irg.CARD(b1 - b2 +1),
+					Irg.REF(n),
+					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b1)),
+					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b2))
+				) in
+			let ll = Decode_arg.decode_parameters
+				["a"]
+				[bitf "a" 7 4; bitf "a" 3 2; bitf "a" 1 0 ]
+				(*[Irg.EINLINE "__EXTRACT_32(0x0F000000, 24, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x30000, 16, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x300, 8, code_inst->u32);"] in*)
+				[Irg.EINLINE "var_1"; Irg.EINLINE "var_2";Irg.EINLINE "var_3"] in
+			List.iter (fun x -> print_string "dec_arg, (\n"; print_string (fst x); print_string ", \n"; Irg.print_expr (snd x); print_string ")\n") ll;
+
+
 
 			(* include generation *)
 

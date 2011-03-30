@@ -17,6 +17,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+
+
+
+
+
 let asis str chan = output_string chan str
 
 
@@ -54,7 +59,13 @@ let mask n = Bitmask.mask_fill n
 	@param n	Upper mask bound.
 	@param m	Lower mask bound.
 	@return		Built mask. *)
-let mask_range n m = Bitmask.mask_range n m
+let mask_range n m = 
+(*!!DEBUG!!*)
+let r =
+Bitmask.mask_range n m
+in
+Printf.printf "mask_range %d %d = %s\n" n m (Bitmask.to_string r);
+r 
 
 
 (** Get the mask of bits enclosing the given expression result.
@@ -82,6 +93,7 @@ let rec or_masks l m =
 	@return		list of triplets (operation parameter, maskn reverse expression).
 	@throw		*)
 let rec scan_decode_argument e m y =
+print_string "scan_decode_argument, e=";Irg.print_expr e; print_string (", m="^(Bitmask.to_string m)); print_string ", y=";Irg.print_expr y;print_string "\n";
 	match e with
 
 	| Irg.NONE -> failwith "scan_decode_argument"
@@ -109,10 +121,11 @@ let rec scan_decode_argument e m y =
 			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
 		let lc =
 			try Sem.to_int32 (Sem.eval_const l)
-			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
+			with Sem.SemError _ -> raise (Toc.PreError (asis "lower bitfield bound must be constant")) in
 		scan_decode_argument
 			b
-			(Bitmask.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))
+			(Bitmask.reverse (Bitmask.shift_left (Bitmask.reverse m) (Int32.to_int lc)))
+			(*(Bitmask.logand m (mask_range (Int32.to_int uc) (Int32.to_int lc)))*)
 			(shl (and_ y (cst (mask32 (range32 uc lc)))) (cst lc))
 
 	| Irg.BINOP (t, Irg.ADD, e1, e2) ->
