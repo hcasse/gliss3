@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.13 2009/09/15 07:50:48 casse Exp $
 include ../Makefile.head
 
-OCAML_FLAGS=-I ../irg -I ../optirg -annot
+OCAML_FLAGS=-I ../irg -I ../optirg
 ifndef NDEBUG
 OCAML_FLAGS+=-g
 OCAML_LDFLAGS+=-g

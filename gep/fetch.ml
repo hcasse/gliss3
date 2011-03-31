@@ -57,7 +57,9 @@ let rec spec_list_mask sp_list =
 	match sl with
 	| [] -> Bitmask.void_mask
 	| [a] -> Bitmask.get_mask a
-	| h::t -> Bitmask.logand (Bitmask.get_mask h) (aux t)
+	| h::t ->
+		let (m1, m2) = Bitmask.set_same_length (Bitmask.get_mask h) (aux t) false in
+		Bitmask.logand m1 m2
 	in
 	aux sp_list
 

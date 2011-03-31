@@ -51,6 +51,7 @@ the generation templates
 the generation templates
   * ''-q'' -- quiet mode, does not display anything except errors
   * ''-S'' -- generate also the default ISS
+  * ''-D'' -- activate complex arguments decoding, allows to deal with "complex" arguments in a instruction's image (like a<2..4>, a<<2, a+2, etc)
   * ''-s'' //SIZE// -- request image size check against the given size
   * ''-v'' -- display verbose information about the generation
   * ''-gen-with-trace'' -- Generate simulator with decoding of dynamic traces of instructions (faster). module decode32_dtrace must be use with this option

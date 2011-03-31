@@ -520,7 +520,7 @@ let _ =
 				dict !switches in
 
 
-			let bitf n b1 b2 =
+			(*let bitf n b1 b2 =
 				Irg.BITFIELD(
 					Irg.CARD(b1 - b2 +1),
 					Irg.REF(n),
@@ -532,7 +532,7 @@ let _ =
 				[bitf "a" 7 4; bitf "a" 3 2; bitf "a" 1 0 ]
 				(*[Irg.EINLINE "__EXTRACT_32(0x0F000000, 24, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x30000, 16, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x300, 8, code_inst->u32);"] in*)
 				[Irg.EINLINE "var_1"; Irg.EINLINE "var_2";Irg.EINLINE "var_3"] in
-			List.iter (fun x -> print_string "dec_arg, (\n"; print_string (fst x); print_string ", \n"; Irg.print_expr (snd x); print_string ")\n") ll;
+			List.iter (fun x -> print_string "dec_arg, (\n"; print_string (fst x); print_string ", \n"; Irg.print_expr (snd x); print_string ")\n") ll;*)
 
 
 

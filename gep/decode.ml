@@ -374,12 +374,6 @@ let get_param_format_arg_list sp n =
  * ie, if it only occurs once in the image and only as a ref (no complex expr)
  *)
 let is_complex_param sp n =
-	let get_expr_from_iter_value v  =
-		match v with
-		| Iter.EXPR(e) -> e
-		| _ -> Irg.NONE
-	in
-	let image_attr = get_expr_from_iter_value (Iter.get_attr sp "image") in
 	let rec get_frmt_params e =
 		match e with
 		| Irg.FORMAT(_, params) -> params
