@@ -36,6 +36,7 @@ let mask32 n =
 let add e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.ADD, e1, e2)
 let sub e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.SUB, e1, e2)
 let cst i32 = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST i32)
+let cst64 i64 = Irg.CONST (Irg.CARD(64), Irg.CARD_CONST_64 i64)
 let csta i = Irg.CONST (Irg.CARD(32), i)
 let csti i = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int i))
 let shl e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.LSHIFT, e1, e2)
@@ -242,7 +243,7 @@ let decode_parameters params args vals =
 			Printf.printf "add  %s: %s\n" p' (Bitmask.to_string m');
 			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (and_mask m m'));
 			if Bitmask.is_null (and_mask m m')
-			then (p, or_mask m m', or_ e (and_ e' (cst (Bitmask.to_int64 m'))))
+			then (p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m'))))
 			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
 		end in
 	List.map
