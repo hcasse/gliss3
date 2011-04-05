@@ -71,6 +71,7 @@ let _ =
 	test ["x"] [add ref_x (csti 1)];
 	test ["x"] [shl ref_x (csti 4); getb ref_x 15 12];
 	test ["x"] [shl (add ref_x (csti 1)) (csti 4); getb ref_x 15 12];
+	test ["x"] [shl ref_x (csti 8); shr ref_x (csti 8)];
 	test ["x"] [getb ref_x 15 8; getb ref_x 7 0];
 	test ["x"] [add (getb ref_x 15 8) (csti 3); getb ref_x 7 0];
 	test ["x"; "y"] [ref_x; ref_y];
@@ -78,4 +79,5 @@ let _ =
 	test ["x"; "z"; "y"] [ref_x; ref_z; ref_y];
 	test ["x"; "y"] [add ref_x (csti 2); sub ref_y (csti 3)];
 	test ["x"; "y"] [concat ref_x ref_y];
-	test ["x"; "y"] [concat (getb ref_x 15 8) ref_y; getb ref_x 7 0]
+	test ["x"; "z"] [concat ref_x ref_z];
+	test ["x"; "y"] [concat (getb ref_x 15 10) ref_y; getb ref_x 9 0]

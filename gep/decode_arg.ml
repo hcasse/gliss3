@@ -28,8 +28,12 @@ let asis str chan = output_string chan str
 (* length of range interval *)
 let range32 u l =
 	Int32.add Int32.one (Int32.sub u l)
+let range64 u l =
+	Int64.add Int64.one (Int64.sub u l)
 let mask32 n =
 	Int32.sub (Int32.shift_left Int32.one (Int32.to_int n)) Int32.one
+let mask64 n =
+	Int64.sub (Int64.shift_left Int64.one (Int64.to_int n)) Int64.one
 
 
 
@@ -61,12 +65,12 @@ let mask n = Bitmask.mask_fill n
 	@param m	Lower mask bound.
 	@return		Built mask. *)
 let mask_range n m = 
-(*!!DEBUG!!*)
-let r =
+(* !!DEBUG!! *)
+(*let r =*)
 Bitmask.mask_range n m
-in
+(*in
 Printf.printf "mask_range %d %d = %s\n" n m (Bitmask.to_string r);
-r 
+r *)
 
 
 (** Get the mask of bits enclosing the given expression result.
@@ -82,10 +86,12 @@ let mask_of_expr e =
  *)
 let and_mask m1 m2 =
 	let (mm1, mm2) = Bitmask.set_same_length m1 m2 true in
-	(*Printf.printf "and_mask, m1=%s(%d), m2=%s(%d)\nmm1=%s(%d), mm2=%s(%d)\n"
+	(*let res = *)Bitmask.logand mm1 mm2 (*in
+	Printf.printf "******\nand_mask, m1=%s(%d), m2=%s(%d)\nmm1=%s(%d), mm2=%s(%d), res = %s(%d)\n"
 		(Bitmask.to_string m1) (Bitmask.length m1) (Bitmask.to_string m2) (Bitmask.length m2)
-		(Bitmask.to_string mm1) (Bitmask.length mm1) (Bitmask.to_string mm2) (Bitmask.length mm2);*)
-	Bitmask.logand mm1 mm2
+		(Bitmask.to_string mm1) (Bitmask.length mm1) (Bitmask.to_string mm2) (Bitmask.length mm2)
+		(Bitmask.to_string res) (Bitmask.length res);
+	res*)
 
 
 (**
@@ -117,7 +123,7 @@ let rec or_masks l m =
 	@return		list of triplets (operation parameter, maskn reverse expression).
 	@throw		*)
 let rec scan_decode_argument e m y =
-print_string "scan_decode_argument, e=";Irg.print_expr e; Printf.printf ", m=%s(%d), y=" (Bitmask.to_string m) (Bitmask.length m); Irg.print_expr y;print_string "\n";
+(*print_string "scan_decode_argument, e=";Irg.print_expr e; Printf.printf ", m=%s(%d), y=" (Bitmask.to_string m) (Bitmask.length m); Irg.print_expr y;print_string "\n";*)
 	match e with
 
 	| Irg.NONE -> failwith "scan_decode_argument"
@@ -174,25 +180,34 @@ print_string "scan_decode_argument, e=";Irg.print_expr e; Printf.printf ", m=%s(
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x + k' or 'k + x' are supported in image")))
 
-	| Irg.BINOP (t, Irg.LSHIFT, e1, e2) ->
-		(try
-			let k = Sem.to_int32 (Sem.eval_const e2) in
-				scan_decode_argument e1 (Bitmask.shift_right_logical m (Int32.to_int k)) (shr y (cst k))
-			with Sem.SemError _ ->
-				raise (Toc.PreError (asis "only forms as 'x << k' are supported in image")))
-
 	| Irg.BINOP (t, Irg.RSHIFT, e1, e2) ->
 		(try
 			let k = Sem.to_int32 (Sem.eval_const e2) in
-				scan_decode_argument e1 (Bitmask.shift_left m (Int32.to_int k)) (shl y (cst k))
+				scan_decode_argument e1
+					(Bitmask.sub (Bitmask.shift_left m (Int32.to_int k)) (Int32.to_int k) (Bitmask.length m))
+					(shl y (cst k))
+			with Sem.SemError _ ->
+				raise (Toc.PreError (asis "only forms as 'x >> k' are supported in image")))
+
+	| Irg.BINOP (t, Irg.LSHIFT, e1, e2) ->
+		(try
+			let k = Sem.to_int32 (Sem.eval_const e2) in
+				scan_decode_argument e1
+					(Bitmask.shift_right_logical m (Int32.to_int k))
+					(shr y (cst k))
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x << k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
 		let s1 = Sem.get_length_from_expr e1 in
 		let s2 = Sem.get_length_from_expr e2 in
-		(scan_decode_argument e1 (and_mask m (Bitmask.shift_left (mask s1) s2)) (shr y (csti s2))) @
-		(scan_decode_argument e2 (and_mask m (mask s2)) (and_ y (cst (mask32 (Int32.of_int s2)))))
+		(*Printf.printf "::, s1=%d, s2=%d\n" s1 s2;
+		(scan_decode_argument e1
+			(and_mask m (Bitmask.shift_left (mask s1) s2))
+			(shr (and_ y (cst64 (Int64.shift_left (mask64 (Int64.of_int s1)) s2))) (csti s2))) @
+		(scan_decode_argument e2 (and_mask m (mask s2)) (and_ y (cst64 (mask64 (Int64.of_int s2)))))*)
+		(scan_decode_argument e1 (and_mask m (mask s1)) (shr (and_ y (cst64 (Int64.shift_left (mask64 (Int64.of_int s1)) s2))) (csti s2)))
+		@ (scan_decode_argument e2 (and_mask m (mask s2)) (and_ y (cst64 (mask64 (Int64.of_int s2)))))
 
 	| Irg.BINOP (t, Irg.BIN_AND, e1, e2) ->
 		(try
@@ -233,26 +248,43 @@ let scan_decode_arguments args vals =
 	@return			Decoding pairs. *)
 let decode_parameters params args vals =
 	let t = scan_decode_arguments args vals in
-	print_string "scan_decode, result:\n";
+	(*print_string "scan_decode, result:\n";
 	List.iter (fun (x, y, z) -> Printf.printf "[%s, %s, " x (Bitmask.to_string y); Irg.print_expr z; print_string "]\n") t;
-	print_char '\n';
+	print_char '\n';*)
 	let rec process (p, m, e) (p', m', e') =
-		if p <> p' then (p, m, e) else
+		if p <> p' then
+			( (*Printf.printf "diff, p %s: %s\n" p (Bitmask.to_string m);
+			Printf.printf "diff, p'  %s: %s\n" p' (Bitmask.to_string m');*)
+			(p, m, e) )
+		else
 		begin
-			Printf.printf "base %s: %s\n" p (Bitmask.to_string m);
+			(*Printf.printf "base %s: %s\n" p (Bitmask.to_string m);
 			Printf.printf "add  %s: %s\n" p' (Bitmask.to_string m');
-			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (and_mask m m'));
+			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (and_mask m m'));*)
 			if Bitmask.is_null (and_mask m m')
-			then (p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m'))))
+			(* !!WARNING!! the conversion to Int64 implies we cannot
+			 * decode a CISC instr with the distance between the 1st bit of the 1st
+			 * param and the last bit of the instr is > 64 bits *)
+			then
+				((*let mm' = cst64 (mask64 (Int64.of_int (Bitmask.bit_count m'))) in
+				print_string "old expr = "; Irg.print_expr e; print_char '\n';
+				print_string "new_expr = "; Irg.print_expr (or_ e (and_ e' mm'));
+				print_string "new_expr = "; Irg.print_expr (or_ e (and_ e' (cst64 (Bitmask.to_int64 m'))));
+				print_char '\n';
+				(p, or_mask m m', or_ e (and_ e' mm')) )*)
+				(p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m')))) )
 			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
 		end in
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
+			(*Printf.printf "map pme = %s: %s\n" p (Bitmask.to_string m);*)
+			let lm = Bitmask.bit_count m in
+			let lm' = Sem.get_type_length (Sem.get_type_ident p) in
 			let m' = mask (Sem.get_type_length (Sem.get_type_ident p)) in
 			let (mm, mm') = Bitmask.set_same_length m m' true in
-			Printf.printf "m =%s\nm'=%s\n" (Bitmask.to_string mm) (Bitmask.to_string mm');
-			if Bitmask.is_equals mm mm' then  (p, e)
+			(*Printf.printf "m =%s\nm'=%s\n" (Bitmask.to_string mm) (Bitmask.to_string mm');*)
+			if (*Bitmask.is_equals mm mm'*) lm == lm' then (p, e)
 			else
 				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
 					(Bitmask.to_string mm') p (Bitmask.to_string mm))))

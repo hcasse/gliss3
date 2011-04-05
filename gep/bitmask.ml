@@ -166,6 +166,16 @@ let reverse m =
 	BITMASK(string_rev v)
 
 
+(** returns a submask of m from position pos and with length bits *)
+let sub m pos length =
+	let v = get_intern_val m in
+	try
+		(*Printf.printf "sub, pos=%d, length=%d\n" pos length;*)
+		BITMASK(String.sub v pos length)
+	with
+	| Invalid_argument m -> failwith ("shouldn't happen (bitmask.ml::sub): " ^ m)
+
+
 (**
  * extends the shorter mask with 0s on the side indicated by
  * left_or_right, left (true) or right (false),
@@ -187,9 +197,10 @@ let set_same_length m1 m2 left_or_right =
 		(m1, BITMASK(if left_or_right then v_ext ^ v2 else v2 ^ v_ext))
 
 
-(** logical AND between 2 masks,
-    length will be the min between m1 and m2 lengths
-*)
+(**
+ * logical AND between 2 masks,
+ * length will be the min between m1 and m2 lengths
+ *)
 let logand m1 m2 =
 	let v1 = get_intern_val m1 in
 	let v2 = get_intern_val m2 in
@@ -234,6 +245,7 @@ let shift_left m sh =
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_left)"
 	else
+		(*Printf.printf "<<<<shift_left, m=%s(%d), sh=%d\n" s (String.length s) sh;*)
 		BITMASK(s ^ (String.make sh '0'))
 
 
@@ -244,7 +256,10 @@ let shift_right_logical m sh =
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_right_logical)"
 	else
-		BITMASK(String.sub s 0 (l - sh))
+		(if sh >= l then
+			void_mask
+		else
+			BITMASK(String.sub s 0 (l - sh)))
 
 
 (** arithmetic right shift, sign is extended,
@@ -252,11 +267,15 @@ let shift_right_logical m sh =
  extend sign over sh bits on the left *)
 let shift_right m sh =
 	let s = get_intern_val m in
-	let s_ext = (String.make sh s.[0]) ^ s in
+	let l = String.length s in
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_right)"
 	else
-		shift_right_logical (BITMASK(s_ext)) sh
+		(if l == 0 or sh >= l then
+			void_mask
+		else
+			(let s_ext = String.make sh s.[0] in
+			BITMASK(s_ext ^ (String.sub s 0 (l - sh)))))
 
 
 (** returns a new mask from m, the bits returned are those from m indicated by the bits set in mask,
