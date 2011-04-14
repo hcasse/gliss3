@@ -232,23 +232,43 @@ let get_decode_for_format_param inst idx =
 		in
 		aux 0 mask
 	in
+	let rec get_frmt_params e =
+		match e with
+		| Irg.FORMAT(_, params) -> params
+		| Irg.ELINE(_, _, e) -> get_frmt_params e
+		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+	in
+	let get_expr_from_iter_value v  =
+		match v with
+		| Iter.EXPR(e) -> e
+		| _ -> Irg.NONE
+	in
+	let image_attr =
+		get_expr_from_iter_value (Iter.get_attr inst "image")
+	in
+	let frmt_params = get_frmt_params image_attr in
+	let nth_frmt_param i = List.nth frmt_params i in
 	let decoder inst idx sfx size =
-		let string_mask = get_mask_for_param inst idx in
+		let string_mask = get_mask_for_format_param (get_format_string inst) idx in
 		let cst_suffix = Bitmask.c_const_suffix string_mask in
 		let mask = Bitmask.to_int64 string_mask in
 		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
 		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
 		let extract _ = Printf.sprintf "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
 		let exts    n = Printf.sprintf "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
-		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
+		(* !!BUG!! faut le type du param de format lu, pas de spec *)
+		(*match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with*)
+		match Sem.get_type_expr (nth_frmt_param idx) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
 	let decoder_CISC inst idx sfx =
 		let suffix = if sfx then "_CISC" else "" in
 		let suffix_code = if sfx then "->mask" else "" in
 		let extract _ = Printf.sprintf "__EXTRACT%s(&mask%d, code_inst%s)" suffix idx suffix_code in
-		let exts n = Printf.sprintf "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
-		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
+		let exts    n = Printf.sprintf "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
+		(* !!BUG!! faut le type du param de format lu, pas de spec *)
+		(* match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with *)
+		match Sem.get_type_expr (nth_frmt_param idx) with
 		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 		| _ -> extract () in
 	if inst_info.is_risc then

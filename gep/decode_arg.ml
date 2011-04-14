@@ -236,6 +236,10 @@ let rec scan_decode_argument e m y =
 	@param vals		Value of the image arguments.
 	@return			Triplet list of (parameter, mask, expression). *)
 let scan_decode_arguments args vals =
+(*print_string "scan_decode_args";
+print_string ":::args=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) args; print_string "]\n";
+print_string ":::vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) vals; print_string "]\n";
+*)
 	List.fold_left2
 		(fun r a v -> r @ (scan_decode_argument a (mask_of_expr a) v))
 		[] args vals
@@ -247,9 +251,18 @@ let scan_decode_arguments args vals =
 	@param vals		Expression to access the actual argument value.
 	@return			Decoding pairs. *)
 let decode_parameters params args vals =
+(*	print_string "====decode_parameters\n";
+	print_string "====params=["; List.iter (fun x -> print_string (x ^ ", "); ) params; print_string "]\n";
+	print_string "====args=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) args; print_string "]\n";
+	print_string "====vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) vals; print_string "]\n";
+*)
+
 	let t = scan_decode_arguments args vals in
-	(*print_string "scan_decode, result:\n";
-	List.iter (fun (x, y, z) -> Printf.printf "[%s, %s, " x (Bitmask.to_string y); Irg.print_expr z; print_string "]\n") t;
+(*	print_string "scan_decode, result:\n";
+	List.iter
+		(fun (x, y, z) -> Printf.printf "[%s, %s, " x (Bitmask.to_string y); Irg.print_expr z;
+		print_string ":["; Irg.print_type (Irg.TYPE_EXPR(Sem.get_type_expr z)); print_string "]]\n")
+		t;
 	print_char '\n';*)
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then
@@ -272,9 +285,11 @@ let decode_parameters params args vals =
 				print_string "new_expr = "; Irg.print_expr (or_ e (and_ e' (cst64 (Bitmask.to_int64 m'))));
 				print_char '\n';
 				(p, or_mask m m', or_ e (and_ e' mm')) )*)
-				(p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m')))) )
+				(*(p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m')))) )*)
+				(p, or_mask m m', or_ e e') )
 			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
 		end in
+let res =
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
@@ -289,3 +304,6 @@ let decode_parameters params args vals =
 				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
 					(Bitmask.to_string mm') p (Bitmask.to_string mm))))
 		params
+in
+(*print_string "====res=["; List.iter (fun (x, y) -> Printf.printf "( %s, " x ; Irg.print_expr y; print_string " )\n") res; print_string "====]\n";*)
+		res

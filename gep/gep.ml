@@ -118,6 +118,7 @@ let get_module f dict m =
 		dict
 	)
 
+
 let get_source f dict source =
 	f (("path", App.out (fun _ -> source)) :: dict)
 
@@ -140,8 +141,9 @@ exception BadCSize
 
 
 (* will contain the result of decode_arg.decode_parameters so that
- * it is done once for all params of one spec *)
-let inst_decode_arg = ref []
+ * it is done once for all params of one spec,
+ * the current spec is also given to know which instr we have decoded for *)
+let inst_decode_arg = ref (Irg.UNDEF, [])
 
 
 (** Build a template environment.
@@ -263,7 +265,7 @@ let make_env info =
 		let num_frmt_params = List.length frmt_params in
 		let spec_params = Iter.get_params inst in
 		let spec_params_name = List.map fst spec_params in
-		let get_nth_expr n = snd (List.nth !inst_decode_arg n) in
+		let get_nth_expr n = snd (List.nth (snd !inst_decode_arg) n) in
 		let output_expr e =
 			let info = Toc.info () in
 			let o = info.Toc.out in
@@ -271,22 +273,31 @@ let make_env info =
 			Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP e)) false;
 			info.Toc.out <- o
 		in
-		if !inst_decode_arg == [] then
-			let rec aux n =
+		let rec get_str e =
+			match e with
+			| Irg.FORMAT(str, _) -> str
+			| Irg.CONST(t_e, c) ->
+				if t_e=Irg.STRING then
+					match c with
+					Irg.STRING_CONST(str, false, _) ->
+						str
+					| _ -> ""
+				else
+					""
+			| Irg.ELINE(_, _, e) -> get_str e
+			| _ -> ""
+		in
+		(* decode every format param once in one pass for each instr *)
+		if (fst !inst_decode_arg) <> inst then
+			(let rec aux n =
 				if n < num_frmt_params then
-					(Irg.REF (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
+					(Irg.EINLINE (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
 				else
 					[]
 			in
 			let expr_frmt_params = aux 0 in
-			(* storage empty, call decode_parameters for the current spec *)
-			inst_decode_arg := Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params;
-			output_expr (get_nth_expr idx)
-		else
-			(output_expr (get_nth_expr idx);
-			if idx == (num_frmt_params - 1) then
-				(* we read the last param for this spec, we do not need the spec's data anymore *)
-				inst_decode_arg := [])
+			inst_decode_arg := (inst, Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params));
+		output_expr (get_nth_expr idx)
 	in
 	let add_mask_32_to_param inst idx _ _ dict =
 		let isize = find_iset_size_of_inst inst in
@@ -518,23 +529,6 @@ let _ =
 			let dict = List.fold_left
 				(fun d (n, v) -> App.add_switch n v d)
 				dict !switches in
-
-
-			(*let bitf n b1 b2 =
-				Irg.BITFIELD(
-					Irg.CARD(b1 - b2 +1),
-					Irg.REF(n),
-					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b1)),
-					Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b2))
-				) in
-			let ll = Decode_arg.decode_parameters
-				["a"]
-				[bitf "a" 7 4; bitf "a" 3 2; bitf "a" 1 0 ]
-				(*[Irg.EINLINE "__EXTRACT_32(0x0F000000, 24, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x30000, 16, code_inst->u32);"; Irg.EINLINE "__EXTRACT_32(0x300, 8, code_inst->u32);"] in*)
-				[Irg.EINLINE "var_1"; Irg.EINLINE "var_2";Irg.EINLINE "var_3"] in
-			List.iter (fun x -> print_string "dec_arg, (\n"; print_string (fst x); print_string ", \n"; Irg.print_expr (snd x); print_string ")\n") ll;*)
-
-
 
 			(* include generation *)
 
