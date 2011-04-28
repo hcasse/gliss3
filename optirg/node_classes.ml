@@ -20,6 +20,7 @@ type attr_desc =
 	| ATTR_EXPR_d of string
 	| ATTR_STAT_d of string
 	| ATTR_USES_d
+	| ATTR_LOC of string
 
 (**
 	Give attribute description from attribut
@@ -29,7 +30,7 @@ let get_attr_desc (a:Irg.attr) :attr_desc =
 	| Irg.ATTR_EXPR(s,_) -> ATTR_EXPR_d(s)
 	| Irg.ATTR_STAT(s,_) -> ATTR_STAT_d(s)
 	| Irg.ATTR_USES -> ATTR_USES_d
-
+	| Irg.ATTR_LOC (n, _) -> ATTR_LOC n
 
 
 (** {2 Nodes classes and partitions in classes} *)

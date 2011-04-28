@@ -157,7 +157,7 @@ let union_add (elem:'a)  (set:'a list)  :'a list =
 	Get the attribute's name 
 *)
 let get_attr_name = function 
-	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) -> st
+	| 	ATTR_EXPR(st,_) | 	ATTR_STAT(st,_) | ATTR_LOC(st,_) -> st
 	| 	ATTR_USES -> "none"
 
 (**
@@ -308,6 +308,7 @@ let attr_list_from_and_node
 					)
 				)
 			|Irg.ATTR_USES -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
+			|Irg.ATTR_LOC _ -> failwith "optirg : attr_list_from_and_node : ATTR_LOC not implemented yet."
 			) 
 			attr_list
 	| _ -> failwith "optirg : attr_list_from_and_node : We must have AND Node here. "

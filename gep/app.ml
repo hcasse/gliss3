@@ -117,7 +117,7 @@ let replace_gliss info in_file out_file =
 let rec contains_alias attrs =
 	match attrs with
 	  [] -> false
-	| (Irg.ALIAS _)::_ -> true
+	| (Irg.ATTR_LOC ("alias", _))::_ -> true
 	| _::tl -> contains_alias tl
 
 
@@ -287,7 +287,7 @@ let get_instruction_set maker f dict i_set =
 let rec is_pc attrs =
 	match attrs with
 	| [] -> false
-	| Irg.NMP_ATTR ("pc", _) :: _ -> true
+	| Irg.ATTR_EXPR ("pc", _) :: _ -> true
 	| _ :: tl -> is_pc tl
 
 let is_float t =
@@ -298,7 +298,7 @@ let is_float t =
 let rec reg_format id size attrs =
 	match attrs with
 	| [] -> if size > 1 then id ^ "%d" else id
-	| Irg.NMP_ATTR ("fmt", [Irg.ATTR_VAL (Irg.STRING_CONST (f, _, _))]) :: _ -> f
+	| Irg.ATTR_EXPR ("fmt", Irg.CONST (_, Irg.STRING_CONST (f, _, _))) :: _ -> f
 	| _ :: tl -> reg_format id size tl
 
 let get_register id f dict _ sym =

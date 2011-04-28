@@ -7,13 +7,7 @@ This section describes the extension of @(GLISS) to the NMP language.
 In @(GLISS), some properties may be linked to state declarations
 (registers, memories, etc) thanks to attributes. This properties are
 used to help the generation of the simulator or to express specific information.
-
-An attribute is declared with the following syntax:
-<code>
-StateAttribute ::= "__attr" "(" Attr ")"
-Attr ::= IDENTIFIER | IDENTIFIER "(" AttrArg* ")"
-AttrArg ::= Attr | Constant
-</code>
+Such an attribute is declared as attributes of ''op'' and ''mode'' specifications.
 
 Any application using the IRG implementation of @(GLISS) can have
 access to the state attribute definitions and this attributes may be used for any goal.
@@ -21,8 +15,8 @@ access to the state attribute definitions and this attributes may be used for an
 In @(GLISS) V2, the following attributes are used:
 
 ^ Attribute ^ Description ^
-| ''pc'' | designs the program counter (address of executed instruction) |
-[ ''fmt''(STRING) | defines a string format to display the register name |
+| ''pc'' = 1 | designs the program counter (address of executed instruction) |
+[ ''fmt'' = STRING) | defines a string format to display the register name |
 |  | (if register is multiple, the string must contains a ''%d'') |
 
 

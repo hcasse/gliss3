@@ -120,14 +120,14 @@ type attr_arg =
 
 
 (** A memory or register attribute. *)
-type mem_attr =
+(*type mem_attr =
 	| VOLATILE of int					(** volatile attribute *)
 	| PORTS of int * int				(** ports attribute *)
 	| ALIAS of location					(** alias attribute *)
 	| INIT of const						(** init attribute *)
 	| USES (*of uses*)					(** use attribute (unsupported) *)
 	| NMP_ATTR of string * attr_arg list	(** generic memory attribute *)
-
+*)
 
 (** A statement in an action. *)
 type stat =
@@ -151,6 +151,7 @@ type attr =
 	  ATTR_EXPR of string * expr
 	| ATTR_STAT of string * stat
 	| ATTR_USES
+	| ATTR_LOC of string * location
 
 (* 2 kinds of canonicals, functions and constants *)
 type canon_type =
@@ -163,8 +164,8 @@ type spec =
 	  UNDEF
 	| LET of string * const (* typed with construction *)
 	| TYPE of string * type_expr
-	| MEM of string * int * type_expr * mem_attr list
-	| REG of string * int * type_expr * mem_attr list
+	| MEM of string * int * type_expr * attr list
+	| REG of string * int * type_expr * attr list
 	| VAR of string * int * type_expr
 	| AND_MODE of string * (string * typ) list * expr * attr list
 	| OR_MODE of string * string list
@@ -202,12 +203,10 @@ let name_of spec =
 	| ENUM_POSS (name, _, _, _) -> name
 	| ATTR(a) ->
 		(match a with
-		ATTR_EXPR(name, _) ->
-			name
-		| ATTR_STAT(name, _) ->
-			name
-		| ATTR_USES ->
-			"<ATTR_USES>")
+		| ATTR_EXPR(name, _) -> name
+		| ATTR_STAT(name, _) -> name
+		| ATTR_USES -> "<ATTR_USES>"
+		| ATTR_LOC(name, _) -> name)
 	| CANON_DEF(name, _, _, _) -> name
 
 
@@ -312,7 +311,7 @@ let add_symbol name sym =
 				[]
 			| a::b ->
 				(match a with
-				ALIAS l ->
+				ATTR_LOC("alias", l) ->
 					(match l with
 					LOC_REF(typ, name, i, l, u) ->
 						if is_array name then
@@ -320,9 +319,9 @@ let add_symbol name sym =
 						else
 							if l=NONE && u=NONE then
 								if b_o then
-									(ALIAS(LOC_REF(typ, name, NONE, i, sub i (sub (const n) (const 1)) (*i-(n-1)*))))::(change_alias_attr b n)
+									(ATTR_LOC("alias", LOC_REF(typ, name, NONE, i, sub i (sub (const n) (const 1)) (*i-(n-1)*))))::(change_alias_attr b n)
 								else
-									(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
+									(ATTR_LOC("alias", LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
 							else
 								a::(change_alias_attr b n)
 					| _ ->
@@ -817,6 +816,44 @@ let rec output_statement out stat =
 let rec print_statement stat= output_statement stdout stat
 
 
+(** Print a type.
+	@param typ	Type to print. *)
+let output_type out typ =
+	match typ with
+	  TYPE_ID id -> output_string out id
+	| TYPE_EXPR te -> output_type_expr out te
+
+(** Print a type.
+	@param typ	Type to print. *)
+let print_type typ =
+	output_type stdout typ
+
+(** Print an attribute.
+	@param attr	Attribute to print. *)
+let output_attr out attr =
+	match attr with
+	| ATTR_EXPR (id, expr) ->
+	  	Printf.fprintf out "\t%s = " id;
+		output_expr out expr;
+		output_char out '\n'
+
+	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
+				  output_statement out stat;
+				  Printf.fprintf out "\t}\n";
+		()
+	| ATTR_USES ->
+		()
+	| ATTR_LOC (id, l) ->
+		Printf.fprintf out "\t%s = " id;
+		output_location out l;
+		output_char out '\n'
+
+
+(** Print an attribute.
+	@param attr	Attribute to print. *)
+let print_attr attr =
+	output_attr stdout attr
+
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
 let output_mem_attr out attr =
@@ -837,19 +874,15 @@ let output_mem_attr out attr =
 		| ATTR_VAL cst -> output_const out cst in
 
 	match attr with
-	  VOLATILE n ->
-		Printf.fprintf out "volatile(%d)" n
-	| PORTS (l, u) ->
-		Printf.fprintf out "ports(%d, %d)" l u
-	| ALIAS l ->
+	| ATTR_EXPR("volatile", CONST(_, CARD_CONST n)) ->
+		Printf.fprintf out "volatile(%d)" (Int32.to_int n)
+	| ATTR_LOC("alias", l) ->
 		output_string out "alias "; output_location out l
-	| INIT v ->
+	| ATTR_EXPR("init", CONST(_, v)) ->
 		output_string out "init = ";
 		output_const out v
-	| USES ->
-		output_string out "uses"
-	| NMP_ATTR (id, args) ->
-		print_call id args
+	| _ ->
+		output_attr out attr
 
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
@@ -865,39 +898,6 @@ let output_mem_attrs out attrs =
 	@param attrs	List of attributes. *)
 let print_mem_attrs attrs =
 	output_mem_attrs stdout attrs
-
-(** Print a type.
-	@param typ	Type to print. *)
-let output_type out typ =
-	match typ with
-	  TYPE_ID id -> output_string out id
-	| TYPE_EXPR te -> output_type_expr out te
-
-(** Print a type.
-	@param typ	Type to print. *)
-let print_type typ =
-	output_type stdout typ
-
-(** Print an attribute.
-	@param attr	Attribute to print. *)
-let output_attr out attr =
-	match attr with
-	  ATTR_EXPR (id, expr) ->
-	  	Printf.fprintf out "\t%s = " id;
-		output_expr out expr;
-		output_char out '\n'
-
-	| ATTR_STAT (id, stat) -> Printf.printf "\t%s = {\n" id ;
-				  output_statement out stat;
-				  Printf.fprintf out "\t}\n";
-		()
-	| ATTR_USES ->
-		()
-
-(** Print an attribute.
-	@param attr	Attribute to print. *)
-let print_attr attr =
-	output_attr stdout attr
 
 (** Print a specification item.
 	@param out	Stream to output to.
