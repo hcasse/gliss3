@@ -26,11 +26,11 @@ let shl e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.LSHIFT, e1, e2)
 let shr e1 e2 = Irg.BINOP (Sem.get_type_expr e1, Irg.RSHIFT, e1, e2)
 let and_ e1 e2 = Irg.BINOP(Sem.get_type_expr e1, Irg.BIN_AND, e1, e2)
 let or_ e1 e2 = Irg.BINOP(Sem.get_type_expr e1, Irg.BIN_OR, e1, e2)
-let getb e1 e2 e3 = Irg.BITFIELD (Sem.get_type_expr e1, e1, e2, e3)
+let getb e1 i2 i3 = Irg.BITFIELD (Irg.CARD(abs (i2 - i3) + 1), e1, csti i2, csti i3)
 let concat e1 e2 = Irg.BINOP(Irg.CARD ((Sem.get_length_from_expr e1) + (Sem.get_length_from_expr e2)), Irg.CONCAT, e1, e2)
 
 let test params args =
-	Printf.printf "argument: ";
+	Printf.printf "################################\nargument: ";
 	List.iter (fun e -> Irg.print_expr e; print_string ", ") args;
 	print_char '\n';
 	let cnt = ref 0 in
@@ -44,29 +44,40 @@ let test params args =
 		r;
 	print_char '\n'
 
-let c32 = Irg.CARD(16)
+let c16 = Irg.CARD(16)
+let c8  = Irg.CARD(8)
+let c32 = Irg.CARD(32)
 let ref_x = Irg.REF "x"
 let ref_y = Irg.REF "y"
+let ref_z = Irg.REF "z"
 let ref_a = Irg.REF "a"
 
-let _ =
-	Irg.dump_type := false;
-	Irg.add_symbol "x" (Irg.PARAM ("x", Irg.TYPE_EXPR c32));
-	Irg.add_symbol "y" (Irg.PARAM ("y", Irg.TYPE_EXPR c32));
-	test ["x"] [ref_x];
-	test ["x"] [add ref_x (csti 1)];
-	test ["x"] [shl ref_x (csti 4); getb ref_x (csti 15) (csti 12)];
-	test ["x"] [shl (add ref_x (csti 1)) (csti 4); getb ref_x (csti 15) (csti 12)];
-	test ["x"] [getb ref_x (csti 15) (csti 8); getb ref_x (csti 7) (csti 0)];
-	test ["x"] [add (getb ref_x (csti 15) (csti 8)) (csti 3); getb ref_x (csti 7) (csti 0)];
-	test ["x"; "y"] [concat ref_x ref_y];
-	test ["x"; "y"] [concat (getb ref_x (csti 15) (csti 8)) ref_y; getb ref_x (csti 7) (csti 0)]
 
 let _ =
 	Irg.add_symbol "a" (Irg.PARAM ("a", Irg.TYPE_EXPR (Irg.CARD(8))));
 	test ["a"] [
-		getb ref_a (csti 7) (csti 4);
-		getb ref_a (csti 3) (csti 2);
-		getb ref_a (csti 1) (csti 0)
+		getb ref_a 7 4;
+		getb ref_a 3 2;
+		getb ref_a 1 0
 	]
 
+
+let _ =
+	Irg.dump_type := false;
+	Irg.add_symbol "x" (Irg.PARAM ("x", Irg.TYPE_EXPR c16));
+	Irg.add_symbol "y" (Irg.PARAM ("y", Irg.TYPE_EXPR c32));
+	Irg.add_symbol "z" (Irg.PARAM ("z", Irg.TYPE_EXPR c8));
+	test ["x"] [ref_x];
+	test ["x"] [add ref_x (csti 1)];
+	test ["x"] [shl ref_x (csti 4); getb ref_x 15 12];
+	test ["x"] [shl (add ref_x (csti 1)) (csti 4); getb ref_x 15 12];
+	test ["x"] [shl ref_x (csti 8); shr ref_x (csti 8)];
+	test ["x"] [getb ref_x 15 8; getb ref_x 7 0];
+	test ["x"] [add (getb ref_x 15 8) (csti 3); getb ref_x 7 0];
+	test ["x"; "y"] [ref_x; ref_y];
+	test ["x"; "z"] [ref_x; ref_z];
+	test ["x"; "z"; "y"] [ref_x; ref_z; ref_y];
+	test ["x"; "y"] [add ref_x (csti 2); sub ref_y (csti 3)];
+	test ["x"; "y"] [concat ref_x ref_y];
+	test ["x"; "z"] [concat ref_x ref_z];
+	test ["x"; "y"] [concat (getb ref_x 15 10) ref_y; getb ref_x 9 0]

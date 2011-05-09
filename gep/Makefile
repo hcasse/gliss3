@@ -23,6 +23,7 @@ GEP_SOURCES = \
 	bitmask.ml \
 	fetch.ml \
 	decode.ml \
+	decode_arg.ml \
 	gep.ml
 gep_LIBS = str unix  ../irg/irg ../optirg/optirg ../gep/libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))

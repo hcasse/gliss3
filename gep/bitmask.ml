@@ -1,8 +1,10 @@
 type bitmask =
+	(* value of the mask as a '0' '1' char only string *)
 	| BITMASK of string
 
 
 let void_mask = BITMASK("")
+
 
 let get_intern_val m =
 	match m with
@@ -10,9 +12,11 @@ let get_intern_val m =
 
 
 
+
 (**************************************************************)
 (*                some iterators on strings                   *)
 (**************************************************************)
+
 
 let string_map f s =
 	let l = String.length s in
@@ -125,6 +129,16 @@ let string_fold_right2 f a s1 s2 =
 	else
 		aux a 0
 
+let string_rev s =
+	let l = String.length s in
+	let res = String.create l in
+	let aux i c =
+		res.[i] <- c;
+		i - 1
+	in
+	ignore (string_fold_left aux (l - 1) s);
+	res
+
 
 
 (***************************************************)
@@ -141,48 +155,74 @@ let bit_count m =
 	string_fold_left aux 0 v
 
 
+(** returns the length in bit of a mask *)
 let length m =
 	String.length (get_intern_val m)
 
 
-(** logical AND between 2 masks,
-    length will be the min between m1 and m2 lengths
-*)
+(** reverse all bits in a mask *)
+let reverse m =
+	let v = get_intern_val m in
+	BITMASK(string_rev v)
+
+
+(** returns a submask of m from position pos and with length bits *)
+let sub m pos length =
+	let v = get_intern_val m in
+	try
+		(*Printf.printf "sub, pos=%d, length=%d\n" pos length;*)
+		BITMASK(String.sub v pos length)
+	with
+	| Invalid_argument m -> failwith ("shouldn't happen (bitmask.ml::sub): " ^ m)
+
+
+(**
+ * extends the shorter mask with 0s on the side indicated by
+ * left_or_right, left (true) or right (false),
+ * returns the 2 resulting mask (with only one extended) in a couple
+ *)
+let set_same_length m1 m2 left_or_right =
+	let v1 = get_intern_val m1 in
+	let v2 = get_intern_val m2 in
+	let l1 = String.length v1 in
+	let l2 = String.length v2 in
+	let l_ext = abs (l1 - l2) in
+	let v_ext = String.make l_ext '0' in
+	if l1 == l2 then
+		(m1, m2)
+	else if l1 < l2 then
+		(BITMASK(if left_or_right then v_ext ^ v1 else v1 ^ v_ext), m2)
+	else
+		(* l1 > l2 *)
+		(m1, BITMASK(if left_or_right then v_ext ^ v2 else v2 ^ v_ext))
+
+
+(**
+ * logical AND between 2 masks,
+ * length will be the min between m1 and m2 lengths
+ *)
 let logand m1 m2 =
 	let v1 = get_intern_val m1 in
 	let v2 = get_intern_val m2 in
-	let l = min (String.length v1) (String.length v2) in
 	let bit_and c1 c2 =
 		if c1 == 'X' || c2 == 'X' then
 			failwith "shouldn't happen (bitmask.ml::logor::bit_or)"
 		else
 			(if c1 == '1' then c2 else '0')
 	in
-	(*!!DEBUG!!*)
-	(*let res =*)
-	BITMASK(string_map2 bit_and (String.sub v1 0 l) (String.sub v2 0 l))
-	(*in
-	let s = get_intern_val res in
-	Printf.printf "logand, [%s](%d) & [%s](%d) = [%s](%d)\n"
-	v1 (String.length v1) v2 (String.length v2) s (String.length s);
-	res*)
+	if (String.length v1) != (String.length v2) then
+		failwith "Bitmask.logand: both mask should have same length, use set_same_length to extend the shorter"
+	else
+		BITMASK(string_map2 bit_and v1 v2)
 
 
 (** logical OR between 2 masks,
     length will be the max between m1 and m2 lengths,
-    as if the smallest one is extended with 0s
+    as if the smaller one is extended with 0s
 *)
 let logor m1 m2 =
 	let v1 = get_intern_val m1 in
 	let v2 = get_intern_val m2 in
-	let l1 = String.length v1 in
-	let l2 = String.length v2 in
-	let vmax = if l1 > l2 then v1 else v2 in
-	let l = min l1 l2 in
-	let l_suffix = abs (l1 - l2) in
-	let v1_start = String.sub v1 0 l in
-	let v2_start = String.sub v2 0 l in
-	let v_suffix = String.sub vmax l l_suffix in
 	let bit_or c1 c2 =
 		if c1 == 'X' || c2 == 'X' then
 			failwith "shouldn't happen (bitmask.ml::logor::bit_or)"
@@ -193,45 +233,49 @@ let logor m1 m2 =
 				c2
 			)
 	in
-	(*!!DEBUG!!*)
-	(*let res =*)
-	BITMASK((string_map2 bit_or v1_start v2_start) ^ v_suffix)
-	(*in
-	let s = get_intern_val res in
-	Printf.printf "logor, [%s](%d) & [%s](%d) = [%s](%d)\n"
-	v1 (String.length v1) v2 (String.length v2) s (String.length s);
-	res*)
+	if (String.length v1) != (String.length v2) then
+		failwith "Bitmask.logor: both mask should have same length, use set_same_length to extend the shorter"
+	else
+		BITMASK(string_map2 bit_or v1 v2)
 
 
-(* left shift, just add trailing 0s *)
+(** left shift, just add trailing 0s *)
 let shift_left m sh =
 	let s = get_intern_val m in
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_left)"
 	else
+		(*Printf.printf "<<<<shift_left, m=%s(%d), sh=%d\n" s (String.length s) sh;*)
 		BITMASK(s ^ (String.make sh '0'))
 
 
-(* suppress the last sh bits on the right *)
+(** right shift logical, suppress the last sh bits on the right, no sign extension *)
 let shift_right_logical m sh =
 	let s = get_intern_val m in
 	let l = String.length s in
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_right_logical)"
 	else
-		BITMASK(String.sub s 0 (l - sh))
+		(if sh >= l then
+			void_mask
+		else
+			BITMASK(String.sub s 0 (l - sh)))
 
 
-(* arithmetic right shift, sign is extended,
+(** arithmetic right shift, sign is extended,
  suppress the last sh bits on the right,
  extend sign over sh bits on the left *)
 let shift_right m sh =
 	let s = get_intern_val m in
-	let s_ext = (String.make sh s.[0]) ^ s in
+	let l = String.length s in
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_right)"
 	else
-		shift_right_logical (BITMASK(s_ext)) sh
+		(if l == 0 or sh >= l then
+			void_mask
+		else
+			(let s_ext = String.make sh s.[0] in
+			BITMASK(s_ext ^ (String.sub s 0 (l - sh)))))
 
 
 (** returns a new mask from m, the bits returned are those from m indicated by the bits set in mask,
@@ -442,7 +486,7 @@ let mask_fill n =
 	BITMASK(String.make n '1')
 
 
-(** Build a mask with ones from bit m to bit n.
+(** Build a mask with ones from bit m to bit n (1st bit is bit 0).
 	@param n	Upper mask bound.
 	@param m	Lower mask bound.
 	@return		Built mask, length will be n + 1 (no leading 0s in front of bit n). *)
@@ -464,8 +508,7 @@ let rec get_str e =
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
-			Irg.STRING_CONST(str, false, _) ->
-				str
+			| Irg.STRING_CONST(str, false, _) -> str
 			| _ -> ""
 		else
 			""
