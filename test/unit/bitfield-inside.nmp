@@ -7,6 +7,8 @@ reg pc[1, card(32)] __attr(pc)
 
 reg A[1, card(32)]
 reg B[1, card(32)]
+reg C[1, card(33)]
+reg CC[1, card(1)]
 
 
 op init()
@@ -19,6 +21,8 @@ op instruction(xx : card(4))
 	image = format("00000000 00000000 00000000 0000 %s", xx.image)
 	syntax = "bof"
 	action = {
+		C = A::CC;
+		C = C <<< 2;
 		// syntax error on the '..' of B<2..2>
 	 	A = B<A<2..2> .. B<3..3> >;
 	 	A = B<(A<2..2>) .. (B<3..3>) >;
