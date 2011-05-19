@@ -313,38 +313,19 @@ MemAttrDefList:
 
 MemAttrDef:
 	VOLATILE EQ LetExpr
-		{ Irg.VOLATILE (Sem.to_int (Sem.eval_const $3)) }
-|	PORTS EQ CARD_CONST COMMA CARD_CONST
-		{ Irg.PORTS (Int32.to_int $3, Int32.to_int $3) }
-|	ALIAS EQ MemLocation
-		{ Irg.ALIAS $3 }
+		{ Irg.ATTR_EXPR ("volatile", Irg.CONST (Irg.NO_TYPE, (Sem.eval_const $3))) }
 |	INITIALA EQ LetExpr
-		{ Irg.INIT (Sem.eval_const $3) }
+		{ Irg.ATTR_EXPR ("init", Irg.CONST (Irg.NO_TYPE, Sem.eval_const $3)) }
+|	PORTS EQ CARD_CONST COMMA CARD_CONST
+		{ Irg.ATTR_USES }
 |	USES EQ UsesDef
-		{ Irg.USES }
-|	ATTR LPAREN ID OptionalAttrArgs RPAREN
-		{ Irg.NMP_ATTR ($3, List.rev $4) }
-;
-
-OptionalAttrArgs:
-	/* empty */
-		{ [] }
-|	LPAREN AttrArgs RPAREN
-		{ $2 }
-;
-
-AttrArgs:
-	AttrArg
-		{ [$1] }
-|	AttrArgs AttrArg
-		{ $2::$1 }
-;
-
-AttrArg:
-	ID OptionalAttrArgs
-		{ Irg.ATTR_ID ($1, $2) }
-|	Constant
-		{ Irg.ATTR_VAL (snd $1) }
+		{ Irg.ATTR_USES }
+|	ALIAS EQ MemLocation
+		{ Irg.ATTR_LOC ("alias", $3) }
+|	ID EQ Expr
+		{ Irg.ATTR_EXPR ($1, $3) }
+|	ID EQ LBRACE Sequence RBRACE
+		{ Irg.ATTR_STAT ($1, $4) }
 ;
 
 MemLocation:
@@ -728,49 +709,21 @@ Expr :
 					raise (Sem.SemError "unable to an expression coerce into a string")
 		}
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
-		{
-			eline (Sem.build_format $3 $5)
-		}
+		{ eline (Sem.build_format $3 $5) }
 |	STRING_CONST LPAREN ArgList RPAREN
-		{
-			Sem.test_canonical $1;
-			eline (Sem.build_canonical_expr $1 (List.rev $3))
-		}
+		{ Sem.test_canonical $1; eline (Sem.build_canonical_expr $1 (List.rev $3)) }
 |	ID DOT SYNTAX
-		{
-		if Irg.is_defined $1
-			then
-				eline (Irg.FIELDOF (Irg.STRING, $1,"syntax"))
-
-				(*if Sem.have_attribute $1 "syntax"
-					then
-						Irg.FIELDOF (Irg.STRING,Irg.REF $1,"syntax")
-					else
-						raise (Sem.SemError (Printf.sprintf " %s doesn't have a syntax attribute\n" $1))*)
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
+		{	if Irg.is_defined $1
+			then eline (Irg.FIELDOF (Irg.STRING, $1,"syntax"))
+			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT IMAGE
-		{
-		if Irg.is_defined $1
-			then
-				eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
-
-				(*if Sem.have_attribute $1 "image"
-					then
-						Irg.FIELDOF (Irg.STRING,Irg.REF $1,"image")
-					else
-						raise (Sem.SemError (Printf.sprintf " %s doesn't have an image attribute\n" $1))*)
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
+		{	if Irg.is_defined $1
+			then eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
+			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT ID
 		{
 		if Irg.is_defined $1
 			then
-				(*begin
-				print_string ("$1=[["^$1^"]]\n");
-				Irg.print_spec (Irg.get_symbol $1);*)
 				match (Irg.get_symbol $1) with
 					(* we should get a previously stacked param *)
 					Irg.PARAM(_, t) ->
@@ -817,6 +770,8 @@ Expr :
 |	ID
 		{ Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1) }
 
+/* TODO: still strange.
+
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
 			Sem.test_data $1 false;
@@ -847,6 +802,7 @@ Expr :
 			with Sem.SemError _ ->
 				eline (Irg.BITFIELD (Sem.get_type_ident $1, Irg.REF $1, $3, $5))*)
 		}
+*/
 
 |	ID LBRACK Expr RBRACK
 		{
@@ -863,7 +819,8 @@ Expr :
 					raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
 		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
-|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
+/*	TODO: What a strange thing here !
+	|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
 			if Irg.is_defined $1
 			then
@@ -886,7 +843,7 @@ Expr :
 						in
 						raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
 			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
+		}*/
 
 |	Expr BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{

@@ -177,6 +177,7 @@ let attr_list_from_and_node
 						Irg.NOP
 					)
 				)
+			|Irg.ATTR_LOC _ -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
 			|Irg.ATTR_USES -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
 			) 
 			attr_list

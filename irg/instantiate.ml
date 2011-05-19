@@ -560,6 +560,8 @@ let change_name_of_var_in_attr a var_name new_name =
 		ATTR_STAT(str, change_name_of_var_in_stat s var_name new_name)
 	| ATTR_USES ->
 		ATTR_USES
+	| ATTR_LOC(id, l) ->
+		ATTR_LOC(id, change_name_of_var_in_location l var_name new_name)
 
 
 (**
@@ -1125,6 +1127,9 @@ let instantiate_attr a params=
 		ATTR_STAT(n, instantiate_in_stat s params)
 	| ATTR_USES ->
 		ATTR_USES
+	| ATTR_LOC(n, l) ->
+		(* TODO: fix like this ATTR_LOC(n, instantiate_in_location l params) *)
+		a
 
 
 
@@ -1177,6 +1182,8 @@ let add_attr_to_spec sp param =
 		match a with
 		| ATTR_EXPR(n, at) ->
 			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_EXPR)"
+		| ATTR_LOC _ ->
+			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_LOC)"
 		| ATTR_STAT(n, at) ->
 			ATTR_STAT(pfx ^ "_" ^ n, aux at n)
 		| ATTR_USES ->
@@ -1187,6 +1194,15 @@ let add_attr_to_spec sp param =
 		| ATTR_EXPR(n, _) ->
 			(match a2 with
 			| ATTR_EXPR(nn, _) ->
+				if (String.compare nn n) == 0 then
+					true
+				else
+					false
+			| _ -> false
+			)
+		| ATTR_LOC(n, _) ->
+			(match a2 with
+			| ATTR_LOC(nn, _) ->
 				if (String.compare nn n) == 0 then
 					true
 				else

@@ -12,12 +12,6 @@
 #define $(proc)_error(e) fprintf(stderr, "%s\n", (e))
 
 
-/* endianness */
-typedef enum $(proc)_endianness_t {
-	little = 0,
-	big = 1
-} $(proc)_endianness_t;
-
 /* decode structure */
 struct $(proc)_decoder_t
 {

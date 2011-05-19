@@ -69,15 +69,17 @@ uint64_t gliss_d2bits(double f);
 #define gliss_mask32(n)	((n) == 32 ? (-1Lu) : (1Lu << (n)) - 1)
 #define gliss_mask64(n)	((n) == 64 ? (-1LLu) : (1LLu << (n)) - 1)
 
-uint32_t gliss_rotate_left32(uint32_t v, int r);
-uint32_t gliss_rotate_left8(uint32_t v, int r);
-uint32_t gliss_rotate_left16(uint32_t v, int r);
-uint64_t gliss_rotate_left64(uint64_t v, int r);
+/* returns the l lowest bits of v rotated by r positions,
+ * result is l bit long (with leading 0s if needed) */
+uint32_t gliss_rotate_left32(int l, uint32_t v, int r);
+uint32_t gliss_rotate_left8(int l, uint32_t v, int r);
+uint32_t gliss_rotate_left16(int l, uint32_t v, int r);
+uint64_t gliss_rotate_left64(int l, uint64_t v, int r);
 
-uint32_t gliss_rotate_right32(uint32_t v, int r);
-uint32_t gliss_rotate_right8(uint32_t v, int r);
-uint32_t gliss_rotate_right16(uint32_t v, int r);
-uint64_t gliss_rotate_right64(uint64_t v, int r);
+uint32_t gliss_rotate_right32(int l, uint32_t v, int r);
+uint32_t gliss_rotate_right8(int l, uint32_t v, int r);
+uint32_t gliss_rotate_right16(int l, uint32_t v, int r);
+uint64_t gliss_rotate_right64(int l, uint64_t v, int r);
 
 /* concatenation */
 #define gliss_concat32(v1, v2, n1, n2)  ((((uint32_t)(v1) << n2) | ((v2) & gliss_mask32(n2))))

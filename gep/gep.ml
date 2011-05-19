@@ -91,7 +91,7 @@ let options = [
 	("-S",   Arg.Set     sim, "generate the simulator application");
 	("-D",   Arg.Set     decode_arg, "activate complex arguments decoding");
 	("-gen-with-trace", Arg.Set gen_with_trace, 
-        "Generate simulator with decoding of dynamic traces of instructions (faster). module decode32_dtrace must be use with this option" );
+        "Generate simulator with decoding of dynamic traces of instructions (faster). module decode_dtrace must be used with this option" );
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
 		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
 	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
@@ -562,9 +562,15 @@ let _ =
 				App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
 				App.make_template "decode.c" "src/decode.c" dict)
 			 else 
-				(* !!TODO!! generalize also the specialized decode *)
+				(* now decode files are in templates directory (unlike a module) *)
+				(* !!TODO!! outut the correct decoder, not only decode_dtrace 
+				 * design a fun : name_module instance -> output correct module
+				 * whereever the files are (lib or templates) *)
 				if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
-				then App.make_template "decode_table32_dtrace.h" "src/decode_table.h" dict
+				then
+					(App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
+					App.make_template "decode_dtrace.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
+					App.make_template "decode_dtrace.c" "src/decode.c" dict )
 				else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
                                "but gep was not able to find a single one while parsing the NML")
 			);

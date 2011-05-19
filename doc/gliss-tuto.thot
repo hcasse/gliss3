@@ -48,7 +48,7 @@ Here we have defined types used in the following ISA description.
 Bytes have 8-bits size and words are 16-bits long.
 
 <code>
-reg PC[1, word] __attr(pc)
+reg PC[1, word] pc=1
 reg R[REG_CNT, word]
 </code>
 

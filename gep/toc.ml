@@ -164,63 +164,56 @@ let info _ =
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
 		| _ -> raise (Error "'bit_order' must be defined as a string let") in
-	let get_attr_regs name_attr =
-		let rec search_in_mem_attr_list ma_l =
+
+	let get_attr_regs name_attr f =
+		let rec search_in_mem_attr_list reg_name ma_l =
 			match ma_l with
-			[] -> false
-			| a::b ->
-				(match a with
-				Irg.NMP_ATTR(n_a, args) ->
-					if n_a = name_attr && args = [] then
-					(* we suppose this function will be called only to retrieve pc like attrs, so no args needed *)
-						true
-					else
-						search_in_mem_attr_list b
-				| _ ->
-					search_in_mem_attr_list b
-				)
-		in
+			| [] -> None
+			| Irg.ATTR_EXPR(n, v) :: _ when n = name_attr && (f v) -> Some reg_name
+			| _::tl -> search_in_mem_attr_list reg_name tl in
 		let aux key sp accu =
-			if accu = "" then
-				(match sp with
-				Irg.REG(name, _, _, m_a_l) ->
-					if search_in_mem_attr_list m_a_l then
-						name
-					else
-						accu
-				| _ ->
-					accu)
-			else
-				accu
-		in
-		Irg.StringHashtbl.fold aux Irg.syms "" in
-	let pc = get_attr_regs "pc" in
-	if pc = "" then
-		raise (Sys_error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )")
-	else
-		let path = Sys.getcwd () in {
-			out = stdout;
-			proc = p;
-			state = "state";
-			iname = "";
-			inst = Iter.null;
-			bpath = path;
-			ipath = path ^ "/include";
-			hpath = path ^ "/include/" ^ p;
-			spath = path ^ "/src";
-			bito = b;
-			temp = 0;
-			temps = [];
-			vars = [];
-			calls = [];
-			recs = [];
-			lab = 0;
-			attrs = StringHashtbl.create 211;
-			pc_name = pc;
-			npc_name = get_attr_regs "npc";
-			ppc_name = get_attr_regs "ppc";
-			indent = 1;
-		}
+			if accu <> None then accu else
+			match sp with
+			| Irg.REG(name, _, _, m_a_l) -> search_in_mem_attr_list name m_a_l
+			| _ -> accu in
+		Irg.StringHashtbl.fold aux Irg.syms None in
+
+	let is_true e =
+		try Sem.is_true (Sem.eval_const e)
+		with Sem.SemError msg -> raise (Error msg) in
+
+	let get_reg_name name =
+		match get_attr_regs name is_true with
+		| None -> ""
+		| Some n -> n in
+
+	let pc =
+		match get_attr_regs "pc" is_true with
+		| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )")
+		| Some n -> n in
+	let path = Sys.getcwd () in {
+		out = stdout;
+		proc = p;
+		state = "state";
+		iname = "";
+		inst = Iter.null;
+		bpath = path;
+		ipath = path ^ "/include";
+		hpath = path ^ "/include/" ^ p;
+		spath = path ^ "/src";
+		bito = b;
+		temp = 0;
+		temps = [];
+		vars = [];
+		calls = [];
+		recs = [];
+		lab = 0;
+		attrs = StringHashtbl.create 211;
+		pc_name = pc;
+		npc_name = get_reg_name "npc";
+		ppc_name = get_reg_name "ppc";
+		indent = 1;
+	}
 
 
 (** Reset indenting.
@@ -557,7 +550,7 @@ let cstring str =
 let rec get_alias attrs =
 	match attrs with
 	| [] -> Irg.LOC_NONE
-	| (Irg.ALIAS loc)::_ -> loc
+	| (Irg.ATTR_LOC ("alias", loc))::_ -> loc
 	| _::tl -> get_alias tl
 
 
@@ -1215,9 +1208,11 @@ and gen_binop info t op e1 e2 prfx =
 	| Irg.LSHIFT	->  mask info t (fun _ -> out "(" " << " ")")
 	| Irg.RSHIFT	-> out "(" " >> " ")"
 	| Irg.LROTATE	->
-		out  (Printf.sprintf "%s_rotate_left%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
+		let size = Sem.get_type_length (Sem.get_type_expr e1) in
+		out  (Printf.sprintf "%s_rotate_left%s(%d, " info.proc (type_to_mem(convert_type t)) size) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.RROTATE	->
-		out  (Printf.sprintf "%s_rotate_right%s(" info.proc (type_to_mem(convert_type t))) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
+		let size = Sem.get_type_length (Sem.get_type_expr e1) in
+		out  (Printf.sprintf "%s_rotate_right%s(%d, " info.proc (type_to_mem(convert_type t)) size) ", " ")"(* (Printf.sprintf ", %d)" (ctype_size (convert_type t))) *)
 	| Irg.LT		-> out "(" " < " ")"
 	| Irg.GT		-> out "(" " > " ")"
 	| Irg.LE		-> out "(" " <= " ")"

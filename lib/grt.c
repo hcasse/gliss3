@@ -46,61 +46,129 @@ uint64_t gliss_d2bits(double d) {
 }
 
 
-uint32_t gliss_rotate_left32(uint32_t v, int r)
+uint32_t gliss_rotate_left32(int l, uint32_t v, int r)
 {
-	return (((v ) << r) | ((v ) >> (32 - FMOD(r, 32))));
+	uint32_t mask = gliss_mask32(l);
+	if (l == 32)
+		r = FMOD(r, 32);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v << r) | (v >> (l - r))) & mask;
+	/*return (((v ) << r) | ((v ) >> (32 - FMOD(r, 32))));*/
 }
 
-uint32_t gliss_rotate_left8(uint32_t v, int r)
+uint32_t gliss_rotate_left8(int l, uint32_t v, int r)
 {
-	r = FMOD(r, 8);
+	uint32_t mask = gliss_mask32(l);
+	if (l == 8)
+		r = FMOD(r, 8);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v << r) | (v >> (l - r))) & mask;
+
+	/*r = FMOD(r, 8);
 	int len = 8 - r;
 	uint32_t mask = gliss_mask32(len);
-	return (((v & mask) << r) | ((v & ~mask) >> len));
+	return (((v & mask) << r) | ((v & ~mask) >> len));*/
 }
 
-uint32_t gliss_rotate_left16(uint32_t v, int r)
+uint32_t gliss_rotate_left16(int l, uint32_t v, int r)
 {
-	r = FMOD(r, 16);
+	uint32_t mask = gliss_mask32(l);
+	if (l == 16)
+		r = FMOD(r, 16);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v << r) | (v >> (l - r))) & mask;
+
+	/*r = FMOD(r, 16);
 	int len = 16 - r;
 	uint32_t mask = gliss_mask32(len);
-	return (((v & mask) << r) | ((v & ~mask) >> len));
+	return (((v & mask) << r) | ((v & ~mask) >> len));*/
 }
 
-uint64_t gliss_rotate_left64(uint64_t v, int r)
+uint64_t gliss_rotate_left64(int l, uint64_t v, int r)
 {
-	r = FMOD(r, 64);
+	uint64_t mask = gliss_mask64(l);
+	if (l == 64)
+		r = FMOD(r, 64);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v << r) | (v >> (l - r))) & mask;
+
+	/*r = FMOD(r, 64);
 	int len = 64 - r;
 	uint64_t mask = gliss_mask64(len);
-	return (((v & mask) << r) | ((v & ~mask) >> len));
+	return (((v & mask) << r) | ((v & ~mask) >> len));*/
 }
 
-uint32_t gliss_rotate_right32(uint32_t v, int r)
+uint32_t gliss_rotate_right32(int l, uint32_t v, int r)
 {
-	r = FMOD(r, 32);
+	uint32_t mask = gliss_mask32(l);
+	if (l == 32)
+		r = FMOD(r, 32);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v >> r) | (v << (l - r))) & mask;
+
+	/*r = FMOD(r, 32);
 	uint32_t mask = gliss_mask32(r);
-	return (((v & mask) << (32 - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (32 - r)) | ((v & ~mask) >> r));*/
 }
 
-uint32_t gliss_rotate_right8(uint32_t v, int r)
+uint32_t gliss_rotate_right8(int l, uint32_t v, int r)
 {
-	r = FMOD(r, 8);
+	uint32_t mask = gliss_mask32(l);
+	if (l == 8)
+		r = FMOD(r, 8);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v >> r) | (v << (l - r))) & mask;
+	/*r = FMOD(r, 8);
 	uint32_t mask = gliss_mask32(r);
-	return (((v & mask) << (8 - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (8 - r)) | ((v & ~mask) >> r));*/
 }
 
-uint32_t gliss_rotate_right16(uint32_t v, int r)
+uint32_t gliss_rotate_right16(int l, uint32_t v, int r)
 {
-	r = FMOD(r, 16);
+	uint32_t mask = gliss_mask32(l);
+	if (l == 16)
+		r = FMOD(r, 16);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v >> r) | (v << (l - r))) & mask;
+	/*r = FMOD(r, 16);
 	uint32_t mask = gliss_mask32(r);
-	return (((v & mask) << (16 - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (16 - r)) | ((v & ~mask) >> r));*/
 }
 
-uint64_t gliss_rotate_right64(uint64_t v, int r)
+uint64_t gliss_rotate_right64(int l, uint64_t v, int r)
 {
-	r = FMOD(r, 64);
+	uint64_t mask = gliss_mask64(l);
+	if (l == 64)
+		r = FMOD(r, 64);
+	else {
+		r = r % l;	// slow modulo
+		v = v & mask;	// discarding useless bits
+	}
+	return ((v >> r) | (v << (l - r))) & mask;
+	/*r = FMOD(r, 64);
 	uint64_t mask = gliss_mask64(r);
-	return (((v & mask) << (64 - r)) | ((v & ~mask) >> r));
+	return (((v & mask) << (64 - r)) | ((v & ~mask) >> r));*/
 }
 
 
