@@ -9,16 +9,11 @@
 
 #include "decode_table.h"
 
-
-$(if !GLISS_NO_MALLOC)
-#error "GEP option GLISS_NO_MALLOC must be activated when using module decode_trace"
-$(end)
-
 #define $(proc)_error(e) fprintf(stderr, "%s\n", (e))
 
 
 /* Optimized modulo : only works if tablelength == 2^N */
-#define MODULO(x, length) ((x) & ((length) - 1u))
+#define MODULO(x, length) (x & (length - 1u))
 
 #ifndef CACHE_DEPTH
 #define CACHE_DEPTH 8     // Must be greater or equal to 2
@@ -27,10 +22,14 @@ $(end)
 #define CACHE_SIZE (4096) // Must be a power of 2
 #endif
 
-/* Double linked list (linked as a ring) */
+// Double linked list (linked as a ring)
 typedef struct $(proc)_entry {
 	$(proc)_address_t key;
-	$(proc)_inst_t value[TRACE_DEPTH+1];
+$(if GLISS_NO_MALLOC)
+	$(proc)_inst_t value;
+$(else)
+	$(proc)_inst_t *value;
+$(end)
 	struct $(proc)_entry *next;
 } $(proc)_entry_t;
 
@@ -43,8 +42,8 @@ typedef struct $(proc)_hashtable {
 struct $(proc)_decoder_t
 {
 	/* the fetch unit used to retrieve instruction ID */
-	$(proc)_fetch_t*     fetch;
-	$(proc)_hashtable_t* cache;
+    $(proc)_fetch_t *fetch;
+    $(proc)_hashtable_t* cache;
 $(if is_multi_set)	/* help determine which decode type if several instr sets defined */
 	$(proc)_state_t *state;
 	$(proc)_platform_t *pf;$(end)
@@ -53,10 +52,10 @@ $(if is_multi_set)	/* help determine which decode type if several instr sets def
 
 /** ! Size must be a power of two ! */
 static $(proc)_hashtable_t* create_hashtable (unsigned int size, unsigned int depth);
+
 static void hashtable_destroy($(proc)_hashtable_t* h );
 static void hashtable_insert($(proc)_hashtable_t* h, $(proc)_address_t key, $(proc)_inst_t* value);
 static $(proc)_inst_t* hashtable_search($(proc)_hashtable_t* h, $(proc)_address_t key);
-
 
 /* Extern Modules */
 /* Constants */
@@ -75,20 +74,18 @@ static void init_decoder($(proc)_decoder_t *d, $(proc)_platform_t *pf)
 	d->pf = pf;
 	$(else)d->fetch = $(proc)_new_fetch(pf);
 	$(end)
-        d->cache = create_hashtable( CACHE_SIZE, CACHE_DEPTH );
-
+        d->cache = create_hashtable(CACHE_SIZE, CACHE_DEPTH);
 }
 
 static void halt_decoder($(proc)_decoder_t *d)
 {
         $(proc)_delete_fetch(d->fetch);
         hashtable_destroy(d->cache);
-
 }
 
 $(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf)
 {
-    $(proc)_decoder_t *res = malloc(sizeof($(proc)_decoder_t));
+        $(proc)_decoder_t *res = malloc(sizeof($(proc)_decoder_t));
     if (res == NULL)
                 $(proc)_error("not enough memory to create a $(proc)_decoder_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
     /*assert(number_of_decode_objects >= 0);*/
@@ -140,101 +137,117 @@ void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state)
  * 0 if no instr is found (res points to the next place where to store an instr)
  **/
 int cache_lookup($(proc)_decoder_t *decoder, $(proc)_address_t address, $(proc)_inst_t **res)
-{	/* Is the instruction inside the cache ? */
-	unsigned int i;
-	
-	/*  A block of four elements :
-	 *  ____
-	 *  |  | <- block_addr 
-	 *  ----
-	 *  |  |
-	 *  ----
-	 *  |  | <- address  
-	 *  ---- 
-	 *  |  |
-	 *  ____
-	 * */
-	$(proc)_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2; // (address / TRACE_DEPTH / 4) * TRACE_DEPTH * 4
-	unsigned int hash = MODULO(block_addr >> 2 >> TRACE_DEPTH_PW, CACHE_SIZE);	// (block_addr / 4 / TRACE_DEPTH) % CACHE_SIZE
+{
+	$(proc)_ident_t id;
+	uint32_t code;
 
+	/* Is the instruction inside the cache ? */
+	unsigned int i;
+	unsigned int  hash = MODULO(address, CACHE_SIZE);
 	$(proc)_entry_t **table = decoder->cache->table;
 	$(proc)_entry_t *current = table[hash];
 	$(proc)_entry_t *init = current;
 	$(proc)_entry_t *prev;
 
-	/* If it's the first element no need to handle LRU policy */
-	if (block_addr == current->key) {
+	// If it's the first element no need to handle LRU policy
+	if (address == current->key) {
+$(if GLISS_NO_MALLOC)
+		*res = &(current->value);
+$(else)
 		*res = current->value;
+$(end)
 		return 1;
 	}
 
 	prev = current;
 	current = current->next;
 
-	/* "FOR" has the advantage that gcc can unroll the loop if necessary
-	 * Anyway I've not seen any improvements by unrolling manualy this loop */
-	for( i = 0; i < (CACHE_DEPTH-2); i++) {
-		if (block_addr == current->key) {
+	// "FOR" has the advantage that gcc can unroll the loop if necessary
+	// Anyway I've not seen any improvements by unrolling manualy this loop
+	for (i = 0; i < (CACHE_DEPTH-2); i++) {
+		if (address == current->key) {
 			prev->next = current->next;
 			current->next = init;
 			table[hash] = current;
+$(if GLISS_NO_MALLOC)
+			*res = &(current->value);
+$(else)
 			*res = current->value;
+$(end)
 			return 1;
 		}
 		prev = current;
 		current = current->next;
 	}
 
-	/* If it's last element LRU can be simplify */
+	// If it's last element LRU can be simplify
 	current->next = init;
 	//prev->next = NULL; useless because we don't rely on that
 	table[hash] = current;
 	
-	if (block_addr == current->key) {
+	if (address == current->key)
+	{
+$(if GLISS_NO_MALLOC)
+		*res = &(current->value);
+$(else)
 		*res = current->value;
+$(end)
 		return 1;
 	}
-
-	/* If not find : -------------------------------------------------- */
-	current->key = block_addr;
+	
+	/* If not found: */
+	current->key = address;
+$(if GLISS_NO_MALLOC)
+	*res = &(current->value);
+$(else)
 	*res = current->value;
+$(end)
 	return 0;
 }
 
+
+
 $(if !is_multi_set)
-/** @brief Decode a block of instructions
- *  Simulated program is split into regular parts of size TRACE_DEPTH.
- *  $(proc)_decode() decodes an entire block of instructions belonging to the given
- *  address and returns the pointer of the first element of the block.
- *  It is left to the user to compute the right offset inside the block 
- *  (knowing the address and TRACE_DEPTH)
- * 
- *  @param decoder
- *  @param address inside a block of instruction to decode
- *  @return first element of an array of instructions 
+/** @brief decode an instruction given address
+ *  @warning The decode instruction is cache into an infinite hashtable.
+ *  the memory could bloat at any moment. Be aware of that flow,
+ *  and use this function at your own risk !
+ *  @param address of the instruction addr to be decoded
+ *  @return a heap allocated intruction which would be freed at the earliest
+ *  when the object decoder is erased.
  * */
 $(if is_RISC)
 $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
 	$(proc)_inst_t *res = 0;
+	$(proc)_inst_t *tmp = 0;
 	$(proc)_ident_t id;
 	uint$(C_inst_size)_t code;
-	int i;
 
 	/* Is the instruction inside the cache ? */
 	int inst_in_cache = cache_lookup(decoder, address, &res);
 	if (inst_in_cache) {
 		return res;
 	}
-	
+
 	/* Not in the cache */
-	$(proc)_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2; // (address / TRACE_DEPTH / 4) * TRACE_DEPTH * 4
-	for (i = 0; i < TRACE_DEPTH; i++)
-	{
-		id = $(proc)_fetch(decoder->fetch, block_addr + (i<<2), &code);
-		$(proc)_decode_table[id](code, (res+i));
-		(res+i)->addr = block_addr + (i<<2);
-	}
+	/* first, fetch the instruction at the given address */
+	id = $(proc)_fetch(decoder->fetch, address, &code);
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	//res = &(current->value); // done by cache_lookup
+	tmp = res;
+	$(proc)_decode_table[id](code, tmp);
+$(else)
+	tmp = $(proc)_decode_table[id](code);
+$(end)
+	tmp->addr = address;
+		
+	/* and last cache the instruction */
+$(if !GLISS_NO_MALLOC)
+	free(res);
+	res = tmp;
+$(end)
 	return res;
 }
 $(else)
@@ -245,41 +258,38 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 	/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
 	mask_t code = {i_buff, 0};
-	int i;
 
 	/* Is the instruction inside the cache ? */
 	int inst_in_cache = cache_lookup(decoder, address, &res);
 	if (inst_in_cache) {
 		return res;
 	}
-	
+
 	/* Not in the cache */
-	$(proc)_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2; // (address / TRACE_DEPTH / 4) * TRACE_DEPTH * 4
-	for (i = 0; i < TRACE_DEPTH; i++)
-	{
-		id = $(proc)_fetch(decoder->fetch, block_addr + (i<<2), &code);
-		$(proc)_decode_table[id](&code, (res+i));
-		(res+i)->addr = block_addr + (i<<2);
-	}
+	/* first, fetch the instruction at the given address */
+	id = $(proc)_fetch(decoder->fetch, address, &code);
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	//res = &(current->value); // done by cache_lookup
+	tmp = res;
+	$(proc)_decode_table[id](&code, tmp);
+$(else)
+	tmp = $(proc)_decode_table[id](&code);
+$(end)
+	tmp->addr = address;
+		
+	/* and last cache the instruction */
+$(if !GLISS_NO_MALLOC)
+	free(res);
+	res = tmp;
+$(end)
 	return res;
 }
 $(end)$(end)
 
 
-
 $(if is_multi_set)
 $(foreach instr_sets_sizes)
-/** @brief Decode a block of instructions
- *  Simulated program is split into regular parts of size TRACE_DEPTH.
- *  $(proc)_decode() decodes an entire block of instructions belonging to the given
- *  address and returns the pointer of the first element of the block.
- *  It is left to the user to compute the right offset inside the block 
- *  (knowing the address and TRACE_DEPTH)
- * 
- *  @param decoder
- *  @param address inside a block of instruction to decode
- *  @return first element of an array of instructions 
- * */
 $(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
 	$(proc)_inst_t *res = 0;
@@ -288,42 +298,40 @@ $(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(pr
 	$(if !is_RISC_size)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
 	code.mask = {i_buff, 0};$(end)
-	int i;
 
 	/* Is the instruction inside the cache ? */
 	int inst_in_cache = cache_lookup(decoder, address, &res);
 	if (inst_in_cache) {
 		return res;
 	}
-	
+
 	/* Not in the cache */
-	$(proc)_address_t block_addr = (address >> TRACE_DEPTH_PW >> 2 ) << TRACE_DEPTH_PW << 2; // (address / TRACE_DEPTH / 4) * TRACE_DEPTH * 4
-	for (i = 0; i < TRACE_DEPTH; i++)
-	{
-		id = $(proc)_fetch(decoder->fetch, block_addr + (i<<2), &code);
-		$(proc)_decode_table[id](&code, (res+i));
-		(res+i)->addr = block_addr + (i<<2);
-	}
+	/* first, fetch the instruction at the given address */
+	id = $(proc)_fetch(decoder->fetch, address, &code);
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	//res = &(current->value); // done by cache_lookup
+	tmp = res;
+	$(proc)_decode_table[id](&code, tmp);
+$(else)
+	tmp = $(proc)_decode_table[id](&code);
+$(end)
+	tmp->addr = address;
+		
+	/* and last cache the instruction */
+$(if !GLISS_NO_MALLOC)
+	free(res);
+	res = tmp;
+$(end)
 	return res;
 }
 $(end)$(end)
 
 $(if is_multi_set)/* decoding functions for one specific instr set */
-/** @brief Decode a block of instructions
- *  Simulated program is split into regular parts of size TRACE_DEPTH.
- *  $(proc)_decode() decodes an entire block of instructions belonging to the given
- *  address and returns the pointer of the first element of the block.
- *  It is left to the user to compute the right offset inside the block 
- *  (knowing the address and TRACE_DEPTH)
- * 
- *  @param decoder
- *  @param address inside a block of instruction to decode
- *  @return first element of an array of instructions 
- * */
+
 /* access to a specific fetch table */
 #include "fetch_table.h"
 $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
-
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
 	$(proc)_inst_t *res = 0;
@@ -332,23 +340,33 @@ $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_
 	$(if !is_RISC_iset)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
 	code.mask = {i_buff, 0};$(end)
-	int i;
-	
+
 	/* Is the instruction inside the cache ? */
 	int inst_in_cache = cache_lookup(decoder, address, &res);
 	if (inst_in_cache) {
 		return res;
 	}
-	
+
 	/* Not in the cache */
-	for (i = 0; i < TRACE_DEPTH; i++)
-	{
-		/* call specialized fetch */
-		$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, block_addr + (i<<2), &code.u$(C_size_iset), table_$(idx));
-		$(else)id = $(proc)_fetch_CISC(decoder->fetch, block_addr + (i<<2), &code.mask, table_$(idx));$(end)
-		$(proc)_decode_table[id](&code, (res+i));
-		(res+i)->addr = block_addr + (i<<2);
-	}
+	/* first, fetch the instruction at the given address */
+	/* call specialized fetch */
+	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), table_$(idx));
+	$(else)id = $(proc)_fetch_CISC(decoder->fetch, address, &code.mask, table_$(idx));$(end)
+	/* then decode it */
+$(if GLISS_NO_MALLOC)
+	//res = &(current->value); // done by cache_lookup
+	tmp = res;
+	$(proc)_decode_table[id](&code, tmp);
+$(else)
+	tmp = $(proc)_decode_table[id](&code);
+$(end)
+	tmp->addr = address;
+		
+	/* and last cache the instruction */
+$(if !GLISS_NO_MALLOC)
+	free(res);
+	res = tmp;
+$(end)
 	return res;
 }
 $(end)
@@ -389,7 +407,6 @@ static $(proc)_hashtable_t* create_hashtable( unsigned int size, unsigned int de
     h = ($(proc)_hashtable_t*)malloc( sizeof($(proc)_hashtable_t) );
     if (NULL == h) return NULL;
 
-    // Allocate table and every chained list with one malloc for better host cache handling
     h->entry_tab = ($(proc)_entry_t*)malloc(sizeof($(proc)_entry_t)*depth*size);
 
     for(i = 0; i < size; ++i)
@@ -402,7 +419,9 @@ static $(proc)_hashtable_t* create_hashtable( unsigned int size, unsigned int de
         }
         tmp0 = init;
         init->key   = -1;
-
+$(if !GLISS_NO_MALLOC)
+        init->value = NULL;
+$(end)
         for(j = 0; j < (depth-1); ++j)
         {
             tmp1 = h->entry_tab + i*depth +j+1;
@@ -412,6 +431,9 @@ static $(proc)_hashtable_t* create_hashtable( unsigned int size, unsigned int de
                 return NULL;
             }
             tmp1->key   = -1;
+$(if !GLISS_NO_MALLOC)
+			tmp1->value = NULL;
+$(end)
 
             tmp0->next = tmp1;
             tmp0       = tmp1;
@@ -446,6 +468,9 @@ static void hashtable_destroy($(proc)_hashtable_t* h)
                     if(it != NULL)
                     {
 						tmp = it;
+$(if !GLISS_NO_MALLOC)
+                        free(tmp->value);
+$(end)
                         // Erase each entry
                         it = it->next;
                     }
@@ -459,9 +484,6 @@ static void hashtable_destroy($(proc)_hashtable_t* h)
         // Erase $(proc)_hashtable_t
         free(h);
     }
-    
-
 }
-
 
 /* End of file $(proc)_decode.c */

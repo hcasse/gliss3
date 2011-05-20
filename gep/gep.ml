@@ -568,6 +568,7 @@ let _ =
 				 * whereever the files are (lib or templates) *)
 				if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
 				then
+					(* dtrace has a different decode table organization ==> different table template *)
 					(App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
 					App.make_template "decode_dtrace.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
 					App.make_template "decode_dtrace.c" "src/decode.c" dict )
