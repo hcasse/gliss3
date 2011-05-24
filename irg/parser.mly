@@ -187,9 +187,9 @@ CanonSpec:
 	{
 		($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, []))
 	}
-|	CANON STRING_CONST COLON Type
+|	CANON Type STRING_CONST
 	{
-		($2, Irg.CANON_DEF($2, Irg.CANON_CNST, $4, []))
+		($3, Irg.CANON_DEF($3, Irg.CANON_CNST, $2, []))
 	}
 ;
 
