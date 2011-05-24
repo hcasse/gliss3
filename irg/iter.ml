@@ -186,7 +186,7 @@ let get_name instr =
 		  Irg.FORMAT(s, e_l) -> s
 		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
-		| Irg.IF_EXPR (_, _, e, _) -> to_string e
+		| Irg.IF_EXPR (_, _, _, e) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
 		| _ -> failwith "unsupported operator in syntax" in

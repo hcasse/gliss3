@@ -13,7 +13,7 @@ _subdirs_clean:
 	@for d in $(SUBDIRS); do cd $$d; $(MAKE) clean; cd ..; done
 
 distclean: _clean _subdirs_distclean
-ifneq ($(_DISTCLEAN),)
+ifneq ($(_DIST_CLEAN),)
 	rm -rf $(_DIST_CLEAN)
 endif
 
