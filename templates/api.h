@@ -14,7 +14,7 @@
 #		define __END_DECLS
 #	endif
 #else
-#	include <sys/defs.h>
+#	include <sys/cdefs.h>
 #endif
 
 
