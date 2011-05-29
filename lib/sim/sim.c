@@ -26,7 +26,12 @@
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/resource.h>
+#if !defined(__WIN32) && !defined(__WIN64)
+#	include <sys/resource.h>
+#endif
+#ifdef __MINGW32__
+void *alloca(size_t);
+#endif
 #include <unistd.h>
 #include <gliss/api.h>
 #include <gliss/macros.h>
@@ -744,25 +749,27 @@ int main(int argc, char **argv) {
     }
 
 	/* measure time */
-	if(stats)
-	{
-		struct rusage buf;
-		getrusage(RUSAGE_SELF, &buf);
-		start_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
-	}
-	if(more_stat)
-	{
-		struct rusage buf;
-		gettimeofday(&start_all_time, NULL);
-		start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
-	}
+#	if !defined(__WIN32) && !defined(__WIN64)
+		if(stats) {
+			struct rusage buf;
+			getrusage(RUSAGE_SELF, &buf);
+			start_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+		}
+		if(more_stat) {
+			struct rusage buf;
+			gettimeofday(&start_all_time, NULL);
+			start_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
+		}
+#	endif
 
 	/* initialize signals */
-	signal(SIGINT, handle_int);
-	if(time) {
-		signal(SIGALRM, handle_alarm);
-		alarm(time);
-	}
+#	if !defined(__WIN32) && !defined(__WIN64)
+		signal(SIGINT, handle_int);
+		if(time) {
+			signal(SIGALRM, handle_alarm);
+			alarm(time);
+		}
+#	endif
 
 	/* full speed simulation */
     if(!verbose && !profile)
@@ -806,35 +813,37 @@ int main(int argc, char **argv) {
 	}
 
 	/* produce statistics */
-	if(stats) {
-		struct rusage buf;
-		getrusage(RUSAGE_SELF, &buf);
-		end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
-		delay = end_time - start_time;
-		fprintf(stderr, "Simulated instructions = %llu\n", inst_cnt);
-        fprintf(stderr, "Time = %f ms\n", (double)delay / 1000.00);
-		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
-	}
-	if(more_stat)
-	{
-		struct rusage buf;
-		struct timeval end_all_time, all_delay;
-		double time;
-		if(gettimeofday(&end_all_time, NULL) < 0) {
-			fprintf(stderr, "ERROR: can not get time ?\n");
-			return 1;
+#	if !defined(__WIN32) && !defined(__WIN64)
+		if(stats) {
+			struct rusage buf;
+			getrusage(RUSAGE_SELF, &buf);
+			end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
+			delay = end_time - start_time;
+			fprintf(stderr, "Simulated instructions = %llu\n", inst_cnt);
+			fprintf(stderr, "Time = %f ms\n", (double)delay / 1000.00);
+			fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
 		}
-		timersub(&end_all_time, &start_all_time, &all_delay);
-		time = all_delay.tv_sec + (double)all_delay.tv_usec * 10E-6;
+		if(more_stat)
+		{
+			struct rusage buf;
+			struct timeval end_all_time, all_delay;
+			double time;
+			if(gettimeofday(&end_all_time, NULL) < 0) {
+				fprintf(stderr, "ERROR: can not get time ?\n");
+				return 1;
+			}
+			timersub(&end_all_time, &start_all_time, &all_delay);
+			time = all_delay.tv_sec + (double)all_delay.tv_usec * 10E-6;
 
-		end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
-		sys_delay = end_sys_time - start_sys_time;
-		fprintf(stderr, "\nSystem (computed with rusage()): \n");
-		fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);
-		fprintf(stderr, "\nUser+System (computed with gettimeofday()): \n");
-		fprintf(stderr, "Time : %f sec\n", time);
-		fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );
-	}
+			end_sys_time = (uint64_t)buf.ru_stime.tv_sec*1000000.00 + buf.ru_stime.tv_usec;
+			sys_delay = end_sys_time - start_sys_time;
+			fprintf(stderr, "\nSystem (computed with rusage()): \n");
+			fprintf(stderr, "Sys time = %f sec\n", (double)sys_delay / 1000000.00);
+			fprintf(stderr, "\nUser+System (computed with gettimeofday()): \n");
+			fprintf(stderr, "Time : %f sec\n", time);
+			fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / time) / 1000000.00 );
+		}
+	#endif
 
     if(profile)
     {

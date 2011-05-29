@@ -822,7 +822,7 @@ gliss_loader_t *gliss_loader_open(const char *path) {
 
 	/* open the file */
 	TRACE;
-	elf = open(path, O_RDONLY);
+	elf = open(path, O_RDONLY | O_BINARY);
 	if(elf == -1)
 		return NULL;
 

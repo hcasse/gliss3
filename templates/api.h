@@ -4,6 +4,20 @@
 
 #include <stdint.h>
 #include <stdio.h>
+
+#if defined(__WIN32) || defined(__WIN64)
+#	ifdef __cplusplus
+#		define __BEGIN_DECLS	extern "C" {
+#		define __END_DECLS		}
+#	else
+#		define __BEGIN_DECLS
+#		define __END_DECLS
+#	endif
+#else
+#	include <sys/defs.h>
+#endif
+
+
 #include "id.h"
 #include "mem.h"
 #include "decode.h"
