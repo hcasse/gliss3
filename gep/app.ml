@@ -131,7 +131,50 @@ let format_date date =
 		tm.Unix.tm_hour tm.Unix.tm_min tm.Unix.tm_sec
 
 
+(** Evaluates an attribute by its name inside an instruction.
+	@param inst		Current instruction.
+	@param out		Output channel.
+	@param arg		Argument: ID or ID:DEFAULT. *)
+let eval_attr info inst out arg =
+	let id, def =
+		try
+			let p = String.index arg ':' in
+			(String.sub arg 0 p), (String.sub arg (p + 1) ((String.length arg) - p - 1))
+		with Not_found -> arg, "" in
+	try
+		let params = Iter.get_params inst in
+		Irg.param_stack params;
+		(match Iter.get_attr inst id with
+		
+		| Iter.EXPR e ->
+			let (s, e) = Toc.prepare_expr info Irg.NOP e in
+			Toc.declare_temps info;
+			Toc.gen_stat info s;
+			Toc.gen_expr info e true;
+			output_string info.Toc.out "\n";
+			
+		| Iter.STAT s ->
+			let s = Toc.prepare_stat info s in
+			Toc.declare_temps info;
+			Toc.gen_stat info s);
+			
+		Toc.cleanup_temps info;
+		Irg.param_unstack params
+	with Not_found -> output_string out def
+
+
+(** Test if an attribute is defined.
+	@param inst		Current instruction.
+	@param id		Attribute identifier. *)
+let defined_attr inst id =
+	try
+		ignore (Iter.get_attr inst id);
+		true
+	with Not_found -> false
+
+
 let out f = Templater.TEXT (fun out -> output_string out (f ()))
+
 
 let get_params maker inst f dict =
 
@@ -158,7 +201,7 @@ let get_params maker inst f dict =
 		0
 		(Iter.get_params inst))
 
-let get_instruction maker f dict _ i = f
+let get_instruction info maker f dict _ i = f
 	(maker.get_instruction  i
 		(("IDENT", out (fun _ -> String.uppercase (Iter.get_name i))) ::
 		("ident", out (fun _ -> Iter.get_name i)) ::
@@ -167,18 +210,19 @@ let get_instruction maker f dict _ i = f
 		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
 		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 		("is_inst_branch", Templater.BOOL (fun _ -> Iter.is_branch_instr i )) ::
+		("attr", Templater.FUN (eval_attr info i)) ::
 		dict))
 
 
 (** Get the nth first instructions defined by nb_inst
 	Only if a instruction profile is loaded i.e : (Iter.instr_stats <> [])
 *)
-let get_ninstruction maker f dict nb_inst cpt i =
+let get_ninstruction info maker f dict nb_inst cpt i =
 	if (Iter.instr_stats = ref [])
 	then (prerr_string "WARNING a profiling option is being used without a loaded '.profile'\n";cpt)
 	else
 		if (cpt < nb_inst)
-		then let _ = get_instruction maker f dict () i in cpt+1
+		then let _ = get_instruction info maker f dict () i in cpt+1
 		else cpt
 
 
@@ -375,10 +419,10 @@ let make_env info maker =
 			List.fold_left collect_field set params in
 		Iter.iter (fun set i -> collect_fields set (Iter.get_params i)) TypeSet.empty in
 
-	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction maker f dict) ())) ::
-	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction maker f dict) () true)) ::
+	("instructions", Templater.COLL (fun f dict -> Iter.iter (get_instruction info maker f dict) ())) ::
+	("mapped_instructions", Templater.COLL (fun f dict -> Iter.iter_ext (get_instruction info maker f dict) () true)) ::
 	("profiled_instructions", Templater.COLL (fun f dict -> 
-	  let _ = Iter.iter_ext (get_ninstruction maker f dict (!profiled_switch_size)) 0 true in () )) ::
+	  let _ = Iter.iter_ext (get_ninstruction info maker f dict (!profiled_switch_size)) 0 true in () )) ::
 	("instruction_sets", Templater.COLL (fun f dict -> List.iter (get_instruction_set maker f dict) !Iter.multi_set )) ::
 	("registers", Templater.COLL (fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::

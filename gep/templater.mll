@@ -30,6 +30,7 @@ and  value_t =
 	| COLL of ((dict_t -> unit) -> dict_t -> unit)		(** collection : argument function must be called for each element
 															with a dictionnary fixed for the current element. *)
 	| BOOL of (unit -> bool)							(** boolean value *)
+	| FUN of (out_channel -> string -> unit)			(** function value *)
 
 
 type state_t =
@@ -39,17 +40,32 @@ type state_t =
 	| FOREACH
 
 
-(** Perform text evaluation.
+(** Perform text evaluation (and function if any)
 	@param out	Out channel.
 	@param dict	Used dictionnary.
 	@param id	Text identifier. *)
 let do_text out dict id =
+	let p =  try String.index id ':' with Not_found -> -1 in
 	try
+	
+	(* function call *)
+	if p >= 0 then
+		let id = String.sub id 0 p in
 		(match List.assoc id dict with
-		  TEXT f ->
-		  	(try f out
+		  FUN f ->
+			(try f out (String.sub id (p + 1) ((String.length id) - p - 1))
 			with Not_found -> failwith ("error in generation with "^id))
 		| _ -> failwith (id ^ " is not a text !"))
+	
+	(* simple variable eveluation *)	
+	else
+		match List.assoc id dict with
+		  TEXT f ->
+			(try f out
+			with Not_found -> failwith ("error in generation with "^id))
+		| _ -> failwith (id ^ " is not a text !")
+	
+	(* not existing symbol *)
 	with Not_found ->
 		List.iter (fun (n, _) -> Printf.printf "=>[%s]\n" n) dict;
 		Printf.printf "<=[%s]\n" id;
