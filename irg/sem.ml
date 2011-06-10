@@ -1068,10 +1068,15 @@ let check_if_expr e1 e2=
 	| (FLOAT _,FLOAT _)
 	| (FIX _,FIX _)
 	| (STRING, STRING)
+	(* added to debug x86,a lot of unknown types (mode values) are encountered *)
+	| (UNKNOW_TYPE, UNKNOW_TYPE)
 		-> t1
+	| (UNKNOW_TYPE, STRING)
+	| (STRING, UNKNOW_TYPE)
+		-> STRING
 	| _ ->
 	(* !!DEBUG!! *)
-	print_string "e1="; Irg.print_expr e1; print_string "#e2="; Irg.print_expr e2; print_string "#\n";
+	(*print_string "e1="; Irg.print_expr e1; print_string "#e2="; Irg.print_expr e2; print_string "#\n";*)
 
 	raise_type_error_two_operand t1 t2
 
@@ -1205,8 +1210,9 @@ let check_switch_expr test list_case default=
 				| _ -> false) in
 		match t with
 		| ENUM _ -> sub_fun list_case
-		| BOOL | CARD _ | INT _ | RANGE _ -> is_int list_case
-		| _ -> false
+		(* UNKNOW_TYPE corresponds to an expr like x.item not yet instantiated *)
+		| BOOL | CARD _ | INT _ | RANGE _ | UNKNOW_TYPE -> is_int list_case
+		| _ -> print_string "check_switch, t=";Irg.print_type_expr t; false
 
 	(* This part check if all the possible result of a switch expression are of the same type *)
 	and check_switch_return_type =

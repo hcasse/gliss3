@@ -84,21 +84,21 @@ let print_dec_tree tr =
 	in
 	match tr with
 	DecTree(int_l, sl, msk, gm, dt_l) ->
-		begin
-		Printf.printf "================================================================\nPrinting tree, dectree's name : %s\n" (name_of tr);
-		Printf.printf "mask   : %s\n" (Bitmask.to_string msk);
+		(Printf.printf "[[TREE, name : %s, " (name_of tr);
+		Printf.printf "mask : %s, " (Bitmask.to_string msk);
 		Printf.printf "global : %s\n" (Bitmask.to_string gm);
-		Printf.printf "spec : ";
-		if sl == [] then print_string "<none>\n" else 
-		List.iter (fun x -> Printf.printf "\t%12s%20s, mask=%s, val=%s, val_mask=%s\n"
+		Printf.printf "spec list: ";
+		if sl == [] then print_string "<none>\n" else
+			print_char '\n';
+			List.iter (fun x -> Printf.printf "\t%12s%20s, mask=%s, val=%s, val_mask=%s\n"
 			(Irg.name_of x)
 			(Iter.get_name x)
 			(Bitmask.to_string (Bitmask.get_mask x))
 			(Bitmask.to_string (Bitmask.get_value_mask x))
 			(Bitmask.to_string (Bitmask.get_value x)))
 			sl;
-		(*Printf.printf "\n"*)
-		end
+		Printf.printf "]]\n")
+
 
 
 let print_dec_tree_list tl =
@@ -122,6 +122,13 @@ let get_instr_list dt =
 		sl
 
 
+(*!!DEBUG!!*)
+let get_image sp =
+	match Iter.get_attr sp "image" with
+	| Iter.EXPR(e) -> e
+	| _ -> failwith "should not happen (fetch.ml::get_image)"
+
+
 let create_son_list_of_dec_node dt =
 	let rec aux msk sl =
 		(match sl with
@@ -129,15 +136,23 @@ let create_son_list_of_dec_node dt =
 			(* one instr => terminal node *)
 			[]
 		| a::b ->
-			(* !!DEBUG!! *)
-			(*print_string ("\ncreating dec_node son, mask="^msk^", val_on_mask=");
-			Printf.printf "%s, inst_mask=%s, inst_val=%s, spec=%s\n" (calcul_value_on_mask a msk) (get_string_mask_from_op a) (get_string_value_on_mask_from_op a) (Irg.name_of a);*)
-			(*((calcul_value_on_mask a msk), a)::(aux msk b)*)
 			((Bitmask.masked_value (Bitmask.get_value_mask a) msk), a)::(aux msk b)
 		)
 	in
 	match dt with
 	DecTree(i_l, s_l, msk, gm, dt_l) ->
+		(* !!DEBUG!! *)
+		(*Printf.printf "create_son_list_of_dec_node, msk=%s, gm=%s\n" (Bitmask.to_string msk) (Bitmask.to_string gm);
+
+		List.iter (fun a -> print_string ("creating dec_node son, val_on_mask=");
+			Printf.printf "%s, (inst_mask=%s, inst_val=%s), spec="
+				(Bitmask.to_string (Bitmask.masked_value (Bitmask.get_value_mask a) msk))
+				(Bitmask.to_string (Bitmask.get_mask a))
+				(Bitmask.to_string (Bitmask.get_value_mask a));
+			Irg.print_expr (get_image a);
+			print_char '\n')
+			s_l;*)
+		
 		aux msk s_l
 
 
@@ -156,7 +171,17 @@ let sort_son_list vl =
 					a::(add_instr_in_tuple_list b (v,sp))
 			)
 	in
+	(*!!DEBUG!!*)
+	(*print_string "sort_son_list, sons to sort:\n";
+	List.iter (fun a -> Printf.printf " mask=%s, spec=" (Bitmask.to_string (fst a)); Irg.print_expr (get_image (snd a)); print_char '\n')
+		vl;
+	let res =*)
 	List.fold_left add_instr_in_tuple_list [] vl
+	(*in
+	print_string "sons sorted=[\n";
+	List.iter (fun x -> Printf.printf "v=%s\n" (Bitmask.to_string (fst x)); List.iter (fun y -> print_string "    "; Irg.print_expr (get_image y); print_char '\n') (snd x); print_string "]\n")
+		res;
+	res*)
 
 
 (* with the result of the previous function we can build the list of dec_tree associated,
@@ -165,23 +190,23 @@ we also need the father's vals on mask to add the new one,
 by default all trees will be created with no link between them (no tree structure) *)
 let rec build_dectrees vl msk gm il =
 	match vl with
-	| [] ->
-		[]
+	| [] -> []
 	| a::b ->
-		(match a with
-		| (v, sl) ->
-			(*print_string "build_dectrees\n";*)
+			let v = fst a in
+			let sl = snd a in
 			let common_mask = spec_list_mask sl in
+			(*!!DEBUG!!*)
+			(*print_string "build_dectrees\n";
+			Printf.printf "common mask=%s, %d instr\n" (Bitmask.to_string common_mask) (List.length sl);*)
 			let dt = DecTree(il@[v], sl, Bitmask.unmask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
 			in
 			(* !!DEBUG!! *)
-			(*print_dec_tree dt;
-			print_string "build_tree, sl=[";
-			List.iter (fun x -> Printf.printf "%s," (Irg.name_of x)) sl;
+			(*print_string "build_dectrees res = ";
+			print_dec_tree dt;
+			print_string "build_tree, sl=[\n";
+			List.iter (fun x -> print_string "    "; Irg.print_expr (get_image x); print_char '\n') sl;
 			print_string "]\n";*)
-			dt::(build_dectrees b msk gm il))
-
-
+			dt::(build_dectrees b msk gm il)
 
 
 let build_sons_of_tree tr =
@@ -190,14 +215,17 @@ let build_sons_of_tree tr =
 		let res = build_dectrees (sort_son_list (create_son_list_of_dec_node tr)) msk gm int_l
 		in
 		if (List.length res) == 1 && (List.length (get_instr_list (List.hd res))) > 1 then
-			begin
-			output_string stderr "ERROR: some instructions seem to have same image.\n";
-			output_string stderr "here is the list: ";
-			List.iter (fun x -> Printf.fprintf stderr "%s, " (Irg.name_of x)) (get_instr_list (List.hd res));
-			List.iter (fun x -> (Irg.print_spec x)) (get_instr_list (List.hd res));
+			(output_string stderr "ERROR: some instructions seem to have same image.\n";
+			output_string stderr "here is the list: \n";
+			(*List.iter (fun x -> Printf.fprintf stderr "%s, " (Irg.name_of x)) (get_instr_list (List.hd res));*)
+			let expr_from_value v =
+				match v with
+				| Iter.EXPR(e) -> e
+				| _ -> failwith "should not happen (fetch.ml::build_sons_of_tree::expr_from_value)"
+			in
+			List.iter (fun x -> (*(Irg.print_spec x)*) (Irg.output_expr stderr (expr_from_value (Iter.get_attr x "image"))); output_char stderr '\n') (get_instr_list (List.hd res));
 			output_string stderr "\n";
-			raise (Sys_error "cannot continue with 2 instructions with same image")
-			end
+			raise (Sys_error "cannot continue with 2 instructions with same image"))
 		else
 			res
 
@@ -213,11 +241,11 @@ let build_dec_nodes sp_l =
 			true
 		| a::b ->
 			if node_cond a then
-			(*begin print_string "stop_cond=[rec]\n";flush stdout;*)
-				stop_cond b (*end*)
+			((*print_string "stop_cond=[rec]\n";flush stdout;*)
+				stop_cond b )
 			else
-			(*begin print_string "stop_cond=false\n";flush stdout;*)
-				false (*end*)
+			((*print_string "stop_cond=false\n";flush stdout;*)
+				false )
 	in
 	let get_sons x =
 		match x with
@@ -473,8 +501,9 @@ let sort_dectree_list d_l =
 		comp_gen_int_list (name_of y) (name_of x)
 	in
 	(*!!DEBUG!!*)
-	(*Printf.printf "sort %d nodes\n" (List.length d_l);*)
-	(*List.iter print_dec_tree d_l;*)
+	(*Printf.printf "sort, %d nodes\n" (List.length d_l);
+	List.iter print_dec_tree d_l;
+	print_string "sort, end\n";*)
 	List.sort comp_fun d_l
 
 
@@ -561,8 +590,12 @@ let output_struct_decl out fetch_size idx =
 let output_table out sp_l fetch_size idx fetch_stat =
 	let suffix = if idx < 0 then "" else ("_" ^ (string_of_int idx)) in
 	let aux dl dt = output_table_C_decl fetch_size suffix out fetch_stat dt dl in
-	let dl = sort_dectree_list (build_dec_nodes sp_l) in
-		List.iter (aux dl) dl
+	let dl = 
+		(* !!DEBUG!! *)
+		(*Printf.printf "output_table, #sp_l=%d, fetch_size=%d, idx=%d\n" (List.length sp_l) fetch_size idx;*)
+		sort_dectree_list (build_dec_nodes sp_l)
+	in
+	List.iter (aux dl) dl
 
 
 (** output all C struct declarations and fetch tables *)

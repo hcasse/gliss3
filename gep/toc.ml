@@ -578,8 +578,8 @@ let rec unaliased_mem_name name =
 					resource type) *)
 let resolve_alias name idx ub lb =
 
-	let printv msg (r, i, il, ub, lb, t) =(*
-		Printf.printf "\t%s(%s [" msg r;
+	let printv msg (r, i, il, ub, lb, t) =
+		(*Printf.printf "\t%s(%s [" msg r;
 		Irg.print_expr i;
 		Printf.printf ":%d] < " il;
 		Irg.print_expr ub;
@@ -675,7 +675,6 @@ let resolve_alias name idx ub lb =
 			| _ -> failwith "OUPS!\n")
 		| _ ->
 			failwith "bad alias" in
-
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	printv "return" res;
 	res
@@ -686,8 +685,9 @@ let resolve_alias name idx ub lb =
 	@param idx		Index (may be NONE)
 	@param ub		Upper bit number (may be NONE)
 	@param lb		Lower bit number (may be NONE)
+	@param typ		Type of name[idx]<lb..ub> (for a mem access)
 	@return			Unaliased expression. *)
-let unalias_expr name idx ub lb =
+let unalias_expr name idx ub lb typ =
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 	let t32 = Irg.CARD(32) in
 	let const c =
@@ -707,23 +707,42 @@ let unalias_expr name idx ub lb =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
 	(* !!DEBUG!! *)
-	(*print_string "unalias_expr =====================================\nname=["; print_string name;
-	print_string "]\nidx=["; Irg.print_expr idx;
-	print_string "]\nub=["; Irg.print_expr ub;
-	print_string "]\nlb=["; Irg.print_expr lb;
-	print_string "]\n++++++res=[";
+	(*print_string "unalias_expr =====================================\nname="; print_string name;
+	print_string "\nidx="; Irg.print_expr idx;
+	print_string "\nub="; Irg.print_expr ub;
+	print_string "\nlb="; Irg.print_expr lb;
+	
+	print_string ("resolve_alias, res, r="^r^", t=");
+	Irg.print_type_expr t;
+	print_string "\ni="; Irg.print_expr i;
+	print_string "\nil="; print_int il;
+	print_string "\nubp="; Irg.print_expr ubp;
+	print_string "\nlbp="; Irg.print_expr lbp;
+	
+	print_string "\n++++++res=[";
 let res =*)
 	match Irg.get_symbol name with
 	| Irg.REG (_, _, tt, _) ->
 		field (concat (il - 1) tt) ubp lbp tt
 	| Irg.MEM (_, _, tt, _) ->
-		field (concat 0 tt) ub lb tt
+		(*print_string "(type="; Irg.print_type_expr tt; print_string "), ";*)
+		(*field (concat 0 tt) ub lb tt*)
+		field (Irg.ITEMOF(typ, r, idx)) ub lb tt
 	| s ->
 		failwith "unalias_expr"
-(* !!DEBUG!! *)
-(*in Irg.print_expr res;
+(* !!DEBUG!! *)(*
+in Irg.print_expr res;
 print_string "]\n";
 res*)
+
+
+(*!!DEBUG!!*)
+(*let pe = ref 0
+let ps = ref 0
+let ge = ref 0
+let gs = ref 0
+*)
+
 
 
 (** Prepare expression for generation.
@@ -735,42 +754,38 @@ let rec prepare_expr info stats expr =
 
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
-	let unalias name idx =
+	let unalias name idx typ unalias_mem =
 		match Irg.get_symbol name with
+		(* IRg.MEM added makes everything goes badly (with ppc2 and arm at least) *)
 		| Irg.REG _ ->
-			(*!!DEBUG!!*)
-			(*print_string "---prepare_expr(unalias), name=";
-			print_string name;
-			print_string ", idx=";
-			Irg.print_expr idx;
-			print_string " | res=";
-			Irg.print_expr (unalias_expr name idx Irg.NONE Irg.NONE);
-			print_char '\n';*)
-			unalias_expr name idx Irg.NONE Irg.NONE
+			unalias_expr name idx Irg.NONE Irg.NONE typ
+		| Irg.MEM _ ->
+			if unalias_mem then
+				unalias_expr name idx Irg.NONE Irg.NONE typ
+			else
+				expr
 		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
 			expr
 		| Irg.VAR (_, cnt, t) ->
 			add_var info name cnt t; expr
 		| _ ->
-			expr in
+			expr
+	in
 	(* !!DEBUG!! *)
-	(*print_string "--prepare_expr, ";
+	(*let level = !pe in
+	Printf.printf "--prepare_expr(%d), expr=" level;
+	pe := !pe + 1;
 	Irg.print_expr expr;
 	print_char '\n';
-	flush stdout;*)
+	let res = ( *)
 	match expr with
 	| Irg.REF name ->
-		(stats, unalias name Irg.NONE)
+		(* if mem ref, leave it this way, it surely is a parameter for a canonical *)
+		(stats, unalias name Irg.NONE Irg.BOOL false)
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
-		(*!!DEBUG!!*)
-		(*print_string "----prepare_expr, coerce, typ = ";
-		Irg.print_type_expr typ;
-		print_string ", expr = ";
-		Irg.print_expr expr;
-		print_string "\n";*)
 		(stats, Irg.COERCE (typ, expr))
 	| Irg.FORMAT (fmt, args) ->
 		let (stats, args) = prepare_exprs info stats args in
@@ -782,7 +797,7 @@ let rec prepare_expr info stats expr =
 		(stats, Irg.FIELDOF (typ, base, id))
 	| Irg.ITEMOF (typ, tab, idx) ->
 		let (stats, idx) = prepare_expr info stats idx in
-		(stats, unalias tab idx)
+		(stats, unalias tab idx typ true)
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -832,6 +847,14 @@ let rec prepare_expr info stats expr =
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
 		(stats, Irg.CAST(size, expr))
+	(*!!DEBUG!!*)
+	(* ) in
+	Printf.printf "--res(%d): expr=" level;
+	Irg.print_expr expr;
+	Printf.printf "\n--res(%d): stats=[\n" level;
+	Irg.print_statement stats;
+	print_string "]\n";
+	res*)
 
 and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	List.fold_left
@@ -949,7 +972,9 @@ let get_loc_size l =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
-(*print_string "prepare_stat stat="; Irg.print_statement stat;	(* !!DEBUG!! *)*)
+	(* !!DEBUG!! *)
+	(*let level = !ps in
+	Printf.printf "++prepare_stat(%d) stat=[\n" level; ps := !ps + 1; Irg.print_statement stat; print_string "]\n";	*)
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
@@ -958,10 +983,14 @@ let rec prepare_stat info stat =
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 
 	let rec prepare_set stats loc expr =
-		(*print_string "prepare_stat::prepare_set loc="; Irg.print_location loc;	(* !!DEBUG!! *)
-		print_string ", expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
-		print_string "stat="; Irg.print_statement stats;*)			(* !!DEBUG!! *)
+		(*Printf.printf "##prepare_stat(%d)::prepare_set\n+++loc=" level;
+		print_string "##prepare_stat::prepare_set\n+++loc=";
+		Irg.print_location loc;	(* !!DEBUG!! *)
+		print_string "\n##expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
+		print_string "\n##stats=["; Irg.print_statement stats;	print_string "]\n";		(* !!DEBUG!! *) 
 		trace "prepare_set 1";
+		
+		let res = ( *)
 		match loc with
 		| Irg.LOC_NONE ->
 			failwith "no location to set (3)"
@@ -971,17 +1000,21 @@ let rec prepare_stat info stat =
 			let (stats, l) = prepare_expr info stats l in
 			(match Irg.get_symbol r with
 			| Irg.MEM _ -> seq stats (Irg.SET ((Irg.LOC_REF (t, r, i, u, l)), expr))
-			| _ -> 
-			(*!!DEBUG!!*)
-			(*print_string "about to unalias_set, loc=";Irg.print_location loc;print_char '\n';*)
-			unalias_set info stats r i u l expr)
+			| _ -> unalias_set info stats r i u l expr)
 		| Irg.LOC_CONCAT (t, l1, l2) ->
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
 			let stats = prepare_set stats l1
 				(rshift t (refto tmp) (index (get_loc_size l2))) in
-			prepare_set stats l2 (refto tmp) in
-
+			prepare_set stats l2 (refto tmp)
+		(* ) in
+		Printf.printf "##res(%d): [" level;
+		print_string "##res: [";
+		Irg.print_statement res; print_string "]\n";
+		res*)
+	in
+(*!!DEBUG!!*)
+(*let res = ( *)
 	match stat with
 	| Irg.NOP
 	| Irg.ERROR _ ->
@@ -1024,6 +1057,11 @@ let rec prepare_stat info stat =
 
 	| Irg.INLINE _ ->
 		stat
+(*!!DEBUG!!*)
+(* ) in
+Printf.printf "++res(%d): [" level; Irg.print_statement res; print_string "]\n";
+res*)
+
 
 and prepare_call info name =
 	if not (StringHashtbl.mem info.attrs name) then
@@ -1039,13 +1077,18 @@ and prepare_call info name =
 	@param prfx		Boolean indicating if state members (reg, mem, ...) should be prefixed by PROC_NAME,
 				transmitted to most of the other gen_xxx expr related functions *)
 let rec gen_expr info (expr: Irg.expr) prfx =
+(*!!DEBUG!!*)
+(*let level = !ge in
+Printf.printf "**gen_expr(%d), prfx=%b, expr=" level prfx; ge := !ge + 1;
+Irg.print_expr expr; print_char '\n';*)
+
 	let out = output_string info.out in
 
 	match expr with
 	| Irg.NONE -> ()
 	| Irg.CONST (typ, cst) -> gen_const info typ cst prfx
 	| Irg.REF name -> gen_ref info name prfx
-	| Irg.ITEMOF (_, name, idx) -> gen_itemof info name idx prfx
+	| Irg.ITEMOF (typ, name, idx) -> gen_itemof info typ name idx prfx
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
 	| Irg.UNOP (t, op, e) -> gen_unop info t op e prfx
 	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2 prfx
@@ -1064,7 +1107,11 @@ let rec gen_expr info (expr: Irg.expr) prfx =
 	| Irg.FORMAT _ -> failwith "format out of image/syntax attribute"
 	| Irg.IF_EXPR _
 	| Irg.SWITCH_EXPR _
-	| Irg.FIELDOF _ -> failwith "should have been reduced"
+	| Irg.FIELDOF _ ->
+		(*!!DEBUG!!*)
+		print_string "\nBUG with expr: ";
+		Irg.print_expr expr; print_char '\n';
+		failwith "should have been reduced"
 	| Irg.CAST (size, expr) -> gen_cast info size expr prfx
 
 
@@ -1150,9 +1197,10 @@ and gen_ref info name prfx =
 
 (** Generate ITEMOF expression, r[idx].
 	@param info		Generation information.
+	@param t		type of the expression
 	@param name		Name of the state item.
 	@param idx		Index. *)
-and gen_itemof info name idx prfx =
+and gen_itemof info t name idx prfx =
 	match Irg.get_symbol name with
 	| Irg.VAR _ ->
 		Printf.fprintf info.out "%s[" name;
@@ -1162,10 +1210,10 @@ and gen_itemof info name idx prfx =
 		Printf.fprintf info.out "%s[" (state_macro info name prfx);
 		gen_expr info idx prfx;
 		output_string info.out "]"
-	| Irg.MEM (_, _, typ, _)  ->
+	| Irg.MEM (_, _, _, _)  ->
 		Printf.fprintf info.out "%s_mem_read%s(%s, "
 			info.proc
-			(type_to_mem (convert_type typ))
+			(type_to_mem (convert_type t))
 			(state_macro info (unaliased_mem_name name) prfx);
 		gen_expr info idx prfx;
 		output_string info.out ")"
@@ -1445,7 +1493,9 @@ let rec gen_stat info stat =
 				ignore (gen_expr info arg true); false)
 			true
 			args) in
-
+(*!!DEBUG!!*)
+(*let level = !gs in
+Printf.printf "==gen_stat(%d), stat=[\n" level; gs := !gs + 1; Irg.print_statement stat; print_string "]\n";*)
 	match stat with
 	| Irg.NOP -> ()
 
