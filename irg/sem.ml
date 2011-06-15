@@ -1194,6 +1194,8 @@ let check_switch_expr test list_case default=
 	(* This part check if all the cases of a switch are of the type of the expression to be tested*)
 	let check_switch_cases =
 		let t = get_type_expr test in
+		(*!!DEBUG!!*)
+		(*print_string "**check_switch_cases, test:";Irg.print_type_expr t; print_string "\n";*)
 		let rec sub_fun list_c =
 			match list_c with
 			| [] -> true
@@ -1212,7 +1214,7 @@ let check_switch_expr test list_case default=
 		| ENUM _ -> sub_fun list_case
 		(* UNKNOW_TYPE corresponds to an expr like x.item not yet instantiated *)
 		| BOOL | CARD _ | INT _ | RANGE _ | UNKNOW_TYPE -> is_int list_case
-		| _ -> print_string "check_switch, t=";Irg.print_type_expr t; false
+		| _ -> (*!!DEBUG!!*)(*print_string "check_switch, t_=";Irg.print_type_expr t;*) false
 
 	(* This part check if all the possible result of a switch expression are of the same type *)
 	and check_switch_return_type =
@@ -1220,7 +1222,12 @@ let check_switch_expr test list_case default=
 		let rec sub_fun list_c t=
 			match list_c with
 			| [] -> true
-			| (_,e)::l -> (get_type_expr e)=t  && sub_fun l  t in
+			| (_,e)::l -> 
+			(*!!DEBUG!!*)
+			(*print_string "**check_switch_return_type, case:";Irg.print_type_expr (get_type_expr e); print_string "\n";*)
+			(get_type_expr e)=t  && sub_fun l  t in
+		(*!!DEBUG!!*)
+		(*print_string "**check_switch_return_type, default:";Irg.print_type_expr type_default; print_string "\n";*)
 		if type_default = NO_TYPE
 		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
 		else sub_fun list_case type_default
