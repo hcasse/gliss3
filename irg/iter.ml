@@ -40,6 +40,7 @@
 #load "app.cmo";;
 *)
 
+
 (** Type of integrated instructions. *)
 type inst = Irg.spec
 
@@ -186,7 +187,7 @@ let get_name instr =
 		  Irg.FORMAT(s, e_l) -> s
 		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
-		| Irg.IF_EXPR (_, _, e, _) -> to_string e
+		| Irg.IF_EXPR (_, _, _, e) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
 		| _ -> failwith "unsupported operator in syntax" in
@@ -421,15 +422,22 @@ let get_instruction_length sp =
 		| Irg.ELINE(_, _, e) -> get_str e
 		| _ -> ""
 	in
+	let get_expr_from_iter_value v  =
+		match v with
+		| EXPR(e) -> e
+		| _ -> failwith "shouldn't happen (iter.ml::get_instruction_length::get_expr_from_iter_value)"
+	in
 	(* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)
 	let get_length_from_format f =
 		let l = String.length f in
 		let new_f =
 			if l<=2 then
-			(* shouldn't happen, we should have only formats like %[0-9]+b, not %d or %f or %s *)
-				failwith ("we shouldn't have something like [[" ^ f ^ "]] (iter.ml::get_instruction_length::get_length_from_format)")
-			else
-				String.sub f 1 (l-2)
+				raise (Sys_error (Printf.sprintf "forbidden format string \"%s\" in image \"%s\" for instruction \"%s\""
+					f
+					(get_str (get_expr_from_iter_value (get_attr sp "image")))
+					(get_str (get_expr_from_iter_value (get_attr sp "syntax"))) 
+				))
+			else String.sub f 1 (l-2)
 		in
 		Scanf.sscanf new_f "%d" (fun x->x)
 	in
@@ -448,10 +456,5 @@ let get_instruction_length sp =
 			| Str.Delim(d) ->
 				(get_length_from_format d) + (get_length_from_regexp_list t)
 			)
-	in
-	let get_expr_from_iter_value v  =
-		match v with
-		| EXPR(e) -> e
-		| _ -> failwith "shouldn't happen (iter.ml::get_instruction_length::get_expr_from_iter_value)"
 	in
 	get_length_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (get_attr sp "image")))))

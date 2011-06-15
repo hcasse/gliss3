@@ -101,12 +101,12 @@ canon "do_stuff_with_several_things"(u32, f32, u32, card(5))
 
 Finally, we can also declare canonical external constants or variables:
 <code>
-canon "NULL" : card(32);
+canon card(32) "NULL"
 </code>
 
 Here is the syntax:
 <code>
-CanonicFunctionDefinition ::= 'canon' TypeResult function_name '(' TypeParams? ')'
+CanonicFunctionDefinition ::= 'canon' TypeResult function_name ('(' TypeParams? ')')?
 
 TypeResult ::= TypeExpr		// NML type of the result
 TypeParams ::=				// NML type of the params
