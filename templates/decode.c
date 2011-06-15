@@ -6,6 +6,7 @@
 #include <$(proc)/fetch.h>
 #include <$(proc)/decode.h> /* api.h will be in it, for fetch functions, decode_table.h also */
 #include <$(proc)/config.h> /* for memory endiannesses */
+$(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
 
 #include "decode_table.h"
 
@@ -129,8 +130,9 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 	$(proc)_ident_t id;
 	/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	code.mask->mask = i_buff;
-	code.mask->bit_length = 0;
+	mask_t code;
+	code.mask = i_buff;
+	code.bit_length = 0;
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
