@@ -80,14 +80,14 @@ $(end)
 	/* put other parameters */
 
 $(if is_complex_decode)
-$(if !is_RISC_inst)$(mask_decl_all)$(end)
+	$(if !is_RISC_inst)$(mask_decl_all)$(end)
 	$(foreach params)
 	$(PROC)_$(IDENT)_$(PARAM) = $(decoder_complex);
 	
 	$(end)
 $(else)
 	$(foreach params)
-$(if !is_RISC_inst)$(mask_decl)$(end)
+	$(if !is_RISC_inst)$(mask_decl)$(end)
 	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
 	
 	$(end)

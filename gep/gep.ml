@@ -310,7 +310,7 @@ let make_env info =
 			else
 				output_decoder_complex inst idx out)) ::
 		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) ::
-		("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::
+		(*("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::*)
 		dict in
 	let add_size_to_inst inst dict =
 		let iset_size = find_iset_size_of_inst inst in
@@ -336,19 +336,20 @@ let make_env info =
 		("is_RISC_inst", Templater.BOOL (fun _ -> iset_size <> 0)) ::
 		(* instr size of the instr set where belongs inst (meaning stg only if instr set is RISC) *)
 		("iset_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" iset_size)) ::
+		("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::
 		dict
 	in
 	let get_instr_set_size f dict size =
 	f (
-		("is_RISC_size", Templater.BOOL (fun _ -> size <> 0)) ::
-		("C_size", 
+		("is_RISC_size", (Templater.BOOL (fun _ -> size <> 0))) ::
+		("C_size", Templater.TEXT(fun out ->
 			if size = 0 then
 				raise (Sys_error "template $(C_size) in $(instr_sets_sizes) collection should be used only with RISC ISA")
-			else Templater.TEXT (fun out -> Printf.fprintf out "%d" size)) ::
-		("msb_size_mask", 
+			else Printf.fprintf out "%d" size)) ::
+		("msb_size_mask", Templater.TEXT(fun out -> 
 			if size = 0 then
 				raise (Sys_error "template $(msb_size_mask) in $(instr_sets_sizes) collection should be used only with RISC ISA")
-			else Templater.TEXT (fun out -> output_string out (get_msb_mask size))) ::
+			else output_string out (get_msb_mask size))) ::
 		dict
 	)
 	in
