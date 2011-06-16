@@ -6,6 +6,7 @@
 #include <$(proc)/fetch.h>
 #include <$(proc)/decode.h> /* api.h will be in it, for fetch functions, decode_table.h also */
 #include <$(proc)/config.h> /* for memory endiannesses */
+$(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
 
 #include "decode_table.h"
 
@@ -129,7 +130,9 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 	$(proc)_ident_t id;
 	/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	mask_t code = {i_buff, 0};
+	mask_t code;
+	code.mask = i_buff;
+	code.bit_length = 0;
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
@@ -156,7 +159,8 @@ $(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(pr
 	code_t code;
 	$(if !is_RISC_size)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	code.mask = {i_buff, 0};$(end)
+	code.mask->mask = i_buff;
+	code.mask->bit_length = 0;$(end)
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
@@ -186,7 +190,8 @@ $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_
 	code_t code;
 	$(if !is_RISC_iset)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	code.mask = {i_buff, 0};$(end)
+	code.mask->mask = i_buff;
+	code.mask->bit_length = 0;$(end)
 
 	/* first, fetch the instruction at the given address, call specialized fetch */
 	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), table_$(idx));
@@ -211,7 +216,7 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 	$(foreach instruction_sets)
 	if ($(select_iset)) {
 		$(if is_RISC_iset)return $(proc)_decode_$(C_size_iset)(decoder, address);
-		$(else)return $(proc)_decode_CISC(decoder, address)$(end)
+		$(else)return $(proc)_decode_CISC(decoder, address);$(end)
 	}
 	$(end)
 }

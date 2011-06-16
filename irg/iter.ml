@@ -199,6 +199,24 @@ let get_name instr =
 	NameTable.make instr syntax
 
 
+(** Get instruction identification for the user.
+	@param inst		Instruction to get user name for.
+	@return			User name for the instruction. *)
+let get_user_id inst =
+	let rec make e =
+		match e with
+		| Irg.FORMAT(str, _) -> str
+		| Irg.CONST(Irg.STRING, c) ->
+				(match c with
+				| Irg.STRING_CONST(str, false, _) -> str
+				| _ -> "")
+		| Irg.ELINE(_, _, e) -> make e
+		| _ -> "" in
+	match get_attr inst "syntax" with
+	| EXPR(e)	-> make e
+	| _			-> failwith "syntax does not reduce to a string"
+
+
 (** return the params (with their types) of an instruction specification
 	@param instr	spec of the instrution *)
 let get_params instr =
