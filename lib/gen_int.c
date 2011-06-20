@@ -40,7 +40,7 @@ void output_mask(FILE *out, struct mask_t *mask)
 	
 	fprintf(out, "[%d]", mask->bit_length);
 	for (i = 0; i < n32; i++)
-		fprintf(out, "%08X", mask->mask[i]);
+		fprintf(out, "%08X.", mask->mask[i]);
 	if (rem)
 		fprintf(out, "(%d)%08X\n", rem, mask->mask[i]);
 }
