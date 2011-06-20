@@ -249,8 +249,9 @@ print_string ":::vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", 
 	@param params	List of parameter names.
 	@param args		Argument value of the image format.
 	@param vals		Expression to access the actual argument value.
+	@param inst		Currently processed instruction.
 	@return			Decoding pairs. *)
-let decode_parameters params args vals =
+let decode_parameters params args vals inst =
 (*	print_string "====decode_parameters\n";
 	print_string "====params=["; List.iter (fun x -> print_string (x ^ ", "); ) params; print_string "]\n";
 	print_string "====args=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) args; print_string "]\n";
@@ -287,7 +288,7 @@ let decode_parameters params args vals =
 				(p, or_mask m m', or_ e (and_ e' mm')) )*)
 				(*(p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m')))) )*)
 				(p, or_mask m m', or_ e e') )
-			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image" p))
+			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image for instruction %s" p (Iter.get_user_id inst)))
 		end in
 let res =
 	List.map

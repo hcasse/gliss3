@@ -26,6 +26,8 @@ $(eval $(call ocaml_prog,print_irg,print_irg.ml))
 mkirg_LIBS=unix str irg
 $(eval $(call ocaml_prog,mkirg,mkirg.ml))
 
+CLEAN += config.ml
+
 config.ml:
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
 	echo "let source_dir = \"$(PWD)/..\"" >> config.ml

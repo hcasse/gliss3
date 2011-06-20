@@ -296,7 +296,7 @@ let make_env info =
 					[]
 			in
 			let expr_frmt_params = aux 0 in
-			inst_decode_arg := (inst, Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params));
+			inst_decode_arg := (inst, Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params inst));
 		output_expr (get_nth_expr idx)
 	in
 	let add_mask_32_to_param inst idx _ _ dict =
