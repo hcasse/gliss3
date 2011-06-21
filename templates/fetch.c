@@ -130,7 +130,11 @@ $(proc)_ident_t $(proc)_fetch_CISC($(proc)_fetch_t *fetch, $(proc)_address_t add
 	{
 		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
 		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
-			set_mask_chunk(code, get_mask_length(code) >> 5, $(proc)_mem_read32(fetch->mem, address + (get_mask_length(code) >> 3)));
+			uint8_t buff[4];
+			/* reads 4 bytes in the correct order */
+			$(proc)_mem_read(fetch->mem, address + (get_mask_length(code) >> 3), buff, 4);
+			uint32_t byte_ordered = (buff[0] << 24) | (buff[1] << 16) | (buff[2] << 8) | buff[3];
+			set_mask_chunk(code, get_mask_length(code) >> 5, byte_ordered);
 			set_mask_length(code, get_mask_length(code) + 32);
 		}
 
@@ -222,7 +226,11 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 	{
 		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
 		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
-			set_mask_chunk(code, get_mask_length(code) >> 5, $(proc)_mem_read32(fetch->mem, address + (get_mask_length(code) >> 3)));
+			uint8_t buff[4];
+			/* reads 4 bytes in the correct order */
+			$(proc)_mem_read(fetch->mem, address + (get_mask_length(code) >> 3), buff, 4);
+			uint32_t byte_ordered = (buff[0] << 24) | (buff[1] << 16) | (buff[2] << 8) | buff[3];
+			set_mask_chunk(code, get_mask_length(code) >> 5, byte_ordered);
 			set_mask_length(code, get_mask_length(code) + 32);
 		}
 
