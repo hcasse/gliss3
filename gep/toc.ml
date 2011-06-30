@@ -1026,13 +1026,11 @@ let rec prepare_stat info stat =
 		prepare_set stats loc expr
 	| Irg.CANON_STAT (name, args) ->
 		let (stats, args) = prepare_exprs info Irg.NOP args in
-		Irg.CANON_STAT (name, List.rev args)
+		seq stats (Irg.CANON_STAT (name, List.rev args))
 
 	| Irg.IF_STAT (cond, tpart, epart) ->
 		let (stats, cond) = prepare_expr info Irg.NOP cond in
-		Irg.SEQ (stats, Irg.IF_STAT (cond,
-			prepare_stat info tpart,
-			prepare_stat info epart))
+		seq stats (Irg.IF_STAT (cond, prepare_stat info tpart, prepare_stat info epart))
 
 	| Irg.SWITCH_STAT (cond, cases, def) ->
 		let (stats, cond) = prepare_expr info Irg.NOP cond in
