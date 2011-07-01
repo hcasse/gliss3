@@ -1,8 +1,22 @@
 (*
- * $Id: lexer.mll,v 1.10 2009/03/07 14:05:05 casse Exp $
- * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
+ * GLISS2 -- lexer of NML language
+ * Copyright (c) 2011, IRIT - UPS <casse@irit.fr>
  *
- * Lexer of OGEP.
+ * This file is part of GLISS2.
+ *
+ * GLISS2 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * GLISS2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with GLISS2; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 {
 
@@ -14,7 +28,9 @@ exception BadLine
 (* Line count *)
 let file = ref ""
 let line = ref 1
+let line_offset = ref 0
 let bitfld = ref false
+let lexbuf = ref (Lexing.from_string "")
 
 (* Keyword detection *)
 let lexicon = Irg.StringHashtbl.create 211
@@ -84,13 +100,20 @@ let _ =
 	List.iter add keywords
 
 
-(* Error management *)
-let display_error msg =
-	Printf.fprintf stderr "ERROR: %s:%d: %s\n" !file !line msg
+(** Compute column of the current symbol.
+	@return		Column number. *)
+let get_col _ =
+	(Lexing.lexeme_start !lexbuf) - !line_offset + 1
 
-(*warning management *)
+(** Error management
+	@param msg		Message to display. *)
+let display_error msg =
+	Printf.fprintf stderr "ERROR: %s:%d:%d: %s\n" !file !line (get_col ()) msg
+
+(** warning management
+	@param msg		Message to display. *)
 let display_warning msg=
-	Printf.fprintf stderr "WARNING: %s:%d: %s\n" !file !line msg
+	Printf.fprintf stderr "WARNING: %s:%d:%d: %s\n" !file !line (get_col ()) msg
 
 (* Lexing add-ons *)
 let rec dotdot lexbuf i found =
@@ -111,12 +134,6 @@ let rec dotdot lexbuf i found =
 let gt lexbuf token size =
 	if not !bitfld then token
 	else begin
-		(*Printf.printf "len=%d, start=%d, cur=%d, last=%d\n"
-			lexbuf.lex_buffer_len
-			lexbuf.lex_start_pos
-			lexbuf.lex_curr_pos
-			lexbuf.lex_last_pos
-			;*)
 		bitfld := false;
 		lexbuf.lex_curr_pos <- lexbuf.lex_curr_pos - size;
 		GT
@@ -132,6 +149,13 @@ let appends s c =
 		| 'r' -> '\r'
 		| c -> c in
 	append s c
+
+
+(** Record a new line. *)
+let new_line lexbuf =
+	incr line;
+	line_offset := Lexing.lexeme_end lexbuf
+
 }
 
 let letter	= ['a' - 'z' 'A' - 'Z' '_']
@@ -157,7 +181,7 @@ let num=decint|hexint
 rule main = parse
 
 	delim		{ main lexbuf }
-|	newline		{ incr line; main lexbuf }
+|	newline		{ new_line lexbuf; main lexbuf }
 |	"//"		{ eof_comment lexbuf }
 |	"/*"		{ comment lexbuf }
 
@@ -231,14 +255,14 @@ rule main = parse
 
 (* eof_comment *)
 and eof_comment = parse
-	'\n'	{ incr line; main lexbuf }
+	'\n'	{ new_line lexbuf; main lexbuf }
 |	_		{ eof_comment lexbuf }
 
 (* comment *)
 and comment = parse
 	"*/"	{ main lexbuf }
 
-|	'\n'	{ incr line; (*main*)comment lexbuf }
+|	'\n'	{ new_line lexbuf; comment lexbuf }
 |	_		{ comment lexbuf }
 
 (* string recognition *)
@@ -260,6 +284,6 @@ and scan_line = parse
 
 and scan_file = parse
 	delim		{ scan_file lexbuf }
-|	"\""		{ file := (str "" lexbuf) }
+|	"\""		{ file := (str "" lexbuf); line_offset := Lexing.lexeme_end lexbuf }
 |	_			{ raise BadLine }
 

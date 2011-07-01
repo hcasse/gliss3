@@ -26,25 +26,26 @@ open Irg
 	@raise	Sys_error	If there is an error during the read. *)
 let load path =
 
+	let run_lexer path lexbuf =
+		Lexer.file := path;
+		Lexer.line := 1;
+		Lexer.line_offset := 0;
+		Lexer.lexbuf := lexbuf;
+		Parser.top Lexer.main lexbuf in		
+
 	(* is it an IRG file ? *)
 	if Filename.check_suffix path ".irg" then
 		Irg.load path
 
 	(* is it NML ? *)
 	else if Filename.check_suffix path ".nml" then
-		begin
-			Lexer.file := path;
-			let lexbuf = Lexing.from_channel (open_in path) in
-			Parser.top Lexer.main lexbuf;
-		end
+		run_lexer path (Lexing.from_channel (open_in path))
 
 	(* is it NMP ? *)
 	else if Filename.check_suffix path ".nmp" then
 		let input = run_nmp2nml path in
 		begin
-			Lexer.file := path;
-			let lexbuf = Lexing.from_channel input in
-			Parser.top Lexer.main lexbuf;
+			run_lexer path (Lexing.from_channel input);
 			match Unix.close_process_in input with
 			| Unix.WEXITED n when n = 0 -> ()
 			| _ -> raise (Sys_error "ERROR: preprocessing failed.")
