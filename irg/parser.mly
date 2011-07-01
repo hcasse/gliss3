@@ -1000,37 +1000,31 @@ Constant :
 
 Bit_Expr :
 	ID
-		{Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1) 
-(*			if Irg.is_defined $1
-			then
-				eline (Irg.REF $1)
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))*)
-		}
+		{Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1)  }
+|	MINUS Bit_Expr
+		{ eline (Sem.get_unop $2 Irg.NEG) }
+|	PLUS Bit_Expr
+		{ $2 }
+|	TILD Bit_Expr
+		{ eline (Sem.get_unop $2 Irg.BIN_NOT) }
 |	Bit_Expr PLUS Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.ADD
-		}
+		{ eline (Sem.get_binop $1 $3 Irg.ADD) }
 |	Bit_Expr MINUS Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.SUB
-		}
+		{ eline (Sem.get_binop $1 $3 Irg.SUB) }
 |	Bit_Expr STAR Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.MUL
-		}
+		{ eline(Sem.get_binop $1 $3 Irg.MUL) }
 |	Bit_Expr SLASH Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.DIV
-		}
+		{ eline(Sem.get_binop $1 $3 Irg.DIV) }
 |	Bit_Expr PERCENT Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.MOD
-		}
+		{ eline(Sem.get_binop $1 $3 Irg.MOD) }
 |	Bit_Expr  DOUBLE_STAR Bit_Expr
-		{
-			Sem.get_binop $1 $3 Irg.EXP
-		}
+		{ eline(Sem.get_binop $1 $3 Irg.EXP) }
+|	Bit_Expr AMPERS Bit_Expr
+		{ eline(Sem.get_binop $1 $3 Irg.BIN_AND) }
+|	Bit_Expr PIPE Bit_Expr
+		{ eline(Sem.get_binop $1 $3 Irg.BIN_OR) }
+|	Bit_Expr CIRC Bit_Expr
+		{ eline(Sem.get_binop $1 $3 Irg.BIN_XOR) }
 |	LPAREN Bit_Expr RPAREN
 		{ $2 }
 |	FIXED_CONST
