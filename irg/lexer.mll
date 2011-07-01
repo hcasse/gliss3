@@ -284,6 +284,6 @@ and scan_line = parse
 
 and scan_file = parse
 	delim		{ scan_file lexbuf }
-|	"\""		{ file := (str "" lexbuf); line_offset := Lexing.lexeme_end lexbuf }
+|	"\""		{ file := (str "" lexbuf) }
 |	_			{ raise BadLine }
 

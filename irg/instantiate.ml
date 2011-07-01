@@ -1,5 +1,6 @@
 open Irg
 
+exception Error of  (Irg.spec * string)
 
 (* functions dealing with instruction instantiation *)
 
@@ -17,7 +18,7 @@ let is_stat_attr_recursive sp name =
 		let rec aux al =
 			match al with
 			| [] ->
-				failwith ("attribute " ^ name ^ " not found or not a statement (instantiate.ml::is_stat_attr_recursive)")
+				raise (Error (sp, (Printf.sprintf "attribute %s not found" name)))
 			| ATTR_STAT(nm, s)::t ->
 				if (String.compare nm n) == 0 then
 					s
@@ -411,20 +412,12 @@ let rec substitute_in_location name op loc =
 					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (instantiate.ml::substitute_in_location)"
-			| BITFIELD(typ, n, lb, ub) ->
-				if i=NONE then
-					if u=NONE && l=NONE then
-						(match n with
-						REF(nn) ->
-							LOC_REF(typ, nn, NONE, lb, ub)
-						| _ ->
-							failwith "cannot substitute here (BITFIELD 1) (instantiate.ml::substitute_in_location)"
-						)
-					else
-						failwith "cannot substitute here (BITFIELD 2) (instantiate.ml::substitute_in_location)"
-				else
-					(* we can't express n<lb..ub>[i], it is meaningless *)
-					failwith "cannot substitute a var here (BITFIELD 3) (instantiate.ml::substitute_in_location)"
+			| BITFIELD(typ, REF(nn), lb, ub) when i = NONE && u = NONE & l = NONE
+				-> LOC_REF(typ, nn, NONE, lb, ub)
+			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE & l = NONE
+				-> LOC_REF(t, n, idx, lb, ub)
+			| BITFIELD(t, ELINE(_, _, e), lb, ub) ->
+				subst_mode_value (BITFIELD (t, e, lb, ub))
 			| ELINE(str, lin, e) ->
 				subst_mode_value e
 			| _ ->

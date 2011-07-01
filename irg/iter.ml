@@ -354,7 +354,8 @@ let iter_ext fun_to_iterate init_val with_profiling =
 	in
 	let initialise_instrs =
 		if !instr_set = [Irg.UNDEF] then
-			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst)
+			try instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst)
+			with Instantiate.Error (sp, msg) -> raise (Irg.IrgError (Printf.sprintf "%s in instruction %s" msg (get_user_id sp)))
 		else
 			();
 		if !multi_set = [] then
