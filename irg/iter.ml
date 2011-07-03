@@ -19,31 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(* Usefull when you want to use caml toplevel : *)
-(*
-#directory "../irg";;
-#directory "../gep";;
-
-#load "unix.cma";;
-#load "str.cma";;
-#load "config.cmo";;
-#load "irg.cmo";;
-#load "instantiate.cmo";;
-#load "lexer.cmo";;
-#load "sem.cmo";;
-#load "IdMaker.cmo";;
-#load "iter.cmo";;
-#load "toc.cmo";;
-#load "templater.cmo";;
-#load "parser.cmo";;
-#load "irgUtil.cmo";;
-#load "app.cmo";;
-*)
-
-
 (** Type of integrated instructions. *)
 type inst = Irg.spec
-
 
 (** Null instruction. *)
 let null = Irg.UNDEF
@@ -105,9 +82,10 @@ let instr_set = ref [Irg.UNDEF]
 
 (** will contains instr sorted by instruction set if multi, each set in a list *)
 let multi_set = ref []
+
 (** List of instruction names sorted by ascending order of call number
 	This list is initialize if -p option is activated when calling GEP *)
-let instr_stats : (string list ref) = ref [];;
+let instr_stats : (string list ref) = ref []
 
 
 (** return an attr from an instruction or mode specification
@@ -329,16 +307,41 @@ let enumerate_instr_sets i_l =
 	(*  !!DEBUG!!
 	print_string "[";List.iter print_list res;print_string "]\n"; *)
 	multi_set := res
+
+
+(** Get the list of instructions. If it has not been computed,
+	compute it. *)
+let get_insts _ =
+	let is_defined id =
+		try (ignore (Irg.get_symbol id); true)
+		with Irg.Symbol_not_found _ -> false in
+
+	let root_inst =
+		if is_defined "multi" then "multi"
+		else if is_defined "instruction" then "instruction"
+		else raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
+	in
+
+	(* initialization *)
+	if !instr_set = [Irg.UNDEF] then
+		(try
+			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst);
+			if !multi_set = [] then
+				enumerate_instr_sets !instr_set;			
+		with Instantiate.Error (sp, msg) ->
+			raise (Irg.IrgError (Printf.sprintf "%s in instruction %s" msg (get_user_id sp))));
+	
+	(* return result *)
+	!instr_set
   
 
 (** Iteration over actual instruction using profiling order.
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param
 	@param init_val		the accumulator, initial value
      val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a
-	@param with_profiling	If true, profiling order is used.
 	*)
 let iter_ext fun_to_iterate init_val with_profiling =
-	let is_defined id =
+	(*let is_defined id =
 		try
 			match Irg.get_symbol id with
 			| _ -> true
@@ -352,7 +355,7 @@ let iter_ext fun_to_iterate init_val with_profiling =
 		else
 			raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
 	in
-	let initialise_instrs =
+	let initialise_instrs = get_insts () in
 		if !instr_set = [Irg.UNDEF] then
 			try instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst)
 			with Instantiate.Error (sp, msg) -> raise (Irg.IrgError (Printf.sprintf "%s in instruction %s" msg (get_user_id sp)))
@@ -361,12 +364,20 @@ let iter_ext fun_to_iterate init_val with_profiling =
 		if !multi_set = [] then
 			enumerate_instr_sets !instr_set
 		else ()
-	in
+	in*)
 
 	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
-	let old_inst_set = !instr_set in
+	(*let old_inst_set = !instr_set in
 	if with_profiling && (List.length !instr_stats) <> 0
-	then instr_set := sort_instr_set !instr_set !instr_stats;
+	then instr_set := sort_instr_set !instr_set !instr_stats;*)
+
+				
+	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
+	let old_inst_set = get_insts () in
+	let insts = 
+		if with_profiling && (List.length !instr_stats) <> 0
+		then sort_instr_set old_inst_set !instr_stats
+		else old_inst_set in
 
 	(* actual instruction iterator *)
 	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
@@ -392,12 +403,8 @@ let iter_ext fun_to_iterate init_val with_profiling =
 				rec_iter f (f init a) b [] [];
 				(*failwith "we should have only AND OP spec at this point (Iter)"*)
 	in
-	begin
-	initialise_instrs;
-	let res  = rec_iter fun_to_iterate init_val !instr_set [] [] in
-	instr_set := old_inst_set;
-	res
-	end
+
+	rec_iter fun_to_iterate init_val insts [] []
 
 
 (** iterator (or fold) on the structure containing all the instructions specs

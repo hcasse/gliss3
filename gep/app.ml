@@ -477,19 +477,23 @@ let process file f opti =
 	with
 	  Parsing.Parse_error ->
 		Lexer.display_error "syntax error"; exit 2
+	| Irg.Error f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n'
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
+	(*| Irg.IrgError msg ->
+		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2*)
 	| Irg.RedefinedSymbol sym ->
 		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
-	| Toc.Error msg ->
-		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
+	(*| Toc.Error msg ->
+		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4*)
 	| Toc.PreError f ->
 		output_string stderr "ERROR: ";
 		f stderr;
@@ -504,8 +508,8 @@ let process file f opti =
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
-	(*| Failure e ->
-		Lexer.display_error e; exit 3*)
+	| Failure e ->
+		Lexer.display_error e; exit 3
 
 
 (** Find a source from "lib/"

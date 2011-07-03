@@ -252,45 +252,18 @@ print_string ":::vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", 
 	@param inst		Currently processed instruction.
 	@return			Decoding pairs. *)
 let decode_parameters params args vals inst =
-(*	print_string "====decode_parameters\n";
-	print_string "====params=["; List.iter (fun x -> print_string (x ^ ", "); ) params; print_string "]\n";
-	print_string "====args=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) args; print_string "]\n";
-	print_string "====vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) vals; print_string "]\n";
-*)
 
 	let t = scan_decode_arguments args vals in
-(*	print_string "scan_decode, result:\n";
-	List.iter
-		(fun (x, y, z) -> Printf.printf "[%s, %s, " x (Bitmask.to_string y); Irg.print_expr z;
-		print_string ":["; Irg.print_type (Irg.TYPE_EXPR(Sem.get_type_expr z)); print_string "]]\n")
-		t;
-	print_char '\n';*)
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then
-			( (*Printf.printf "diff, p %s: %s\n" p (Bitmask.to_string m);
-			Printf.printf "diff, p'  %s: %s\n" p' (Bitmask.to_string m');*)
-			(p, m, e) )
+			(p, m, e)
 		else
 		begin
-			(*Printf.printf "base %s: %s\n" p (Bitmask.to_string m);
-			Printf.printf "add  %s: %s\n" p' (Bitmask.to_string m');
-			Printf.printf "%s AND %s = %s\n" (Bitmask.to_string m) (Bitmask.to_string m') (Bitmask.to_string (and_mask m m'));*)
 			if Bitmask.is_null (and_mask m m')
-			(* !!WARNING!! the conversion to Int64 implies we cannot
-			 * decode a CISC instr with the distance between the 1st bit of the 1st
-			 * param and the last bit of the instr is > 64 bits *)
 			then
-				((*let mm' = cst64 (mask64 (Int64.of_int (Bitmask.bit_count m'))) in
-				print_string "old expr = "; Irg.print_expr e; print_char '\n';
-				print_string "new_expr = "; Irg.print_expr (or_ e (and_ e' mm'));
-				print_string "new_expr = "; Irg.print_expr (or_ e (and_ e' (cst64 (Bitmask.to_int64 m'))));
-				print_char '\n';
-				(p, or_mask m m', or_ e (and_ e' mm')) )*)
-				(*(p, or_mask m m', or_ e (and_ e' (cst64 (Bitmask.to_int64 m')))) )*)
-				(p, or_mask m m', or_ e e') )
+				(p, or_mask m m', or_ e e')
 			else raise (Toc.Error (Printf.sprintf "some parameter %s bits are redundant in image for instruction %s" p (Iter.get_user_id inst)))
 		end in
-let res =
 	List.map
 		(fun p ->
 			let (p, m, e) = List.fold_left process (p, Bitmask.void_mask, cst Int32.zero) t in
@@ -299,12 +272,40 @@ let res =
 			let lm' = Sem.get_type_length (Sem.get_type_ident p) in
 			let m' = mask (Sem.get_type_length (Sem.get_type_ident p)) in
 			let (mm, mm') = Bitmask.set_same_length m m' true in
-			(*Printf.printf "m =%s\nm'=%s\n" (Bitmask.to_string mm) (Bitmask.to_string mm');*)
-			if (*Bitmask.is_equals mm mm'*) lm == lm' then (p, e)
+			if lm == lm' then (p, e)
 			else
 				raise (Toc.Error (Printf.sprintf "some bits (%s) of parameter %s are missing (%s)"
 					(Bitmask.to_string mm') p (Bitmask.to_string mm))))
 		params
-in
-(*print_string "====res=["; List.iter (fun (x, y) -> Printf.printf "( %s, " x ; Irg.print_expr y; print_string " )\n") res; print_string "====]\n";*)
-		res
+
+
+(** Test if the given arguments are complex.
+	@param args		Argument to tests. *)
+let rec is_complex args =
+	let rec test arg =
+		match arg with
+		| Irg.ELINE (_, _, e) -> test e
+		| Irg.REF _ -> false
+		| _ -> true in
+	match args with
+	| [] -> false
+	| a::t -> (test a) || (is_complex t)
+
+
+(** Build a list of pairs (parameter name, expression to decode it).
+	This function is faster than decode_parametres as it test first
+	if parameter are really complex. If not, use a fast way to
+	build the pairs.
+	@param params	List of parameter names.
+	@param args		Argument value of the image format.
+	@param vals		Expression to access the actual argument value.
+	@param inst		Currently processed instruction.
+	@return			Decoding pairs. *)
+let decode_fast params args vals inst =
+	if (is_complex args) || (List.length args) <> (List.length vals)
+	then decode_parameters params args vals inst
+	else List.combine params vals
+
+
+
+	

@@ -204,7 +204,9 @@ type instr_info_t = {
 	mutable is_multi : bool;	(* are there more than one instr set defined? *)
 }
 
-(* return an instr_info_t structure filled correctly with infos of the given inst *)
+(** return an instr_info_t structure filled correctly with infos of the given inst
+	@param inst		Current instruction.
+	@return			Instruction information. *)
 let get_instr_info inst = 
 	let instr_sets = !Iter.multi_set in
 	let instr_sets_sizes_map = List.map (Fetch.find_fetch_size) instr_sets in
@@ -299,7 +301,9 @@ let get_mask_decl inst idx =
 			failwith "shouldn't happen (decode.ml::get_mask_decl)"
 
 
-(* gets mask for idx-th param of the image format expr attr of the given inst *)
+(** gets mask for idx-th param of the image format expr attr of the given inst
+	@param inst		Current instruction.
+	@param idx		Index of the parameter. *)
 let get_mask_decl_for_format_param inst idx =
 	let inst_info = get_instr_info inst in
 	let string_mask = get_mask_for_format_param (get_format_string inst) idx in
@@ -311,7 +315,8 @@ let get_mask_decl_for_format_param inst idx =
 			failwith "shouldn't happen (decode.ml::get_mask_decl_for_format_param)"
 
 
-(* return a list with all mask declarations for each image format param of the given spec *)
+(** return a list with all mask declarations for each image format param of the given spec
+	@param inst		Current instruction. *)
 let get_mask_decl_all_format_params inst =
 	let get_expr_from_iter_value v  =
 		match v with
@@ -322,8 +327,8 @@ let get_mask_decl_all_format_params inst =
 	let rec get_frmt_params e =
 		match e with
 		| Irg.FORMAT(_, params) -> params
-		| Irg.ELINE(_, _, e) -> get_frmt_params e
-		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+		| Irg.ELINE(file, line, e) -> Toc.locate_error file line get_frmt_params e
+		| _ -> Toc.error_on_expr "unsupported expression in image format" e
 	in
 	let frmt_params = get_frmt_params image_attr in
 	let frmt_params_numbered =

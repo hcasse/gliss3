@@ -77,6 +77,7 @@ let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
+let check				 = ref false
 let sim                  = ref false
 let decode_arg           = ref false
 let gen_with_trace       = ref false
@@ -98,7 +99,8 @@ let options = [
 		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
 	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch");
-	("-fstat", Arg.Set Fetch.output_fetch_stat, "generates stats about fetch tables in <proc_name>_fetch_tables.stat")
+	("-fstat", Arg.Set Fetch.output_fetch_stat, "generates stats about fetch tables in <proc_name>_fetch_tables.stat");
+	("-c", Arg.Set check, "only check if the NML is valid for generation")
 ]
 
 
@@ -144,6 +146,105 @@ exception BadCSize
  * it is done once for all params of one spec,
  * the current spec is also given to know which instr we have decoded for *)
 let inst_decode_arg = ref (Irg.UNDEF, [])
+
+
+(** Generate the decode code for the parameter of a RISC instruction (16 or 32 bits).
+	@param info		Generation information.
+	@param inst		Current instruction
+	@param idx		Parameter index.
+	@param sfx		Multi-instruction set ?
+	@param size		Size of the instruction (in bits).
+	@param out		Stream to output to. *)
+let decoder info inst idx sfx size out =
+	let string_mask = Decode.get_mask_for_param inst idx in
+	let cst_suffix = Bitmask.c_const_suffix string_mask in
+	let mask = Bitmask.to_int64 string_mask in
+	let suffix = if sfx then Printf.sprintf "_%d" size else "" in
+	let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
+	let extract _ =
+		Printf.fprintf out "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
+	let exts    n =
+		Printf.fprintf out "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
+	match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
+	| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
+	| _ -> extract ()
+
+
+(** Decoder for CISC instruction (variable number of bytes).
+	@param info		Generation information.
+	@param inst		Current instruction
+	@param idx		Parameter index.
+	@param sfx		Multi-instruction set ?
+	@param out		Stream to output to. *)
+let decoder_CISC info inst idx sfx out =
+	let suffix = if sfx then "_CISC" else "" in
+	let suffix_code = if sfx then "->mask" else "" in
+	let extract _ =
+		Printf.fprintf out "__EXTRACT%s(&mask%d, code_inst%s)" suffix idx suffix_code in
+	let exts n =
+		Printf.fprintf out "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
+	match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
+	| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
+	| _ -> extract () 
+
+
+(** Decoder for complex parameters.
+	@param info		Generation information.
+	@param inst		Current instruction
+	@param idx		Parameter index.
+	@param sfx		Multi-instruction set ?
+	@param size		Size of the instruction (in bits).
+	@param is_risc	RISC instruction set ?
+	@param out		Stream to output to. *)
+let output_decoder_complex info inst idx sfx size is_risc out =
+	let get_expr_from_iter_value v  =
+		match v with
+		| Iter.EXPR(e) -> e
+		| _ -> Irg.NONE
+	in
+	let image_attr = get_expr_from_iter_value (Iter.get_attr inst "image") in
+	let rec get_frmt_params e =
+		match e with
+		| Irg.FORMAT(_, params) -> params
+		| Irg.ELINE(_, _, e) -> get_frmt_params e
+		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+	in
+	let frmt_params = get_frmt_params image_attr in
+
+	if not (Decode_arg.is_complex frmt_params) then
+		if is_risc then decoder info inst idx sfx size out
+		else decoder_CISC info inst idx sfx out
+	else
+		let num_frmt_params = List.length frmt_params in
+		let spec_params = Iter.get_params inst in
+		let spec_params_name = List.map fst spec_params in
+		let get_nth_expr n = snd (List.nth (snd !inst_decode_arg) n) in
+		let output_expr e =
+			let info = Toc.info () in
+			let o = info.Toc.out in
+			info.Toc.out <- out;
+			Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP e)) false;
+			info.Toc.out <- o
+		in
+		let rec get_str e =
+			match e with
+			| Irg.FORMAT(str, _) -> str
+			| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
+			| Irg.ELINE(_, _, e) -> get_str e
+			| _ -> ""
+		in
+		(* decode every format param once in one pass for each instr *)
+		if (fst !inst_decode_arg) <> inst then
+			(let rec aux n =
+				if n < num_frmt_params then
+					(Irg.EINLINE (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
+				else
+					[]
+			in
+			let expr_frmt_params = aux 0 in
+			inst_decode_arg := (inst, Decode_arg.decode_fast spec_params_name frmt_params expr_frmt_params inst));
+		output_expr (get_nth_expr idx);
+		output_char out '\n'
 
 
 (** Build a template environment.
@@ -220,25 +321,7 @@ let make_env info =
 	let max_op_nb = Iter.get_params_max_nb () in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
-	let decoder inst idx sfx size out =
-		let string_mask = Decode.get_mask_for_param inst idx in
-		let cst_suffix = Bitmask.c_const_suffix string_mask in
-		let mask = Bitmask.to_int64 string_mask in
-		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
-		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
-		let extract _ = Printf.fprintf out "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
-		let exts    n = Printf.fprintf out "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
-		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
-		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
-		| _ -> extract () in
-	let decoder_CISC inst idx sfx out =
-		let suffix = if sfx then "_CISC" else "" in
-		let suffix_code = if sfx then "->mask" else "" in
-		let extract _ = Printf.fprintf out "__EXTRACT%s(&mask%d, code_inst%s)" suffix idx suffix_code in
-		let exts n = Printf.fprintf out "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
-		match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
-		| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
-		| _ -> extract () in
+
 	let output_mask_decl inst idx is_risc out =
 		let string_mask = Decode.get_mask_for_param inst idx in
 		let mask = Bitmask.to_int32_list string_mask
@@ -248,67 +331,17 @@ let make_env info =
 				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) (Bitmask.to_string string_mask);
 				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Bitmask.length string_mask))
 	in
-	let output_decoder_complex inst idx out =
-		let get_expr_from_iter_value v  =
-			match v with
-			| Iter.EXPR(e) -> e
-			| _ -> Irg.NONE
-		in
-		let image_attr = get_expr_from_iter_value (Iter.get_attr inst "image") in
-		let rec get_frmt_params e =
-			match e with
-			| Irg.FORMAT(_, params) -> params
-			| Irg.ELINE(_, _, e) -> get_frmt_params e
-			| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
-		in
-		let frmt_params = get_frmt_params image_attr in
-		let num_frmt_params = List.length frmt_params in
-		let spec_params = Iter.get_params inst in
-		let spec_params_name = List.map fst spec_params in
-		let get_nth_expr n = snd (List.nth (snd !inst_decode_arg) n) in
-		let output_expr e =
-			let info = Toc.info () in
-			let o = info.Toc.out in
-			info.Toc.out <- out;
-			Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP e)) false;
-			info.Toc.out <- o
-		in
-		let rec get_str e =
-			match e with
-			| Irg.FORMAT(str, _) -> str
-			| Irg.CONST(t_e, c) ->
-				if t_e=Irg.STRING then
-					match c with
-					Irg.STRING_CONST(str, false, _) ->
-						str
-					| _ -> ""
-				else
-					""
-			| Irg.ELINE(_, _, e) -> get_str e
-			| _ -> ""
-		in
-		(* decode every format param once in one pass for each instr *)
-		if (fst !inst_decode_arg) <> inst then
-			(let rec aux n =
-				if n < num_frmt_params then
-					(Irg.EINLINE (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
-				else
-					[]
-			in
-			let expr_frmt_params = aux 0 in
-			inst_decode_arg := (inst, Decode_arg.decode_parameters spec_params_name frmt_params expr_frmt_params inst));
-		output_expr (get_nth_expr idx)
-	in
+
 	let add_mask_32_to_param inst idx _ _ dict =
 		let isize = find_iset_size_of_inst inst in
 		let is_risc = isize <> 0 in
 		let is_multi = (List.length instr_sets) > 1 in
-		("decoder", Templater.TEXT (if is_risc then (decoder inst idx is_multi isize) else (decoder_CISC inst idx is_multi))) ::
+		("decoder", Templater.TEXT (if is_risc then (decoder info inst idx is_multi isize) else (decoder_CISC info inst idx is_multi))) ::
 		("decoder_complex", Templater.TEXT (fun out ->
 			if not !decode_arg then
 				raise (Sys_error "template $(decoder_complex) should be used only if complex argument decoding is activated (option -D)")
 			else
-				output_decoder_complex inst idx out)) ::
+				output_decoder_complex info inst idx is_multi isize is_risc out)) ::
 		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) ::
 		(*("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::*)
 		dict in
@@ -526,73 +559,78 @@ let _ =
 		options
 		"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 		(fun info ->
-			let dict = make_env info in
-			let dict = List.fold_left
-				(fun d (n, v) -> App.add_switch n v d)
-				dict !switches in
+			if !check then
+				let insts = Iter.get_insts () in
+				()
+			else
+			
+				let dict = make_env info in
+				let dict = List.fold_left
+					(fun d (n, v) -> App.add_switch n v d)
+					dict !switches in
 
-			(* include generation *)
+				(* include generation *)
 
-			List.iter find_mod !modules;
+				List.iter find_mod !modules;
 
-			if not !App.quiet then Printf.printf "creating \"include/\"\n";
-			App.makedir "include";
-			if not !App.quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
-			App.makedir info.Toc.hpath;
-			App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
-			App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
-			App.make_template "debug.h" ("include/" ^ info.Toc.proc ^ "/debug.h") dict;
-			App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
+				if not !App.quiet then Printf.printf "creating \"include/\"\n";
+				App.makedir "include";
+				if not !App.quiet then Printf.printf "creating \"%s\"\n" info.Toc.hpath;
+				App.makedir info.Toc.hpath;
+				App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
+				App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
+				App.make_template "debug.h" ("include/" ^ info.Toc.proc ^ "/debug.h") dict;
+				App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 
-			(* source generation *)
+				(* source generation *)
 
-			if not !App.quiet then Printf.printf "creating \"include/\"\n";
-			App.makedir "src";
+				if not !App.quiet then Printf.printf "creating \"include/\"\n";
+				App.makedir "src";
 
-			App.make_template "Makefile" "src/Makefile" dict;
-			App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
-			App.make_template "api.c" "src/api.c" dict;
-			App.make_template "debug.c" "src/debug.c" dict;
-			App.make_template "platform.h" "src/platform.h" dict;
-			App.make_template "fetch_table.h" "src/fetch_table.h" dict;
-			App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;
-			App.make_template "fetch.c" "src/fetch.c" dict;
-			(if not !gen_with_trace 
-			 then
-			 	(App.make_template "decode_table.h" "src/decode_table.h" dict;
-				App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
-				App.make_template "decode.c" "src/decode.c" dict)
-			 else 
-				(* now decode files are in templates directory (unlike a module) *)
-				(* !!TODO!! outut the correct decoder, not only decode_dtrace 
-				 * design a fun : name_module instance -> output correct module
-				 * whereever the files are (lib or templates) *)
-				if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
-				then
-					(* dtrace has a different decode table organization ==> different table template *)
-					(App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
-					App.make_template "decode_dtrace.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
-					App.make_template "decode_dtrace.c" "src/decode.c" dict )
-				else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
-                               "but gep was not able to find a single one while parsing the NML")
-			);
-			App.make_template "code_table.h" "src/code_table.h" dict;
+				App.make_template "Makefile" "src/Makefile" dict;
+				App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
+				App.make_template "api.c" "src/api.c" dict;
+				App.make_template "debug.c" "src/debug.c" dict;
+				App.make_template "platform.h" "src/platform.h" dict;
+				App.make_template "fetch_table.h" "src/fetch_table.h" dict;
+				App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;
+				App.make_template "fetch.c" "src/fetch.c" dict;
+				(if not !gen_with_trace 
+				 then
+					(App.make_template "decode_table.h" "src/decode_table.h" dict;
+					App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
+					App.make_template "decode.c" "src/decode.c" dict)
+				 else 
+					(* now decode files are in templates directory (unlike a module) *)
+					(* !!TODO!! outut the correct decoder, not only decode_dtrace 
+					 * design a fun : name_module instance -> output correct module
+					 * whereever the files are (lib or templates) *)
+					if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
+					then
+						(* dtrace has a different decode table organization ==> different table template *)
+						(App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
+						App.make_template "decode_dtrace.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
+						App.make_template "decode_dtrace.c" "src/decode.c" dict )
+					else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
+								   "but gep was not able to find a single one while parsing the NML")
+				);
+				App.make_template "code_table.h" "src/code_table.h" dict;
 
-			(* module linking *)
-			List.iter (process_module info) !modules;
+				(* module linking *)
+				List.iter (process_module info) !modules;
 
-			(* generate application *)
-			if !sim then
-				try
-					let path = App.find_lib "sim/sim.c" paths in
-					App.makedir "sim";
-					App.replace_gliss info
-						(path ^ "/" ^ "sim/sim.c")
-						("sim/" ^ info.Toc.proc ^ "-sim.c" );
-					Templater.generate_path
-						[ ("proc", Templater.TEXT (fun out -> output_string out info.Toc.proc)) ]
-						(path ^ "/sim/Makefile")
-						"sim/Makefile"
-				with Not_found ->
-					raise (Sys_error "no template to make sim program")
+				(* generate application *)
+				if !sim then
+					try
+						let path = App.find_lib "sim/sim.c" paths in
+						App.makedir "sim";
+						App.replace_gliss info
+							(path ^ "/" ^ "sim/sim.c")
+							("sim/" ^ info.Toc.proc ^ "-sim.c" );
+						Templater.generate_path
+							[ ("proc", Templater.TEXT (fun out -> output_string out info.Toc.proc)) ]
+							(path ^ "/sim/Makefile")
+							"sim/Makefile"
+					with Not_found ->
+						raise (Sys_error "no template to make sim program")
 		)

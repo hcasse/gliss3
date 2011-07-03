@@ -19,16 +19,28 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*	State of the analysis includes:
-		- syms
-		- pos_table *)
+exception Error of (out_channel -> unit)
 
 
+(** Deprecated *)
 exception RedefinedSymbol of string
+
+(** Deprecated *)
 exception IrgError of string
 
+
+(** Raise the error exception.
+	@param f	Function to display error. *)
+let error_with_fun f = raise (Error f)
+
+
+(** Raise an error exception with the given message.
+	@param msg	Message to display. *)
+let error msg = raise (Error (fun out -> output_string out msg))
+
+
 (** May be set to true to dump line information during expression/statement
-	outpu. *)
+	output. *)
 let dump_lines = ref false
 let dump_type = ref true
 
@@ -228,6 +240,7 @@ let _ =
 
 
 exception Symbol_not_found of string
+
 (** Get the symbol matching the given name or UNDEF if not found.*)
 let get_symbol n =
 	try

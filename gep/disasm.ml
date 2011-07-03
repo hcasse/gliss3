@@ -98,7 +98,7 @@ let rec gen_disasm info inst expr =
 		| Irg.COERCE _
 		| Irg.EINLINE _
 		| Irg.CAST _ ->
-			Toc.error_on_expr "bad syntax expression" expr
+			Toc.error_on_expr (Printf.sprintf "bad syntax expression in instruction %s" (Iter.get_user_id inst)) expr
 		| Irg.ELINE (file, line, e) ->
 			(*Printf.printf "%s: %d:\n" file line;*)
 			Toc.locate_error file line (gen_disasm info inst) e in
@@ -174,7 +174,8 @@ let _ =
 							raise (CommandError  "no template to make disasm program")
 					end
 			)
-	with Toc.Error msg ->
+	with 
+	| Toc.Error msg ->
 		display_error msg
 	| CommandError msg ->
 		display_error msg
