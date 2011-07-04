@@ -1,21 +1,21 @@
 (*
- * $Id: sem.ml,v 1.22 2009/09/15 07:50:48 casse Exp $
- * Copyright (c) 2007, IRIT - UPS <casse@irit.fr>
+ * GLISS2 -- semantics check
+ * Copyright (c) 2011, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS2.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Foobar; if not, write to the Free Software
+ * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
@@ -1376,23 +1376,23 @@ let is_setspe loc=
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp=Str.regexp "%[0-9]*[dbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
+let reg_exp = Str.regexp "%[0-9]*[dbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
 						so we allow this kind of expression here for compatibility *)
 
-(** this function is used to find all references to a parameter in a string passed to a format
+(** this function is used to find all references to parameters in a string passed to a format
 	@param str	The string to treat
 	@return 	A list of string matching reg_exp
  *)
-let get_all_ref str=
-	let str_list=Str.full_split reg_exp str
-	in
+let get_all_ref str =
+	let str_list = Str.full_split reg_exp str in
 	let rec temp str_l res_l=
 		match str_l with
-		| []->res_l
+		| [] -> res_l
 		| (Str.Text _)::l -> temp l res_l
 		| (Str.Delim s)::l when s = "%%" -> temp l res_l
 		| (Str.Delim s)::l -> temp l (s::res_l) in
 	temp str_list []
+
 
 (** Create a FORMAT operation and check if it is well written
 	@param str	The string to print
@@ -1448,50 +1448,6 @@ let build_format str exp_list=
 
 
 
-
-(** This function is used to modify parameters of a format called into a syntax attribute to add the .syntaxe attribute at all reference parameters *)
-let change_string_dependences_syntax str e_list =
-
-let r_list =get_all_ref str
-in
-	let rec add_syntax e = match e with
-			 REF name-> FIELDOF (STRING, name, "syntax")
-			| ELINE (_, _, e) -> add_syntax e
-			|_ -> e
-	in
-	let rec temp r_l e_l =
-		match r_l with
-		[]->[]
-		|r::l->if (Str.last_chars r 1="s") (*&& (can_have_attribute (List.hd e_l))*)
-				then
-					(add_syntax (List.hd e_l))::(temp l (List.tl e_l))
-				else
-					(List.hd e_l)::(temp l (List.tl e_l))
-
-	in
-	FORMAT (str, (List.rev (temp r_list e_list)))
-
-
-(** This function is used to modify parameters of a format called into an image attribute to add the .image attribute at all reference parameters *)
-let change_string_dependences_image str e_list=
-
-let r_list=get_all_ref str
-in
-	let rec add_image e = match e with
-			 REF name -> FIELDOF (STRING, name, "image")
-			| ELINE (_, _, e) -> add_image e
-			| _ -> e
-	in
-	let rec temp r_l e_l=
-		match r_l with
-		[]->[]
-		|r::l->if Str.last_chars r 1="s"
-				then
-					(add_image (List.hd e_l))::(temp l (List.tl e_l))
-				else
-					(List.hd e_l)::(temp l (List.tl e_l))
-	in
-	FORMAT (str, (List.rev (temp r_list e_list)))
 
 (*
 
@@ -1766,3 +1722,35 @@ let make_set loc expr =
 				Irg.print_type_expr etype;
 				print_char '\n'
 			))
+
+
+(** This function is used to modify parameters of a format called into a specific attribute
+	to add the .attribute at all reference parameters (resolving to %s).
+	@param a		Attribute name.
+	@param e		Expression to transform.
+	@return			Transformed expression. *)
+let change_string_dependences a e =
+
+	let rec process e = match e with
+		| REF name->
+			Printf.printf "adding %s to %s\n" a name;
+			FIELDOF (STRING, name, a)
+		| ELINE (f, l, e) -> ELINE (f, l, process e)
+		| _ -> e in
+
+	let rec temp r_l e_l =
+		match r_l with
+		| []->[]
+		| r::l -> if (Str.last_chars r 1 = "s")
+				then (process (List.hd e_l))::(temp l (List.tl e_l))
+				else (List.hd e_l)::(temp l (List.tl e_l)) in
+	
+	let rec look e =
+		match e with
+		| ELINE (f, l, e) -> ELINE (f, l, look e)
+		| FORMAT (f, args) ->
+			let r_list = List.rev (get_all_ref f) in
+			FORMAT (f, temp r_list args)
+		| _ -> e in
+	
+	look e

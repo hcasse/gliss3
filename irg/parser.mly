@@ -458,17 +458,9 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 |	ID EQ LBRACE Sequence RBRACE
 		{ Irg.ATTR_STAT ($1, $4) }
 |	SYNTAX EQ AttrExpr
-		//{Irg.ATTR_EXPR ("syntax", $3) }
-		{	match $3 with
-				 Irg.FORMAT (e,l)->Irg.ATTR_EXPR  ("syntax",(Sem.change_string_dependences_syntax e l))
-				|_->Irg.ATTR_EXPR ("syntax", $3)
-		}
+		{ Irg.ATTR_EXPR  ("syntax", (Sem.change_string_dependences "syntax" $3)) }
 |	IMAGE EQ AttrExpr
-		//{ Irg.ATTR_EXPR ("image", $3) }
-		{	match $3 with
-				 Irg.FORMAT (e,l)->Irg.ATTR_EXPR  ("image",(Sem.change_string_dependences_image e l))
-				|_->Irg.ATTR_EXPR ("image", $3)
-		}
+		{ Irg.ATTR_EXPR  ("image", (Sem.change_string_dependences "image" $3)) }
 |	ACTION EQ LBRACE Sequence RBRACE
 		{ Irg.ATTR_STAT ("action", $4) }
 |	USES EQ UsesDef
