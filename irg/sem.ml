@@ -1732,9 +1732,7 @@ let make_set loc expr =
 let change_string_dependences a e =
 
 	let rec process e = match e with
-		| REF name->
-			Printf.printf "adding %s to %s\n" a name;
-			FIELDOF (STRING, name, a)
+		| REF name-> FIELDOF (STRING, name, a)
 		| ELINE (f, l, e) -> ELINE (f, l, process e)
 		| _ -> e in
 
