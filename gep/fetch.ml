@@ -215,15 +215,19 @@ let build_sons_of_tree tr =
 		let res = build_dectrees (sort_son_list (create_son_list_of_dec_node tr)) msk gm int_l
 		in
 		if (List.length res) == 1 && (List.length (get_instr_list (List.hd res))) > 1 then
-			(output_string stderr "ERROR: some instructions seem to have same image.\n";
-			output_string stderr "here is the list: \n";
+			(output_string stderr "ERROR: some instructions seem to have same opcode:\n";
 			(*List.iter (fun x -> Printf.fprintf stderr "%s, " (Irg.name_of x)) (get_instr_list (List.hd res));*)
 			let expr_from_value v =
 				match v with
 				| Iter.EXPR(e) -> e
 				| _ -> failwith "should not happen (fetch.ml::build_sons_of_tree::expr_from_value)"
 			in
-			List.iter (fun x -> (*(Irg.print_spec x)*) (Irg.output_expr stderr (expr_from_value (Iter.get_attr x "image"))); output_char stderr '\n') (get_instr_list (List.hd res));
+			List.iter
+				(fun x ->
+					Printf.fprintf stderr "\t%s: image=" (Iter.get_user_id x);
+					Irg.output_expr stderr (expr_from_value (Iter.get_attr x "image"));
+					output_char stderr '\n')
+				(get_instr_list (List.hd res));
 			output_string stderr "\n";
 			raise (Sys_error "cannot continue with 2 instructions with same image"))
 		else
@@ -507,8 +511,13 @@ let sort_dectree_list d_l =
 	List.sort comp_fun d_l
 
 
+(** Compute list of fetch sizes.
+	@param spec_list	List of instructions.
+	@return				Lits of existing sizes. *)	
 let find_fetch_size spec_list =
 	let isize = Irg.get_isize () in
+	let is_isize = isize != [] in
+
 	(* returns (min(l), max(l)) for a list l *)
 	let get_min_max_from_list l =
 		let min_fun a b_i = if b_i < a then b_i else a in
@@ -516,6 +525,7 @@ let find_fetch_size spec_list =
 		(List.fold_left min_fun (List.hd l) (List.tl l),
 		 List.fold_left max_fun (List.hd l) (List.tl l))
 	in
+
 	(* return list of different inst sizes for a given inst list *)
 	let get_sizes sp_l =
 		let rec aux l accu =
@@ -523,6 +533,8 @@ let find_fetch_size spec_list =
 			| [] -> accu
 			| a::b ->
 				let s = Iter.get_instruction_length a in
+				if is_isize  && not (List.mem s isize) then
+					raise (Toc.Error (Printf.sprintf "bad size for instruction %s (%d bits)" (Iter.get_user_id a) s));
 				if List.exists (fun x -> x == s) accu then
 					aux b accu
 				else
@@ -530,25 +542,12 @@ let find_fetch_size spec_list =
 		in
 		aux sp_l []
 	in
-	(* given a list of instr sizes, returns true if all is in isize, false otherwise *)
-	let check_size_validity l =
-		let test_fun accu i =
-			if List.exists (fun x -> x == i) isize then
-				true
-			else
-				raise CheckIsizeException
-		in
-		try
-			List.fold_left test_fun false l
-		with
-		| CheckIsizeException -> false
-	in
-	(* is gliss_isize defined? *)
-	let is_isize _ = (isize != []) in
+
 	(* list of the specialized fixed fetch sizes (for RISC ISA),
 	 * they correspond to the size of C's standard integer types (uintN_t)
 	 * other or variable sizes imply use of generic fetch and decode *)
 	let fetch_sizes = [8; 16; 32; 64] in
+
 	(* find a standard fetch size from bounds of instr length *)
 	let get_fetch_size_from_min_max min_max =
 		let (min_size, max_size) = min_max
@@ -565,13 +564,13 @@ let find_fetch_size spec_list =
 			(* variable size or diff *)
 			fetch_generic
 	in
+	
 	let choose_fetch_size sp_l =
 		let sizes = get_sizes sp_l in
 		let min_max = get_min_max_from_list sizes in
-		if (is_isize ()) && (not (check_size_validity sizes)) then
-			raise (Sys_error "isize definition incorrect, some instructions have a size not contained in isize.");
 		get_fetch_size_from_min_max min_max
 	in
+
 	choose_fetch_size spec_list
 
 

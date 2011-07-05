@@ -484,16 +484,16 @@ let process file f opti =
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	(*| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2*)
+		Lexer.display_error (Printf.sprintf "%s" msg); exit 2
+	| Irg.IrgError msg ->
+		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
 	| Irg.RedefinedSymbol sym ->
 		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2;
-	(*| Toc.Error msg ->
-		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4*)
+	| Toc.Error msg ->
+		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
 	| Toc.PreError f ->
 		output_string stderr "ERROR: ";
 		f stderr;
