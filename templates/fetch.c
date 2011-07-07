@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include <$(proc)/mem.h>
 #include <$(proc)/fetch.h>
 $(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
@@ -249,6 +250,7 @@ $(if is_multi_set)
 $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, code_t *code)
 {
 	$(proc)_state_t *state = fetch->state;
+	assert(state);
 	$(foreach instruction_sets)
 	if ($(select_iset)) {
 		$(if is_RISC_iset)return $(proc)_fetch_$(C_size_iset)(fetch, address, &code->u$(C_size_iset), table_$(idx));

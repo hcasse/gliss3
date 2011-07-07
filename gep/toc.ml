@@ -1106,10 +1106,7 @@ Irg.print_expr expr; print_char '\n';*)
 	| Irg.IF_EXPR _
 	| Irg.SWITCH_EXPR _
 	| Irg.FIELDOF _ ->
-		(*!!DEBUG!!*)
-		print_string "\nBUG with expr: ";
-		Irg.print_expr expr; print_char '\n';
-		failwith "should have been reduced"
+		error_on_expr "should have been reduced" expr
 	| Irg.CAST (size, expr) -> gen_cast info size expr prfx
 
 

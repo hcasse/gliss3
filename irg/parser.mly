@@ -26,15 +26,26 @@ let line s = Irg.LINE (!(Lexer.file), !(Lexer.line), s)
 
 let get_spec_extend x =
 	let sym = Irg.get_symbol x in
-		(match sym with
-		| Irg.AND_MODE (_, pars, _, _)
-		| Irg.AND_OP (_, pars, _) ->
-			Irg.param_stack pars;
-			sym
-		| Irg.UNDEF ->
-			raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" x))
-		| _ ->
-			raise (Irg.IrgError (Printf.sprintf "can not extend %s" x)))
+	match sym with
+	| Irg.AND_MODE (_, pars, _, _)
+	| Irg.AND_OP (_, pars, _) ->
+		(sym, pars)
+	| Irg.UNDEF ->
+		raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" x))
+	| _ ->
+		raise (Irg.IrgError (Printf.sprintf "can not extend %s" x))
+
+
+(** Intersect parameter declaration.
+	@param pars1		First list of parameters.
+	@param pars2		Second list of parameters.
+	@return				Intersection of lists. *)
+let intersect_params pars1 pars2 : (string * Irg.typ) list =
+	List.fold_left
+		(fun res par -> if List.mem par pars1 then par::res else res)
+		[]
+		pars2
+
 %}
 
 %token<string>	ID
@@ -369,7 +380,7 @@ OpSpec:
 	OP ID LPAREN ParamList RPAREN AttrDefList
 		{
 			Irg.param_unstack $4;
-			Irg.attr_unstack $6;
+			Irg.attr_unstack $6;			
 			($2, Irg.AND_OP ($2, $4, $6))
 		}
 |	OP ID EQ Identifier_Or_List
@@ -382,41 +393,37 @@ OpSpec:
 ExtendSpec:
 	ExtendHeader AttrDefList
 		{
+			let (syms, pars) = $1 in
 			let extend_spec s =
 				match s with
 				| Irg.AND_MODE (id, pars, expr, attrs) ->
-				List.iter Irg.add_param pars;
-					Irg.param_unstack pars;
 					Irg.rm_symbol id;
 					Irg.add_symbol id (Irg.AND_MODE (id, pars, expr, attrs @ $2))
 				| Irg.AND_OP (id, pars, attrs) ->
-				List.iter Irg.add_param pars;
-					Irg.param_unstack pars;
 					Irg.rm_symbol id;
 					Irg.add_symbol id (Irg.AND_OP (id, pars, attrs @ $2));
-
-					(* !!DEBUG!! *)
-					(*print_string "[[";
-					Irg.print_spec (Irg.get_symbol id);
-					print_string "]]"*)
-				| _ ->
-					()
-			in
+				| _ -> () in
+			Irg.param_unstack pars;
 			Irg.attr_unstack $2;
-			List.iter extend_spec $1
+			List.iter extend_spec syms
 		}
 ;
 
 
 ExtendHeader:
-	EXTEND IDCommaList	{ List.map get_spec_extend $2 }
+	EXTEND ExtendIDList	{ Irg.param_stack (snd $2); $2 }
 ;
 
 
-IDCommaList:
-	ID	{ [$1] }
-|	IDCommaList COMMA ID
-		{ $3::$1 }
+ExtendIDList:
+	ID
+		{ let (sym, pars) = get_spec_extend $1 in ([sym], pars) }
+|	ExtendIDList COMMA ID
+		{
+			let (sym, spars) = get_spec_extend $3 in
+			let (syms, pars) = $1 in
+			(sym::syms, intersect_params pars spars)
+		}
 ;
 /**/
 
@@ -760,7 +767,11 @@ Expr :
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID
-		{ Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1) }
+		{
+			Sem.test_data $1 false;
+			let v = Sem.get_data_expr_attr $1 in
+			if v != Irg.NONE then eline (v) else eline (Irg.REF $1)
+		}
 
 /* TODO: still strange.
 

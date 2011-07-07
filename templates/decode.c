@@ -56,12 +56,11 @@ $(if GLISS_NO_MALLOC)
 $(end)     
 }
 
-$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf)
-{
+$(proc)_decoder_t *$(proc)_new_decoder($(proc)_platform_t *pf) {
+	assert(pf);
     $(proc)_decoder_t *res = malloc(sizeof($(proc)_decoder_t));
     if (res == NULL)
                 $(proc)_error("not enough memory to create a $(proc)_decoder_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
-    /*assert(number_of_decode_objects >= 0);*/
     init_decoder(res, pf);
     number_of_decoder_objects++;
     return res;

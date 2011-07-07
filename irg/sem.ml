@@ -1627,7 +1627,8 @@ let have_attribute id attr=
 	@raise			SemError if either the symbol does not exists,
 					or it is not data. *)
 let test_data name indexed =
-	match Irg.get_symbol name with
+	let v = Irg.get_symbol name in
+	match v with
 	| Irg.UNDEF -> raise (SemError (Printf.sprintf "the identifier \"%s\" is undefined" name))
 
 	(* never indexed *)

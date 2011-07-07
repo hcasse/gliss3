@@ -117,7 +117,7 @@ let _ =
 				List.iter IrgUtil.load !extends;
 
 				(* perform generation *)
-				if !template = "" then raise (CommandError "an template must specified with '-t'") else
+				if !template = "" then raise (CommandError "a template must specified with '-t'") else
 				if !attr = "" then raise (CommandError "an attribute name must specified with '-a'") else
 				let maker = App.maker () in
 				maker.App.get_instruction <-
