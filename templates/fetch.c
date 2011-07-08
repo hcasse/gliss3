@@ -253,8 +253,8 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 	assert(state);
 	$(foreach instruction_sets)
 	if ($(select_iset)) {
-		$(if is_RISC_iset)return $(proc)_fetch_$(C_size_iset)(fetch, address, &code->u$(C_size_iset), table_$(idx));
-		$(else)return $(proc)_fetch_CISC(fetch, address, code->mask, table_$(idx));$(end)
+		$(if is_RISC_iset)return $(proc)_fetch_$(C_size_iset)(fetch, address, &code->u$(C_size_iset), $(proc)_table_$(idx));
+		$(else)return $(proc)_fetch_CISC(fetch, address, code->mask, $(proc)_table_$(idx));$(end)
 	}
 	$(end)
 }

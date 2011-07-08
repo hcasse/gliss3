@@ -472,7 +472,7 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 			Printf.fprintf out "\t%d};\n" (Bitmask.length l_mask);
 			Printf.fprintf out "static Table_Decodage%s _table%s = {&mask%s, table_table%s};\n" type_suffix name name name
 			);
-		Printf.fprintf out "static Table_Decodage%s *table%s = &_table%s;\n" type_suffix name name;
+		Printf.fprintf out "Table_Decodage%s *%s_table%s = &_table%s;\n" type_suffix info.Toc.proc name name;
 		Printf.fprintf out "\n";
 
 		if !output_fetch_stat then

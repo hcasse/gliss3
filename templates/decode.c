@@ -13,6 +13,33 @@ $(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
 #define $(proc)_error(e) fprintf(stderr, "%s\n", (e))
 
 
+/* external functions */
+$(if is_multi_set)
+	$(foreach instr_sets_sizes)
+		$(if is_RISC_size)
+struct Table_Decodage_$(C_size);
+$(proc)_ident_t $(proc)_fetch_$(C_size)($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_size)_t *code, struct Table_Decodage_$(C_size) *table);
+		$(else)
+struct Table_Decodage_CISC;
+$(proc)_ident_t $(proc)_fetch_CISC($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code, struct Table_Decodage_CISC *table);
+		$(end)
+	$(end)
+$(else)
+	$(if is_RISC)
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t *code);
+	$(else)
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code);
+	$(end)
+$(end)
+
+
+/* external tables */
+$(if is_multi_set)
+	$(foreach instruction_sets)
+extern struct Table_Decodage_$(if is_RISC_iset)$(C_size_iset)$(else)CISC$(end) *$(proc)_table_$(idx);
+	$(end)
+$(end)
+
 /* decode structure */
 struct $(proc)_decoder_t
 {
@@ -84,14 +111,11 @@ void $(proc)_delete_decoder($(proc)_decoder_t *decode)
  *  The fetch object will be created here for multi set descriptions.
  *  Does nothing if only one instr set is defined.
 */
-void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state)
-{
-	$(if is_multi_set)if (decoder == NULL)
-                $(proc)_error("cannot set cond state for a NULL $(proc)_decoder_t object");
-	if (state == NULL)
-                $(proc)_error("cannot set cond state with a NULL $(proc)_state_t object");
+void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state) {
+	assert(decoder);
+	
+	$(if is_multi_set)
 	decoder->state = state;
-	/* state is given, we can finally create fetch object here */
 	decoder->fetch = $(proc)_new_fetch(decoder->pf, state);
 	$(end)
 
@@ -180,7 +204,6 @@ $(end)$(end)
 $(if is_multi_set)/* decoding functions for one specific instr set */
 
 /* access to a specific fetch table */
-#include "fetch_table.h"
 $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {
@@ -189,12 +212,13 @@ $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_
 	code_t code;
 	$(if !is_RISC_iset)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	code.mask->mask = i_buff;
-	code.mask->bit_length = 0;$(end)
+	mask_t mask = { i_buff, 0 };
+	code.mask = &mask;
+	$(end)
 
 	/* first, fetch the instruction at the given address, call specialized fetch */
-	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), table_$(idx));
-	$(else)id = $(proc)_fetch_CISC(decoder->fetch, address, &code.mask, table_$(idx));$(end)
+	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), $(proc)_table_$(idx));
+	$(else)id = $(proc)_fetch_CISC(decoder->fetch, address, code.mask, $(proc)_table_$(idx));$(end)
 	
 	/* then decode it */
 $(if GLISS_NO_MALLOC)
