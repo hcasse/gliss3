@@ -92,7 +92,8 @@ let process inst out info =
 		if !do_proc then
 			match Iter.get_attr inst !attr with
 			| Iter.EXPR _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be an action !" !attr))
-			| Iter.STAT s -> process_proc s
+			| Iter.STAT s ->
+				Toc.gen_action info !attr
 
 		(* process a function *)
 		else

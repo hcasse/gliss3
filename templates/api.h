@@ -158,6 +158,8 @@ void $(proc)_set_cond_state($(proc)_decoder_t *decoder, $(proc)_state_t *state);
 $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(iset_name) */
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address);
 $(end)$(end)
+unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst);
+
 
 /* code execution */
 void $(proc)_execute($(proc)_state_t *state, $(proc)_inst_t *inst);
