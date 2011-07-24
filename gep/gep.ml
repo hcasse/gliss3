@@ -164,7 +164,7 @@ let decoder info inst idx sfx size out =
 	let extract _ =
 		Printf.fprintf out "__EXTRACT%s(0x%08LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
 	let exts    n =
-		Printf.fprintf out "__EXTS%s(0x%08LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
+		Printf.fprintf out "__EXTS%s(0x%08LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code n in
 	match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 	| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 	| _ -> extract ()

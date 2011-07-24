@@ -224,7 +224,7 @@ let get_decode_for_format_param inst idx =
 		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
 		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
 		let extract _ = Printf.sprintf "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
-		let exts    n = Printf.sprintf "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
+		let exts    n = Printf.sprintf "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code n in
 		(* !!BUG!! faut le type du param de format lu, pas de spec *)
 		(*match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with*)
 		match Sem.get_type_expr (nth_frmt_param idx) with
