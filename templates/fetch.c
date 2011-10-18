@@ -196,7 +196,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 {
 	uint$(C_inst_size)_t valeur;
 	Table_Decodage *ptr;
-	Table_Decodage *ptr2 = table;
+	Table_Decodage *ptr2 = $(proc)_table;
 	*code = $(proc)_mem_read$(C_inst_size)(fetch->mem, address);
 
 	do
