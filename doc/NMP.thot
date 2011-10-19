@@ -4,6 +4,7 @@
 @VERSION=0.1
 @LANG=en_EN
 @ENCODING=UTF-8
+@HTML_STYLES=gliss.css
 
 This document describes the NMP language used in the GLISS tool.
 This language is freely derivated from the Sim-NML language and extended
@@ -307,7 +308,7 @@ Attribute ::=
   'alias' AliasLocation
 | 'initial' '=' Expr
 | 'volatile' '=' Expr
-| '__attr' GenAttr
+| CustomAttribute
 </code>
 
 The ''initial'' attributes allows to define the value of the register
@@ -362,14 +363,12 @@ reg AH[1, card(8)] alias AX<15..8>
 </code>
 
 
-The ''_ _attr'' keyword is used to pass any type of information to
-the NMP description. The following values are currently supported:
-^ Value ^ Description ^
-| ''_ _attr(pc)''  | design the PC register |
-| ''_ _attr(ppc)'' | design the previous PC |
-| ''_ _attr(npc)'' | design the next PC |
-| ''_ _attr(sp)''  | design the current stack pointer |
-| ''_ _attr(lr)''  | design the link register |
+The CustomAttribute are defined below:
+	* ''pc = 1'' -- design this register as the program counter (mandatory in the instruction set description),
+	* ''ppc = 1'' -- design this register as the previous value of PC,
+	* ''npc = 1'' -- design this regis as the new value of PC,
+	* ''sp = 1'' -- design this register as the stack pointer,
+	* ''lr = 1'' -- design this register as the link register (for subprogram call).
 
 
 ===== Memories =====
@@ -423,6 +422,7 @@ VOLATILE EQ LetExpr
 		{ Irg.ALIAS $3 }
 |	INITIALA EQ LetExpr
 		{ Irg.INIT (Sem.eval_const $3) }
+</code>
 
 @@ |	PORTS EQ CARD_CONST COMMA CARD_CONST
 @@		{ Irg.PORTS (Int32.to_int $3, Int32.to_int $3) }
@@ -430,10 +430,108 @@ VOLATILE EQ LetExpr
 @@		{ Irg.USES }
 @@|	ATTR LPAREN ID OptionalAttrArgs RPAREN
 @@		{ Irg.NMP_ATTR ($3, List.rev $4) }
-</code>
 
 
 ====== Operation, Modes and Attributes ======
+
+===== Operation and Modes =====
+
+The basic element to describe an instruction is an operation. The operations
+are of two type: AND or OR. An OR operation provides an alternative to
+describe a family of instruction (for exammple, ALU instructions or
+memory instruction) while an AND operation describe an actual instruction.
+
+The operations follows the synax below:
+<code>
+OperationSpec ::= OR-OperationSpec | AND-OperationSpec
+
+OR-OperationSpec ::= 'op' id: Identifier '=' IdentifierList
+IdentifierList ::= Identifier | IdentifierList ',' Identifier
+
+AND-OperationSpec ::= 'op' id: Identifier '(' Parameters? ')' Attributes
+Parameters ::= Parameter | Parameters ',' Parameter
+Parameter ::= Identifier ':' (TypeExpression | Identifier)
+</code>
+
+The OR-Operation is named and made of a list of identifier, the indetifier
+of AND- or OR-operations contained in this family.
+
+In the opposite, the AND-operation defines an instruction as list of
+parameters used by the instruction and list of attributes defining
+the different aspects of an instruction.
+
+The type expressions used for parameter may design usual types or named
+type of NMP or either operations, or modes. Classicly, the use of mode
+allows to mimics the argument modes found in processor: for example,
+addressing mode.
+
+A mode looks like an operation, it exists Or- and AND-modes, but is used
+to represented mode of parameter of an instruction. The main difference
+is that a mode is associated with an expression that is evaluated when
+the parameter, whose type is the current mode, is used in an expression.
+
+The syntax of modes follows:
+<code>
+ModeSpec ::= OR-Mode | AND-Mode
+
+OR-ModeSpec ::= 'op' id: Identifier '=' IdentifierList
+IdentifierList ::= Identifier | IdentifierList ',' Identifier
+
+AND-ModeSpec ::= 'op' id: Identifier '(' Parameters? ')' '=' Expression Attributes
+Parameters ::= Parameter | Parameters ',' Parameter
+Parameter ::= Identifier ':' (TypeExpression | Identifier)
+</code>
+
+The example below show the use of a mode to wire automatically register ''r0''
+to 0 (typically used for PowerPC processor):
+<code>
+reg GPR[32, int(32)]
+var TMP[1, int(32)]
+
+mode Rwired0(num: card(5)) = if num == 0 then 0 else GPR[num]
+	set = { if num != 0 then GPR[num] = TMP; endif; }
+	...
+	
+mode R(num: card(5)) = GPR[num]
+	set = { GPR[num] = TMP; }
+	...
+
+op add(rd: Rwired0, ra: Rwired0, b: R)
+	...
+	action = {
+		TMP = ra + rb;
+		rd.set;
+	}
+</code>
+
+The example show the use of modes to represent addressing in ARM-like instruction set:
+<code>
+reg R[16, int(32)]
+mem M[32, card(8)]
+
+mode OffsetAddressMode(r: card(4), offset: int(12)) = M[R[r] + offset]
+	...
+
+mode IndexedAddressMode(r: card(4), i: card(5)) = M[R[r] + R[i]]
+	...
+
+mode AddressMode = OffsetAddressMode | IndexedAddressMode | ...
+
+op LDR(r: card(4), addr: AddressMode)
+	...
+	action = { R[r] = addr; }
+
+op STR(r: card(4), addr: AddressMode)
+	...
+	action = { addr = R[r]; }
+</code>
+
+Usually, the description of modes and operations requires at least three attributes:
+  * ''action'' -- constrains NMP statements between braces and represent the behaviour of the instruction or of the mode
+(it used to generate the simulator);
+  * ''image'' -- describes the binary image of an instruction (or of a part of an instruction word for modes) (it used
+ to decode instructions from the binary program);
+  * ''syntax'' -- describe the assembly form of an instruction (used by the disassembler).
 
 ===== Image attribute =====
 
@@ -453,13 +551,13 @@ This example shows also the use of percent "%" expressions working like the ''pr
 
 
 The example above creates the following code:
-^ bits ^ description ^
-| 31-28 | four bits at ''1111'' |
-| 27-26 | two ignored bits |
-| 25-24 | two bits at ''00'' |
-| 23-20 | four bits replaced by value of ''ra'' parameter |
-| 19-16 | bits replaced by the image provided by ''rb'' |
-| 15-0 | 16 bits provided by the ''imm'' parameter |
+^ bits ^description ^
+| 31-28 |four bits at ''1111'' |
+| 27-26 |two ignored bits |
+| 25-24 |two bits at ''00'' |
+| 23-20 |four bits replaced by value of ''ra'' parameter |
+| 19-16 |bits replaced by the image provided by ''rb'' |
+| 15-0 |16 bits provided by the ''imm'' parameter |
 
 ====== Branch attribute ====== 
 
