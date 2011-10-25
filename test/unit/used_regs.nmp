@@ -12,7 +12,15 @@ op init()
 
 var i[1, card(32)]
 
-op instruction = bof | add | sub | ldm
+op instruction(x: all)
+	no_used_regs = { pc = pc + 4; }
+	action = {
+		x.action;
+		no_used_regs;
+	}
+	
+
+op all = bof | add | sub | ldm | warning
 
 op bof()
 	image = "00000000 00000000 00000000 00000000"
@@ -65,6 +73,14 @@ op ldm(l: card(5), u: card(5))
 		"read"(r[0]);
 		rec_used_regs;
 		"count"(1, 32);
+	}
+
+op warning()
+	image = "10000000 00000000 00000000 00000000"
+	syntax = "warning"
+	action = {
+		r[r[0]] = 0;
+		i = r[r[0]];
 	}
 
 

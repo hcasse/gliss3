@@ -165,10 +165,17 @@ let collect info =
 			| Irg.REG (_, s, _, _) ->
 				if s = 1 then f lst id Irg.NONE else
 				if stateless idx then f lst id idx else
-				lst
+				begin
+					Printf.fprintf
+						stderr
+						"WARNING: instruction %s contains non-static register numbers: cannot generate safe register usage !\n"
+						(Iter.get_user_id info.Toc.inst);
+					lst
+				end
 			| _ -> lst
 
 		and collect_call name lst =
+			if name = "no_used_regs" then lst else
 			if List.mem_assoc name info.Toc.calls then lst else
 			let stat = Toc.get_stat_attr name in
 			let before = info.Toc.calls in
