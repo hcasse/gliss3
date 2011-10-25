@@ -556,8 +556,8 @@ Sequence:
 ;
 
 StatementList:
-	Statement { Irg.LINE (!(Lexer.file),!(Lexer.line),$1) }
-|	StatementList SEMI Statement { Irg.SEQ ($1, $3) }
+	Statement { line $1 }
+|	StatementList SEMI Statement { Irg.SEQ ($1, line $3) }
 ;
 
 Statement:

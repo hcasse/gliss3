@@ -706,21 +706,6 @@ let unalias_expr name idx ub lb typ =
 	let field e ub lb tt =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
-	(* !!DEBUG!! *)
-	(*print_string "unalias_expr =====================================\nname="; print_string name;
-	print_string "\nidx="; Irg.print_expr idx;
-	print_string "\nub="; Irg.print_expr ub;
-	print_string "\nlb="; Irg.print_expr lb;
-	
-	print_string ("resolve_alias, res, r="^r^", t=");
-	Irg.print_type_expr t;
-	print_string "\ni="; Irg.print_expr i;
-	print_string "\nil="; print_int il;
-	print_string "\nubp="; Irg.print_expr ubp;
-	print_string "\nlbp="; Irg.print_expr lbp;
-	
-	print_string "\n++++++res=[";
-let res =*)
 	match Irg.get_symbol name with
 	| Irg.REG (_, _, tt, _) ->
 		field (concat (il - 1) tt) ubp lbp tt
@@ -730,30 +715,13 @@ let res =*)
 		field (Irg.ITEMOF(typ, r, idx)) ub lb tt
 	| s ->
 		failwith "unalias_expr"
-(* !!DEBUG!! *)(*
-in Irg.print_expr res;
-print_string "]\n";
-res*)
 
 
-(*!!DEBUG!!*)
-(*let pe = ref 0
-let ps = ref 0
-let ge = ref 0
-let gs = ref 0
-*)
-
-
-
-(** Prepare expression for generation.
-	@param info		Generation information.
-	@param stats	Prefix statements.
-	@param expr		Expression to prepare.
-	@return			(new prefix statements, prepared expression) *)
-let rec prepare_expr info stats expr =
-
-	let set typ var expr =
-		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+(** Unalias a reference.
+	@param info			Current generation information.
+	@param expr			Current expression.
+	@return				unaliased expression. *)
+let rec unalias_ref info expr stats =
 	let unalias name idx typ unalias_mem =
 		match Irg.get_symbol name with
 		(* IRg.MEM added makes everything goes badly (with ppc2 and arm at least) *)
@@ -769,19 +737,27 @@ let rec prepare_expr info stats expr =
 		| Irg.VAR (_, cnt, t) ->
 			add_var info name cnt t; expr
 		| _ ->
-			expr
-	in
-	(* !!DEBUG!! *)
-	(*let level = !pe in
-	Printf.printf "--prepare_expr(%d), expr=" level;
-	pe := !pe + 1;
-	Irg.print_expr expr;
-	print_char '\n';
-	let res = ( *)
+			expr in
 	match expr with
 	| Irg.REF name ->
 		(* if mem ref, leave it this way, it surely is a parameter for a canonical *)
 		(stats, unalias name Irg.NONE Irg.BOOL false)
+	| Irg.ITEMOF (typ, tab, idx) ->
+		let (stats, idx) = prepare_expr info stats idx in
+		(stats, unalias tab idx typ true)
+	| _ -> failwith "toc:unalias_ref"
+
+
+(** Prepare expression for generation.
+	@param info		Generation information.
+	@param stats	Prefix statements  	@param expr		Expression to prepare.
+	@return			(new prefix statements, prepared expression) *)
+and prepare_expr info stats expr =
+
+	let set typ var expr =
+		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+	match expr with
+	| Irg.REF name -> unalias_ref info expr stats
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -795,9 +771,7 @@ let rec prepare_expr info stats expr =
 		(stats, Irg.CANON_EXPR (typ, name, List.rev args))
 	| Irg.FIELDOF (typ, base, id) ->
 		(stats, Irg.FIELDOF (typ, base, id))
-	| Irg.ITEMOF (typ, tab, idx) ->
-		let (stats, idx) = prepare_expr info stats idx in
-		(stats, unalias tab idx typ true)
+	| Irg.ITEMOF (typ, tab, idx) -> unalias_ref info expr stats
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -847,14 +821,6 @@ let rec prepare_expr info stats expr =
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
 		(stats, Irg.CAST(size, expr))
-	(*!!DEBUG!!*)
-	(* ) in
-	Printf.printf "--res(%d): expr=" level;
-	Irg.print_expr expr;
-	Printf.printf "\n--res(%d): stats=[\n" level;
-	Irg.print_statement stats;
-	print_string "]\n";
-	res*)
 
 and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	List.fold_left

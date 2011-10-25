@@ -48,6 +48,15 @@ $(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))
 gliss-attr: ../irg/irg.cma libgep.cma
 
 
+# gliss-attr build
+USED_REGS_SOURCES = \
+	gliss-used-regs.ml
+
+gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/optirg libgep
+$(eval $(call ocaml_prog,gliss-used-regs,$(USED_REGS_SOURCES)))
+gliss-used-regs: ../irg/irg.cma libgep.cma
+
+
 # config build
 config.ml:
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
