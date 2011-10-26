@@ -2,20 +2,21 @@
 
 #include <$(proc)/used_regs.h>
 #include <$(proc)/api.h>
+#include <$(proc)/macros.h>
 
-#definef add_read(i)	rds[rd_cnt++] = i
-#definef add_write(i)	wrs[wr_cnt++] = i
+#define add_read(i)	rds[rd_cnt++] = i
+#define add_write(i)	wrs[wr_cnt++] = i
 
-typedef void (*used_regs_fun_t)($(proc)_inst_t *inst, $(proc)_used_regs_read_t *rds, $(proc)_used_regs_write_t *wrs);
+typedef void (*used_regs_fun_t)($(proc)_inst_t *inst, $(proc)_used_regs_read_t rds, $(proc)_used_regs_write_t wrs);
 
 /* functions */
-static void used_regs_unknown($(proc)_inst_t *inst, $(proc)_used_regs_read_t *regs, $(proc)_used_regs_write_t *wrs) {
+static void used_regs_unknown($(proc)_inst_t *inst, $(proc)_used_regs_read_t rds, $(proc)_used_regs_write_t wrs) {
 	rds[0] = -1;
 	wrs[0] = -1;
 }
 
 $(foreach instructions)
-static void used_regs_$(IDENT)($(proc)_inst_t *inst, $(proc)_used_read_regs_t *regs, $(proc)_used_write_regs_t *wrs) {
+static void used_regs_$(IDENT)($(proc)_inst_t *inst, $(proc)_used_regs_read_t rds, $(proc)_used_regs_write_t wrs) {
 	int rd_cnt = 0, wr_cnt = 0;
 $(used_regs)
 	rds[rd_cnt] = -1;
@@ -26,8 +27,8 @@ $(end)
 
 /* table */
 static used_regs_fun_t used_regs_tab[] = {
-	disasm_unknown$(foreach instructions),
-	disasm_$(IDENT)$(end)
+	used_regs_unknown$(foreach instructions),
+	used_regs_$(IDENT)$(end)
 };
 
 /**
@@ -35,6 +36,6 @@ static used_regs_fun_t used_regs_tab[] = {
  * @param buffer	Buffer to write in.
  * @param inst		Decode instruction.
  */
-void $(proc)_used_regs($(proc)_inst_t *inst, $(proc)_used_regs_read_t *regs, $(proc)_used_regs_write_t *wrs) {
+void $(proc)_used_regs($(proc)_inst_t *inst, $(proc)_used_regs_read_t rds, $(proc)_used_regs_write_t wrs) {
 	used_regs_tab[inst->ident](inst, rds, wrs);
 }

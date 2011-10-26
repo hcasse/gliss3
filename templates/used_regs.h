@@ -21,6 +21,8 @@
 #ifndef $(PROC)_USED_REGS
 #define $(PROC)_USED_REGS
 
+#include "api.h"
+
 /* register definition */
 #define $(PROC)_REG_COUNT	$(used_regs_count)
 $(foreach registers)
@@ -38,5 +40,8 @@ $(end)
 #define $(PROC)_REG_WRITE_MAX		$(used_regs_write_max)
 typedef int $(proc)_used_regs_read_t[$(PROC)_REG_READ_MAX + 1];
 typedef int $(proc)_used_regs_write_t[$(PROC)_REG_WRITE_MAX + 1];
+
+/* function declaration */
+void $(proc)_used_regs($(proc)_inst_t *inst, $(proc)_used_regs_read_t regs, $(proc)_used_regs_write_t wrs);
 
 #endif /* $(PROC)_USED_REGS */

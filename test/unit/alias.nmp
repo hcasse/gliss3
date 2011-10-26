@@ -1,0 +1,51 @@
+
+let proc="mine"
+let gliss_isize = "32"
+let bit_order = "UPPERMOST"
+
+reg pc[1, card(32)] pc=1
+reg r[32, card(32)]
+reg r64[16, card(64)] alias = r[0]
+
+var t32[1, card(32)]
+var t64[1, card(64)]
+
+op init()
+	action = { }
+
+op instruction = pair | field
+
+op pair()
+	syntax = "pair"
+	image = "00000000 00000000 00000000 00000000"
+	action = {
+		"c"("t64 = r64[3];");
+		t64 = r64[3];
+
+		"c"("r64[10] = t64;");
+		r64[10] = t64;
+
+		"c"("t32 = r64[5];");
+		t32 = r64[5];
+
+		"c"("r64[5] = t32;");
+		r64[5] = t32;
+
+		"c"("t32 = r64[5]<63..32>;");
+		t32 = r64[5]<63..32>;
+
+		"c"("r64[5]<63..32> = t32;");
+		r64[5]<63..32> = t32;
+
+		"c"("t32 = r64[5]<31..0>;");
+		t32 = r64[5]<31..0>;
+
+		"c"("r64[5]<31..0> = t32;");
+		r64[5]<31..0> = t32;
+	}
+
+op field()
+	syntax = "field"
+	image = "00000000 00000000 00000000 00000001"
+	action = {
+	}
