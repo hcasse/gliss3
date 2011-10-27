@@ -49,11 +49,11 @@ $(if is_multi_set)
 $(foreach instr_sets_sizes)
 $(if is_RISC_size)
 #define __EXTRACT_$(C_size)(mask, offset_mask, inst)	  ( (uint$(C_size)_t)((inst) & (mask)) >> (offset_mask))
-#define __EXTS_$(C_size)(mask, offset_mask, inst, n)    (((int$(C_size)_t)__EXTRACT_$(C_size)(mask, offset_mask, inst) << (n)) >> (n))
+#define __EXTS_$(C_size)(mask, offset_mask, inst, n)    (((int$(C_size)_t)__EXTRACT_$(C_size)(mask, offset_mask, inst) << ($(C_size) - (n))) >> ($(C_size) - (n)))
 $(else)
 /* decoded parameters should be 64 bit max */
 #define __EXTRACT_CISC(mask, inst)	extract_mask(inst, mask)
-#define __EXTS_CISC(mask, inst, n)	(((int64_t)__EXTRACT_CISC(mask, inst) << (n)) >> (n))
+#define __EXTS_CISC(mask, inst, n)	(((int64_t)__EXTRACT_CISC(mask, inst) << (64 - (n))) >> (64 - (n)))
 $(end)$(end)$(end)
 
 
@@ -65,11 +65,16 @@ $(end)
 	inst->ident = $(PROC)_UNKNOWN;
 
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
+
 }
 
 $(foreach instructions)
 static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end)) {
-	$(if has_param)
+
+$(if has_param)$(if is_complex_decode)	/* complex decoding */
+$(if !is_RISC_inst)$(mask_decl_all)$(end)
+$(else)$(if !is_RISC_inst)	/* parameter masks */
+$(foreach params)	$(mask_decl)$(end)$(end)$(end)
 	
 $(if !GLISS_NO_MALLOC)
 	$(proc)_inst_t *inst = ($(proc)_inst_t *)malloc(sizeof($(proc)_inst_t));
@@ -77,18 +82,15 @@ $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
 	/* put other parameters */
-$(if is_complex_decode)
-	$(if !is_RISC_inst)$(mask_decl_all)$(end)
-$(foreach params)$(PROC)_$(IDENT)_$(PARAM) = $(decoder_complex);
-$(end)
-$(else)
-	$(foreach params)
-	$(if !is_RISC_inst)$(mask_decl)$(end)
-	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);$(end)
-$(end)
+$(if is_complex_decode)	/* complex decoding */
+$(foreach params)	$(PROC)_$(IDENT)_$(PARAM) = $(decoder_complex);
+$(end)$(else)
+$(foreach params)	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
+$(end)$(end)
 
 	$(if !GLISS_NO_MALLOC)return inst;
 $(end)
+
 }
 
 $(else)$(if !GLISS_NO_MALLOC)$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t));
@@ -97,12 +99,10 @@ $(end)
 	inst->ident = $(PROC)_$(IDENT);
 
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
+
 }
 
-$(end)
-$(end)
-
-
+$(end)$(end)
 
 
 typedef $(if !GLISS_NO_MALLOC)$(proc)_inst_t *$(else)void $(end)$(proc)_decode_function_t($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end));

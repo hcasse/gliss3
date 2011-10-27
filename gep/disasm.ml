@@ -1,21 +1,21 @@
 (*
- * $Id: disasm.ml,v 1.16 2009/07/29 09:26:28 casse Exp $
+ * GLISS2 -- disassembly gnerator
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS2.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with OGliss; if not, write to the Free Software
+ * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
@@ -70,6 +70,7 @@ let rec gen_disasm info inst expr =
 						scan fmt tl (i + 2) [] (i + 2)))
 
 	and process expr =
+		check expr;
 		match expr with
 		| Irg.FORMAT (fmt, args) ->
 			scan fmt args 0 [] 0
@@ -82,13 +83,9 @@ let rec gen_disasm info inst expr =
 				c,
 				List.map (fun (c, e) -> (c, process e)) cases,
 				if def <> Irg.NONE then process def else Irg.NOP)
-		(*| Irg.REF id ->
-			(match Irg.symbol id with
-			| LET _ | PARAM _  | _ -> expr
-			| _ -> Toc.error_on_expr (Printf.sprintf "\"%s\" forbidden in syntax attribute" id) expr)*)
+		| Irg.REF _
 		| Irg.NONE
 		| Irg.CANON_EXPR _
-		| Irg.REF _
 		| Irg.FIELDOF _
 		| Irg.ITEMOF _
 		| Irg.BITFIELD _
@@ -100,14 +97,37 @@ let rec gen_disasm info inst expr =
 		| Irg.CAST _ ->
 			Toc.error_on_expr (Printf.sprintf "bad syntax expression in instruction %s" (Iter.get_user_id inst)) expr
 		| Irg.ELINE (file, line, e) ->
-			(*Printf.printf "%s: %d:\n" file line;*)
-			Toc.locate_error file line (gen_disasm info inst) e in
+			Toc.locate_error file line (gen_disasm info inst) e
 
-		(* !!DEBUG!! *)
-		(*print_string "gen_disasm:";
-		Irg.print_expr expr;
-		print_char '\n';*)
-		process expr
+	and check_symbol id =
+		match Irg.get_symbol id with
+		| Irg.REG _ | Irg.MEM _ -> Toc.error_on_expr (Printf.sprintf "\"%s\" forbidden in syntax attribute" id) expr
+		| Irg.LET _ | Irg.PARAM _  | _ -> ()
+
+	and check expr =
+		match expr with
+		| Irg.NONE -> ()
+		| Irg.COERCE (_, expr) -> check expr
+		| Irg.FORMAT (_, args)
+		| Irg.CANON_EXPR (_, _, args) -> List.iter check args
+		| Irg.REF id -> check_symbol id
+		| Irg.FIELDOF (_, id, _) -> check_symbol id
+		| Irg.ITEMOF (_, id, expr) -> check_symbol id; check expr
+		| Irg.BITFIELD (_, b, l, u) -> check b; check l; check u
+		| Irg.UNOP (_, _, arg) -> check arg
+		| Irg.BINOP (_, _, arg1, arg2) -> check arg1; check arg2
+		| Irg.IF_EXPR (_, c, t, e) -> check c; check t; check e
+		| Irg.SWITCH_EXPR (_, c, cs, d) -> check c; check d; List.iter (fun (_, e) -> check e) cs
+		| Irg.CONST _ -> ()
+		| Irg.ELINE (f, l, e) -> Toc.locate_error f l check e
+		| Irg.EINLINE _ -> ()
+		| Irg.CAST (_, e) -> check e in
+
+	(* !!DEBUG!! *)
+	(*print_string "gen_disasm:";
+	Irg.print_expr expr;
+	print_char '\n';*)
+	process expr
 
 
 (** Perform the disassembling of the given instruction.

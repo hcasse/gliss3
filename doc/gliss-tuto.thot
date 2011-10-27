@@ -295,7 +295,7 @@ multi-processors).
 
 Then we can load the program in memory with the program to simulate.
 <code c>
-	if(toy_load_platform(platform, path == -1) {
+	if(toy_load_platform(platform, path) == -1) {
 		fprintf(stderr, "ERROR: can not load %s\n", path);
 		exit(2);
 	}

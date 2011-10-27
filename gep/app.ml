@@ -55,7 +55,8 @@ module TypeSet = Set.Make(OrderedType);;
 type maker_t = {
 	mutable get_params: Iter.inst -> int -> string -> Irg.type_expr -> Templater.dict_t -> Templater.dict_t;
 	mutable get_instruction: Iter.inst -> Templater.dict_t -> Templater.dict_t;
-	mutable get_instruction_set: Iter.inst list -> Templater.dict_t -> Templater.dict_t
+	mutable get_instruction_set: Iter.inst list -> Templater.dict_t -> Templater.dict_t;
+	mutable get_register: Irg.spec -> Templater.dict_t -> Templater.dict_t
 }
 
 
@@ -345,24 +346,23 @@ let rec reg_format id size attrs =
 	| Irg.ATTR_EXPR ("fmt", Irg.CONST (_, Irg.STRING_CONST (f, _, _))) :: _ -> f
 	| _ :: tl -> reg_format id size tl
 
-let get_register id f dict _ sym =
+let get_register id f dict maker _ sym =
 	match sym with
 	  Irg.REG (name, size, t, attrs) ->
-		incr id; f (
-	  	("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-		("name", out (fun _ -> name)) ::
-		("NAME", out (fun _ -> String.uppercase name)) ::
-		("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
-		("array", Templater.BOOL (fun _ -> size > 1)) ::
-		("size", out (fun _ -> string_of_int size)) ::
-		("id", out (fun _ -> string_of_int !id)) ::
-		("type_size", out (fun _ -> string_of_int (Sem.get_type_length t))) ::
-		("is_pc", Templater.BOOL (fun _ -> is_pc attrs)) ::
-		("is_float", Templater.BOOL (fun _ -> is_float t)) ::
-		("format", out (fun _ -> "\"" ^ (reg_format name size attrs) ^ "\"")) ::
-		("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
-		
-		dict)	(* make_array size*)
+		incr id; f (maker.get_register sym (
+			("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
+			("name", out (fun _ -> name)) ::
+			("NAME", out (fun _ -> String.uppercase name)) ::
+			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
+			("array", Templater.BOOL (fun _ -> size > 1)) ::
+			("size", out (fun _ -> string_of_int size)) ::
+			("id", out (fun _ -> string_of_int !id)) ::
+			("type_size", out (fun _ -> string_of_int (Sem.get_type_length t))) ::
+			("is_pc", Templater.BOOL (fun _ -> is_pc attrs)) ::
+			("is_float", Templater.BOOL (fun _ -> is_float t)) ::
+			("format", out (fun _ -> "\"" ^ (reg_format name size attrs) ^ "\"")) ::
+			("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
+			dict))	(* make_array size*)
 	| _ -> ()
 
 let get_value f dict t =
@@ -395,7 +395,8 @@ let get_memory f dict key sym =
 let maker _ = {
 	get_params = (fun _ _ _ _ dict -> dict);
 	get_instruction = (fun _ dict -> dict);
-	get_instruction_set = (fun _ dict -> dict)
+	get_instruction_set = (fun _ dict -> dict);
+	get_register = (fun _ dict -> dict)
 }
 
 let profiled_switch_size = ref 0
@@ -424,7 +425,7 @@ let make_env info maker =
 	("profiled_instructions", Templater.COLL (fun f dict -> 
 	  let _ = Iter.iter_ext (get_ninstruction info maker f dict (!profiled_switch_size)) 0 true in () )) ::
 	("instruction_sets", Templater.COLL (fun f dict -> List.iter (get_instruction_set maker f dict) !Iter.multi_set )) ::
-	("registers", Templater.COLL (fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict) Irg.syms)) ::
+	("registers", Templater.COLL (fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict maker) Irg.syms)) ::
 	("values", Templater.COLL (fun f dict -> TypeSet.iter (get_value f dict) param_types)) ::
 	("params", Templater.COLL (fun f dict -> TypeSet.iter (get_param f dict) param_types)) ::
 	("memories", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_memory f dict) Irg.syms)) ::

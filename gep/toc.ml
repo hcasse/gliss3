@@ -17,27 +17,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*Usefull when you want to use caml toplevel :*)
-(*
-  #directory "../irg";;
-  #directory "../gep";;
-
-  #load "unix.cma";;
-  #load "str.cma";;
-  #load "config.cmo";;
-  #load "irg.cmo";;
-  #load "instantiate.cmo";;
-  #load "lexer.cmo";;
-  #load "sem.cmo";;
-  #load "IdMaker.cmo";;
-  #load "iter.cmo";;
-  #load "toc.cmo";;
-  #load "templater.cmo";;
-  #load "parser.cmo";;
-  #load "irgUtil.cmo";;
-  #load "app.cmo";;
-*)
-
 exception UnsupportedType of Irg.type_expr
 exception UnsupportedExpression of Irg.expr
 exception Error of string
@@ -566,6 +545,17 @@ let rec unaliased_mem_name name =
 		| _ -> failwith "no concat !")
 	| _ -> failwith "not memory !"
 
+let print_alias msg (r, i, il, ub, lb, t) =
+	Printf.printf "\t%s(%s [" msg r;
+	Irg.print_expr i;
+	Printf.printf ":%d] < " il;
+	Irg.print_expr ub;
+	print_string " .. ";
+	Irg.print_expr lb;
+	print_string " > : ";
+	Irg.print_type_expr t;
+	print_string ")\n"
+
 
 (** Perform alias resolution, that is, translate a state read/write into
 	a tuple of unaliased states.
@@ -577,18 +567,6 @@ let rec unaliased_mem_name name =
 					state resource count, upper bit, lower bit,
 					resource type) *)
 let resolve_alias name idx ub lb =
-
-	let printv msg (r, i, il, ub, lb, t) =
-		(*Printf.printf "\t%s(%s [" msg r;
-		Irg.print_expr i;
-		Printf.printf ":%d] < " il;
-		Irg.print_expr ub;
-		print_string " .. ";
-		Irg.print_expr lb;
-		print_string " > : ";
-		Irg.print_type_expr t;
-		print_string ")\n";*)
-		() in
 
 	let t = Irg.CARD(32) in
 	let const c =
@@ -607,9 +585,6 @@ let resolve_alias name idx ub lb =
 		Irg.BINOP (t, Irg.MOD, e1, e2) in
 
 	let convert tr v =
-		(*print_string "\t";
-		Irg.print_type_expr tr;
-		printv " convert" v;*)
 		let (r, i, il, ub, lb, ta) = v in
 		if ta = Irg.NO_TYPE then (r, i, il, ub, lb, tr) else
 		let sa = Sem.get_type_length ta in
@@ -637,12 +612,7 @@ let resolve_alias name idx ub lb =
 		(name, i, il, ub, lb, t) in
 
 	let rec process_alias tr attrs v =
-		(*printv "process_alias" v;*)
 		let v = convert tr v in
-		(*!!DEBUG!!*)
-		(*print_string "get_alias=>";
-		Irg.print_location (get_alias attrs);
-		print_char '\n';*)
 		match get_alias attrs with
 		| Irg.LOC_NONE -> v
 		| Irg.LOC_CONCAT _ -> failwith "bad relocation alias (LOC_CONCAT)"
@@ -653,11 +623,7 @@ let resolve_alias name idx ub lb =
 			process v
 
 	and process v =
-		printv "process" v;
 		let (r, i, il, ub, lb, t) = v in
-		(*!!DEBUG!!*)
-		(*print_string ("processing alias for:" ^ r ^ "\n");
-		Irg.print_spec (Irg.get_symbol r);*)
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
 			process_alias tr attrs v
@@ -667,7 +633,6 @@ let resolve_alias name idx ub lb =
 			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
-		(*!!DEBUG!!*)
 		(* this should happen only when using gliss1 predecode *)
 		| Irg.PARAM (_, typ) ->
 			(match typ with
@@ -676,7 +641,6 @@ let resolve_alias name idx ub lb =
 		| _ ->
 			failwith "bad alias" in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
-	printv "return" res;
 	res
 
 
@@ -706,54 +670,20 @@ let unalias_expr name idx ub lb typ =
 	let field e ub lb tt =
 		if ub = Irg.NONE then e
 		else Irg.BITFIELD(tt, e, ub, lb) in
-	(* !!DEBUG!! *)
-	(*print_string "unalias_expr =====================================\nname="; print_string name;
-	print_string "\nidx="; Irg.print_expr idx;
-	print_string "\nub="; Irg.print_expr ub;
-	print_string "\nlb="; Irg.print_expr lb;
-	
-	print_string ("resolve_alias, res, r="^r^", t=");
-	Irg.print_type_expr t;
-	print_string "\ni="; Irg.print_expr i;
-	print_string "\nil="; print_int il;
-	print_string "\nubp="; Irg.print_expr ubp;
-	print_string "\nlbp="; Irg.print_expr lbp;
-	
-	print_string "\n++++++res=[";
-let res =*)
 	match Irg.get_symbol name with
 	| Irg.REG (_, _, tt, _) ->
 		field (concat (il - 1) tt) ubp lbp tt
 	| Irg.MEM (_, _, tt, _) ->
-		(*print_string "(type="; Irg.print_type_expr tt; print_string "), ";*)
-		(*field (concat 0 tt) ub lb tt*)
 		field (Irg.ITEMOF(typ, r, idx)) ub lb tt
 	| s ->
 		failwith "unalias_expr"
-(* !!DEBUG!! *)(*
-in Irg.print_expr res;
-print_string "]\n";
-res*)
 
 
-(*!!DEBUG!!*)
-(*let pe = ref 0
-let ps = ref 0
-let ge = ref 0
-let gs = ref 0
-*)
-
-
-
-(** Prepare expression for generation.
-	@param info		Generation information.
-	@param stats	Prefix statements.
-	@param expr		Expression to prepare.
-	@return			(new prefix statements, prepared expression) *)
-let rec prepare_expr info stats expr =
-
-	let set typ var expr =
-		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+(** Unalias a reference.
+	@param info			Current generation information.
+	@param expr			Current expression.
+	@return				unaliased expression. *)
+let rec unalias_ref info expr stats =
 	let unalias name idx typ unalias_mem =
 		match Irg.get_symbol name with
 		(* IRg.MEM added makes everything goes badly (with ppc2 and arm at least) *)
@@ -769,19 +699,27 @@ let rec prepare_expr info stats expr =
 		| Irg.VAR (_, cnt, t) ->
 			add_var info name cnt t; expr
 		| _ ->
-			expr
-	in
-	(* !!DEBUG!! *)
-	(*let level = !pe in
-	Printf.printf "--prepare_expr(%d), expr=" level;
-	pe := !pe + 1;
-	Irg.print_expr expr;
-	print_char '\n';
-	let res = ( *)
+			expr in
 	match expr with
 	| Irg.REF name ->
 		(* if mem ref, leave it this way, it surely is a parameter for a canonical *)
 		(stats, unalias name Irg.NONE Irg.BOOL false)
+	| Irg.ITEMOF (typ, tab, idx) ->
+		let (stats, idx) = prepare_expr info stats idx in
+		(stats, unalias tab idx typ true)
+	| _ -> failwith "toc:unalias_ref"
+
+
+(** Prepare expression for generation.
+	@param info		Generation information.
+	@param stats	Prefix statements  	@param expr		Expression to prepare.
+	@return			(new prefix statements, prepared expression) *)
+and prepare_expr info stats expr =
+
+	let set typ var expr =
+		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
+	match expr with
+	| Irg.REF name -> unalias_ref info expr stats
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -795,9 +733,7 @@ let rec prepare_expr info stats expr =
 		(stats, Irg.CANON_EXPR (typ, name, List.rev args))
 	| Irg.FIELDOF (typ, base, id) ->
 		(stats, Irg.FIELDOF (typ, base, id))
-	| Irg.ITEMOF (typ, tab, idx) ->
-		let (stats, idx) = prepare_expr info stats idx in
-		(stats, unalias tab idx typ true)
+	| Irg.ITEMOF (typ, tab, idx) -> unalias_ref info expr stats
 	| Irg.BITFIELD (typ, expr, lo, up) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		let (stats, lo) = prepare_expr info stats lo in
@@ -847,14 +783,6 @@ let rec prepare_expr info stats expr =
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
 		(stats, Irg.CAST(size, expr))
-	(*!!DEBUG!!*)
-	(* ) in
-	Printf.printf "--res(%d): expr=" level;
-	Irg.print_expr expr;
-	Printf.printf "\n--res(%d): stats=[\n" level;
-	Irg.print_statement stats;
-	print_string "]\n";
-	res*)
 
 and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 	List.fold_left
@@ -895,7 +823,6 @@ let rec seq_list list =
 	@param			Expression to assign.
 	@return			statements *)
 let unalias_set info stats name idx ub lb expr =
-	(*Printf.printf "unalias_set(%s)\n" name;*)
 	let (r, i, il, ubp, lbp, t) = resolve_alias name idx ub lb in
 
 	let index_t = Irg.CARD(32) in
@@ -913,14 +840,12 @@ let unalias_set info stats name idx ub lb expr =
 	let sett t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
 
-	let rec set_concat l s =
-		if l = 0 then set_item i expr else
-		seq (set_item
-				(addi i (index l))
-				(field expr
-					(index (l * s + s - 1))
-					(index (l * s))))
-			(set_concat (l - 1) s) in
+	let rec set_concat l s expr =
+		let e = field expr (index (l * s + s - 1)) (index (l * s)) in
+		if l = 0 then set_item i e else
+		seq
+			(set_item (addi i (index l)) e)
+			(set_concat (l - 1) s expr) in
 
 	let rec set_concat_field l s =
 		if l = 0 then set_field ub lb expr else
@@ -933,10 +858,10 @@ let unalias_set info stats name idx ub lb expr =
 			(set_concat_field (l - 1) s) in
 
 	let process tt =
-		if ubp = Irg.NONE then
+		if (il = 1 && ubp <> Irg.NONE) || il > 1 then
 			if il = 1 then seq stats (set_item i expr) else
 			let name = new_temp info tt in
-			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t))
+			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF name)) 
 		else
 			if il = 1 then seq stats (set_full i ubp lbp expr) else
 			let name = new_temp info tt in
@@ -950,15 +875,14 @@ let unalias_set info stats name idx ub lb expr =
 	| Irg.VAR (_, cnt, tt) ->
 		add_var info name cnt tt;
 		seq stats (set_full i ub lb expr)
-	(*!!DEBUG!!*)
 	(* this should happen only when using gliss1 predecode *)
 	| Irg.PARAM (_, typ) ->
 		(match typ with
 		| Irg.TYPE_EXPR(tt) -> process tt
 		| _ -> failwith "OUPS!\n")
 	| _ -> 
-	Irg.print_spec (Irg.get_symbol name);
-	failwith "unalias_set"
+		Irg.print_spec (Irg.get_symbol name);
+		failwith "unalias_set"
 
 
 (* !!TODO!! move to Sem *)
@@ -972,9 +896,6 @@ let get_loc_size l =
 	@param stat		Statement to prepare.
 	@return			Prepared statement. *)
 let rec prepare_stat info stat =
-	(* !!DEBUG!! *)
-	(*let level = !ps in
-	Printf.printf "++prepare_stat(%d) stat=[\n" level; ps := !ps + 1; Irg.print_statement stat; print_string "]\n";	*)
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
@@ -983,14 +904,6 @@ let rec prepare_stat info stat =
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 
 	let rec prepare_set stats loc expr =
-		(*Printf.printf "##prepare_stat(%d)::prepare_set\n+++loc=" level;
-		print_string "##prepare_stat::prepare_set\n+++loc=";
-		Irg.print_location loc;	(* !!DEBUG!! *)
-		print_string "\n##expr="; Irg.print_expr expr;				(* !!DEBUG!! *)
-		print_string "\n##stats=["; Irg.print_statement stats;	print_string "]\n";		(* !!DEBUG!! *) 
-		trace "prepare_set 1";
-		
-		let res = ( *)
 		match loc with
 		| Irg.LOC_NONE ->
 			failwith "no location to set (3)"
@@ -1006,15 +919,8 @@ let rec prepare_stat info stat =
 			let stats = seq stats (set t tmp expr) in
 			let stats = prepare_set stats l1
 				(rshift t (refto tmp) (index (get_loc_size l2))) in
-			prepare_set stats l2 (refto tmp)
-		(* ) in
-		Printf.printf "##res(%d): [" level;
-		print_string "##res: [";
-		Irg.print_statement res; print_string "]\n";
-		res*)
-	in
-(*!!DEBUG!!*)
-(*let res = ( *)
+			prepare_set stats l2 (refto tmp) in
+
 	match stat with
 	| Irg.NOP
 	| Irg.ERROR _ ->
@@ -1055,10 +961,6 @@ let rec prepare_stat info stat =
 
 	| Irg.INLINE _ ->
 		stat
-(*!!DEBUG!!*)
-(* ) in
-Printf.printf "++res(%d): [" level; Irg.print_statement res; print_string "]\n";
-res*)
 
 
 and prepare_call info name =
@@ -1270,9 +1172,6 @@ and gen_binop info t op e1 e2 prfx =
 	| Irg.CONCAT	->
 		let l1 = Sem.get_type_length (Sem.get_type_expr e1) in
 		let l2 = Sem.get_type_length (Sem.get_type_expr e2) in
-		(*!!DEBUG!!*)
-		(*print_string "########concat,\n\t"; Irg.print_expr e1;print_string"\n\t";Irg.print_type_expr (Sem.get_type_expr e1); print_string "\n\t";
-		Irg.print_expr e2;print_string "\n\t";Irg.print_type_expr (Sem.get_type_expr e2); print_char '\n';*)
 		Printf.fprintf info.out "%s_concat%s(" info.proc (type_to_mem(convert_type t));
 		out "" ", " ", ";
 		Printf.fprintf info.out "%d, %d)" l1 l2
@@ -1488,9 +1387,6 @@ let rec gen_stat info stat =
 				ignore (gen_expr info arg true); false)
 			true
 			args) in
-(*!!DEBUG!!*)
-(*let level = !gs in
-Printf.printf "==gen_stat(%d), stat=[\n" level; gs := !gs + 1; Irg.print_statement stat; print_string "]\n";*)
 	match stat with
 	| Irg.NOP -> ()
 

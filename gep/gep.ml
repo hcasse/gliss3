@@ -162,9 +162,9 @@ let decoder info inst idx sfx size out =
 	let suffix = if sfx then Printf.sprintf "_%d" size else "" in
 	let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
 	let extract _ =
-		Printf.fprintf out "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
+		Printf.fprintf out "__EXTRACT%s(0x%08LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
 	let exts    n =
-		Printf.fprintf out "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
+		Printf.fprintf out "__EXTS%s(0x%08LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code n in
 	match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 	| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
 	| _ -> extract ()
@@ -247,6 +247,59 @@ let output_decoder_complex info inst idx sfx size is_risc out =
 		output_char out '\n'
 
 
+(** Output a mask declaration.
+	@param inst		Instruction.
+	@param idx		Parameter index.
+	@param is_risc	RISC instruction.
+	@param out		Stream to output to. *)
+let output_mask_decl inst idx is_risc out =
+	let to_C_list mask =
+		let rec aux comma l =
+			match l with
+			| [] -> ""
+			| a::b ->
+				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b) in
+			aux false mask in
+	let string_mask = Decode.get_mask_for_param inst idx in
+	let mask = Bitmask.to_int32_list string_mask
+	in
+		if not is_risc then
+			(Printf.fprintf out "static uint32_t tab_mask%d[%d] = {" idx (List.length mask);
+			Printf.fprintf out "%8s}; /* %s */\n" (to_C_list mask) (Bitmask.to_string string_mask);
+			Printf.fprintf out "\tstatic mask_t mask%d = {tab_mask%d, %d};\n" idx idx (Bitmask.length string_mask))
+
+
+(** Declare the masks in case of a complex parameter decoding.
+	@param inst		Instruction to process.
+	@param is_risc	Is a RISC instruction ?
+	@param out		Stream to output to. *)
+let mask_decl_all inst is_risc out =
+
+	(* find format parameters *)
+	let get_expr_from_iter_value v  =
+		match v with
+		| Iter.EXPR(e) -> e
+		| _ -> Irg.NONE
+	in
+	let image_attr = get_expr_from_iter_value (Iter.get_attr inst "image") in
+	let rec get_frmt_params e =
+		match e with
+		| Irg.FORMAT(_, params) -> params
+		| Irg.ELINE(_, _, e) -> get_frmt_params e
+		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
+	in
+	let frmt_params = get_frmt_params image_attr in
+
+	(* switch between complex and not *)
+	if Decode_arg.is_complex frmt_params then
+		List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst)
+	else
+		ignore(List.fold_left
+			(fun idx _ -> output_char out '\t'; output_mask_decl inst idx is_risc out; idx + 1)
+			0
+			(Iter.get_params inst))
+
+
 (** Build a template environment.
 	@param info		Information for generation.
 	@return			Default template environement. *)
@@ -309,34 +362,17 @@ let make_env info =
 		with
 			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with a RISC ISA")
 	in
-	let to_C_list mask =
-		let rec aux comma l =
-			match l with
-			| [] -> ""
-			| a::b ->
-				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
-		in
-			aux false mask
-	in
 	let max_op_nb = Iter.get_params_max_nb () in
 	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
 	in
 
-	let output_mask_decl inst idx is_risc out =
-		let string_mask = Decode.get_mask_for_param inst idx in
-		let mask = Bitmask.to_int32_list string_mask
-		in
-			if not is_risc then
-				(Printf.fprintf out "uint32_t tab_mask%d[%d] = {" idx (List.length mask);
-				Printf.fprintf out "%s}; /* %s */\n" (to_C_list mask) (Bitmask.to_string string_mask);
-				Printf.fprintf out "\tmask_t mask%d = {tab_mask%d, %d};\n" idx idx (Bitmask.length string_mask))
-	in
-
-	let add_mask_32_to_param inst idx _ _ dict =
+	let add_mask_32_to_param inst idx name _ dict =
 		let isize = find_iset_size_of_inst inst in
 		let is_risc = isize <> 0 in
 		let is_multi = (List.length instr_sets) > 1 in
-		("decoder", Templater.TEXT (if is_risc then (decoder info inst idx is_multi isize) else (decoder_CISC info inst idx is_multi))) ::
+		("decoder", Templater.TEXT (
+			if is_risc then (decoder info inst idx is_multi isize)
+			else (decoder_CISC info inst idx is_multi))) ::
 		("decoder_complex", Templater.TEXT (fun out ->
 			if not !decode_arg then
 				raise (Sys_error "template $(decoder_complex) should be used only if complex argument decoding is activated (option -D)")
@@ -347,6 +383,7 @@ let make_env info =
 		dict in
 	let add_size_to_inst inst dict =
 		let iset_size = find_iset_size_of_inst inst in
+		let is_risc = iset_size <> 0 in
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_instruction_length inst))) ::
 		("gen_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
@@ -369,7 +406,7 @@ let make_env info =
 		("is_RISC_inst", Templater.BOOL (fun _ -> iset_size <> 0)) ::
 		(* instr size of the instr set where belongs inst (meaning stg only if instr set is RISC) *)
 		("iset_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" iset_size)) ::
-		("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::
+		("mask_decl_all", Templater.TEXT (fun out -> mask_decl_all inst is_risc out)) ::
 		dict
 	in
 	let get_instr_set_size f dict size =

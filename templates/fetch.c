@@ -64,7 +64,8 @@ void $(proc)_delete_fetch($(proc)_fetch_t *fetch)
 
 $(if is_multi_set)
 $(foreach instr_sets_sizes)
-$(if is_RISC_size)/*
+$(if is_RISC_size)
+/*
 	donne la valeur d'une zone mémoire (une instruction) en ne prenant
 	en compte que les bits indiqués par le mask
 
@@ -196,7 +197,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 {
 	uint$(C_inst_size)_t valeur;
 	Table_Decodage *ptr;
-	Table_Decodage *ptr2 = table;
+	Table_Decodage *ptr2 = $(proc)_table;
 	*code = $(proc)_mem_read$(C_inst_size)(fetch->mem, address);
 
 	do
@@ -222,7 +223,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 	uint32_t value;
 
 	Table_Decodage *ptr;
-	Table_Decodage *ptr2 = table;
+	Table_Decodage *ptr2 = $(proc)_table;
 	do
 	{
 		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */

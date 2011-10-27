@@ -80,7 +80,6 @@ let keywords = [
 	("macro",       MACRO);
 	("mem",        	MEM 0);
 	("mode",        MODE 0);
-	("nop",        	NOP);
 	("not",        	NOT);
 	("op",        	OP 0);
 	("reg",        	REG 0);
@@ -93,6 +92,11 @@ let keywords = [
 	("uses",        USES);
 	("volatile",    VOLATILE)
 ]
+
+(* Is the NOP keyword really required ?
+	("nop",        	NOP);
+*)
+
 
 let _ =
 	let add (key, token) = Irg.StringHashtbl.add lexicon key token in

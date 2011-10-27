@@ -15,7 +15,8 @@ LIBGEP_SOURCES=\
 	templater.mll \
 	app.ml \
 	profile.ml \
-	decode_arg.ml
+	decode_arg.ml \
+	bits.ml
 $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build
@@ -46,6 +47,15 @@ ATTR_SOURCES = \
 gliss-attr_LIBS = str unix ../irg/irg ../optirg/optirg libgep
 $(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))
 gliss-attr: ../irg/irg.cma libgep.cma
+
+
+# gliss-attr build
+USED_REGS_SOURCES = \
+	gliss-used-regs.ml
+
+gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/optirg libgep
+$(eval $(call ocaml_prog,gliss-used-regs,$(USED_REGS_SOURCES)))
+gliss-used-regs: ../irg/irg.cma libgep.cma
 
 
 # config build

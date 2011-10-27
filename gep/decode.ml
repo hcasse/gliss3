@@ -1,29 +1,31 @@
 (*
- * $Id: disasm.ml,v 1.16 2009/07/29 09:26:28 casse Exp $
- * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
+ * GLISS2 -- decode module
+ * Copyright (c) 2011, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS2.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with OGliss; if not, write to the Free Software
+ * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
 
 
-(* returns the syntax string (if syntax = string_const)
- * or the syntax format string s (if syntax = format(s, ...))
- * or "" if error *)
+(** Returns the syntax string (if syntax = string_const)
+	or the syntax format string s (if syntax = format(s, ...))
+	or "" in case of error.
+	@param sp	Current instruction.
+	@return		Image string. *)
 let get_format_string sp =
 	let remove_space s =
 		let rec concat_str_list s_l =
@@ -103,104 +105,69 @@ let get_mask_for_format_param s n =
 	Bitmask.BITMASK((String.make pos '0') ^ (String.make lf '1') ^ (String.make (l - pos - lf) '0'))
 
 
-(* return the mask for the nth param (counting from 0) of an instr of the given spec sp, the result will be a string
-with only '0' or '1' chars representing the bits of the mask,
-the params' order is the one given by the Iter.get_params method *)
+(** return the mask for the nth param (counting from 0) of an instr of the given spec sp,
+	the result will be a string with only '0' or '1' chars representing the bits of the mask,
+	the params' order is the one given by the Iter.get_params method
+	@param sp	Current instruction. 
+	@param n	Parameter number.
+	@return		Parameter mask. *)
 let get_mask_for_param sp n =
+
 	let rec change_i_th_param l i =
 		match l with
-		[] ->
-			""
-		| a::b ->
-			(match a with
-			Str.Delim(d) ->
-				if i = 0 then
-					(String.make (get_length_from_format d) '1') ^ (change_i_th_param b (i-1))
-				else
-					(String.make (get_length_from_format d) '0') ^ (change_i_th_param b (i-1))
-			| Str.Text(txt) ->
-				(String.make (String.length txt) '0') ^ (change_i_th_param b i)
-			)
-	in
+		| [] -> ""
+		| (Str.Delim(d))::b when i = 0 ->
+			(String.make (get_length_from_format d) '1') ^ (change_i_th_param b (i - 1))
+		| (Str.Delim(d))::b ->
+			(String.make (get_length_from_format d) '0') ^ (change_i_th_param b (i - 1))
+		| (Str.Text(txt))::b ->
+			(String.make (String.length txt) '0') ^ (change_i_th_param b i) in
+
 	let rec get_frmt_params e =
 		match e with
-		Irg.FORMAT(_, params) ->
-			params
-		| Irg.ELINE(_, _, e) ->
-			get_frmt_params e
-		| _ ->
-			failwith "(Decode) can't find the params of a given (supposed) format expr"
-	in
+		| Irg.FORMAT(_, params) -> params
+		| Irg.ELINE(_, _, e) -> get_frmt_params e
+		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr" in
+			
 	let get_expr_from_iter_value v  =
 		match v with
-		Iter.EXPR(e) ->
-			e
-		| _ -> Irg.NONE
-	in
-	let image_attr =
-		get_expr_from_iter_value (Iter.get_attr sp "image")
-	in
-	let frmt_params =
-		get_frmt_params image_attr
-	in
-	let str_params = get_format_string sp
-	in
+		| Iter.EXPR(e) -> e
+		| _ -> Irg.NONE in
+
 	let rec get_name_of_param e =
 		match e with
-		Irg.FIELDOF(_, ee, _) ->
-			ee
-		| Irg.REF(name) ->
-			name
-		| Irg.ELINE (_, _, ee) ->
-			get_name_of_param ee
-		| _ ->
-			(* !!DEBUG!! *)
-			print_string "trouble with:";
-			Irg.print_expr e;
-			failwith "(Decode) parameter in image format is too complex to process"
-	in
+		| Irg.FIELDOF(_, ee, _) -> ee
+		| Irg.REF(name) -> name
+		| Irg.ELINE (_, _, ee) -> get_name_of_param ee
+		| _ -> failwith "(Decode) parameter in image format is too complex to process" in
+
+	let image_attr = get_expr_from_iter_value (Iter.get_attr sp "image") in
+	let frmt_params = get_frmt_params image_attr in
+	let str_params = get_format_string sp in
+
 	let get_rank_of_named_param n =
 		let rec aux nn i p_l =
 			match p_l with
-			[] ->
-				failwith ("(Decode) can't find rank of param "^nn^" in the format params")
-			| a::b ->
-				if nn=(get_name_of_param a) then
-					i
-				else
-					aux nn (i+1) b
-		in
-		aux n 0 frmt_params
-	in
+			| [] -> failwith ("(Decode) can't find rank of param "^nn^" in the format params")
+			| a::b when nn = (get_name_of_param a) -> i
+			| a::b -> aux nn (i + 1) b in
+		aux n 0 frmt_params in
+
 	let rec get_i_th_param_name i l =
 		match l with
-		[] ->
-			failwith "(Decode) can't find name of i_th param of a spec"
-		| a::b ->
-			if i=0 then
-				Irg.get_name_param a
-			else
-				get_i_th_param_name (i-1) b
-	in
-(* !!DEBUG!! 
-	let res =*)
-	Bitmask.BITMASK(change_i_th_param (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params)) (get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp))))
-(* !!DEBUG!!
-	in
-	print_string "===============================================";
-	Irg.print_spec sp;
-	print_string ("[["^str_params^"]]\n");
-	Irg.print_param_list (Iter.get_params sp);
-	print_string "n="; Printf.printf "%d\n==res:%s\n" n res;
-	
-	res*)
+		| [] -> failwith "(Decode) can't find name of i_th param of a spec"
+		| a::b when i = 0 -> Irg.get_name_param a
+		| a::b -> get_i_th_param_name (i - 1) b in
 
+	Bitmask.BITMASK(change_i_th_param
+		(Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (str_params))
+		(get_rank_of_named_param (get_i_th_param_name n (Iter.get_params sp))))
 
 
 (* stucture with some useful infos about an inst *)
 type instr_info_t = {
 	mutable is_risc  : bool;	(* is this inst belonging to a RISC instr set? *)
-	mutable isize    : int;	(* size of the inst if is_risc, 0 otherwise *)
+	mutable isize    : int;		(* size of the inst if is_risc, 0 otherwise *)
 	mutable is_multi : bool;	(* are there more than one instr set defined? *)
 }
 
@@ -257,7 +224,7 @@ let get_decode_for_format_param inst idx =
 		let suffix = if sfx then Printf.sprintf "_%d" size else "" in
 		let suffix_code = if sfx then Printf.sprintf "->u%d" size else "" in
 		let extract _ = Printf.sprintf "__EXTRACT%s(0x%LX%s, %d, code_inst%s)"  suffix mask cst_suffix (find_first_bit mask) suffix_code in
-		let exts    n = Printf.sprintf "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code (32 - n) in
+		let exts    n = Printf.sprintf "__EXTS%s(0x%LX%s, %d, code_inst%s, %d)" suffix mask cst_suffix (find_first_bit mask) suffix_code n in
 		(* !!BUG!! faut le type du param de format lu, pas de spec *)
 		(*match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with*)
 		match Sem.get_type_expr (nth_frmt_param idx) with
@@ -295,7 +262,7 @@ let get_mask_decl inst idx =
 	let string_mask = get_mask_for_param inst idx in
 	let mask = Bitmask.to_int32_list string_mask in
 		if not inst_info.is_risc then
-			Printf.sprintf "uint32_t tab_mask%d[%d] = {%s}; /* %s */\n\tmask_t mask%d = {tab_mask%d, %d};\n"
+			Printf.sprintf "static uint32_t tab_mask%d[%d] = {%8s}; /* %s */\n\tstatic mask_t mask%d = {tab_mask%d, %d};\n"
 				idx (List.length mask) (to_C_list mask) (Bitmask.to_string string_mask) idx idx (Bitmask.length string_mask)
 		else
 			failwith "shouldn't happen (decode.ml::get_mask_decl)"
@@ -309,7 +276,7 @@ let get_mask_decl_for_format_param inst idx =
 	let string_mask = get_mask_for_format_param (get_format_string inst) idx in
 	let mask = Bitmask.to_int32_list string_mask in
 		if not inst_info.is_risc then
-			Printf.sprintf "uint32_t tab_mask%d[%d] = {%s}; /* %s */\n\tmask_t mask%d = {tab_mask%d, %d};\n"
+			Printf.sprintf "\tstatic uint32_t tab_mask%d[%d] = {%8s}; /* %s */\n\tstatic mask_t mask%d = {tab_mask%d, %d};\n"
 				idx (List.length mask) (to_C_list mask) (Bitmask.to_string string_mask) idx idx (Bitmask.length string_mask)
 		else
 			failwith "shouldn't happen (decode.ml::get_mask_decl_for_format_param)"
