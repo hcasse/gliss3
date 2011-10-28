@@ -7,7 +7,8 @@
 /* ($(proc)_ident_t enumeration */
 typedef enum $(proc)_ident_t {
 	$(PROC)_UNKNOWN = 0$(foreach instructions),
-	$(PROC)_$(IDENT) = $(ICODE)$(end)
+	$(PROC)_$(IDENT) = $(ICODE)$(end),
+	$(PROC)_TOP
 } $(proc)_ident_t;
 
 #endif /* GLISS_$(PROC)_INCLUDE_$(PROC)_ID_H */

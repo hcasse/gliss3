@@ -30,8 +30,11 @@ static unsigned long $(proc)_size_ident[] = {
 	$(size)$(end)
 };
 
-unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst)
-{
+unsigned long $(proc)_get_inst_size_from_id($(proc)_ident_t id) {
+	return $(proc)_size_ident[id];
+}
+
+unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst) {
 	return $(proc)_size_ident[inst->ident];
 }
 

@@ -159,6 +159,7 @@ $(foreach instruction_sets)/* decoding function for instr set $(idx), named $(is
 $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_address_t address);
 $(end)$(end)
 unsigned long $(proc)_get_inst_size($(proc)_inst_t* inst);
+unsigned long $(proc)_get_inst_size_from_id($(proc)_ident_t id);
 
 
 /* code execution */

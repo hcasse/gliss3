@@ -158,6 +158,7 @@ int main(int argc, char **argv) {
 	/*Elf32_Sym *sym;*/
 	int nb_sect_disasm = 0;
 	gliss_loader_t *loader;
+	int max_size = 0, i;
 
 
 	/* test arguments */
@@ -227,6 +228,13 @@ int main(int argc, char **argv) {
 	 * changing instr set should be done manually by manipulating state */
 	gliss_set_cond_state(d, state);
 
+	/* compute instruction max size */
+	for(i = 1; i < GLISS_TOP; i++) {
+		int size = gliss_get_inst_size_from_id(i) / 8;
+		if(size > max_size)
+			max_size = size;
+	}
+
 	/* disassemble the sections */
 	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++)
 	{
@@ -235,18 +243,26 @@ int main(int argc, char **argv) {
 
 		printf("\ndisasm new section, addr=%08X, size=%08X\n", s_tab[i_sect].addr, s_tab[i_sect].size);
 
-		while (adr_start < adr_end)
-		{
+		while (adr_start < adr_end) {
+			int size;
 			char buff[100];
 			gliss_inst_t *inst = gliss_decode(d, adr_start);
 			gliss_disasm(buff, inst);
-			uint32_t code = gliss_mem_read32(gliss_get_memory(pf, 0), adr_start);
+			/*uint32_t code = gliss_mem_read32(gliss_get_memory(pf, 0), adr_start);*/
 			const char *n;
 			if (get_label_from_list(list_labels, adr_start, &n))
 				printf("\n%08X <%s>\n", adr_start, n);
-			printf("%08X:\t%08X\t%s.\n", adr_start, code, buff);
+			printf("%08X:\t", adr_start);
+			size = gliss_get_inst_size(inst) / 8;
+			for(i = 0; i < max_size; i++) {
+				if(i < size)
+					printf("%02X", gliss_mem_read8(gliss_get_memory(pf, 0), adr_start + i));
+				else
+					fputs("  ", stdout);
+			}
+			printf("\t%s.\n", buff);
 			/* inst size is given in bit, we want it in byte */
-			adr_start += gliss_get_inst_size(inst) / 8;
+			adr_start += size;
 		}
 	}
 
