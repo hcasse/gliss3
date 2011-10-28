@@ -858,7 +858,7 @@ let unalias_set info stats name idx ub lb expr =
 			(set_concat_field (l - 1) s) in
 
 	let process tt =
-		if (il = 1 && ubp <> Irg.NONE) || il > 1 then
+		if (il = 1 && ubp == Irg.NONE) || il > 1 then
 			if il = 1 then seq stats (set_item i expr) else
 			let name = new_temp info tt in
 			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF name)) 
@@ -1387,6 +1387,11 @@ let rec gen_stat info stat =
 				ignore (gen_expr info arg true); false)
 			true
 			args) in
+
+	let loc_to_expr t id idx =
+		if idx = Irg.NONE then Irg.REF id
+		else Irg.ITEMOF(t, id, idx) in
+	
 	match stat with
 	| Irg.NOP -> ()
 
@@ -1396,21 +1401,16 @@ let rec gen_stat info stat =
 	| Irg.SET (Irg.LOC_REF(typ, id, idx, lo, up), expr) ->
 		line (fun _ ->
 			match Irg.get_symbol id with
-			| Irg.VAR _ ->
-				out id;
+			| Irg.VAR (_, _, t)
+			| Irg.REG (_, _, t, _)
+			| Irg.PARAM (_, Irg.TYPE_EXPR(t)) ->
+				gen_ref info id true;
 				if idx <> Irg.NONE then
 					(out "["; gen_expr info idx true; out "]");
 				out " = ";
 				gen_expr info (set_field info typ id idx lo up expr) true;
 				out ";"
-			| Irg.REG _ ->
-				out (state_macro info id true);
-				if idx <> Irg.NONE then
-					(out "["; gen_expr info idx true; out "]");
-				out " = ";
-				gen_expr info (set_field info typ id idx lo up expr) true;
-				out ";"
-			| Irg.MEM _ ->
+			| Irg.MEM (_, _, t, _) ->
 				out (Printf.sprintf "%s_mem_write%s(" info.proc
 					(type_to_mem (convert_type typ)));
 				out (state_macro info (unaliased_mem_name id) true);
@@ -1419,18 +1419,6 @@ let rec gen_stat info stat =
 				out ", ";
 				gen_expr info (set_field info typ id Irg.NONE lo up expr) true;
 				out ");"
-			(*!!DEBUG!!*)
-			(* this should happen only when using gliss1 predecode *)
-			| Irg.PARAM (_, typ) ->
-				(match typ with
-				| Irg.TYPE_EXPR(tt) ->
-					gen_ref info id true;
-					if idx <> Irg.NONE then
-						(out "["; gen_expr info idx true; out "]");
-					out " = ";
-					gen_expr info (set_field info tt id idx lo up expr) true;
-					out ";"
-				| _ -> failwith "OUUPS!\n")
 			| s ->
 				Printf.printf "==> %s\n" id;
 				Irg.print_spec s;

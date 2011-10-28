@@ -13,7 +13,21 @@ var t64[1, card(64)]
 op init()
 	action = { }
 
-op instruction = pair | field | param
+op instruction = simple | pair | field | param
+
+op simple()
+	syntax = "simple"
+	image = "00000010 00000000 00000000 00000000"
+	action = {
+		"c"("t32 = r[3]<15..0>;");
+		t32 = r[3]<15..0>;
+		"c"("t32 = r[3]<31..16>;");
+		t32 = r[3]<31..16>;
+		"c"("r[3]<15..0> = t32;");
+		r[3]<15..0> = t32;
+		"c"("r[3]<31..16> = t32;");
+		r[3]<31..16> = t32;
+	}
 
 op pair()
 	syntax = "pair"
