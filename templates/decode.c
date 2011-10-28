@@ -159,6 +159,19 @@ $(proc)_inst_t *$(proc)_decode($(proc)_decoder_t *decoder, $(proc)_address_t add
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);
+
+$(if bit_image_inversed)
+	/* invert bytes for decoding */
+	{
+		uint8_t *q = (uint8_t *)i_buff + sizeof(i_buff) - 1,
+				*p = q - tricore_get_inst_size_from_id(id) / 8 + 1;
+		while(p < q) {
+			uint8_t x = *p;
+			*p++ = *q;
+			*q-- = x;
+		}
+	}
+$(end)	
 	/* then decode it */
 $(if !GLISS_NO_MALLOC)
 	res  = $(proc)_decode_table[id](&code);
@@ -167,7 +180,7 @@ $(else)
 	$(proc)_decode_table[id](&code, res);
 $(end)
 	res->addr = address;
-        
+
 	return res;
 }
 $(end)$(end)
@@ -220,6 +233,18 @@ $(proc)_inst_t *$(proc)_decode_$(iset_name)($(proc)_decoder_t *decoder, $(proc)_
 	$(if is_RISC_iset)id = $(proc)_fetch_$(C_size_iset)(decoder->fetch, address, &code.u$(C_size_iset), $(proc)_table_$(idx));
 	$(else)id = $(proc)_fetch_CISC(decoder->fetch, address, code.mask, $(proc)_table_$(idx));$(end)
 	
+$(if bit_image_inversed)
+	/* invert bytes for decoding */
+	{
+		uint8_t *q = (uint8_t *)i_buff + sizeof(i_buff) - 1,
+				*p = q - tricore_get_inst_size_from_id(id) / 8 + 1;
+		while(p < q) {
+			uint8_t x = *p;
+			*p++ = *q;
+			*q-- = x;
+		}
+	}
+$(end)	
 	/* then decode it */
 $(if GLISS_NO_MALLOC)
 	res = decoder->tmp_inst;

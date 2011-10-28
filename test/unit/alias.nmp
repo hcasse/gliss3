@@ -13,7 +13,7 @@ var t64[1, card(64)]
 op init()
 	action = { }
 
-op instruction = pair | field
+op instruction = pair | field | param
 
 op pair()
 	syntax = "pair"
@@ -48,4 +48,18 @@ op field()
 	syntax = "field"
 	image = "00000000 00000000 00000000 00000001"
 	action = {
+	}
+
+op param(a: card(16))
+	syntax = format("param %d", a)
+	image = format("00000001 00000000 %16b", a)
+	action = {
+		"c"("t32 = a<7..0>;");
+		t32 = a<7..0>;
+		"c"("t32 = a<15..8>;");
+		t32 = a<15..8>;
+		"c"("a<7..0> = t32;");
+		a<7..0> = t32;
+		"c"("a<15..8> = t32;");
+		a<15..8> = t32;
 	}

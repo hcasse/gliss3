@@ -19,30 +19,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*
-  Usefull list of dependencies in order to work with the interactive Ocaml toplevel :
-  (Do not forget to do make to have the latest version of the cmo binnairies)
-*)
-(*
-  #directory "../irg";;
-  #directory "../gep";;
-
-  #load "unix.cma";;
-  #load "str.cma";;
-  #load "config.cmo";;
-  #load "irg.cmo";;
-  #load "instantiate.cmo";;
-  #load "lexer.cmo";;
-  #load "sem.cmo";;
-  #load "IdMaker.cmo";;
-  #load "iter.cmo";;
-  #load "toc.cmo";;
-  #load "parser.cmo";;
-  #load "irgUtil.cmo";;
-  #load "templater.cmo";;
-*)
-
-
 module OrderedType =
 struct
 	type t = Toc.c_type
@@ -202,8 +178,16 @@ let get_params maker inst f dict =
 		0
 		(Iter.get_params inst))
 
-let get_instruction info maker f dict _ i = f
-	(maker.get_instruction  i
+let get_instruction info maker f dict _ i =
+	let gen_predecode out =
+		try
+			let _ = Iter.get_attr i "predecode" in
+			info.Toc.out <- out;
+			Toc.set_inst info i;
+			Toc.gen_action info "predecode"
+		with Not_found -> () in
+
+	f (maker.get_instruction  i
 		(("IDENT", out (fun _ -> String.uppercase (Iter.get_name i))) ::
 		("ident", out (fun _ -> Iter.get_name i)) ::
 		("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
@@ -212,6 +196,7 @@ let get_instruction info maker f dict _ i = f
 		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
 		("is_inst_branch", Templater.BOOL (fun _ -> Iter.is_branch_instr i )) ::
 		("attr", Templater.FUN (eval_attr info i)) ::
+		("predecode", Templater.TEXT gen_predecode) ::
 		dict))
 
 

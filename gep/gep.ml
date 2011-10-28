@@ -1,4 +1,4 @@
-(*
+    (*
  * $Id: gep.ml,v 1.39 2009/11/26 09:01:16 casse Exp $
  * Copyright (c) 2008, IRIT - UPS <casse@irit.fr>
  *
@@ -523,6 +523,7 @@ let make_env info =
 	("pc_name", Templater.TEXT (fun out -> print_name info.Toc.pc_name out info)) ::
 	("PPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.ppc_name) out info)) ::
 	("ppc_name", Templater.TEXT (fun out -> print_name (info.Toc.ppc_name) out info)) ::
+	("bit_image_inversed", Templater.BOOL (fun _ -> Bitmask.get_bit_image_order ())) ::
 	(App.make_env info maker)
 
 

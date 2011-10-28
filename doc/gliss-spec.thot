@@ -46,6 +46,37 @@ two values:
   * "UPPERMOST" -- the leftmost bit is the uppermost bit (default)
   * "LOWERMOST" -- the leftmost bit is the lowermost bit.
 
+==== Bit Image Order Definition ====
+
+In $(GLISS), the instruction image bits are retrieved in the same order
+as found in the image définition. In the example below, the byte
+''0b00011010'' is first read then the other bytes to the end of the instruction word.
+
+<code>
+op dummy(a: card(5), b: card(5), c: card(5))
+	image = format("00011010 %5b %5b %5b 1 00001100", a, b, c)
+</code>
+
+Yet, in some instruction set documentations, the bit order may be inversed
+as in the example below:
+<code>
+op dummy(a: card(5), b: card(5), c: card(5))
+	image = format(" %5b %5b %5b 1 00001100 00011010", a, b, c)
+</code>
+
+In fact, in memory, the instruction is composed of ''0b00011010'' as
+first byte (at instruction address), ''0b00001100'' as second byte
+(at instruction address + 1) and so on.
+
+In this case, you can either invert all images of your NMP file or
+you can ask $(GLISS) to do the job. The latest choice is often
+preferable as it maintains consistency between the NMP file and
+the instruction set documentation.
+
+To do this, just add the following declaration to the NMP file:
+<code>
+let bit_image_order =  1
+</code>
 
 
 ==== Instruction Size ====

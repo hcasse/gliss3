@@ -87,7 +87,7 @@ $(foreach params)	$(PROC)_$(IDENT)_$(PARAM) = $(decoder_complex);
 $(end)$(else)
 $(foreach params)	$(PROC)_$(IDENT)_$(PARAM) = $(decoder);
 $(end)$(end)
-
+$(predecode)
 	$(if !GLISS_NO_MALLOC)return inst;
 $(end)
 
@@ -97,7 +97,7 @@ $(else)$(if !GLISS_NO_MALLOC)$(proc)_inst_t *inst = malloc(sizeof($(proc)_inst_t
 	
 $(end)	
 	inst->ident = $(PROC)_$(IDENT);
-
+$(predecode)
 	$(if !GLISS_NO_MALLOC)return inst;$(end)
 
 }
