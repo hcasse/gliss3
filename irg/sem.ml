@@ -1376,7 +1376,7 @@ let is_setspe loc=
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp = Str.regexp "%[0-9]*[dbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
+let reg_exp = Str.regexp "%[0-9]*[ldbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
 						so we allow this kind of expression here for compatibility *)
 
 (** this function is used to find all references to parameters in a string passed to a format
@@ -1402,8 +1402,7 @@ let get_all_ref str =
 *)
 let build_format str exp_list=
 
-	let ref_list=get_all_ref str
-	in
+	let ref_list = get_all_ref str in
 
 	if (not (List.length ref_list = List.length exp_list)) || List.length exp_list = 0	(* it is not allowed to use format for printing a string without at least one variable *)
 		then
@@ -1413,41 +1412,19 @@ let build_format str exp_list=
 					if (get_type_expr e_i=UNKNOW_TYPE)
 					then true
 					else
-					(*let num= try(int_of_string (String.sub e_s 1 ((String.length e_s)-2)))with Failure "int_of_string" -> (-1)
-					in*)
 					match Str.last_chars e_s 1 with
-						 "d"-> (match (get_type_expr e_i) with
-								(CARD _|INT _)->true
-								|_->false)
-
-						|"b"-> true (* If the bit length is different, we will trunkate or extend like for a cast. This is needed for compatibility*)
-
-							(*(try(
-								get_length_from_expr e_i = num ||  num=(-1) (*no size defined*) || num=0 (*needed for compatibility*)
-							)with Failure "length unknown"->true)*)
-
-						|"x"->(match (get_type_expr e_i) with
-								(CARD _|INT _)->true
-								|_->false)
-
-						|"s"-> true
-							(* (match (get_type_expr e_i) with
-								STRING->true
-								|_->false) *)
-						|"f"-> (match (get_type_expr e_i) with
-							(* an int or a card expr should be cast in nmp before printed as %f *)
-								(FLOAT _ (*| INT _ | CARD _*))->true
-								|_->false)
-
-						|_->failwith "internal error : build_format"
+					| "d" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
+					| "b" -> true
+					| "x" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
+					| "s" -> true
+					| "f" -> (match (get_type_expr e_i) with (FLOAT _) -> true | _ -> false)
+					| "l" -> (match (get_type_expr e_i) with INT _ | CARD _ -> true | _ -> false)
+					| _ ->failwith "internal error : build_format"
 					) ref_list exp_list
 			in
 			if not (List.for_all (fun e->e) test_list) then raise (SemError (Printf.sprintf "incorrect type in this format "))
 			else
 			FORMAT (str, (List.rev exp_list))
-
-
-
 
 (*
 
