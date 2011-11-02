@@ -107,12 +107,12 @@ let collect info =
 			| Irg.SEQ (s1, s2) -> collect_stat s1 (collect_stat s2 lst)
 			| Irg.EVAL id -> collect_call id lst
 			| Irg.EVALIND _ -> failwith "gliss-used-regs: collect_stat"
+			| Irg.SETSPE (l, e)
 			| Irg.SET (l, e) -> collect_loc l (collect_expr e lst)
 			| Irg.CANON_STAT (_, args) -> List.fold_left (fun l e -> collect_expr e l) lst args
 			| Irg.ERROR _ -> lst
 			| Irg.IF_STAT (c, t, e) -> collect_expr c (collect_stat t (collect_stat e lst))
 			| Irg.SWITCH_STAT (c, cs, d) -> List.fold_left (fun l (_, s) -> collect_stat s l) (collect_expr c (collect_stat d lst )) cs
-			| Irg.SETSPE _ -> lst
 			| Irg.LINE (_, _, s) -> collect_stat s lst
 			| Irg.INLINE _ -> lst
 

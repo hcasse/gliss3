@@ -12,6 +12,9 @@ op init()
 
 var i[1, card(32)]
 
+mode reg_d(i: card(5)) = r[i]
+	image = format("%5b", i)
+
 op instruction(x: all)
 	no_used_regs = { pc = pc + 4; }
 	action = {
@@ -20,12 +23,19 @@ op instruction(x: all)
 	}
 	
 
-op all = bof | add | sub | ldm | warning
+op all = bof | add | sub | ldm | warning | addr
 
 op bof()
 	image = "00000000 00000000 00000000 00000000"
 	syntax = "nop"
 	action = { }
+
+op addr(a: reg_d, b: reg_d, c: reg_d)
+	image = format("00000000 00000000 1 %s %s %s", a, b, c)
+	syntax = "addr"
+	action = {
+		a = b + c;
+	}
 
 op add(a: card(5), b: card(5), c: card(5))
 	image = format("00000000 00000000 1 %5b %5b %5b", a, b, c)
