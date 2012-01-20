@@ -1337,7 +1337,9 @@ and gen_bitfield info typ expr lo up prfx =
 
 		(* generate ad-hoc field access *)
 		if cmp = 0 then output_bit up else
-		output_field_common_C_code (if cmp > 0 then "" else"_inverted") up lo false 0
+		let inv, up, lo =
+			if (Int32.compare uc lc) >= 0 then "", up, lo else "_inverted", lo, up in
+		output_field_common_C_code inv up lo false 0
 
 	(* no constant bounds *)
 	with Sem.SemError _ ->
@@ -1528,13 +1530,22 @@ and set_field info typ id idx lo up expr =
 	try
 
 		(* check constant bounds *)
+		(*Printf.printf "DEBUG: lo=";
+		Irg.print_expr lo;
+		Printf.printf ", up=";
+		Irg.print_expr up;
+		Printf.printf "\n";*)
 		let up, lo = if info.bito = UPPERMOST then lo, up else up, lo in
+		(*let up, lo = if info.bito = UPPERMOST then up, lo else lo, up in*)
 		let uc = Sem.to_int32 (Sem.eval_const up) in
 		let lc = Sem.to_int32 (Sem.eval_const lo) in
-		let cmp = Int32.compare uc lc in
+		(*Printf.printf "DEBUG: lo=%ld up=%ld\n" uc lc;*)
+		let inv, up, lo = 
+			if (Int32.compare uc lc) >= 0 then "", up, lo
+			else "_inverted", lo, up in
 
 		(* generate ad-hoc field set *)
-		transform_expr (if cmp >= 0 then "" else"_inverted") up lo false 0
+		transform_expr inv up lo false 0
 
 	(* no constant bounds *)
 	with Sem.SemError _ ->

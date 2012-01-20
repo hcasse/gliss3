@@ -20,6 +20,7 @@
  *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <assert.h>
 #include <gliss/error.h>
 #include <gliss/grt.h>
 
@@ -319,6 +320,7 @@ double gliss_set_fieldd(double v, uint64_t s, int32_t u, int32_t l) {
 /* the read bits are inversed before being assigned to the result, l <= u */
 uint32_t gliss_set_field32u_inverted(uint32_t v, uint32_t s, int32_t u, int32_t l) {
 	uint32_t mask = gliss_mask32(u - l + 1);
+	assert(u >= l);
 
 	/* !!DEBUG!! */
 	//printf("gliss_set_field32u_inverted(0X%08X, 0X%08X, 0X%08X, 0X%08X) => ", v, s, u, l);
