@@ -1362,7 +1362,6 @@ let instantiate_spec_all_combinations sp =
 	List.map (fun x -> instantiate_spec sp x) new_param_lists
 
 
-
 (**
 	indicates if a spec can be instantiated further, it is the case if there remains
 	any parameter of mode or op type

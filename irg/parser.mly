@@ -557,7 +557,7 @@ Sequence:
 
 StatementList:
 	Statement { line $1 }
-|	StatementList SEMI Statement { Irg.SEQ ($1, line $3) }
+|	StatementList SEMI Statement { line(Irg.SEQ ($1, line $3)) }
 ;
 
 Statement:

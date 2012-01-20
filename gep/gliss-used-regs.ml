@@ -101,6 +101,7 @@ let add_read (rds, wrs) id num =
 	@param stat		Current statement.
 	@param lst		List of collected used registers (identifier, number). *)
 let collect info =
+		let variable = ref false in
 		let rec collect_stat stat lst =
 		match stat with
 			| Irg.NOP -> lst
@@ -166,10 +167,12 @@ let collect info =
 				if s = 1 then f lst id Irg.NONE else
 				if stateless idx then f lst id idx else
 				begin
-					Printf.fprintf
-						stderr
-						"WARNING: instruction %s contains non-static register numbers: cannot generate safe register usage !\n"
-						(Iter.get_user_id info.Toc.inst);
+					if not !variable then
+						Printf.fprintf
+							stderr
+							"WARNING: instruction %s contains non-static register numbers: cannot generate safe register usage !\n"
+							(Iter.get_user_id info.Toc.inst);
+					variable := true;
 					lst
 				end
 			| _ -> lst
@@ -183,7 +186,7 @@ let collect info =
 			let lst = collect_stat stat lst in
 			info.Toc.calls <- before;
 			lst in
-
+		
 	collect_call "action" ([], [])
 
 
@@ -215,6 +218,18 @@ let extract_regs inst out =
 		(Toc.seq_list (List.map (fun (id, idx) -> gen "add_read" id idx) rds))
 		(Toc.seq_list (List.map (fun (id, idx) -> gen "add_write" id idx) wrs)) in
 	
+	(* add help information *)
+	(*let rec display_source stat =
+		match stat with
+		| Irg.LINE (file, line, _) -> Printf.fprintf out "\t/* %s:%d */\n" file line
+		| Irg.SEQ (s1, _) -> display_source s1
+		| _ -> () in
+	display_source (Toc.get_stat_attr "action");*)
+	let id = match inst with
+		| Irg.AND_OP (n, _, _) -> n
+		| _ -> "???" in
+	Printf.fprintf out "\t/* %s (%s) */\n" (Iter.get_user_id inst) id;
+
 	(* generate the instructions *)
 	info.Toc.indent <- 1;
 	let stats = Toc.prepare_stat info stats in
