@@ -24,6 +24,20 @@ let max_write = ref 0
 let has_custom = ref false
 
 exception UsedRegsError of string
+let no_used_regs = "no_used_regs"
+
+
+(** Test if s is ended by es.
+	@param s	String to test.
+	@param es	Ending string.
+	@return		True if es ends the string s, false else. *)
+let ends_with s es =
+	let sl = String.length s in
+	let esl = String .length es in
+	(*Printf.printf "String.sub \"%s\" %d %d" s (sl - esl) esl;*)
+	(sl >= esl) &&
+	es = (String.sub s (sl - esl) esl)
+
 
 (** Collect register information.
 	@return (count of register, associative list of (register identifier, templater object)) *)
@@ -178,7 +192,7 @@ let collect info =
 			| _ -> lst
 
 		and collect_call name lst =
-			if name = "no_used_regs" then lst else
+			if ends_with name no_used_regs then lst else
 			if List.mem_assoc name info.Toc.calls then lst else
 			let stat = Toc.get_stat_attr name in
 			let before = info.Toc.calls in

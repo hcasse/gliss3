@@ -1593,7 +1593,7 @@ let find_recursives info name =
 				| Irg.NOP -> recs
 				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
 				| Irg.EVAL name -> look_attr name stack recs
-				| Irg.EVALIND _ -> raise (PreError (fun ch -> Printf.fprintf ch "unsupported form"))
+				| Irg.EVALIND _ -> error "unsupported form"
 				| Irg.SET _ -> recs
 				| Irg.CANON_STAT _ -> recs
 				| Irg.ERROR _ -> recs
@@ -1603,19 +1603,14 @@ let find_recursives info name =
 						(fun recs (_, s) -> look_stat s recs)
 						recs
 						cases)
-				| Irg.SETSPE (loc, expr) ->
-					(* !!TODO!! must no occurs next *)
-					(*failwith "find_recursives: SETSPE"*)
-					recs
-				| Irg.LINE (file, line, s) ->
-					(try look_stat s recs
-					with PreError f -> raise (LocError (file, line, f)))
+				| Irg.SETSPE (loc, expr) -> recs
+				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
 				| Irg.INLINE _ -> recs in
 
 			match Iter.get_attr info.inst name with
-			| Iter.STAT stat ->
-				look_stat stat recs
+			| Iter.STAT stat -> look_stat stat recs
 			| _ -> failwith "find_recursives" in
+	
 	info.recs <- look_attr name [] []
 
 

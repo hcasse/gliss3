@@ -352,6 +352,7 @@ let add_symbol name sym =
 		| _ ->
 			s
 	in
+
 	if StringHashtbl.mem syms name
 	(* symbol already exists *)
 	then raise (RedefinedSymbol name)
@@ -389,7 +390,8 @@ let param_unstack l= List.iter (StringHashtbl.remove syms) (List.map fst l)
 		It is used to temporary overwrite existing symbols with the same name than an attribute
 		@param name	name of the attribute
 		@param attr	attribute to add.	*)
-let add_attr attr = StringHashtbl.add syms (name_of (ATTR(attr))) (ATTR(attr))
+let add_attr attr =
+	StringHashtbl.add syms (name_of (ATTR(attr))) (ATTR(attr))
 
 (**	Add a list of attributes to the namespace.
 		@param l	The list of attributes to add.	*)

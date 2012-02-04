@@ -2,7 +2,7 @@
 _all: _subdirs_all $(_ALL)
 
 _subdirs_all:
-	@for d in $(SUBDIRS); do cd $$d; $(MAKE) all; cd ..; done
+	@for d in $(SUBDIRS); do cd $$d; $(MAKE) all || exit; cd ..; done
 
 clean: _clean _subdirs_clean
 
@@ -49,7 +49,7 @@ _subdirs_dist:
 ifdef SUBDIRS
 	@for d in $(SUBDIRS); do \
 		cd $$d; \
-		$(MAKE) _subdirs_dist _DIST_DIR=../$(_DIST_DIR)/$$d; \
+		$(MAKE) _subdirs_dist _DIST_DIR=../$(_DIST_DIR)/$$d || exit; \
 		cd ..; \
 	done
 endif
@@ -62,7 +62,7 @@ _subdirs_install:
 ifdef SUBDIRS
 	@for d in $(SUBDIRS); do \
 		cd $$d; \
-		$(MAKE) install; \
+		$(MAKE) install || exit; \
 		cd ..; \
 	done
 endif

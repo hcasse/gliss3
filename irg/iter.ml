@@ -88,45 +88,6 @@ let multi_set = ref []
 let instr_stats : (string list ref) = ref []
 
 
-(** return an attr from an instruction or mode specification
-	@param instr	spec of the instrution or the mode
-	@param name	name of the attr to return *)
-let get_attr instr name =
-	let rec search_attr_in_list n a_l =
-		match a_l with
-		[] ->
-		(* if attr not found => means an empty attr (?) *)
-			raise Not_found
-		| (Irg.ATTR_STAT(nm, s))::t ->
-			if (String.compare nm n) == 0 then
-				STAT(s)
-			else
-				search_attr_in_list n t
-		| (Irg.ATTR_EXPR(nm, e))::t ->
-			if nm = n then
-				EXPR(e)
-			else
-				search_attr_in_list n t
-		| _::t -> search_attr_in_list n t
-	in
-	match instr with
-	Irg.AND_OP(_, _, a_l) ->
-		search_attr_in_list name a_l
-	| Irg.AND_MODE(_, _, _, a_l) ->
-		search_attr_in_list name a_l
-	| _ ->
-		assert false
-
-
-(** return true if the instruction is a branch *)
-let is_branch_instr instr =
-	try
-		let _ = get_attr instr "set_attr_branch"
-		in
-		   true
-	with Not_found -> false
-
-
 (** return the ID of the given instruction spec, 0 is for unknown instr
 	@param instr	the spec of the instruction whose ID is needed *)
 let get_id instr =
@@ -141,6 +102,34 @@ let get_id instr =
 				search_in_list b i (num+1)
 	in
 	search_in_list !instr_set instr 1
+
+
+(** return an attr from an instruction or mode specification
+	@param instr		spec of the instrution or the mode
+	@param name			name of the attr to return.
+	@raise Not_found	If the attribute cannot be found. *)
+let get_attr instr name =
+	let rec search_attr_in_list n a_l =
+		match a_l with
+		| [] -> raise Not_found
+		| (Irg.ATTR_STAT(nm, s))::t when nm = n-> STAT(s)
+		| (Irg.ATTR_EXPR(nm, e))::t when nm = n-> EXPR(e)
+		| (Irg.ATTR_STAT(nm, s))::t -> search_attr_in_list n t
+		| (Irg.ATTR_EXPR(nm, e))::t -> search_attr_in_list n t
+		| _::t -> search_attr_in_list n t in
+	match instr with
+	| Irg.AND_OP(n, _, a_l) -> search_attr_in_list name a_l
+	| Irg.AND_MODE(n, _, _, a_l) -> search_attr_in_list name a_l
+	| _ -> assert false
+
+
+(** return true if the instruction is a branch *)
+let is_branch_instr instr =
+	try
+		let _ = get_attr instr "set_attr_branch"
+		in
+		   true
+	with Not_found -> false
 
 
 (* name cache *)
@@ -381,20 +370,23 @@ let iter_ext fun_to_iterate init_val with_profiling =
 
 	(* actual instruction iterator *)
 	let rec rec_iter f init instrs params_to_unstack attrs_to_unstack =
+
+		(* unstack preivous attributes and parameters *)
+		Irg.param_unstack params_to_unstack;
+		Irg.attr_unstack attrs_to_unstack;
+
+		(* look the list *)
 		match instrs with
 		[] ->
 			init
 		| a::b ->
 			match a with
-			Irg.AND_OP(_, param_l, attr_l) ->
-
-				Irg.param_unstack params_to_unstack;
-				Irg.attr_unstack attrs_to_unstack;
-
+			
+			| Irg.AND_OP(_, param_l, attr_l) ->
 				Irg.param_stack param_l;
 				Irg.attr_stack attr_l;
-
 				rec_iter f (f init a) b param_l attr_l;
+				
 			| _ ->
 				Printf.printf "nb inst %d, " (List.length !instr_set);
 				print_string "should failwith:\n";

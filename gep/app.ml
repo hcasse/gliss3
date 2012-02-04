@@ -2,20 +2,20 @@
  * $Id: app.ml,v 1.16 2009/11/26 09:01:16 casse Exp $
  * Copyright (c) 2009-10, IRIT - UPS <casse@irit.fr>
  *
- * This file is part of OGliss.
+ * This file is part of GLISS2.
  *
- * OGliss is free software; you can redistribute it and/or modify
+ * GLISS2 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * OGliss is distributed in the hope that it will be useful,
+ * GLISS2 is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with OGliss; if not, write to the Free Software
+ * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
@@ -440,6 +440,14 @@ let add_switch name value dict =
  * @param opti             set or unset instruction tree optimization (optirg) 
  *)
 let process file f opti =
+
+	(*let check _ =
+		Irg.StringHashtbl.iter
+			(fun n s -> match s with
+				| Irg.ATTR _ -> failwith "attribute !"
+				| _ -> ())
+			Irg.syms in*)
+
 	let find_irg_root_node _ =
 		let is_defined id =
 			try
@@ -456,6 +464,7 @@ let process file f opti =
 	in
 	try
 		IrgUtil.load file;
+		(*check ();*)
 		if opti then
 			Optirg.optimize (find_irg_root_node ());
 		let info = Toc.info () in
@@ -472,7 +481,9 @@ let process file f opti =
 	| Sem.SemError msg ->
 		Lexer.display_error (Printf.sprintf "%s" msg); exit 2
 	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2	
+		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
+	| Irg.RedefinedSymbol s ->
+		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2
 	| Irg.Symbol_not_found id ->
 		Lexer.display_error (Printf.sprintf "can not find symbol \"%s\"" id); exit 2	
 	| Irg.RedefinedSymbol sym ->

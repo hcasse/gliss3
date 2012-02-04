@@ -62,3 +62,5 @@ let _ =
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
 		fn (); exit 2
+	| Irg.RedefinedSymbol s ->
+		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2

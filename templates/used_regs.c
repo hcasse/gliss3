@@ -3,8 +3,9 @@
 #include <$(proc)/used_regs.h>
 #include <$(proc)/api.h>
 #include <$(proc)/macros.h>
+#include <$(proc)/grt.h>
 
-#define add_read(i)	rds[rd_cnt++] = i
+#define add_read(i)		rds[rd_cnt++] = i
 #define add_write(i)	wrs[wr_cnt++] = i
 
 typedef void (*used_regs_fun_t)($(proc)_inst_t *inst, $(proc)_used_regs_read_t rds, $(proc)_used_regs_write_t wrs);
