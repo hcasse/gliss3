@@ -599,7 +599,7 @@ let _ =
 		"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 		(fun info ->
 			if !check then
-				let insts = Iter.get_insts () in
+				let _ = Iter.get_insts () in
 				()
 			else
 			

@@ -484,8 +484,8 @@ let process file f opti =
 		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
 	| Irg.RedefinedSymbol s ->
 		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2
-	| Irg.Symbol_not_found id ->
-		Lexer.display_error (Printf.sprintf "can not find symbol \"%s\"" id); exit 2	
+	(*| Irg.Symbol_not_found id ->
+		Lexer.display_error (Printf.sprintf "can not find symbol \"%s\"" id); exit 2*)
 	| Irg.RedefinedSymbol sym ->
 		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
