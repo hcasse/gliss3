@@ -101,7 +101,7 @@ let options = [
 	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch");
 	("-fstat", Arg.Set Fetch.output_fetch_stat, "generates stats about fetch tables in <proc_name>_fetch_tables.stat");
 	("-c", Arg.Set check, "only check if the NML is valid for generation")
-]
+] @ Stot.opts
 
 
 (** Build an environment for a module.
@@ -524,6 +524,7 @@ let make_env info =
 	("PPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.ppc_name) out info)) ::
 	("ppc_name", Templater.TEXT (fun out -> print_name (info.Toc.ppc_name) out info)) ::
 	("bit_image_inversed", Templater.BOOL (fun _ -> Bitmask.get_bit_image_order ())) ::
+	("declare_switch", Templater.TEXT (fun out -> info.Toc.out <- out; Stot.declare info)) ::
 	(App.make_env info maker)
 
 
@@ -602,13 +603,14 @@ let _ =
 				()
 			else
 			
+				(* optimisations *)
+				Stot.transform ();
+			
+				(* prepare environment *)
 				let dict = make_env info in
-				let dict = List.fold_left
-					(fun d (n, v) -> App.add_switch n v d)
-					dict !switches in
+				let dict = List.fold_left (fun d (n, v) -> App.add_switch n v d) dict !switches in
 
 				(* include generation *)
-
 				List.iter find_mod !modules;
 
 				if not !App.quiet then Printf.printf "creating \"include/\"\n";
@@ -621,7 +623,6 @@ let _ =
 				App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict;
 
 				(* source generation *)
-
 				if not !App.quiet then Printf.printf "creating \"include/\"\n";
 				App.makedir "src";
 

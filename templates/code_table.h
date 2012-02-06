@@ -19,6 +19,9 @@ $(foreach modules)
 #include <$(proc)/$(name).h>
 $(end)
 
+/* switch optimisation tables */
+$(declare_switch)
+
 /* TODO: add some error messages when malloc fails */
 #define gliss_error(e) fprintf(stderr, "%s\n", (e))
 

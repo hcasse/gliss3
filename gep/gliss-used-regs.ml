@@ -22,9 +22,17 @@
 let max_read = ref 0
 let max_write = ref 0
 let has_custom = ref false
+let extends: string list ref = ref []
 
 exception UsedRegsError of string
 let no_used_regs = "no_used_regs"
+
+
+(** Generate a macro register name.
+	@param p	Current processor.
+	@param i	Register bank identifier.
+	@return		Register macro name. *)
+let reg_name p i = Printf.sprintf "%s_REG_%s" p (String.uppercase i)
 
 
 (** Test if s is ended by es.
@@ -224,7 +232,7 @@ let extract_regs inst out =
 	(* build the instructrions *)
 	let proc = String.uppercase info.Toc.proc in
 	let gen op (id: string) idx =
-		let name = Printf.sprintf "%s_REG_%s" proc (String.uppercase id) in
+		let name = reg_name proc id in
 		Irg.CANON_STAT(op, [
 			if idx = Irg.NONE then Irg.EINLINE name
 			else Irg.CANON_EXPR (Irg.NO_TYPE, name, [idx])]) in
@@ -275,11 +283,11 @@ let compile_regs inst stat out =
 		match r with
 		| Irg.REF id -> 
 			(match Irg.get_symbol id with
-			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.EINLINE (Printf.sprintf "%s_REG_%s" proc id)])
+			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.EINLINE (reg_name proc id)])
 			| _ -> error ())
 		| Irg.ITEMOF (_, id, idx) ->
 			(match Irg.get_symbol id with
-			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CANON_EXPR (Irg.NO_TYPE, Printf.sprintf "%s_REG_%s" proc id, [idx])])
+			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CANON_EXPR (Irg.NO_TYPE, reg_name proc id, [idx])])
 			| _ -> error())
 		| Irg.ELINE (_, _, e) -> process canon e
 		| _ -> error() in
@@ -366,11 +374,14 @@ let _ =
 	(*let display_error msg = Printf.fprintf stderr "ERROR: %s\n" msg in*)
 	(*try*)
 		App.run
-			[]
+			[ ("-e", Arg.String (fun arg -> extends := arg::!extends), "extension files") ]
 			"SYNTAX: gliss-used-regs [options] NML_FILE\n\tGenerate functions to retrieve register use."
 			(fun info ->
 
-				(* generate disassemble source *)
+				(* download the extensions *)
+				List.iter IrgUtil.load !extends;
+
+				(* generate used registers *)
 				let maker = App.maker () in
 				let (cnt, lst) = collect_register_info () in
 				maker.App.get_register <- generate_num lst;

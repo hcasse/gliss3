@@ -330,36 +330,6 @@ let get_insts _ =
      val iter : ('a -> Irg.spec -> 'a) -> 'a -> 'a
 	*)
 let iter_ext fun_to_iterate init_val with_profiling =
-	(*let is_defined id =
-		try
-			match Irg.get_symbol id with
-			| _ -> true
-		with Irg.Symbol_not_found _ -> false
-	in
-	let root_inst =
-		if is_defined "multi" then
-			"multi"
-		else if is_defined "instruction" then
-			"instruction"
-		else
-			raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
-	in
-	let initialise_instrs = get_insts () in
-		if !instr_set = [Irg.UNDEF] then
-			try instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst)
-			with Instantiate.Error (sp, msg) -> raise (Irg.IrgError (Printf.sprintf "%s in instruction %s" msg (get_user_id sp)))
-		else
-			();
-		if !multi_set = [] then
-			enumerate_instr_sets !instr_set
-		else ()
-	in*)
-
-	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
-	(*let old_inst_set = !instr_set in
-	if with_profiling && (List.length !instr_stats) <> 0
-	then instr_set := sort_instr_set !instr_set !instr_stats;*)
-
 				
 	(* if a profiling file is loaded instructions are sorted with the loaded profile_stats *)
 	let old_inst_set = get_insts () in
@@ -391,10 +361,7 @@ let iter_ext fun_to_iterate init_val with_profiling =
 				Printf.printf "nb inst %d, " (List.length !instr_set);
 				print_string "should failwith:\n";
 				Irg.print_spec a;
-
-				rec_iter f (f init a) b [] [];
-				(*failwith "we should have only AND OP spec at this point (Iter)"*)
-	in
+				rec_iter f (f init a) b [] [] in
 
 	rec_iter fun_to_iterate init_val insts [] []
 
@@ -406,7 +373,25 @@ let iter_ext fun_to_iterate init_val with_profiling =
 *)
 let iter fun_to_iterate init_val = iter_ext fun_to_iterate init_val false
 
-	
+
+(** Perform a transformation on the attributes of the instructions.
+	@param f	Function to apply (data -> parameter list -> attribute list -> parameter list x attribute list)
+	@param d	Data used by the transformation.
+	@return		(new data, new parameter list, new attribute list) *)
+let transform f d =
+	let d, insts =
+		List.fold_left
+			(fun (d, l) i ->
+				match i with
+				| Irg.AND_OP(n, pl, al) ->
+					let d, pl, al = f d pl al in (d, (Irg.AND_OP (n, pl, al))::l)
+				| _ -> (d, l))
+			(d, [])
+			(get_insts ()) in
+		instr_set := insts;
+		enumerate_instr_sets !instr_set;
+		d
+
 	
 (** Compute the maximum params numbers of all instructions
 	from the current loaded IRG

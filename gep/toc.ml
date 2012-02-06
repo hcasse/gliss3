@@ -986,7 +986,7 @@ Irg.print_expr expr; print_char '\n';*)
 
 	match expr with
 	| Irg.NONE -> ()
-	| Irg.CONST (typ, cst) -> gen_const info typ cst prfx
+	| Irg.CONST (typ, cst) -> gen_const info typ cst
 	| Irg.REF name -> gen_ref info name prfx
 	| Irg.ITEMOF (typ, name, idx) -> gen_itemof info typ name idx prfx
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
@@ -1052,7 +1052,7 @@ and exts info t f =
 	@param info		Generation information.
 	@param typ		Constant type.
 	@param cst		Constant. *)
-and gen_const info typ cst prfx =
+and gen_const info typ cst =
 	match typ, cst with
 	| _, Irg.NULL -> failwith "null constant"
 	| Irg.CARD _, Irg.CARD_CONST v ->

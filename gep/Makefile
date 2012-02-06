@@ -16,7 +16,8 @@ LIBGEP_SOURCES=\
 	app.ml \
 	profile.ml \
 	decode_arg.ml \
-	bits.ml
+	bits.ml \
+	stot.ml
 $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build

@@ -348,6 +348,35 @@ let eval_binop op c1 c2 =
 			(string_of_binop op)))
 
 
+(** Perform the coercition function on the given value.
+	@param t		Type to coerce to.
+	@param v		Value to coerce.
+	@return			Result of coercion.
+	@raise SemError	If the coercion is not supported. *)
+let eval_coerce t v =
+	let mask32 i n = Int32.logand i (Int32.pred (Int32.shift_left Int32.one n)) in
+	let mask64 i n = Int64.logand i (Int64.pred (Int64.shift_left Int64.one n)) in
+	match t, v with
+	| _, NULL -> NULL
+	| BOOL, CARD_CONST i -> CARD_CONST (if i = Int32.zero then Int32.zero else Int32.one)
+	| BOOL, CARD_CONST_64 i -> CARD_CONST (if i = Int64.zero then Int32.zero else Int32.one)
+	| INT n, CARD_CONST i when n <= 32 -> v
+	| INT n, CARD_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_int32 i)
+	| INT n, CARD_CONST_64 i when n <= 32 -> CARD_CONST (Int64.to_int32 i)
+	| INT n, CARD_CONST_64 i when n <= 64 -> v
+	| INT n, FIXED_CONST i when n <= 32 -> CARD_CONST (Int32.of_float i)
+	| INT n, FIXED_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_float i)
+	| CARD n, CARD_CONST i when n <= 32 -> CARD_CONST (mask32 i n)
+	| CARD n, CARD_CONST i when n <= 64 -> CARD_CONST_64 (mask64 (Int64.of_int32 i) n)
+	| CARD n, CARD_CONST_64 i when n <= 32 -> CARD_CONST (mask32 (Int64.to_int32 i) n)
+	| CARD n, CARD_CONST_64 i when n <= 64 -> CARD_CONST_64 (mask64 i n)
+	| CARD n, FIXED_CONST i when n <= 32 -> CARD_CONST (Int32.of_float (abs_float i))
+	| CARD n, FIXED_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_float (abs_float i))
+	| FLOAT _, CARD_CONST i -> FIXED_CONST (Int32.to_float i)
+	| FLOAT _, CARD_CONST_64 i -> FIXED_CONST (Int64.to_float i)	
+	| _ -> raise (SemError "unsupported constant coerction")
+
+
 (** Perform the expression switch.
 	@param c		Condition.
 	@param cases	Cases of the switch.
@@ -376,11 +405,11 @@ and eval_const expr =
 	| REF id ->
 		(match get_symbol id with
 		  LET (_, cst) -> cst
-		(**)
-		|ENUM_POSS (_,_,v,_)->CARD_CONST v
-		(**)
-		| _ -> raise (SemError "this expression should be constant"))
+		| ENUM_POSS (_,_,v,_) -> CARD_CONST v
+		| _ -> raise (SemError (id ^ " is not a constant symbol")))
+	| BITFIELD (t, e, u, l) -> raise (SemError "unsupported bitfield")
 	| ELINE (_, _, e) -> eval_const e
+	| COERCE (t, e) -> eval_coerce t (eval_const e)
 	| _ ->
 		raise (SemError "this expression should be constant")
 
