@@ -388,7 +388,7 @@ let transform f d =
 				| _ -> (d, l))
 			(d, [])
 			(get_insts ()) in
-		instr_set := insts;
+		instr_set := List.rev insts;
 		enumerate_instr_sets !instr_set;
 		d
 
