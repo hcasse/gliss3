@@ -679,6 +679,26 @@ let unalias_expr name idx ub lb typ =
 		failwith "unalias_expr"
 
 
+(** Build a sequence, optimizing the result if one is a nop.
+	@param s1	First statement.
+	@param s2	Second statement.
+	@return		Sequenced statements. *)
+let seq s1 s2 =
+		if s1 = Irg.NOP then s2 else
+		if s2 = Irg.NOP then s1 else
+		Irg.SEQ (s1, s2)
+
+
+(** Build a sequence from a list of statements.
+	@param list		List of statements.
+	@return			Sequence of statements. *)
+let rec seq_list list =
+	match list with
+	| [] -> Irg.NOP
+	| [s] -> s
+	| s::t -> seq s (seq_list t)
+
+
 (** Unalias a reference.
 	@param info			Current generation information.
 	@param expr			Current expression.
@@ -749,28 +769,27 @@ and prepare_expr info stats expr =
 
 	| Irg.IF_EXPR (typ, cond, tpart, epart) ->
 		let (stats, cond) = prepare_expr info stats cond in
-		let (stats, tpart) = prepare_expr info stats tpart in
-		let (stats, epart) = prepare_expr info stats epart in
+		let (tstats, tpart) = prepare_expr info Irg.NOP tpart in
+		let (estats, epart) = prepare_expr info Irg.NOP epart in
 		let tmp = new_temp info typ in
-		(Irg.SEQ(stats, Irg.IF_STAT (cond, set typ tmp tpart, set typ tmp epart)),
+		(seq stats (Irg.IF_STAT (cond, seq tstats (set typ tmp tpart), seq estats (set typ tmp epart))),
 		Irg.REF tmp)
 
 	| Irg.SWITCH_EXPR (typ, cond, cases, def) ->
 		let tmp = new_temp info typ in
 		let (stats, cond) = prepare_expr info stats cond in
-		let (stats, def) = prepare_expr info stats def in
-		let (stats, cases) = List.fold_left
-			(fun (stats, cases) (case, expr) ->
+		let (dstats, def) = prepare_expr info Irg.NOP def in
+		let cases = List.fold_left
+			(fun cases (case, expr) ->
 				let (stats, expr) = prepare_expr info stats expr in
-				(stats, (case, set typ tmp expr) :: cases))
-			(stats, [])
-			cases in
-		(Irg.SEQ(
-			stats,
-			Irg.SWITCH_STAT (
+				(case, seq stats (set typ tmp expr)) :: cases)
+			[] cases in
+		(seq
+			stats
+			(Irg.SWITCH_STAT (
 				cond,
 				cases,
-				if def = Irg.NONE then Irg.NOP else set typ tmp def)),
+				if def = Irg.NONE then Irg.NOP else (seq dstats (set typ tmp def)))),
 		Irg.REF tmp)
 
 	| Irg.ELINE (file, line, expr) ->
@@ -791,26 +810,6 @@ and prepare_exprs info (stats: Irg.stat) (args: Irg.expr list) =
 			(stats, arg::args))
 		(stats, [])
 		args
-
-
-(** Build a sequence, optimizing the result if one is a nop.
-	@param s1	First statement.
-	@param s2	Second statement.
-	@return		Sequenced statements. *)
-let seq s1 s2 =
-		if s1 = Irg.NOP then s2 else
-		if s2 = Irg.NOP then s1 else
-		Irg.SEQ (s1, s2)
-
-
-(** Build a sequence from a list of statements.
-	@param list		List of statements.
-	@return			Sequence of statements. *)
-let rec seq_list list =
-	match list with
-	| [] -> Irg.NOP
-	| [s] -> s
-	| s::t -> seq s (seq_list t)
 
 
 (** Unalias an assignement.
