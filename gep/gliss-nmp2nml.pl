@@ -144,7 +144,14 @@ sub parse_file{
             # check s'il y a encore des lignes
             $def_macro=($ligne=~/\\(\s*)$/); 
             $def_macro and ($1 ne "\n") and nMP_warning("backslash and newline separated by space\n");
-            $def_macro or check_macro($nom_macro);
+            if(!$def_macro) {
+				check_macro($nom_macro);
+				
+				# HKC
+				$num_ligne = $num_ligne + 1;
+				print "#line $num_ligne \"$nom_fichier_courrant\"\n";
+				$num_ligne = $num_ligne - 1;
+			}
         }
         
         # si c'est un commentaire dans la definition 
