@@ -664,7 +664,7 @@ let string_to_regexp_list s =
 			else
 				e
 	in
-	List.map process_double_percent (Str.full_split (Str.regexp "%[0-9]*[dbxsf]\\|%%") s)
+	List.map process_double_percent (Str.full_split (Str.regexp "%[0-9]*[ldbxsfu]\\|%%") s)
 
 
 (**

@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
 				else
 					fputs("  ", stdout);
 			}
-			printf("\t%s.\n", buff);
+			printf("\t%s\n", buff);
 			/* inst size is given in bit, we want it in byte */
 			adr_start += size;
 		}

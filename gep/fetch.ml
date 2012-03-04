@@ -198,6 +198,7 @@ let rec build_dectrees vl msk gm il =
 			(*!!DEBUG!!*)
 			(*print_string "build_dectrees\n";
 			Printf.printf "common mask=%s, %d instr\n" (Bitmask.to_string common_mask) (List.length sl);*)
+
 			let dt = DecTree(il@[v], sl, Bitmask.unmask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
 			in
 			(* !!DEBUG!! *)
@@ -206,6 +207,7 @@ let rec build_dectrees vl msk gm il =
 			print_string "build_tree, sl=[\n";
 			List.iter (fun x -> print_string "    "; Irg.print_expr (get_image x); print_char '\n') sl;
 			print_string "]\n";*)
+			
 			dt::(build_dectrees b msk gm il)
 
 
@@ -234,6 +236,9 @@ let build_sons_of_tree tr =
 			res
 
 
+(**
+	@param sp_l		List of instruction specifications.
+	@return			*)
 let build_dec_nodes sp_l =
 	let node_cond (DecTree(_, sl, lmask, gmask, _)) =
 		((List.length sl)<=1)
@@ -268,11 +273,13 @@ let build_dec_nodes sp_l =
 	let specs = sp_l in
 	let mask = spec_list_mask specs in
 	(*!!DEBUG!!*)
-	(*let res =*)
+	let res =
+	
 	aux [DecTree([], specs, mask, mask, [])]
-	(*in
+
+	in
 	Printf.printf ", res: %d nodes\n" (List.length res);
-	res*)
+	res
 
 
 (* returns a list of the direct sons of a given DecTree among a given list *)

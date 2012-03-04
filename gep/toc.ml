@@ -1434,7 +1434,7 @@ let rec gen_stat info stat =
 
 	| Irg.ERROR msg ->
 		line (fun _ ->
-			Printf.fprintf info.out "%s_error(\"%s\");"
+			Printf.fprintf info.out "%s_error(state, inst, \"%s\");"
 				info.proc
 				(cstring msg))
 

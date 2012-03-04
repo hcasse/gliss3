@@ -1405,8 +1405,9 @@ let is_setspe loc=
 
 
 (* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp = Str.regexp "%[0-9]*[ldbxsf%]"	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
-						so we allow this kind of expression here for compatibility *)
+let reg_exp = Str.regexp "%[0-9]*[ldbxsfu%]"	
+	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
+		so we allow this kind of expression here for compatibility *)
 
 (** this function is used to find all references to parameters in a string passed to a format
 	@param str	The string to treat
@@ -1437,23 +1438,22 @@ let build_format str exp_list=
 		then
 			raise (SemError (Printf.sprintf "incorrect number of parameters in format"))
 		else
-			let test_list = List.map2 (fun e_s e_i->	(* here we check if all variables are given a parameter of the good type *)
-					if (get_type_expr e_i=UNKNOW_TYPE)
-					then true
-					else
+			let test_list = List.map2 (fun e_s e_i ->	(* here we check if all variables are given a parameter of the good type *)
+					if (get_type_expr e_i=UNKNOW_TYPE) then true else
 					match Str.last_chars e_s 1 with
 					| "d" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
+					| "u" -> (match (get_type_expr e_i) with (CARD _|INT _) -> true | _ -> false)
 					| "b" -> true
 					| "x" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
 					| "s" -> true
 					| "f" -> (match (get_type_expr e_i) with (FLOAT _) -> true | _ -> false)
 					| "l" -> (match (get_type_expr e_i) with INT _ | CARD _ -> true | _ -> false)
-					| _ ->failwith "internal error : build_format"
-					) ref_list exp_list
+					| _ -> failwith "internal error : build_format"
+				) ref_list exp_list
 			in
-			if not (List.for_all (fun e->e) test_list) then raise (SemError (Printf.sprintf "incorrect type in this format "))
-			else
-			FORMAT (str, (List.rev exp_list))
+			if not (List.for_all (fun e -> e) test_list)
+			then raise (SemError (Printf.sprintf "incorrect type in this format "))
+			else FORMAT (str, (List.rev exp_list))
 
 (*
 
@@ -1756,6 +1756,10 @@ let change_string_dependences a e =
 		| FORMAT (f, args) ->
 			let r_list = List.rev (get_all_ref f) in
 			FORMAT (f, temp r_list args)
+		| IF_EXPR (tp, c, t, e) ->
+			IF_EXPR (tp, c, look t, look e)
+		| SWITCH_EXPR (tp, c, cs, d) ->
+			SWITCH_EXPR (tp, c, List.map (fun (c, a) -> (c, look a)) cs, look d)
 		| _ -> e in
 	
 	look e
