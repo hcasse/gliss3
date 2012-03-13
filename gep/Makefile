@@ -27,7 +27,7 @@ GEP_SOURCES = \
 	decode.ml \
 	decode_arg.ml \
 	gep.ml
-gep_LIBS = str unix  ../irg/irg ../optirg/optirg ../gep/libgep
+gep_LIBS = str unix  ../irg/irg ../optirg/liboptirg ../gep/libgep
 $(eval $(call ocaml_prog,gep,$(GEP_SOURCES)))
 
 gep: ../irg/irg.cma ../gep/libgep.cma
@@ -36,7 +36,7 @@ gep: ../irg/irg.cma ../gep/libgep.cma
 DISASM_SOURCES = \
 	disasm.ml
 
-gliss-disasm_LIBS = str unix ../irg/irg ../optirg/optirg libgep
+gliss-disasm_LIBS = str unix ../irg/irg ../optirg/liboptirg libgep
 $(eval $(call ocaml_prog,gliss-disasm,$(DISASM_SOURCES)))
 gliss-disasm: ../irg/irg.cma  libgep.cma
 
@@ -45,7 +45,7 @@ gliss-disasm: ../irg/irg.cma  libgep.cma
 ATTR_SOURCES = \
 	gliss_attr.ml
 
-gliss-attr_LIBS = str unix ../irg/irg ../optirg/optirg libgep
+gliss-attr_LIBS = str unix ../irg/irg ../optirg/liboptirg libgep
 $(eval $(call ocaml_prog,gliss-attr,$(ATTR_SOURCES)))
 gliss-attr: ../irg/irg.cma libgep.cma
 
@@ -54,7 +54,7 @@ gliss-attr: ../irg/irg.cma libgep.cma
 USED_REGS_SOURCES = \
 	gliss-used-regs.ml
 
-gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/optirg libgep
+gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/liboptirg libgep
 $(eval $(call ocaml_prog,gliss-used-regs,$(USED_REGS_SOURCES)))
 gliss-used-regs: ../irg/irg.cma libgep.cma
 
