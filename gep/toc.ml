@@ -629,7 +629,8 @@ let resolve_alias name idx ub lb =
 			process_alias tr attrs v
 		| Irg.VAR (_, _, tr) ->
 			process_alias tr [] v
-		| Irg.LET _ ->
+		| Irg.LET _
+		| Irg.CANON_DEF _ ->
 			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
 		| Irg.MEM (_, _, tr, attrs) ->
 			process_alias tr attrs v
@@ -873,6 +874,8 @@ let unalias_set info stats name idx ub lb expr =
 		seq stats (set_full (i) ub lb expr)
 	| Irg.VAR (_, cnt, tt) ->
 		add_var info name cnt tt;
+		seq stats (set_full i ub lb expr)
+	| Irg.CANON_DEF _ ->
 		seq stats (set_full i ub lb expr)
 	(* this should happen only when using gliss1 predecode *)
 	| Irg.PARAM (_, typ) ->
@@ -1404,7 +1407,8 @@ let rec gen_stat info stat =
 			match Irg.get_symbol id with
 			| Irg.VAR (_, _, t)
 			| Irg.REG (_, _, t, _)
-			| Irg.PARAM (_, Irg.TYPE_EXPR(t)) ->
+			| Irg.PARAM (_, Irg.TYPE_EXPR(t))
+			| Irg.CANON_DEF (_, _, t, _) ->
 				gen_ref info id true;
 				if idx <> Irg.NONE then
 					(out "["; gen_expr info idx true; out "]");
@@ -1606,9 +1610,7 @@ let find_recursives info name =
 				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
 				| Irg.INLINE _ -> recs in
 
-			match Iter.get_attr info.inst name with
-			| Iter.STAT stat -> look_stat stat recs
-			| _ -> failwith "find_recursives" in
+			look_stat (get_stat_attr name) recs in
 	
 	info.recs <- look_attr name [] []
 
@@ -1657,6 +1659,7 @@ let gen_pc_increment info =
 	@param name		Name of the attribute. *)
 let gen_action info name =
 	info.indent <- 1;
+	
 	(* prepare statements *)
 	find_recursives info name;
 	prepare_call info name;
@@ -1671,6 +1674,7 @@ let gen_action info name =
 	(* generate the code *)
 	gen_call info name;
 
+	(* cleanup at end *)
 	cleanup_temps info;
 	StringHashtbl.clear info.attrs
 

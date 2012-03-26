@@ -328,17 +328,93 @@ let is_float t =
 let rec reg_format id size attrs =
 	match attrs with
 	| [] -> if size > 1 then id ^ "%d" else id
-	| Irg.ATTR_EXPR ("fmt", Irg.CONST (_, Irg.STRING_CONST (f, _, _))) :: _ -> f
+	| (Irg.ATTR_EXPR ("fmt", e))::_ ->
+		(try Sem.to_string e
+		with Sem.SemError m -> Toc.error "bad \"fmt\" attribute: should evaluate to string")
 	| _ :: tl -> reg_format id size tl
+
+
+(** Generate the code for accessing a register.
+let gen_reg_access name size type attrs out make attr =
+	@param name		Name of the register.
+	@param size		Size of the register bank.
+	@param typ		Type of the register.
+	@param attrs	List of attributes.
+	@param out		Output channel to use.
+	@param make		Maker if the attribute is not available.
+	@param attr		Name of the attribute. *)
+let gen_reg_access name size typ attrs out attr make =
+	let s = Sem.get_type_length typ in
+	let v =
+		if not (is_float typ)
+		then if s <= 32 then "GLISS_I" else "GLISS_L"
+		else if s <= 32 then "GLISS_F" else "GLISS_D" in
+	Irg.add_symbol v (Irg.CANON_DEF (v, Irg.CANON_CNST, typ, []));
+	Irg.add_symbol "idx" (Irg.CANON_DEF ("idx", Irg.CANON_CNST, Irg.CARD(32), []));
+	let attrs =
+		if Irg.attr_defined attr attrs then attrs else
+		(Irg.ATTR_STAT (attr, make v))::attrs in
+	let info =  Toc.info () in
+	info.Toc.out <- out;
+	info.Toc.inst <- (Irg.AND_OP ("instruction", [], attrs));
+	info.Toc.iname <- "";
+	Irg.attr_stack attrs;
+	Toc.gen_action info attr;
+	Irg.attr_unstack attrs;
+	Irg.rm_symbol v;
+	Irg.rm_symbol "idx"
+
+
+(** Generate the setter of a register value for a debugger.
+	@param name		Name of the register.
+	@param size		Size of the register bank.
+	@param typ		Type of the register.
+	@param attrs	List of attributes.
+	@param out		Output channel to use. *)
+let gen_reg_setter name size typ attrs out =
+	gen_reg_access name size typ attrs out "set"
+		(fun v -> Irg.SET (
+			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else Irg.REF "idx"), Irg.NONE, Irg.NONE),
+			Irg.REF v))
+
+
+(** Generate the getter of a register value for a debugger.
+	@param name		Name of the register.
+	@param size		Size of the register bank.
+	@param typ		Type of the register.
+	@param attrs	List of attributes.
+	@param out		Output channel to use. *)
+let gen_reg_getter name size typ attrs out =
+	gen_reg_access name size typ attrs out "get"
+		(fun v -> Irg.SET (
+			Irg.LOC_REF (typ, v, Irg.NONE, Irg.NONE, Irg.NONE),
+			if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, Irg.REF "idx")))
+
+
+(** Get the label of a register bank.
+	@param name		Name of the register banks.
+	@param attrs	Attributes of the register bank.
+	@return			Label of the register bank. *)
+let get_label name attrs =
+	let l = Irg.attr_expr "label" attrs Irg.NONE in
+	if l = Irg.NONE then name else
+	try Sem.to_string l
+	with Sem.SemError _ -> Toc.error "\"label\" attribute should be a string constant !"
+
 
 let get_register id f dict maker _ sym =
 	match sym with
 	  Irg.REG (name, size, t, attrs) ->
+		let is_debug _ = 
+			if Irg.is_defined "gliss_debug_only"
+			then Irg.attr_defined "debug" attrs
+			else not (contains_alias attrs) in
 		incr id; f (maker.get_register sym (
 			("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
 			("name", out (fun _ -> name)) ::
 			("NAME", out (fun _ -> String.uppercase name)) ::
 			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
+			("is_debug", Templater.BOOL (fun _ -> is_debug ())) ::
 			("array", Templater.BOOL (fun _ -> size > 1)) ::
 			("size", out (fun _ -> string_of_int size)) ::
 			("id", out (fun _ -> string_of_int !id)) ::
@@ -347,6 +423,9 @@ let get_register id f dict maker _ sym =
 			("is_float", Templater.BOOL (fun _ -> is_float t)) ::
 			("format", out (fun _ -> "\"" ^ (reg_format name size attrs) ^ "\"")) ::
 			("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
+			("get", Templater.TEXT (fun out -> gen_reg_getter name size t attrs out)) ::
+			("set", Templater.TEXT (fun out -> gen_reg_setter name size t attrs out)) ::
+			("label", out (fun _ -> get_label name attrs)) ::
 			dict))	(* make_array size*)
 	| _ -> ()
 
@@ -386,8 +465,31 @@ let maker _ = {
 
 let profiled_switch_size = ref 0
 
-(*
-make_env : Toc.info_t -> maker_t -> (string * Templater.value_t) list
+
+(** Traverse all debug registers (see documentation for more details).
+	@param maker	Current maker.
+	@param f		Function to call with each registers.
+	@param dict		Current dictionary. *)
+let debug_registers maker f dict =
+	let id = ref 0 in
+
+	let process n r = get_register id f dict maker n r in
+	
+	let process_only k r =
+		match r with
+		| Irg.REG(_, _, _, attrs) when Irg.attr_defined "debug" attrs -> process k r
+		| _ -> () in
+
+	if Irg.is_defined "gliss_debug_only"
+	then Irg.StringHashtbl.iter process_only Irg.syms
+	else Irg.StringHashtbl.iter process Irg.syms
+	
+	
+(*fun f dict -> reg_id := 0; Irg.StringHashtbl.iter (get_register reg_id f dict maker) Irg.syms)*)
+
+(**	Build the basic environment for GEP generation.
+	@param info		Generation environment.
+	@param maker	Maker functions (as produced by maker constructor).
 *)
 let make_env info maker =
 	let reg_id = ref 0 in

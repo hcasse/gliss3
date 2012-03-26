@@ -62,7 +62,7 @@ let do_text out dict id =
 		match List.assoc id dict with
 		  TEXT f ->
 			(try f out
-			with Not_found -> failwith ("error in generation with "^id))
+			with Not_found -> failwith (Printf.sprintf "uncaught Not_found in generation with \"%s\"" id))
 		| _ -> failwith (id ^ " is not a text !")
 	
 	(* not existing symbol *)

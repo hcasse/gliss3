@@ -206,3 +206,43 @@ op THUMB(x : THUMB_instr)
 op THUMB_instr = ... // (tree of ARM instructions)
 </code>
 
+
+
+===== Debugger Support =====
+
+@(GLISS) allows to easily generate a debugger from the SimNML description.
+Basicallt, the //debug// modules provides an API to get mainly the list
+of registers of an ISA.
+
+In addition, the way this information is generated may be customized
+according to the different needs. Basically, all registers of the ISA are included
+in the debugging information. This behaviour may be switched by defining a constant
+named ''gliss_debug_only'' as below:
+
+<code>
+let gliss_debug_only = 1
+</code>
+
+When this constant is defined, only the registers with an attribute called ''debug''
+are output in the debugging information. This may be useful with complex ISA
+to hide a bit of the complexity to the debugger user. In addition, the following
+attributes may be added to customize the debugging information:
+  ? ''label'' : this a more friendly way to name the register bank (as the default, this is the name of the bank);
+  ? ''fmt'' : allows to give the way the register are named, it must be a litteral string containing a %d that will be replaced
+by the register number;
+  ? ''get'' : to read a register, a simple indexed access is made on the bank; with this attribute, the read may be customized (see below);
+  ? ''set'' : to write a register, a simple indexed access is made on the bank; with this attribute, the write may be customized (see below);
+
+''get'' and ''set'' attributes, to be effective, must be perform an access to a specific variable
+to, respectively, read or write the register. The variable name depends on the type of the register:
+  ? ''GLISS_IV'' : for //card// or //int// register with at most 32-bits,
+  ? ''GLISS_LV'' : for //card// or //int// register with at most 64-bits,
+  ? ''GLISS_FV'' : for //float// register of 32-bits,
+  ? ''GLISS_DV'' : for //float// register of 64-bits.
+
+Therefore, a ''get'' operation must copy the register value in this variable while
+a ''set'' operation must modify the register with value contained in this register.
+For indexed register, a specific variable ''idx'' is available and contains the index
+of the accessed register.
+
+

@@ -4,10 +4,16 @@
 #include <$(proc)/debug.h>
 #include <$(proc)/macros.h>
 
+#define GLISS_I		r.iv
+#define GLISS_L		r.lv
+#define GLISS_F		r.fv
+#define GLISS_D		r.dv
+
 static register_bank_t $(proc)_registers[] = {
-$(foreach registers)$(if !aliased)
+$(foreach registers)$(if is_debug)
 	{
 		$(id),
+		"$(label)",
 		$(format),
 		$(size),
 		$(if is_pc)RTYPE_ADDR$(else)$(if is_float)RTYPE_FLOAT$(else)RTYPE_INT$(end)$(end),
@@ -23,7 +29,7 @@ $(end)$(end)	{
  * Get the description of registers of the architecture.
  * @return		Array of registers (last one has a negative identifier).
  */
-register_bank_t *gliss_get_registers(void) {
+register_bank_t *$(proc)_get_registers(void) {
 	return $(proc)_registers;
 }
 
@@ -34,12 +40,12 @@ register_bank_t *gliss_get_registers(void) {
  * @param idx		Index in the bank (ignored for non-mutiple register bank).
  * @return			Value of the register.
  */
-register_value_t gliss_get_register($(proc)_state_t *state, int id, int idx) {
+register_value_t $(proc)_get_register($(proc)_state_t *state, int id, int idx) {
 	register_value_t r;
 	switch(id) {
-$(foreach registers)$(if !aliased)
+$(foreach registers)$(if is_debug)
 	case $(id):
-		r.$(if !is_float)$(if !is_64)iv$(else)lv$(end)$(else)$(if !is_64)fv$(else)dv$(end)$(end) = $(PROC)_$(NAME)$(if array)[idx]$(end);
+		$(get)
 		break;
 $(end)$(end)
 	default:
@@ -56,11 +62,11 @@ $(end)$(end)
  * @param idx		Index in the bank (ignored for non-mutiple register bank).
  * @param value		Value to put in register.
  */
-void gliss_set_register($(proc)_state_t *state, int id, int idx, register_value_t value) {
+void $(proc)_set_register($(proc)_state_t *state, int id, int idx, register_value_t r) {
 	switch(id) {
-$(foreach registers)$(if !aliased)
+$(foreach registers)$(if is_debug)
 	case $(id):
-		$(PROC)_$(NAME)$(if array)[idx]$(end) = value.$(if !is_float)$(if !is_64)iv$(else)lv$(end)$(else)$(if !is_64)fv$(else)dv$(end)$(end);
+		$(set)
 		break;
 $(end)$(end)
 	default:

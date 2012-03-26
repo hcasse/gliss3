@@ -25,6 +25,7 @@ typedef struct {
 typedef struct register_bank_t {
 	int id;
 	const char *name;
+	const char *format;
 	int size;
 	register_type_t type;
 	int tsize;
@@ -42,14 +43,14 @@ typedef union {
 } register_value_t;
 
 /* functions */
-register_bank_t *gliss_get_registers(void);
-register_value_t gliss_get_register($(proc)_state_t *state, int id, int index);
-void gliss_set_register($(proc)_state_t *state, int id, int index, register_value_t value);
+register_bank_t *$(proc)_get_registers(void);
+register_value_t $(proc)_get_register($(proc)_state_t *state, int id, int index);
+void $(proc)_set_register($(proc)_state_t *state, int id, int index, register_value_t value);
 
 /* macros avoiding customisation in debugger */
-#define debug_get_registers()				gliss_get_registers()
-#define debug_get_register(s, id, idx)		gliss_get_register(s, id, idx)
-#define debug_set_register(s, id, idx, v)	gliss_set_register(s, id, idx, v)
+#define debug_get_registers()				$(proc)_get_registers()
+#define debug_get_register(s, id, idx)		$(proc)_get_register(s, id, idx)
+#define debug_set_register(s, id, idx, v)	$(proc)_set_register(s, id, idx, v)
 
 __END_DECLS
 

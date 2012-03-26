@@ -551,4 +551,76 @@ void gliss_registers_fill_env(gliss_env_t *env, gliss_state_t *state);
 </code>
 Initialize the register according to the stack.
 
+===== ''debug'' interface =====
+
+This module provides information to do a debugger and, mainly, the description
+of used registers and functions to read or write these registers.
+
+Implementing modules:
+  * ''debug'' -- the currently unique implementation.
+
+==== Types ====
+
+<code>
+typedef enum {
+	RTYPE_NONE = 0,
+	RTYPE_BITS,
+	RTYPE_ADDR,
+	RTYPE_INT,
+	RTYPE_FLOAT
+} register_type_t;
+
+typedef struct register_bank_t {
+	int id;
+	const char *name;
+	const char *format;
+	int size;
+	register_type_t type;
+	int tsize;
+	union {
+		register_field_t fields;
+	} data;
+} register_bank_t;
+</code>
+
+The ''register_bank_t'' structure is used to describe a register bank.
+It is made of:
+  ? ''id'' : identifier of the bank used by other primitives,
+  ? ''name'' : name of the bank to display to the user,
+  ? ''format'' : format to derive indexed register (it contains a ''%d'' to replace by the register number),
+  ? ''size'' : number of registers in the bank,
+  ? ''type'' : a type among ''RTYPE_''//XXX// constant (it is just a hint),
+  ? ''tsize'' : size in its of the registers in the bank,
+  ? ''data'' : not used at this time.
+
+<code>
+typedef union {
+	int32_t iv;
+	int64_t lv;
+	float fv;
+	double dv;
+} register_value_t;
+</code>
+
+This union type allows to exchange values between the program and the //debug// API.
+According to the type of the register in the bank, one of the union field will be used.
+
+==== Functions ====
+
+<code>
+register_bank_t *gliss_get_registers(void);
+</code>
+Get the array of register banks whose last element is a bank whose ''id'' is -1.
+
+<code>
+register_value_t gliss_get_register(gliss_state_t *state, int id, int index);
+</code>
+Get the value of a register in the given state, identified by ''id'' and, if the bank is indexed,
+using the given index.
+
+<code>
+void gliss_set_register(gliss_state_t *state, int id, int index, register_value_t value);
+</code>
+Change the value of register in the given state. It is identifier by the ''id'', possibly indexed,
+and the value is used to change the register.
 

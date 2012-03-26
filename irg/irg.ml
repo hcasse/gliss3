@@ -1146,3 +1146,50 @@ let load path =
 	StringHashtbl.clear pos_table;
 	StringHashtbl.iter (fun key spec -> StringHashtbl.add syms key spec) new_syms;
 	StringHashtbl.iter (fun key pos -> StringHashtbl.add pos_table key pos) new_pt
+
+
+(** Test if an attribute is defined.
+	@param id		Identifier of the attribute.
+	@param attrs	List of attributes.
+	@return			True if the attribute is found, false else. *)
+let rec attr_defined id attrs =
+	match attrs with
+	| [] -> false
+	| (ATTR_EXPR (id', _))::_ when id = id' -> true
+	| (ATTR_STAT (id', _))::_ when id = id' -> true
+	| (ATTR_LOC (id', _))::_ when id = id' -> true
+	| _::tl -> attr_defined id tl
+
+
+(** Get an attribute as an expression.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error _	If the attribute exists but does not have the right type. *)
+let rec attr_expr id attrs def =
+	let error _ =
+		raise (IrgError (Printf.sprintf "attribute \"%s\" should be an expression" id)) in
+	match attrs with
+	| [] -> def
+	| (ATTR_EXPR (id', e))::_ when id = id' -> e
+	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_expr id tl def
+
+
+(** Get an attribute as a statement.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error _	If the attribute exists but does not have the right type. *)
+let rec attr_stat id attrs def =
+	let error _ =
+		raise (IrgError (Printf.sprintf "attribute \"%s\" should be a statement" id)) in
+	match attrs with
+	| [] -> def
+	| (ATTR_STAT (id', s))::_ when id = id' -> s
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_stat id tl def

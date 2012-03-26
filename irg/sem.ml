@@ -135,19 +135,19 @@ let to_int32 c =
 	| _ -> raise (SemError "should evaluate to an int")
 
 
+(** Convert an expression to a string.
+	@param e		Expression to convert.
+	@return			Converted to string.
+	@raise SemError	If the conversion cannot be done. *)
+let rec to_string e =
+	match e with
+	| Irg.CONST (_, Irg.STRING_CONST (s, _, _)) -> s
+	| Irg.ELINE (_, _, e) -> to_string e
+	| _ -> raise (SemError "should evaluate to a string")
+
 (** Convert constant to int.
 	@param c		Constant to convert.
 	@return			Matching int value.			print_expr e1;
-			print_string " (";
-			print_type_expr t1;
-			print_string ") ";
-			print_string (string_of_binop bop);
-			print_string " ";
-			print_expr e2;
-			print_string " (";
-			print_type_expr t2;
-			print_string ")";
-			print_string "\n";
 	@raise SemError	If the constant is not convertible. *)
 let to_int c =
 	Int32.to_int (to_int32 c)
@@ -1571,61 +1571,6 @@ let test_canonical name =
 		end
 
 
-(*					-----
-	The function have attribute commented here was used to check the good usage of attributes.
-	However, it appear that some cases cannot be checked "on the fly" and that
-	a latter verification would be needed dynamically, so this verification was
-	put aside. We let it here just in case...
-  				 	-----
-
-let have_attribute id attr=
-
-	let rec loop_verification id mem_list   =
-		let sym_temp=get_symbol id
-		in
-		match sym_temp with
-		 OR_MODE (_,l)->if (List.exists (fun e->e==id) mem_list)
-					then false
-					else (List.for_all (fun e->loop_verification e (id::mem_list)) l)
-		|_->true
-	in
-
-	let rec temp id attr aff=
-		let sym=get_symbol id
-		in
-		let rec contains l= match l with
-			 []->false
-			|e::lt->( match e with
-					 (ATTR_EXPR (v,_)|ATTR_STAT (v,_)) when v=attr->true
-					|_->contains lt)
-			(*
-			match attr with
-			 ("syntax"|"image")->List.exist (fun a-> match a with ATTR_EXPR (attr,_)->true | _->false) l
-			|_->List.exist (fun a->match a with ATTR_STAT (attr,_)->true | _->false) l
-			*)
-		in
-		match sym with
-			 (AND_MODE (_,_,_,l)|AND_OP (_,_,l))->contains l
-			|(OR_MODE (_,l)|OR_OP(_,l))->if List.exists (fun e->temp e attr false) l
-							then
-								((if List.for_all (fun e->temp e attr false) l && aff
-									then
-										Lexer.display_warning (Printf.sprintf "not all modes included in the mode %s have the attribute %s" id attr)
-								); true)
-							else
-								false
-			|PARAM (_,t)->(match t with TYPE_ID idt->temp idt attr aff
-						|_->false)
-			|_->false
-	in
-	if not (loop_verification id []) then raise (SemError (Printf.sprintf "looping declaration of mode %s" id))
-	else
-	temp id attr true
-*)
-
-
-
-
 (** Test if the symbol exists and is a data symbol
 	(constant, memory, variable, register, parameter)
 	@param name		Name of the symbol.
@@ -1763,3 +1708,18 @@ let change_string_dependences a e =
 		| _ -> e in
 	
 	look e
+
+
+(** Get an attribute and evaluates to integer.
+	@param id		Attribute ID.
+	@param attrs	Attribute list.
+	@param def		Default value if attribute is not defined.
+	@return			Integer value of the attribute, false else.
+	@raise IrgError	If attribute exists but is not of good type.
+	@raise SemError	If the attribute is a not a constant integer. *)
+let attr_int id attrs def =
+	let e = Irg.attr_expr id attrs Irg.NONE in
+	if e = Irg.NONE then def else
+	let cst = eval_const e in
+	to_int cst
+
