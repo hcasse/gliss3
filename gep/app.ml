@@ -347,10 +347,10 @@ let gen_reg_access name size typ attrs out attr make =
 	let s = Sem.get_type_length typ in
 	let v =
 		if not (is_float typ)
-		then if s <= 32 then "GLISS_I" else "GLISS_L"
-		else if s <= 32 then "GLISS_F" else "GLISS_D" in
-	Irg.add_symbol v (Irg.CANON_DEF (v, Irg.CANON_CNST, typ, []));
-	Irg.add_symbol "idx" (Irg.CANON_DEF ("idx", Irg.CANON_CNST, Irg.CARD(32), []));
+		then if s <= 32 then "I" else "L"
+		else if s <= 32 then "F" else "D" in
+	(*Irg.add_symbol v (Irg.CANON_DEF (v, Irg.CANON_CNST, typ, []));
+	Irg.add_symbol "idx" (Irg.CANON_DEF ("idx", Irg.CANON_CNST, Irg.CARD(32), []));*)
 	let attrs =
 		if Irg.attr_defined attr attrs then attrs else
 		(Irg.ATTR_STAT (attr, make v))::attrs in
@@ -360,9 +360,9 @@ let gen_reg_access name size typ attrs out attr make =
 	info.Toc.iname <- "";
 	Irg.attr_stack attrs;
 	Toc.gen_action info attr;
-	Irg.attr_unstack attrs;
+	Irg.attr_unstack attrs(*;
 	Irg.rm_symbol v;
-	Irg.rm_symbol "idx"
+	Irg.rm_symbol "idx"*)
 
 
 (** Generate the setter of a register value for a debugger.
@@ -373,9 +373,9 @@ let gen_reg_access name size typ attrs out attr make =
 	@param out		Output channel to use. *)
 let gen_reg_setter name size typ attrs out =
 	gen_reg_access name size typ attrs out "set"
-		(fun v -> Irg.SET (
-			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else Irg.REF "idx"), Irg.NONE, Irg.NONE),
-			Irg.REF v))
+		(fun v -> Irg.SET(
+			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDX", [])), Irg.NONE, Irg.NONE),
+			Irg.CONST (typ, Irg.STRING_CONST(Printf.sprintf "GLISS_%s" v, true, typ))))
 
 
 (** Generate the getter of a register value for a debugger.
@@ -386,9 +386,9 @@ let gen_reg_setter name size typ attrs out =
 	@param out		Output channel to use. *)
 let gen_reg_getter name size typ attrs out =
 	gen_reg_access name size typ attrs out "get"
-		(fun v -> Irg.SET (
-			Irg.LOC_REF (typ, v, Irg.NONE, Irg.NONE, Irg.NONE),
-			if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, Irg.REF "idx")))
+		(fun v -> Irg.CANON_STAT(
+			Printf.sprintf "GLISS_GET_%s" v,
+			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDEX", []))]))
 
 
 (** Get the label of a register bank.

@@ -442,9 +442,20 @@ let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 
 (* list of all defined canonical functions *)
 let canon_list = [
-			{name= UNKNOW;type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE};(* this is the "default" canonical function, used for unknown functions *)
-			(*{name=NAMED "sin";type_fun=CANON_FUNC;type_param=[FLOAT (24,8)];type_res=FLOAT (24,8)};*)
-			{name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE}
+			(* this is the "default" canonical function, used for unknown functions *)
+			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE };
+			{ name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE };
+			
+			(* for debugging generation *)
+			{name=NAMED "GLISS_IDX"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(32); };
+			{name=NAMED "GLISS_I"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(32); };
+			{name=NAMED "GLISS_L"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(64); };
+			{name=NAMED "GLISS_F"; type_fun=CANON_CNST; type_param=[]; type_res=FLOAT(23, 9); };
+			{name=NAMED "GLISS_D"; type_fun=CANON_CNST; type_param=[]; type_res=FLOAT(52, 12); };
+			{name=NAMED "GLISS_GET_I"; type_fun=CANON_FUNC; type_param=[CARD(32)]; type_res=NO_TYPE; };			
+			{name=NAMED "GLISS_GET_L"; type_fun=CANON_FUNC; type_param=[CARD(65)]; type_res=NO_TYPE; };			
+			{name=NAMED "GLISS_GET_F"; type_fun=CANON_FUNC; type_param=[FLOAT(23, 9)]; type_res=NO_TYPE; };			
+			{name=NAMED "GLISS_GET_D"; type_fun=CANON_FUNC; type_param=[FLOAT(52, 12)]; type_res=NO_TYPE; };			
 		 ]
 
 (* we add all the defined canonical functions to the canonical functions space *)

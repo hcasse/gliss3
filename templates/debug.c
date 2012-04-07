@@ -3,11 +3,17 @@
 #include <assert.h>
 #include <$(proc)/debug.h>
 #include <$(proc)/macros.h>
+#include <$(proc)/grt.h>
 
-#define GLISS_I		r.iv
-#define GLISS_L		r.lv
-#define GLISS_F		r.fv
-#define GLISS_D		r.dv
+#define GLISS_IDX		idx
+#define GLISS_I			r.iv
+#define GLISS_L			r.lv
+#define GLISS_F			r.fv
+#define GLISS_D			r.dv
+#define GLISS_GET_I(a)	r.iv = a
+#define GLISS_GET_L(a)	r.lv = a
+#define GLISS_GET_F(a)	r.fv = a
+#define GLISS_GET_D(a)	r.dv = a
 
 static register_bank_t $(proc)_registers[] = {
 $(foreach registers)$(if is_debug)
@@ -44,9 +50,9 @@ register_value_t $(proc)_get_register($(proc)_state_t *state, int id, int idx) {
 	register_value_t r;
 	switch(id) {
 $(foreach registers)$(if is_debug)
-	case $(id):
-		$(get)
-		break;
+	case $(id): {
+			$(get)
+		} break;
 $(end)$(end)
 	default:
 		assert(0);
@@ -65,9 +71,9 @@ $(end)$(end)
 void $(proc)_set_register($(proc)_state_t *state, int id, int idx, register_value_t r) {
 	switch(id) {
 $(foreach registers)$(if is_debug)
-	case $(id):
-		$(set)
-		break;
+	case $(id): {
+			$(set)
+		} break;
 $(end)$(end)
 	default:
 		assert(0);

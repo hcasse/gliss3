@@ -233,16 +233,24 @@ by the register number;
   ? ''get'' : to read a register, a simple indexed access is made on the bank; with this attribute, the read may be customized (see below);
   ? ''set'' : to write a register, a simple indexed access is made on the bank; with this attribute, the write may be customized (see below);
 
-''get'' and ''set'' attributes, to be effective, must be perform an access to a specific variable
-to, respectively, read or write the register. The variable name depends on the type of the register:
-  ? ''GLISS_IV'' : for //card// or //int// register with at most 32-bits,
-  ? ''GLISS_LV'' : for //card// or //int// register with at most 64-bits,
-  ? ''GLISS_FV'' : for //float// register of 32-bits,
-  ? ''GLISS_DV'' : for //float// register of 64-bits.
+''get'' attributes, to be effective, must be perform a call to a specific canonical function
+to get the register value. The function name depends on the type of the register and its first argument
+is the index of the register in the bank and second the value of the register:
+  ? ''"GLISS_GET_I"'' : for //card// or //int// register with at most 32-bits,
+  ? ''"GLISS_GET_L"'' : for //card// or //int// register with at most 64-bits,
+  ? ''"GLISS_GET_F"'' : for //float// register of 32-bits,
+  ? ''"GLISS_GET_D"'' : for //float// register of 64-bits.
+
+''set'' attributes, to be effective, must be perform an access to a specific canonical variable
+write the register. The variable name depends on the type of the register:
+  ? ''"GLISS_I"'' : for //card// or //int// register with at most 32-bits,
+  ? ''"GLISS_L"'' : for //card// or //int// register with at most 64-bits,
+  ? ''"GLISS_F"'' : for //float// register of 32-bits,
+  ? ''"GLISS_D"'' : for //float// register of 64-bits.
 
 Therefore, a ''get'' operation must copy the register value in this variable while
 a ''set'' operation must modify the register with value contained in this register.
-For indexed register, a specific variable ''idx'' is available and contains the index
+For indexed register, a specific canonical variable ''"GLISS_IDX"'' is available and contains the index
 of the accessed register.
 
 
