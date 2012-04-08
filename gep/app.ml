@@ -365,6 +365,13 @@ let gen_reg_access name size typ attrs out attr make =
 	Irg.rm_symbol "idx"*)
 
 
+(** Make a canonic variable access.
+	@param t	Type of variable.
+	@param v	Name of the variable. *)
+let make_canon_var t v =
+	Irg.CONST (t, Irg.STRING_CONST(v, true, t))
+	
+
 (** Generate the setter of a register value for a debugger.
 	@param name		Name of the register.
 	@param size		Size of the register bank.
@@ -374,8 +381,9 @@ let gen_reg_access name size typ attrs out attr make =
 let gen_reg_setter name size typ attrs out =
 	gen_reg_access name size typ attrs out "set"
 		(fun v -> Irg.SET(
-			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDX", [])), Irg.NONE, Irg.NONE),
-			Irg.CONST (typ, Irg.STRING_CONST(Printf.sprintf "GLISS_%s" v, true, typ))))
+			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else make_canon_var typ "GLISS_IDX"), Irg.NONE, Irg.NONE),
+			make_canon_var typ (Printf.sprintf "GLISS_%s" v)
+		))
 
 
 (** Generate the getter of a register value for a debugger.
@@ -388,7 +396,7 @@ let gen_reg_getter name size typ attrs out =
 	gen_reg_access name size typ attrs out "get"
 		(fun v -> Irg.CANON_STAT(
 			Printf.sprintf "GLISS_GET_%s" v,
-			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDEX", []))]))
+			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
 
 
 (** Get the label of a register bank.
