@@ -150,6 +150,8 @@ let defined_attr inst id =
 	with Not_found -> false
 
 
+(** Shortcut for templater text output from a string.
+	f	Function to get string from. *)
 let out f = Templater.TEXT (fun out -> output_string out (f ()))
 
 
@@ -349,8 +351,6 @@ let gen_reg_access name size typ attrs out attr make =
 		if not (is_float typ)
 		then if s <= 32 then "I" else "L"
 		else if s <= 32 then "F" else "D" in
-	(*Irg.add_symbol v (Irg.CANON_DEF (v, Irg.CANON_CNST, typ, []));
-	Irg.add_symbol "idx" (Irg.CANON_DEF ("idx", Irg.CANON_CNST, Irg.CARD(32), []));*)
 	let attrs =
 		if Irg.attr_defined attr attrs then attrs else
 		(Irg.ATTR_STAT (attr, make v))::attrs in
@@ -360,9 +360,7 @@ let gen_reg_access name size typ attrs out attr make =
 	info.Toc.iname <- "";
 	Irg.attr_stack attrs;
 	Toc.gen_action info attr;
-	Irg.attr_unstack attrs(*;
-	Irg.rm_symbol v;
-	Irg.rm_symbol "idx"*)
+	Irg.attr_unstack attrs
 
 
 (** Generate the setter of a register value for a debugger.
@@ -456,6 +454,47 @@ let get_memory f dict key sym =
 	| _ -> ()
 
 
+(** Manage the list of exceptions.
+	@param f	Function to iterate on.
+	@param dict	Current dictionary. *)
+let list_exceptions f dict =
+
+	let is_irq attrs =
+		if Irg.attr_defined "is_irq" attrs then "1" else "0" in
+
+	let gen_action attrs out =
+		let info =  Toc.info () in
+		info.Toc.out <- out;
+		info.Toc.inst <- (Irg.AND_OP ("exception", [], attrs));
+		info.Toc.iname <- "";
+		Irg.attr_stack attrs;
+		Toc.gen_action info "action";
+		Irg.attr_unstack attrs in
+
+	let gen exn attrs =
+		f (
+			("name", out (fun _ -> exn)) ::
+			("is_irq", out (fun _ -> is_irq attrs)) ::
+			("action", Templater.TEXT (gen_action attrs)) ::
+			dict
+		) in
+
+	let rec process exn =
+		try
+			(match Irg.get_symbol exn with
+			| Irg.OR_OP (_, exns) -> List.iter process exns
+			| Irg.AND_OP (_, _, attrs) -> gen exn attrs
+			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn))
+		with Irg.Symbol_not_found n -> Toc.error (Printf.sprintf "exception %s is undefined" exn) in
+
+	try
+		(match Irg.get_symbol "exceptions" with
+		| Irg.OR_OP (_, exns) -> List.iter process exns
+		| _ -> ())
+	with Irg.Symbol_not_found _ -> ()
+
+
+
 let maker _ = {
 	get_params = (fun _ _ _ _ dict -> dict);
 	get_instruction = (fun _ dict -> dict);
@@ -522,6 +561,7 @@ let make_env info maker =
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
 	("SOURCE_PATH", out (fun _ -> info.Toc.spath)) ::
 	("INCLUDE_PATH", out (fun _ -> info.Toc.ipath)) ::
+	("exceptions", Templater.COLL (fun f dict -> list_exceptions f dict)) ::
 	[]
 
 

@@ -79,3 +79,27 @@ $(end)$(end)
 		assert(0);
 	}
 }
+
+
+/* handle of exceptions */
+$(foreach exceptions)
+void handle_$(name)($(proc)_state_t *state) {
+	$(action)
+}
+$(end)
+
+/* list of exceptions */
+static $(proc)_exception_t exceptions[] = {
+$(foreach exceptions)	{ "$(name)", handle_$(name), $(is_irq) },
+$(end)	{ 0, 0, 0 }
+};
+
+
+/**
+ * Get the list of exceptions.
+ * @return	List of exceptions ended by an item whose name is null.
+ */
+$(proc)_exception_t *$(proc)_exceptions(void) {
+	return exceptions;
+}
+

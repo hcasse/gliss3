@@ -214,6 +214,8 @@ op THUMB_instr = ... // (tree of ARM instructions)
 Basicallt, the //debug// modules provides an API to get mainly the list
 of registers of an ISA.
 
+==== Register Access ====
+
 In addition, the way this information is generated may be customized
 according to the different needs. Basically, all registers of the ISA are included
 in the debugging information. This behaviour may be switched by defining a constant
@@ -253,4 +255,60 @@ a ''set'' operation must modify the register with value contained in this regist
 For indexed register, a specific canonical variable ''"GLISS_IDX"'' is available and contains the index
 of the accessed register.
 
+==== Exception Handling ====
 
+In addition to register access, this API provides a way to easily implements semantics
+of exception. The set of possible exceptions is defined as AND op nodes children
+of an OR op node called ''exception''. The AND op nodes must take no parameters but the following
+attributes are allowed:
+  ? is_irq : if defined, the exception is an interrupt
+  ? action : a statement attribute representing the semantics of the exception raise
+
+As a kind of example, the code below shows the definition of some exception of the ARMv5T:
+<code>
+op exceptions = IRQ | FIQ | ABT
+
+op IRQ()
+	action = {
+		SetSPSR(Ucpsr);
+		MBITS = mode_irq;
+		IFLAG = 1;
+		Set_ARM_GPR(14, PC + 4);
+		PC = 0x18;
+	}
+	is_irq = 1
+
+op FIQ()
+	action = {
+		SetSPSR(Ucpsr);
+		MBITS = mode_fiq;
+		IFLAG = 1;
+		Set_ARM_GPR(14, PC + 4);
+		PC = 0x1C;
+	}
+	is_irq = 1
+
+op ABT()
+	action = {
+		SetSPSR(Ucpsr);
+		MBITS = mode_abt;
+		Set_ARM_GPR(14, PC + 4);
+		PC = 0x0C;
+	}
+</code>
+
+The exceptions definitions are described by the structure below:
+<code c>
+typedef struct PROC_exception_t {
+	const char *name;
+	void (*fun)(PROC_state_t *state);
+	int is_irq;
+} PROC_exception_t;
+</code>
+
+  ? name : name string of the exception,
+  ? fun : function launching the action of the exception,
+  ? is_irq : non-zero if the ''is_irq'' attribute is defined.
+
+The function ''PROC_exceptions()'' get the array exceptions ended by a descriptor
+with a null-name.

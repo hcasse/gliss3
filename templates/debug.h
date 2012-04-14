@@ -42,15 +42,25 @@ typedef union {
 	double dv;
 } register_value_t;
 
+/* IRQ functions */
+typedef struct $(proc)_exception_t {
+	const char *name;
+	void (*fun)($(proc)_state_t *state);
+	int is_irq;
+} $(proc)_exception_t;
+	
+
 /* functions */
 register_bank_t *$(proc)_get_registers(void);
 register_value_t $(proc)_get_register($(proc)_state_t *state, int id, int index);
 void $(proc)_set_register($(proc)_state_t *state, int id, int index, register_value_t value);
+$(proc)_exception_t *$(proc)_exceptions(void);
 
 /* macros avoiding customisation in debugger */
 #define debug_get_registers()				$(proc)_get_registers()
 #define debug_get_register(s, id, idx)		$(proc)_get_register(s, id, idx)
 #define debug_set_register(s, id, idx, v)	$(proc)_set_register(s, id, idx, v)
+#define debug_exceptions					$(proc)_exceptions()
 
 __END_DECLS
 
