@@ -21,6 +21,35 @@
 
 open Irg
 
+
+(** Check that all OR-operation are defined.
+	@raise Irg.Error	If an error is found. *)
+let check_or_ops _ =
+	let check name op =
+		match get_symbol op with
+		| Irg.UNDEF -> Irg.error (Printf.sprintf "symbol \"%s\" used in op \"%s\" at %s is not defined" op name (Irg.pos_of name))
+		| Irg.AND_OP _ | Irg.OR_OP _ -> ()
+		| _ -> Irg.error (Printf.sprintf "op \"%s\" used in \"%s\" at %s should be an op" op name (Irg.pos_of name)) in
+	Irg.iter (fun name spec ->
+		match spec with
+		| Irg.OR_OP (_, ops) -> List.iter (check name) ops
+		| _ -> ())
+
+
+(** Check that all OR-mode are defined.
+	@raise Irg.Error	If an error is found. *)
+let check_or_modes _ =
+	let check name mode =
+		match get_symbol mode with
+		| Irg.UNDEF -> Irg.error (Printf.sprintf "symbol \"%s\" used in mode \"%s\" at %s is not defined" mode name (Irg.pos_of name))
+		| Irg.OR_MODE _ | Irg.AND_MODE _ -> ()
+		| _ -> Irg.error (Printf.sprintf "symbol \"%s\" used in \"%s\" at %s should be a mode" mode name (Irg.pos_of name)) in
+	Irg.iter (fun name spec ->
+		match spec with
+		| Irg.OR_MODE (_, modes) -> List.iter (check name) modes
+		| _ -> ())
+
+
 (** Load an NML description either NMP, NML or IRG.
 	@param 	path		Path of the file to read from.
 	@raise	Sys_error	If there is an error during the read. *)
@@ -31,7 +60,9 @@ let load path =
 		Lexer.line := 1;
 		Lexer.line_offset := 0;
 		Lexer.lexbuf := lexbuf;
-		Parser.top Lexer.main lexbuf in		
+		Parser.top Lexer.main lexbuf;
+		check_or_ops ();
+		check_or_modes () in		
 
 	(* is it an IRG file ? *)
 	if Filename.check_suffix path ".irg" then

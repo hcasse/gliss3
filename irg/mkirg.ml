@@ -51,6 +51,11 @@ let _ =
 	with
 	  Parsing.Parse_error ->
 		Lexer.display_error "syntax error"; exit 2
+	| Irg.Error f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n';
+		exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->

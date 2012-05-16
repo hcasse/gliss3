@@ -109,10 +109,22 @@ let _ =
 let get_col _ =
 	(Lexing.lexeme_start !lexbuf) - !line_offset + 1
 
-(** Error management
-	@param msg		Message to display. *)
-let display_error msg =
-	Printf.fprintf stderr "ERROR: %s:%d:%d: %s\n" !file !line (get_col ()) msg
+(** Output an error on the given stream with the current (file, line, column) position.
+	@param out	Output channel.
+	@param msg	Message to output. *)
+let output_error out msg =
+	Printf.fprintf out "ERROR: %s:%d:%d: %s\n" !file !line (get_col ()) msg
+
+
+(** Output an error with the current (file, line, column) position.
+	@param msg	Message to output. *)
+let display_error msg = output_error stderr msg
+
+
+(** Get the current location as a string.
+	@return	Current location string. *)
+let current_loc _ = Printf.sprintf "%s:%d:%d" !file !line (get_col ())
+
 
 (** warning management
 	@param msg		Message to display. *)

@@ -131,16 +131,6 @@ type attr_arg =
 	| ATTR_VAL of const
 
 
-(** A memory or register attribute. *)
-(*type mem_attr =
-	| VOLATILE of int					(** volatile attribute *)
-	| PORTS of int * int				(** ports attribute *)
-	| ALIAS of location					(** alias attribute *)
-	| INIT of const						(** init attribute *)
-	| USES (*of uses*)					(** use attribute (unsupported) *)
-	| NMP_ATTR of string * attr_arg list	(** generic memory attribute *)
-*)
-
 (** A statement in an action. *)
 type stat =
 	  NOP
@@ -232,6 +222,33 @@ end
 module StringHashtbl = Hashtbl.Make(HashString)
 
 
+(* Position *)
+
+type pos_type = {ident:string; file : string; line : int}
+
+(* This table is used to record the positions of the declaration of all symbols *)
+let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
+
+(** Add a symbol to the localisation table.
+	@param v_name	Name of the symbol to add.
+	@param v_file	Name of the file where the symbol is declared
+	@param v_line	Approximate line number of the declaration.
+*)
+let add_pos v_name v_file v_line =
+	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
+
+
+(** Return string identifying file and line definition of the given symbol.
+	@param sym	Required symbol.
+	@return		File and line information about the symbol. *)
+let pos_of sym =
+	try
+		let p = StringHashtbl.find pos_table sym in
+		Printf.sprintf "%s:%d" p.file p.line
+	with Not_found ->
+		"<no line>"
+
+
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 let _ =
@@ -241,17 +258,19 @@ let _ =
 
 exception Symbol_not_found of string
 
-(** Get the symbol matching the given name or UNDEF if not found.*)
+(** Get the symbol matching the given name or UNDEF if not found.
+	@param n	Symbol to look for.
+	@return		Symbol found or Irg.UNDEF (if not found). *)
 let get_symbol n =
 	try
 		StringHashtbl.find syms n
 	with Not_found ->
-		if n = "bit_order" then
+		(*if n = "bit_order" then*)
 			UNDEF
-		else
+		(*else*)
 		(* !!DEBUG!! *)
 		(*failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")*)
-		raise (Symbol_not_found(n))
+		(*raise (Symbol_not_found(n))*)
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
@@ -353,11 +372,10 @@ let add_symbol name sym =
 			s
 	in
 
-	if StringHashtbl.mem syms name
-	(* symbol already exists *)
-	then raise (RedefinedSymbol name)
-	(* add the symbol to the hashtable *)
-	else StringHashtbl.add syms name (translate_old_style_aliases sym)
+	(*if StringHashtbl.mem syms name
+	then raise (Error (fun out -> Printf.fprintf out "ERROR: %s: symbol %s already defined at %s" (Lexer.current_loc ()) name (pos_of name)))
+	else*) StringHashtbl.add syms name (translate_old_style_aliases sym)
+
 
 (**	Check if a given name is defined in the namespace
 		@param name	The name to check *)
@@ -492,33 +510,6 @@ let add_canon fun_name sym =
 	else CanonHashtbl.add canon_table name canon_def_sym
 
 (* --- end canonical functions --- *)
-
-
-(* Position *)
-
-type pos_type = {ident:string; file : string; line : int}
-
-(* This table is used to record the positions of the declaration of all symbols *)
-let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
-
-(** Add a symbol to the localisation table.
-	@param v_name	Name of the symbol to add.
-	@param v_file	Name of the file where the symbol is declared
-	@param v_line	Approximate line number of the declaration.
-*)
-let add_pos v_name v_file v_line =
-	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
-
-
-(** Return string identifying file and line definition of the given symbol.
-	@param sym	Required symbol.
-	@return		File and line information about the symbol. *)
-let pos_of sym =
-	try
-		let p = StringHashtbl.find pos_table sym in
-		Printf.sprintf "%s:%d" p.file p.line
-	with Not_found ->
-		"<no line>"
 
 
 (* --- display functions --- *)
@@ -1204,3 +1195,18 @@ let rec attr_stat id attrs def =
 	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
 	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
 	| _::tl -> attr_stat id tl def
+
+
+(** Apply the given functions to all specifications.
+	@param f	Function to apply. *)
+let iter f =
+	StringHashtbl.iter f syms
+
+
+(** Apply the given function to all specification and with the given data.
+	@param f	Function to apply.
+	@param d	Initial data.
+	@return 	Result data *)
+
+let fold f d =
+	StringHashtbl.fold f syms d

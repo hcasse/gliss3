@@ -585,7 +585,8 @@ let process file f opti =
 	| Irg.Error f ->
 		output_string stderr "ERROR: ";
 		f stderr;
-		output_char stderr '\n'
+		output_char stderr '\n';
+		exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
@@ -617,8 +618,6 @@ let process file f opti =
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
-	(*| Failure e ->
-		Lexer.display_error e; exit 3*)
 
 
 (** Find a source from "lib/"

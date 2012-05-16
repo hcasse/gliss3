@@ -138,6 +138,9 @@ top:
 	specs EOF		{ (*print_string "Start Symbol reduced, end of recognition\n########################\n"*) }
 ;
 
+LocatedID:
+	ID	{ Irg.add_pos $1 !Lexer.file !Lexer.line; $1 }
+
 specs :
 		MachineSpec		{   }
 	|	specs MachineSpec	{   }
@@ -145,12 +148,12 @@ specs :
 
 MachineSpec :
     LetDef 		{ Irg.add_symbol (fst $1) (snd $1) }
-|   TypeSpec 		{ Irg.add_symbol (fst $1) (snd $1) }
-|   MemorySpec		{ Irg.add_symbol (fst $1) (snd $1) }
-|   RegisterSpec	{ Irg.add_symbol (fst $1) (snd $1) }
-|   VarSpec			{ Irg.add_symbol (fst $1) (snd $1) }
-|   ModeSpec		{ Irg.add_symbol (fst $1) (snd $1); }
-|   OpSpec			{ Irg.add_symbol (fst $1) (snd $1); }
+|   TypeSpec 		{ Sem.add_spec (fst $1) (snd $1) }
+|   MemorySpec		{ Sem.add_spec (fst $1) (snd $1) }
+|   RegisterSpec	{ Sem.add_spec (fst $1) (snd $1) }
+|   VarSpec			{ Sem.add_spec (fst $1) (snd $1) }
+|   ModeSpec		{ Sem.add_spec (fst $1) (snd $1); }
+|   OpSpec			{ Sem.add_spec (fst $1) (snd $1); }
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 |	ExtendSpec		{ }
@@ -159,7 +162,7 @@ MachineSpec :
 
 
 LetDef	:
-	LET ID EQ LetExpr	{  Irg.add_pos ($2) !(Lexer.file) $1;($2, Irg.LET ($2, Sem.eval_const $4)) }
+	LET LocatedID EQ LetExpr	{  Irg.add_pos ($2) !(Lexer.file) $1;($2, Irg.LET ($2, Sem.eval_const $4)) }
 ;
 
 ResourceSpec:
@@ -172,13 +175,8 @@ ResourceList:
 ;
 
 Resource:
-	ID	{ 	Irg.add_symbol $1 (Irg.RES $1);
-			$1
-		}
-|	ID LBRACK CARD_CONST RBRACK	{
-						Irg.add_symbol $1 (Irg.RES $1);
-						$1
-					}
+	LocatedID							{ Irg.add_symbol $1 (Irg.RES $1); $1 }
+|	LocatedID LBRACK CARD_CONST RBRACK	{ Irg.add_symbol $1 (Irg.RES $1); $1 }
 ;
 
 CanonSpec:
@@ -219,7 +217,7 @@ IdentifierList:
 ;
 
 TypeSpec:
-	TYPE ID EQ TypeExpr	{
+	TYPE LocatedID EQ TypeExpr	{
 					Irg.add_pos $2 !(Lexer.file) $1;
 					Irg.complete_incomplete_enum_poss $2;	(* needed for enums *)
 					($2, Irg.TYPE ($2, $4))
@@ -276,7 +274,7 @@ LetExpr:
 ;
 
 MemorySpec:
-	MEM ID LBRACK MemPart RBRACK OptionalMemAttrDefList
+	MEM LocatedID LBRACK MemPart RBRACK OptionalMemAttrDefList
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
 			$2, Irg.MEM ($2, fst $4, snd $4, $6)
@@ -284,14 +282,14 @@ MemorySpec:
 ;
 
 RegisterSpec:
-	REG ID LBRACK RegPart RBRACK OptionalMemAttrDefList
+	REG LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
 			$2, Irg.REG ($2, fst $4, snd $4, $6) }
 ;
 
 VarSpec:
-	VAR ID LBRACK RegPart RBRACK
+	VAR LocatedID LBRACK RegPart RBRACK
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
 			$2, Irg.VAR ($2, fst $4, snd $4) }
@@ -355,14 +353,14 @@ MemLocBase:
 ;
 
 ModeSpec:
-	MODE ID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
+	MODE LocatedID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $7;
 			($2, Irg.AND_MODE ($2, $4, $6, $7))
 		}
-|	MODE ID EQ Identifier_Or_List
+|	MODE LocatedID EQ Identifier_Or_List
 		{
 			Irg.add_pos $2 !(Lexer.file) $1;
 			$2, Irg.OR_MODE ($2, $4)
@@ -377,13 +375,13 @@ OptionalModeExpr :
 ;
 
 OpSpec:
-	OP ID LPAREN ParamList RPAREN AttrDefList
+	OP LocatedID LPAREN ParamList RPAREN AttrDefList
 		{
 			Irg.param_unstack $4;
 			Irg.attr_unstack $6;			
 			($2, Irg.AND_OP ($2, $4, $6))
 		}
-|	OP ID EQ Identifier_Or_List
+|	OP LocatedID EQ Identifier_Or_List
 		{ $2, Irg.OR_OP ($2, $4) }
 
 ;
