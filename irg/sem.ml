@@ -1723,3 +1723,13 @@ let attr_int id attrs def =
 	let cst = eval_const e in
 	to_int cst
 
+
+(** Add a specification to the IRG representation.
+	@param name			Name of the specification.
+	@param spec			Specification to add.
+	@raise Irg.Error	If the symbol already exists. *)
+let add_spec name spec =
+	if Irg.is_defined name
+	then raise (Irg.Error (fun out -> Printf.fprintf out "%s: symbol %s already defined at %s" (Lexer.current_loc ()) name (pos_of name)))
+	else Irg.add_symbol name spec
+

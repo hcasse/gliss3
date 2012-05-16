@@ -526,17 +526,14 @@ this happens with the tricore processor for example.
 @raise	Bad_bit_image_order	when incorrectly defined
  *)
 let get_bit_image_order _ =
-	try
-		(match Irg.get_symbol "bit_image_order" with
-		| Irg.LET(_, c) ->
-			(match c with
-			| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
-			| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
-			)
-		| _ -> raise (Bad_bit_image_order "bit_image_order must be defined as a let, if defined.")
+	match Irg.get_symbol "bit_image_order" with
+	| Irg.UNDEF -> false
+	| Irg.LET(_, c) ->
+		(match c with
+		| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
+		| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
 		)
-	with
-	| Irg.Symbol_not_found _ -> false
+	| _ -> raise (Bad_bit_image_order "bit_image_order must be defined as a let, if defined.")
 
 
 (* return the length (in bits) of an argument whose param code (%8b e.g.) is given as a string *)

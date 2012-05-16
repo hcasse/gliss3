@@ -363,6 +363,13 @@ let gen_reg_access name size typ attrs out attr make =
 	Irg.attr_unstack attrs
 
 
+(** Make a canonic variable access.
+	@param t	Type of variable.
+	@param v	Name of the variable. *)
+let make_canon_var t v =
+	Irg.CONST (t, Irg.STRING_CONST(v, true, t))
+	
+
 (** Generate the setter of a register value for a debugger.
 	@param name		Name of the register.
 	@param size		Size of the register bank.
@@ -372,8 +379,9 @@ let gen_reg_access name size typ attrs out attr make =
 let gen_reg_setter name size typ attrs out =
 	gen_reg_access name size typ attrs out "set"
 		(fun v -> Irg.SET(
-			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDX", [])), Irg.NONE, Irg.NONE),
-			Irg.CONST (typ, Irg.STRING_CONST(Printf.sprintf "GLISS_%s" v, true, typ))))
+			Irg.LOC_REF (typ, name, (if size == 1 then Irg.NONE else make_canon_var typ "GLISS_IDX"), Irg.NONE, Irg.NONE),
+			make_canon_var typ (Printf.sprintf "GLISS_%s" v)
+		))
 
 
 (** Generate the getter of a register value for a debugger.
@@ -386,7 +394,7 @@ let gen_reg_getter name size typ attrs out =
 	gen_reg_access name size typ attrs out "get"
 		(fun v -> Irg.CANON_STAT(
 			Printf.sprintf "GLISS_GET_%s" v,
-			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, Irg.CANON_EXPR(Irg.CARD(32), "GLISS_IDEX", []))]))
+			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
 
 
 (** Get the label of a register bank.
@@ -617,7 +625,8 @@ let process file f opti =
 	| Irg.Error f ->
 		output_string stderr "ERROR: ";
 		f stderr;
-		output_char stderr '\n'
+		output_char stderr '\n';
+		exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
@@ -649,8 +658,6 @@ let process file f opti =
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
-	(*| Failure e ->
-		Lexer.display_error e; exit 3*)
 
 
 (** Find a source from "lib/"

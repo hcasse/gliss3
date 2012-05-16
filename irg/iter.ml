@@ -142,6 +142,22 @@ end
 module NameTable = IdMaker.Make(HashInst)
 
 
+(** Get a MUST expression attribute or raise an error.
+	@param inst		Instruction to get attribute from.
+	@param attr		Attribute to get. *)
+let must_expr_attr inst attr =
+	let error m =
+		match inst with
+		| Irg.AND_OP (name, _, _) ->
+			raise (Irg.Error (fun out -> Printf.fprintf out "%s: %s\n" (Irg.pos_of name) m))
+		| _ -> failwith "should be an AND_OP" in
+	try
+		(match get_attr inst "syntax" with
+		  EXPR(e) -> e
+		| _ -> error "syntax attribute should be an expression")
+	with Not_found -> error "no syntax attribute"
+
+
 (**
  * Get C identifier for the current instruction.
  * This name may be used to build other valid C names.
@@ -159,10 +175,7 @@ let get_name instr =
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
 		| _ -> failwith "unsupported operator in syntax" in
 
-
-	let syntax = match get_attr instr "syntax" with
-		  EXPR(e) -> to_string e
-		| _ -> failwith "syntax does not reduce to a string" in
+	let syntax = to_string (must_expr_attr instr "syntax") in
 	NameTable.make instr syntax
 
 
@@ -179,9 +192,10 @@ let get_user_id inst =
 				| _ -> "")
 		| Irg.ELINE(_, _, e) -> make e
 		| _ -> "" in
-	match get_attr inst "syntax" with
+	make (must_expr_attr inst "syntax")
+	(*match get_attr inst "syntax" with
 	| EXPR(e)	-> make e
-	| _			-> failwith "syntax does not reduce to a string"
+	| _			-> failwith "syntax does not reduce to a string"*)
 
 
 (** return the params (with their types) of an instruction specification
