@@ -39,5 +39,5 @@ void gliss_syscall(gliss_inst_t *inst, gliss_state_t *state) {
  * @param platform		Current platform.
  * @param address		Brk base address.
  */
-void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address) {
-}
+/*void gliss_set_brk(gliss_platform_t *pf, gliss_address_t address) {
+}*/
