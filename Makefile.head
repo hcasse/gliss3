@@ -57,6 +57,22 @@ export OCAML_SITE = $(LIB_DIR)/ocaml/site-lib/
 
 .PRECIOUS: %.mli
 
+
+# find the EXE extension
+UNAME=$(strip $(shell uname))
+ifeq ($(UNAME),Linux)
+EXE=
+else
+ifeq ($(UNAME),MINGW32_NT-5.1)
+EXE=.exe
+else
+ifeq ($(UNAME),MINGW32_NT-5.1)
+EXE=.exe
+endif
+endif
+endif
+
+
 # Source processing
 define ocaml_sources
 	$(patsubst %.mll,%.ml,$(patsubst %.mly,%.ml,$(1)))
@@ -150,7 +166,7 @@ endef
 # Program compilation
 define ocaml_byte_code_prog
 
-_ALL += $(1)
+_ALL += $(1)$(EXE)
 $(1)_MLO = $(call ocaml_sources,$(2))
 $(1)_CMO = $$(patsubst %.ml,%.cmo,$$($(1)_MLO))
 $(1)_MLLO = $$(filter %.mll,$(2))
@@ -158,7 +174,7 @@ $(1)_MLYO = $$(filter %.mly,$(2))
 _DEPS += $$(patsubst %.cmo,$(DEP_DIR)/%.d,$$($(1)_CMO)) \
 	 $$(patsubst %.mly,$(DEP_DIR)/%.mli.d,$$($(1)_MLYO))
 _PRE_DEPS += $$($(1)_MLO)
-_DIST_CLEAN += $(1)
+_DIST_CLEAN += $(1)$(EXE)
 _CLEAN += $$($(1)_CMO) \
 	$$(patsubst %.cmo,%.cmi,$$($(1)_CMO)) \
 	$$(patsubst %.mll,%.ml,$$($(1)_MLLO)) \
@@ -167,7 +183,7 @@ _CLEAN += $$($(1)_CMO) \
 _DIST += $(2)
 _BINARY_DIST += $(1)
 
-$(1): $$($(1)_CMO)
+$(1)$(EXE): $$($(1)_CMO)
 	$$(OCAMLC) $$($(1)_LDFLAGS) $$(OCAMLC_LDFLAGS) $$($(1)_LIBS:%=%.cma) $$(OCAML_LDFLAGS) -o $$@ $$($(1)_CMO) $$(OCAMLC_LIBS)
 
 $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
@@ -176,7 +192,7 @@ endef
 
 define ocaml_native_prog
 
-_ALL += $(1)
+_ALL += $(1)$(EXE)
 $(1)_MLX = $(call ocaml_sources,$(2))
 $(1)_CMX = $$(patsubst %.ml,%.cmx,$$($(1)_MLX))
 $(1)_MLLX = $$(filter %.mll,$(2))
@@ -184,7 +200,7 @@ $(1)_MLYX = $$(filter %.mly,$(2))
 _DEPS += $$(patsubst %.cmx,$(DEP_DIR)/%.d,$$($(1)_CMX)) \
 	 $$(patsubst %.mly,$(DEP_DIR)/%.mli.d,$$($(1)_MLYX))
 _PRE_DEPS += $$($(1)_MLX)
-_DIST_CLEAN += $(1)
+_DIST_CLEAN += $(1)$(EXE)
 _CLEAN += $$($(1)_CMX) \
 	$$(patsubst %.cmx,%.cmi,$$($(1)_CMX)) \
 	$$(patsubst %.cmx,%.o,$$($(1)_CMX)) \
@@ -194,7 +210,7 @@ _CLEAN += $$($(1)_CMX) \
 _DIST += $(2)
 _BINARY_DIST += $(1).cmxa $(1).a $(patsubst %.cmx,%.cmi,$$($(1)_CMX))
 
-$(1): $$($(1)_CMX)
+$(1)$(EXE): $$($(1)_CMX)
 	$$(OCAMLOPT) $$($(1)_LDFLAGS) $$(OCAMLOPT_LDFLAGS) $$(OCAML_LDFLAGS) -o $$@ $$($(1)_CMX) $$(OCAMLOPT_LIBS)
 
 $(if $(findstring no_install,$(3)),,$(call ocaml_install_bin,$(1)))
