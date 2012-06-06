@@ -590,33 +590,11 @@ let add_switch name value dict =
  * @param opti             set or unset instruction tree optimization (optirg) 
  *)
 let process file f opti =
-
-	(*let check _ =
-		Irg.StringHashtbl.iter
-			(fun n s -> match s with
-				| Irg.ATTR _ -> failwith "attribute !"
-				| _ -> ())
-			Irg.syms in*)
-
-	let find_irg_root_node _ =
-		let is_defined id =
-			try
-				match Irg.get_symbol id with
-				| _ -> true
-			with Irg.Symbol_not_found _ -> false
-		in
-		if is_defined "multi" then
-			"multi"
-		else if is_defined "instruction" then
-			"instruction"
-		else
-			raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
-	in
 	try
 		IrgUtil.load file;
 		(*check ();*)
 		if opti then
-			Optirg.optimize (find_irg_root_node ());
+			Optirg.optimize (Irg.get_root ());
 		let info = Toc.info () in
 		f info
 	with

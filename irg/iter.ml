@@ -315,15 +315,7 @@ let enumerate_instr_sets i_l =
 (** Get the list of instructions. If it has not been computed,
 	compute it. *)
 let get_insts _ =
-	let is_defined id =
-		try (ignore (Irg.get_symbol id); true)
-		with Irg.Symbol_not_found _ -> false in
-
-	let root_inst =
-		if is_defined "multi" then "multi"
-		else if is_defined "instruction" then "instruction"
-		else raise (Sys_error "you must define a root for your instruction tree\n \"instruction\" for a single ISA\n \"multi\" for a proc with several ISA (like ARM/THUMB)")
-	in
+	let root_inst = Irg.get_root () in
 
 	(* initialization *)
 	if !instr_set = [Irg.UNDEF] then

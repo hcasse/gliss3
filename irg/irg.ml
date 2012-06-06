@@ -1210,3 +1210,15 @@ let iter f =
 
 let fold f d =
 	StringHashtbl.fold f syms d
+
+
+(** Get the root node of the ISA.
+	@return			root name
+	@throw Error	If no root can be found. *)
+let get_root _ =
+	if is_defined "multi" then
+		"multi"
+	else if is_defined "instruction" then
+		"instruction"
+	else
+		raise (Error (fun out -> Printf.fprintf out "one of root node, \"instruction\" or \"multi\" must be defined !"))

@@ -354,12 +354,10 @@ let compile_regs inst stat out =
 	@param inst		Current instruction.
 	@param out		Stream to output to. *)
 let gen_used_regs inst out =
-	try
-		match Irg.get_symbol "used_regs" with
-		| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> compile_regs inst stat out
-		| _ -> raise (Toc.Error "when defined, used_regs attribute must contain statements")
-	with Irg.Symbol_not_found _ ->
-		extract_regs inst out
+	match Irg.get_symbol "used_regs" with
+	| Irg.UNDEF -> extract_regs inst out
+	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> compile_regs inst stat out
+	| _ -> raise (Toc.Error "when defined, used_regs attribute must contain statements")
 
 
 (** Build the instruction dictionary adding the definition of $(use_regs).
