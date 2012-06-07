@@ -60,16 +60,10 @@ export OCAML_SITE = $(LIB_DIR)/ocaml/site-lib/
 
 # find the EXE extension
 UNAME=$(strip $(shell uname))
-ifeq ($(UNAME),Linux)
+ifneq ($(filter MINGW%,$(UNAME)),)
+EXE=.exe
+else
 EXE=
-else
-ifneq ($(filter MINGW*,$(UNAME)),)
-EXE=.exe
-else
-ifeq ($(UNAME),MINGW32_NT-5.1)
-EXE=.exe
-endif
-endif
 endif
 
 
