@@ -1109,6 +1109,35 @@ begin
 end
 
 
+(** True if the current system is Windwos *)
+let is_windows = Sys.os_type = "Win32"
+
+
+(** File path separator *)
+let file_sep = if is_windows then "\\" else "/"
+
+
+(** Join a list of path components.
+	@param lst	List of path component.
+	@return		Joined list. *)
+let rec file_join lst =
+	match lst with
+	| [] -> ""
+	| [f] -> f
+	| f::t -> f ^ file_sep ^ (file_join t)
+
+
+(** Convert a Windows path to MingW path.
+	@param path		Windows path to convert.
+	@return			Path converted to MingW path. *)
+let file_to_mingw path =
+	let rec replace s =
+		if s = "" then "" else
+		((if s.[0] = '\\' then "/" else String.sub s 0 1)
+		^ (replace (String.sub s 1 ((String.length s) - 1)))) in
+	"/c/" ^ (replace (String.sub path 2 ((String.length path) - 2)))
+
+
 (**	Run nmp2nml on the given file.
 	@param file	File to run on.
 	@return		NMP output. *)
@@ -1116,9 +1145,9 @@ let run_nmp2nml file =
 
 	(* find the command *)
 	let cmd =
-		let cmd = Config.source_dir ^ "/gep/gliss-nmp2nml.pl" in
+		let cmd = file_join [Config.source_dir; "gep"; "gliss-nmp2nml.pl"] in
 		if Sys.file_exists cmd then cmd else
-		let cmd = Config.install_dir ^ "/bin/gliss-nmp2nml.pl" in
+		let cmd = file_join [Config.install_dir; "bin"; "gliss-nmp2nml.pl"] in
 		if Sys.file_exists cmd then cmd else
 		begin
 			Printf.fprintf stderr "ERROR: cannot find gliss-nmp2nml.pl to process %s\n" file;
@@ -1126,14 +1155,20 @@ let run_nmp2nml file =
 		end in
 
 	(* run it *)
-	Unix.open_process_in (Printf.sprintf "%s %s" cmd file)
+	let cmd =
+		if is_windows then
+			let cmd = "c:\\msys\\bin\\perl " ^ (file_to_mingw cmd) in
+			Printf.sprintf "%s %s" cmd file
+		else
+			Printf.sprintf "%s %s" cmd file in
+	Unix.open_process_in cmd
 
 
 (**	Save the current IRG definition to a file.
 	@param path			Path of the file to save to.
 	@raise	Sys_error	If there is an error during the write. *)
 let save path =
-	let out = open_out path in
+	let out = open_out_bin path in
 	Marshal.to_channel out (syms, pos_table) []
 
 
@@ -1141,7 +1176,7 @@ let save path =
 	@param 	path		Path of the file to read from.
 	@raise	Sys_error	If there is an error during the read. *)
 let load path =
-	let input = open_in path in
+	let input = open_in_bin path in
 	let (new_syms, new_pt) =
 		(Marshal.from_channel input :  spec StringHashtbl.t * pos_type StringHashtbl.t) in
 	StringHashtbl.clear syms;

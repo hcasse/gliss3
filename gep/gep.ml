@@ -575,7 +575,7 @@ let find_mod m =
 	let info_path = m.path ^ "/" ^ m.aname ^ ".info" in
 	if Sys.file_exists info_path then
 		try
-			read_lines (open_in info_path)
+			read_lines (open_in_bin info_path)
 		with End_of_file ->
 			()
 

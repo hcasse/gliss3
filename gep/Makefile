@@ -10,7 +10,6 @@ endif
 # libgep build
 LIBGEP_SOURCES=\
 	bitmask.ml \
-	config.ml \
 	toc.ml \
 	templater.mll \
 	app.ml \
@@ -57,13 +56,5 @@ USED_REGS_SOURCES = \
 gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/liboptirg libgep
 $(eval $(call ocaml_prog,gliss-used-regs,$(USED_REGS_SOURCES)))
 gliss-used-regs: ../irg/irg.cma libgep.cma
-
-
-# config build
-config.ml:
-	echo "let install_dir = \"$(PREFIX)\"" > config.ml
-	echo "let source_dir = \"$(PWD)/..\"" >> config.ml
-
-CLEAN += config.ml
 
 include ../Makefile.tail

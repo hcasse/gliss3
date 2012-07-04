@@ -23,7 +23,7 @@ LIB_SOURCES = \
 	node_classes.ml \
 	classfusion.ml \
 	optirg.ml 
-$(eval $(call ocaml_lib,liboptirg,$(LIB_SOURCES)))
+$(eval $(call ocaml_byte_code_lib,liboptirg,$(LIB_SOURCES)))
 
 
 # command

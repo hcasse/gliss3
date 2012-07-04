@@ -358,7 +358,7 @@ static int ElfReadHeader(int fd, Elf32_Ehdr *Ehdr){
 	lseek(fd, 0, SEEK_SET);
 	if(read(fd, Ehdr, sizeof(Elf32_Ehdr)) != sizeof(Elf32_Ehdr))
 		return -1;
-	if(bcmp(Ehdr->e_ident, ELFMAG, 4)) {
+	if(memcmp(Ehdr->e_ident, ELFMAG, 4)) {
 		errno = EBADF;
 		return -1;
 	}

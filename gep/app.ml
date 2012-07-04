@@ -69,8 +69,8 @@ let path_re = Str.regexp "gliss/"
 	@param in_file	Input file.
 	@param out_file	Output file. *)
 let replace_gliss info in_file out_file =
-	let in_stream = open_in in_file in
-	let out_stream = open_out out_file in
+	let in_stream = open_in_bin in_file in
+	let out_stream = open_out_bin out_file in
 	let lower = info.Toc.proc ^ "_" in
 	let upper = String.uppercase lower in
 	let rec trans _ =

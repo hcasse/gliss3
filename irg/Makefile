@@ -28,8 +28,17 @@ $(eval $(call ocaml_prog,mkirg,mkirg.ml))
 
 CLEAN += config.ml
 
+
+# generate config.ml
+ifndef WINDOWS
 config.ml:
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
 	echo "let source_dir = \"$(PWD)/..\"" >> config.ml
+else
+PWD = $(shell cmd.exe /c cd > pwd.txt; cat pwd.txt)
+config.ml:
+ 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
+	echo "let source_dir = \"$(subst \,\\\\,$(PWD))\\..\"" >> config.ml
+endif
 
 include ../Makefile.tail
