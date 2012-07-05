@@ -194,6 +194,6 @@ let generate_path dict in_path out_path =
 	@param template	Template name (take from SOURCE_DIRECTORY/templates)
 	@param out_path	Path of the output file. *)
 let generate dict template out_path =
-	generate_path dict (Config.source_dir ^ "/templates/" ^ template) out_path
+	generate_path dict (Irg.native_path (Config.source_dir ^ "/templates/" ^ template)) out_path
 }
 

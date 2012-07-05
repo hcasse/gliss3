@@ -552,11 +552,11 @@ let code_header_re = Str.regexp "^CODE_HEADER=\\(.*\\)"
 (** Find a module and set the path.
 	@param m	Module to find. *)
 let find_mod m =
-
 	let rec find_lib paths =
 		match paths with
 		| [] ->  raise (Sys_error ("cannot find module " ^ m.aname))
 		| path::tail ->
+			let path = Irg.native_path path in
 			let source_path = path ^ "/" ^ m.aname ^ ".c" in
 			if Sys.file_exists source_path then m.path <- path
 		else find_lib tail in

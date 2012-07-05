@@ -1113,29 +1113,27 @@ end
 let is_windows = Sys.os_type = "Win32"
 
 
-(** File path separator *)
-let file_sep = if is_windows then "\\" else "/"
+(** If needed, convert a MingW path to native path.
+	@param path		MingW path to convert.
+	@return			Path converted to native path. *)
+let native_path path =
+	let starts_with s1 s2 =
+		if (String.length s1) < (String.length s2) then false
+		else (String.sub s1 0 (String.length s2)) = s2 in
 
+	let head s n = String.sub s 0 n in
+	let tail s n = String.sub s n ((String.length s) - n) in
 
-(** Join a list of path components.
-	@param lst	List of path component.
-	@return		Joined list. *)
-let rec file_join lst =
-	match lst with
-	| [] -> ""
-	| [f] -> f
-	| f::t -> f ^ file_sep ^ (file_join t)
-
-
-(** Convert a Windows path to MingW path.
-	@param path		Windows path to convert.
-	@return			Path converted to MingW path. *)
-let file_to_mingw path =
 	let rec replace s =
 		if s = "" then "" else
-		((if s.[0] = '\\' then "/" else String.sub s 0 1)
-		^ (replace (String.sub s 1 ((String.length s) - 1)))) in
-	"/c/" ^ (replace (String.sub path 2 ((String.length path) - 2)))
+		(if starts_with s "/" then "\\" else head s 1)
+		^ (replace (tail s 1)) in
+	
+	if not is_windows then path else
+	let path =
+		if starts_with path "/c/" then "C:\\" ^ (tail path 3) else
+		path in
+	replace path
 
 
 (**	Run nmp2nml on the given file.
@@ -1145,10 +1143,10 @@ let run_nmp2nml file =
 
 	(* find the command *)
 	let cmd =
-		let cmd = file_join [Config.source_dir; "gep"; "gliss-nmp2nml.pl"] in
-		if Sys.file_exists cmd then cmd else
-		let cmd = file_join [Config.install_dir; "bin"; "gliss-nmp2nml.pl"] in
-		if Sys.file_exists cmd then cmd else
+		let cmd = Config.source_dir ^ "/gep/gliss-nmp2nml.pl" in
+		if Sys.file_exists (native_path cmd) then cmd else
+		let cmd = Config.install_dir ^ "/bin/gliss-nmp2nml.pl" in
+		if Sys.file_exists (native_path cmd) then cmd else
 		begin
 			Printf.fprintf stderr "ERROR: cannot find gliss-nmp2nml.pl to process %s\n" file;
 			exit 1
@@ -1157,7 +1155,7 @@ let run_nmp2nml file =
 	(* run it *)
 	let cmd =
 		if is_windows then
-			let cmd = "c:\\msys\\bin\\perl " ^ (file_to_mingw cmd) in
+			let cmd = "perl " ^ (native_path cmd) in
 			Printf.sprintf "%s %s" cmd file
 		else
 			Printf.sprintf "%s %s" cmd file in

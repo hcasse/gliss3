@@ -646,6 +646,7 @@ let rec find_lib source paths =
 	match paths with
 	| [] ->  raise Not_found
 	| path::tail ->
+		let path = Irg.native_path path in
 		let source_path = path ^ "/" ^ source in
 		if Sys.file_exists source_path then path
 		else find_lib source tail
