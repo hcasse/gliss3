@@ -996,6 +996,7 @@ Irg.print_expr expr; print_char '\n';*)
 	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2 prfx
 	| Irg.COERCE (typ, sube) -> coerce info typ sube expr prfx
 	| Irg.CANON_EXPR (_, name, args) ->
+		flush info.out;
 		Printf.fprintf info.out "%s(" name;
 		ignore (List.fold_left
 			(fun com arg -> if com then out ", "; gen_expr info arg prfx; true)
