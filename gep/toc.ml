@@ -1275,6 +1275,13 @@ and gen_cast info typ expr prfx =
 		gen_expr info expr prfx;
 		output_string info.out "))" in
 
+	let asis _ = gen_expr info expr prfx in
+	
+	let equal_zero _ =
+		Printf.fprintf info.out "(0 == (";
+		asis ();
+		Printf.fprintf info.out ")" in
+
 	match typ, etyp with
 	| Irg.FLOAT _, Irg.FLOAT _-> do_cast ()
 	| Irg.FLOAT _, _
@@ -1286,7 +1293,16 @@ and gen_cast info typ expr prfx =
 		output_char info.out ')'
 	| Irg.INT n, _
 	| Irg.CARD n, _ -> do_cast ()
-	| _ -> failwith "unsupported CAST"
+	| Irg.BOOL, Irg.CARD n when n <= 8 -> asis ()
+	| Irg.BOOL, Irg.INT n when n <= 8 -> asis ()
+	| Irg.CARD _, Irg.BOOL
+	| Irg.INT _, Irg.BOOL 
+		-> asis ()
+	| Irg.BOOL, Irg.CARD _
+	| Irg.BOOL, Irg.INT _
+		-> equal_zero ()
+	| _ ->
+		failwith "unsupported CAST"
 
 
 (** Generate code for a bit field.
