@@ -355,6 +355,7 @@ MemLocBase:
 ModeSpec:
 	MODE LocatedID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{
+			Sem.check_image $2 $4;
 			Irg.add_pos $2 !(Lexer.file) $1;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $7;

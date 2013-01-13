@@ -1654,7 +1654,6 @@ let add_spec name spec  =
 	@param params	List of parameters.
 	@raise SemError	If a parameter is not in the image. *)
 let check_image id params =
-	print_string "DEBUG: checking image parameters\n";
 
 	let e = get_data_expr_attr "image" in
 	let names = fst (List.split params) in
