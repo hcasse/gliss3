@@ -377,6 +377,7 @@ OptionalModeExpr :
 OpSpec:
 	OP LocatedID LPAREN ParamList RPAREN AttrDefList
 		{
+			Sem.check_image $2 $4;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $6;			
 			($2, Irg.AND_OP ($2, $4, $6))
@@ -539,13 +540,6 @@ FormatId:
 		{ }*/
 ;
 
-
-
-/* UNUSED */
-//OptBitSelect:
-//	/* empty */	{ }
-//|	BIT_LEFT CARD_CONST DOUBLE_DOT CARD_CONST BIT_RIGHT { }
-//;
 
 
 Sequence:

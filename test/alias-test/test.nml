@@ -80,10 +80,10 @@ type sflot     = float ( 31 , 9 )
 
 // 1.3.1 GEP registers
 
-reg PIA     [ 1 , s32 ]	__attr(ppc)
+reg PIA     [ 1 , s32 ]	ppc = 1
 
-reg CIA     [ 1 , s32 ]	__attr(pc)
-reg NIA     [ 1 , s32 ]	__attr(npc)
+reg CIA     [ 1 , s32 ]	pc = 1
+reg NIA     [ 1 , s32 ]	npc = 1
 
 // 1.3.2 UISA model registers
 

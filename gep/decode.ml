@@ -104,7 +104,6 @@ let get_mask_for_format_param s n =
 	let l = get_format_length s_cut in
 	Bitmask.BITMASK((String.make pos '0') ^ (String.make lf '1') ^ (String.make (l - pos - lf) '0'))
 
-
 (** return the mask for the nth param (counting from 0) of an instr of the given spec sp,
 	the result will be a string with only '0' or '1' chars representing the bits of the mask,
 	the params' order is the one given by the Iter.get_params method
@@ -148,14 +147,15 @@ let get_mask_for_param sp n =
 	let get_rank_of_named_param n =
 		let rec aux nn i p_l =
 			match p_l with
-			| [] -> failwith ("(Decode) can't find rank of param "^nn^" in the format params")
+			| [] ->
+				failwith "Decode.get_mask_for_param.get_rank_of_named_param" 
 			| a::b when nn = (get_name_of_param a) -> i
 			| a::b -> aux nn (i + 1) b in
 		aux n 0 frmt_params in
 
 	let rec get_i_th_param_name i l =
 		match l with
-		| [] -> failwith "(Decode) can't find name of i_th param of a spec"
+		| [] -> failwith (Printf.sprintf "(Decode) can't find name of i_th param of a spec %s" (Iter.get_user_id sp))
 		| a::b when i = 0 -> Irg.get_name_param a
 		| a::b -> get_i_th_param_name (i - 1) b in
 
@@ -255,18 +255,6 @@ let to_C_list mask =
 				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
 		in
 			aux false mask
-
-(* gets mask for idx-th param of the given inst *)
-let get_mask_decl inst idx =
-	let inst_info = get_instr_info inst in
-	let string_mask = get_mask_for_param inst idx in
-	let mask = Bitmask.to_int32_list string_mask in
-		if not inst_info.is_risc then
-			Printf.sprintf "static uint32_t tab_mask%d[%d] = {%8s}; /* %s */\n\tstatic mask_t mask%d = {tab_mask%d, %d};\n"
-				idx (List.length mask) (to_C_list mask) (Bitmask.to_string string_mask) idx idx (Bitmask.length string_mask)
-		else
-			failwith "shouldn't happen (decode.ml::get_mask_decl)"
-
 
 (** gets mask for idx-th param of the image format expr attr of the given inst
 	@param inst		Current instruction.

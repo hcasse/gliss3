@@ -1,0 +1,17 @@
+let proc = "test"
+let bit_order = "uppermost"
+let gliss_isize = "32"
+
+reg PC[1, card(32)] pc = 1
+mem M[32, card(8)]
+
+op instruction(x: all)
+  syntax = x.syntax
+  image = x.image
+  action = { x.action ; }
+  
+op all = i
+
+op i(a: card(8), b: card(8))
+	image = format("0000 0000 0000 0000 0000 0000 %8b", a)
+

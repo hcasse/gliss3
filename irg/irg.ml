@@ -1136,32 +1136,6 @@ let native_path path =
 	replace path
 
 
-(**	Run nmp2nml on the given file.
-	@param file	File to run on.
-	@return		NMP output. *)
-let run_nmp2nml file =
-
-	(* find the command *)
-	let cmd =
-		let cmd = Config.source_dir ^ "/gep/gliss-nmp2nml.pl" in
-		if Sys.file_exists (native_path cmd) then cmd else
-		let cmd = Config.install_dir ^ "/bin/gliss-nmp2nml.pl" in
-		if Sys.file_exists (native_path cmd) then cmd else
-		begin
-			Printf.fprintf stderr "ERROR: cannot find gliss-nmp2nml.pl to process %s\n" file;
-			exit 1
-		end in
-
-	(* run it *)
-	let cmd =
-		if is_windows then
-			let cmd = "perl " ^ (native_path cmd) in
-			Printf.sprintf "%s %s" cmd file
-		else
-			Printf.sprintf "%s %s" cmd file in
-	Unix.open_process_in cmd
-
-
 (**	Save the current IRG definition to a file.
 	@param path			Path of the file to save to.
 	@raise	Sys_error	If there is an error during the write. *)

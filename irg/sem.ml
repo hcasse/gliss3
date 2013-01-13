@@ -28,91 +28,6 @@ exception SemErrorWithFun of string * (unit -> unit)
 exception ManyDefaultsInSwitch
 
 
-
-
-(*
-transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
-into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
-before inserting the definition in the table
-*)
-(*let translate_old_style_aliases s =
-	let is_array nm =
-		match get_symbol nm with
-		MEM(_, i, _, _)
-		| REG(_, i, _, _)
-		| VAR(_, i, _) ->
-			i > 1
-		| _ ->
-			false
-	in
-	let get_type_length t =
-		match t with
-		| BOOL -> 1
-		| INT n -> n
-		| CARD n -> n
-		| FIX (n,m) -> n + m
-		| FLOAT (n,m) -> n + m
-		| ENUM l ->
-			let i = List.length l in
-			int_of_float (ceil ((log (float i)) /. (log 2.)))
-		| RANGE (_, m) ->
-			int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
-		| NO_TYPE
-		| STRING
-		| UNKNOW_TYPE ->
-			failwith "length unknown"
-	in
-	let b_o =
-		match get_symbol "bit_order" with
-		UNDEF -> true
-		| LET(_, STRING_CONST id) ->
-			if (String.uppercase id) = "UPPERMOST" then true
-			else if (String.uppercase id) = "LOWERMOST" then false
-			else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
-		| _ -> failwith "'bit_order' must be defined as a string let"
-	in
-	let rec change_alias_attr mem_attr_l n =
-		let t = CARD(32)
-		in
-		let const c =
-			CONST (t, CARD_CONST (Int32.of_int c))
-		in
-		let sub e1 e2 =
-			BINOP (t, SUB, e1, e2)
-		in
-		match mem_attr_l with
-		[] ->
-			[]
-		| a::b ->
-			(match a with
-			ALIAS l ->
-				(match l with
-				LOC_REF(typ, name, i, l, u) ->
-					if is_array name then
-						a::(change_alias_attr b n)
-					else
-						if l=NONE && u=NONE then
-							if b_o then
-								(ALIAS(LOC_REF(typ, name, NONE, i, sub i (sub (const n) (const 1)) (*i-(n-1)*))))::(change_alias_attr b n)
-							else
-								(ALIAS(LOC_REF(typ, name, NONE, sub i (sub (const n) (const 1)) (*i-(n-1)*), i)))::(change_alias_attr b n)
-						else
-							a::(change_alias_attr b n)
-				| _ ->
-					a::(change_alias_attr b n)
-				)
-			| _ ->
-				a::(change_alias_attr b n)
-			)
-	in
-	match s with
-	MEM(name, size, typ, m_a_l) ->
-		MEM(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
-	| REG(name, size, typ, m_a_l) ->
-		REG(name, size, typ, change_alias_attr m_a_l (get_type_length typ))
-	| _ ->
-			s
-*)
 (** False value. *)
 let false_const = (*Irg.*)CARD_CONST Int32.zero
 (** True value. *)
@@ -1598,10 +1513,10 @@ let test_data name indexed =
 	| _ -> raise (SemError (Printf.sprintf "the idenfifier \"%s\" does not design a data" name))
 
 
-(**	used to return the expression associated to an expr attr, UNDEF if no expression extractable
-	@param	name	Name of the attribute, it is supposed to have been stacked before
-	@return		if "name" is an expression attribute, return its expression,
-			if not, UNDEF is returned
+(**	Used to return the expression associated to an expr attr, Irg.NONE if no expression extractable
+	@param	name	Name of the attribute, it is supposed to have been stacked before.
+	@return			If "name" is an expression attribute, return its expression,
+					Else, Irg.NONE is returned
 *)
 let get_data_expr_attr name =
 	match Irg.get_symbol name with
@@ -1728,8 +1643,61 @@ let attr_int id attrs def =
 	@param name			Name of the specification.
 	@param spec			Specification to add.
 	@raise Irg.Error	If the symbol already exists. *)
-let add_spec name spec =
+let add_spec name spec  =
 	if Irg.is_defined name
 	then raise (Irg.Error (fun out -> Printf.fprintf out "%s: symbol %s already defined at %s" (Lexer.current_loc ()) name (pos_of name)))
 	else Irg.add_symbol name spec
+
+
+(** Check if the image contains references to all parameters.
+	@param id		Identifier of the specification item.
+	@param params	List of parameters.
+	@raise SemError	If a parameter is not in the image. *)
+let check_image id params =
+	print_string "DEBUG: checking image parameters\n";
+
+	let e = get_data_expr_attr "image" in
+	let names = fst (List.split params) in
+	
+	let rec make l =
+		match l with
+		| [] -> ""
+		| [n] -> n
+		| h::t -> h ^ ", " ^ (make t) in
+	
+	let rec remove n l =
+		match l with
+		| [] -> []
+		| h::t when h = n -> t
+		| h::t -> h::(remove n t) in
+	
+	let rec check l e =
+		match e with
+		| Irg.NONE
+		| Irg.CONST _
+		| Irg.EINLINE _
+			-> l
+		| Irg.COERCE (_, e)
+		| Irg.BITFIELD (_, e, _, _)
+		| Irg.UNOP (_, _, e)
+		| Irg.ELINE (_, _, e)
+		| Irg.CAST (_, e)
+			-> check l e
+		| Irg.FORMAT (_, es)
+		| Irg.CANON_EXPR (_, _, es)
+			-> List.fold_left (fun l e -> check l e) l es
+		| Irg.REF n
+		| Irg.FIELDOF (_, n, _)
+		| Irg.ITEMOF (_, n, _)
+			 -> remove n l
+		| Irg.BINOP (_, _, e1, e2)
+			-> check (check l e1) e2
+		| Irg.IF_EXPR (_, e1, e2, e3)
+			-> check (check (check l e1) e2) e3
+		| Irg.SWITCH_EXPR (_, e, es, d)
+			-> List.fold_left (fun l (_, e) -> check l e) (check (check l e) d) es in
+	
+	let r = check names e in
+	if r = [] then ()
+	else raise (SemError (Printf.sprintf "parameters %s of %s are not used in the image" (make r) id))
 
