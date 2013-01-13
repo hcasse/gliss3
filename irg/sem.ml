@@ -1700,3 +1700,11 @@ let check_image id params =
 	if r = [] then ()
 	else raise (SemError (Printf.sprintf "parameters %s of %s are not used in the image" (make r) id))
 
+
+(** Check if the given parameter is already declared.
+	@param name			Name to test.
+	@raise SemError		If the parameter already exists. *)
+let check_param_exists name =
+	match Irg.get_symbol name with
+	| Irg.PARAM _ -> raise (SemError (Printf.sprintf "parameter %s declared twice." name))
+	| _ -> ()

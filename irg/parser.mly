@@ -440,7 +440,7 @@ ParamList:
 ;
 
 ParamListPart:
-	ID COLON ParaType 			{ ($1, $3) }
+	ID COLON ParaType 				{ Sem.check_param_exists $1; ($1, $3) }
 ;
 
 ParaType:
