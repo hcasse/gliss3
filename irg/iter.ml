@@ -107,6 +107,7 @@ let get_id instr =
 (** return an attr from an instruction or mode specification
 	@param instr		spec of the instrution or the mode
 	@param name			name of the attr to return.
+	@return				Found attribute.
 	@raise Not_found	If the attribute cannot be found. *)
 let get_attr instr name =
 	let rec search_attr_in_list n a_l =

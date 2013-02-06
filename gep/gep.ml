@@ -498,19 +498,23 @@ let make_env info =
 	("gen_init_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			let spec_init = Irg.get_symbol "init" in
-			let init_action_attr =
-				match Iter.get_attr spec_init "action" with
-				| Iter.STAT(s) -> Irg.ATTR_STAT("action", s)
-				| _ -> failwith "(gep.ml::make_env::$(gen_init_code)) attr action for op init must be a stat"
-			in
-			info.Toc.out <- out;
-			info.Toc.inst <- spec_init;
-			info.Toc.iname <- "init";
-			(* stack params (none) and attrs (only action) for "init" op *)
-			Irg.attr_stack [init_action_attr];
-			let _ = Toc.get_stat_attr "action" in
-			Toc.gen_action info "action";
-			Irg.attr_unstack [init_action_attr])) ::
+			match spec_init with
+			| Irg.UNDEF -> ()
+			| Irg.AND_OP _ ->
+				let init_action_attr =
+					match Iter.get_attr spec_init "action" with
+					| Iter.STAT(s) -> Irg.ATTR_STAT("action", s)
+					| _ -> failwith "(gep.ml::make_env::$(gen_init_code)) attr action for op init must be a stat"
+				in
+				info.Toc.out <- out;
+				info.Toc.inst <- spec_init;
+				info.Toc.iname <- "init";
+				(* stack params (none) and attrs (only action) for "init" op *)
+				Irg.attr_stack [init_action_attr];
+				let _ = Toc.get_stat_attr "action" in
+				Toc.gen_action info "action";
+				Irg.attr_unstack [init_action_attr]
+			| _ -> Printf.fprintf stderr "WARNING: the symbold should be an AND-op\n")) ::
 	("gen_pc_incr_unknown", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;

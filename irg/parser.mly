@@ -24,12 +24,17 @@
 let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 let line s = Irg.LINE (!(Lexer.file), !(Lexer.line), s)
 
+
+(** Get information to extend the symbol x.
+	@param x				Name of the symbol to extend (must an AND-op or an AND-mode).
+	@return					(specification of the symbol, list of parameters, list of attributes)
+	@raise Irg.IrgError		If the symbol is not extensible. *)
 let get_spec_extend x =
 	let sym = Irg.get_symbol x in
 	match sym with
-	| Irg.AND_MODE (_, pars, _, _)
-	| Irg.AND_OP (_, pars, _) ->
-		(sym, pars)
+	| Irg.AND_MODE (_, pars, _, attrs)
+	| Irg.AND_OP (_, pars, attrs) ->
+		(sym, pars, attrs)
 	| Irg.UNDEF ->
 		raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" x))
 	| _ ->
@@ -45,6 +50,22 @@ let intersect_params pars1 pars2 : (string * Irg.typ) list =
 		(fun res par -> if List.mem par pars1 then par::res else res)
 		[]
 		pars2
+
+
+(** Intersect two list of attributes to provide a common context for
+	extending a list of symbols.
+	@param attrs1		First list of symbols.
+	@param attrs2		Second list of symbols.
+	@return				Intersection of both lists. *)
+let intersect_attrs attrs1 attrs2 =
+	let equal attr1 attr2 =
+		match (attr1, attr2) with
+		| (Irg.ATTR_EXPR (n1, _), Irg.ATTR_EXPR (n2, _))
+		| (Irg.ATTR_LOC (n1, _), Irg.ATTR_LOC (n2, _))
+		| (Irg.ATTR_STAT (n1, _), Irg.ATTR_STAT (n2, _)) when n1 = n2 -> true
+		| _ -> false in
+	let member_of attr attrs = List.exists (fun item -> equal attr item) attrs in
+	List.fold_left (fun res attr -> if member_of attr attrs2 then attr::res else res) [] attrs1
 
 %}
 
@@ -393,7 +414,7 @@ OpSpec:
 ExtendSpec:
 	ExtendHeader AttrDefList
 		{
-			let (syms, pars) = $1 in
+			let (syms, pars, cattrs) = $1 in
 			let extend_spec s =
 				match s with
 				| Irg.AND_MODE (id, pars, expr, attrs) ->
@@ -405,24 +426,25 @@ ExtendSpec:
 				| _ -> () in
 			Irg.param_unstack pars;
 			Irg.attr_unstack $2;
+			Irg.attr_unstack cattrs;
 			List.iter extend_spec syms
 		}
 ;
 
 
 ExtendHeader:
-	EXTEND ExtendIDList	{ Irg.param_stack (snd $2); $2 }
+	EXTEND ExtendIDList	{ let (_, pars, attrs) = $2 in Irg.attr_stack attrs; Irg.param_stack pars; $2 }
 ;
 
 
 ExtendIDList:
 	ID
-		{ let (sym, pars) = get_spec_extend $1 in ([sym], pars) }
+		{ let (sym, pars, attrs) = get_spec_extend $1 in ([sym], pars, attrs) }
 |	ExtendIDList COMMA ID
 		{
-			let (sym, spars) = get_spec_extend $3 in
-			let (syms, pars) = $1 in
-			(sym::syms, intersect_params pars spars)
+			let (sym, spars, sattrs) = get_spec_extend $3 in
+			let (syms, pars, attrs) = $1 in
+			(sym::syms, intersect_params pars spars, intersect_attrs sattrs attrs)
 		}
 ;
 /**/

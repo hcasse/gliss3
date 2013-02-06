@@ -14,25 +14,23 @@ exception Error of  (Irg.spec * string)
 			false otherwise
 *)
 let is_stat_attr_recursive sp name =
+
 	let get_attr sp n =
 		let rec aux al =
 			match al with
 			| [] ->
 				raise (Error (sp, (Printf.sprintf "attribute %s not found" name)))
 			| ATTR_STAT(nm, s)::t ->
-				if (String.compare nm n) == 0 then
-					s
-				else
-					aux t
+				if (String.compare nm n) == 0 then s else aux t
 			| _::t -> aux t
 		in
+
 		match sp with
-		| AND_OP(_, _, attrs) ->
-			aux attrs
-		| AND_MODE(_, _, _, a_l) ->
-			aux a_l
+		| AND_OP(_, _, attrs) -> aux attrs
+		| AND_MODE(_, _, _, a_l) -> aux a_l
 		| _ ->
-			failwith "shouldn't happen (instantiate.ml::is_stat_attr_recursive::get_attr)"
+			Irg.print_spec sp; print_string "\n";
+			failwith "PANIC: specification above should be an op !"
 	in
 	(* return true if there is a call to a stat attr whose name is str in the st stat,
 	we look for things like 'EVAL(str)' *)
@@ -646,25 +644,18 @@ let rec regexp_list_to_str_list l =
 	| Str.Delim(txt)::b -> txt::(regexp_list_to_str_list b)
 
 
-(**
-	cut a format expression string into format specifiers and simple text,
+(**	Cut a format expression string into format specifiers and simple text,
 	format specifiers are similar to those in C language,
 	syntax: %[width specifier]b|d|x|f | %s, %% is for printing '%' character
 	@param	l	the Str.split_result list to transform
 	@return		a list of delimiters (format specifiers) and text
 *)
-let string_to_regexp_list s =
+(*let string_to_regexp_list s =
 	let process_double_percent e =
 		match e with
-		Str.Text(t) ->
-			e
-		| Str.Delim(t) ->
-			if (String.compare t "%%") == 0 then
-				Str.Text("%%")
-			else
-				e
-	in
-	List.map process_double_percent (Str.full_split (Str.regexp "%[0-9]*[ldbxsfu]\\|%%") s)
+		| Str.Delim("%%") -> Str.Text("%%")
+		| _ -> e in
+	List.map process_double_percent (Str.full_split (Str.regexp "%[0-9]*[ldbxsfu]\\|%%") s)*)
 
 
 (**
@@ -685,41 +676,39 @@ let str_list_to_str l =
 *)
 let rec simplify_format_expr ex =
 	let rec insert_format f1 f_l p1 p_l =
+
 		match p1 with
 		| FORMAT(s, e_l) ->
 			(* reduce the format, check compatibility type between format and param later *)
-			let new_f1 = string_to_regexp_list s in
+			let new_f1 = Irg.split_format_string s in
 			let (a, b) = reduce f_l p_l in
 				(new_f1 @ a, e_l @ b)
 		| ELINE (file, line, expr) ->
 			insert_format f1 f_l expr p_l
 		| _ ->
-			let (a, b) = reduce f_l p_l in
-				(f1::a,  p1::b)
+			let (a, b) = reduce f_l p_l in (f1::a,  p1::b)
+
 	and reduce f params =
 		match f with
 		[] ->
-			if params = [] then
-				([], [])
+			if params = [] then ([], [])
 			else
-				failwith "too much params here (instantiate.ml::simplify_format_expr::reduce)"
+				(print_string "DEBUG: "; Irg.print_expr ex; print_string "\n";
+				failwith "too much params here (instantiate.ml::simplify_format_expr::reduce)")
 		| f1::f_l ->
-			(match f1 with
-			Str.Text(t) ->
-				(* simple text *)
+			match f1 with
+			| Str.Text(t) ->
 				let (a, b) = reduce f_l params
 				in
 					(f1::a, b)
 			| Str.Delim(t) ->
-				(* format *)
 				(match params with
 				| [] 		-> failwith "not enough params here (instantiate.ml::simplify_format_expr::reduce)"
-				| p1::p_l	-> insert_format f1 f_l p1 p_l)
-			)
-	in
+				| p1::p_l	-> insert_format f1 f_l p1 p_l) in
+
 	match ex with
 	| FORMAT(s, e_l) ->
-		let str_format = string_to_regexp_list s in
+		let str_format = Irg.split_format_string s in
 		let simpl_e_l = List.map simplify_format_expr e_l in
 		let (new_s, new_e_l) = reduce str_format simpl_e_l in
 			FORMAT((str_list_to_str (regexp_list_to_str_list new_s)), new_e_l)
@@ -746,102 +735,84 @@ let rec simplify_format_expr ex =
 	| _ -> ex
 
 
-(**
-	after instantiation and imbrication suppression in format expression, there still are
+(**	After instantiation and imbrication suppression in format expression, there still are
 	format with simple constants (eg. FORMAT("...%5b...", ..., 30, ...) ) which should be simplified (in the example -> FORMAT("...11110...", ...) )
 	this function try to simplify as many constants as it can in a format expression
 	@param	f	an expression (potential format expression) whose formats must be simplified
 	@return		the same expression with every format simplified, or the eaxct
-			same expression if no format is found
-*)
+				same expression if no format is found *)
 let rec remove_const_param_from_format f =
+
+	let result_to_str r =
+		match r with
+		| Str.Text t -> t
+		| Str.Delim t -> t in
+	
 	let get_length_from_format regexp =
 		let f =
 			match regexp with
-			Str.Delim(t) -> t
-			| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::get_length_from_format::f)"
-		in
+			| Str.Delim(t) -> t
+			| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::get_length_from_format::f)" in
 		let l = String.length f in
 		let new_f =
-			if l<=2 then
-			(* shouldn't happen, we should have only formats like %[0-9]*b, not %d or %f *)
-				"0"
-			else
-				String.sub f 1 (l-2)
-		in
-		Scanf.sscanf new_f "%d" (fun x->x)
-	in
+			if l <= 2 then "0"
+			else String.sub f 1 (l-2) in
+		Scanf.sscanf new_f "%d" (fun x->x) in
+
 	let rec int32_to_string01 i32 size accu =
-		let bit = Int32.logand i32 Int32.one
-		in
-		let res = (Int32.to_string bit) ^ accu
-		in
+		let bit = Int32.logand i32 Int32.one in
+		let res = (Int32.to_string bit) ^ accu in
 		if size > 0 then
 			int32_to_string01 (Int32.shift_right_logical i32 1) (size - 1) res
 		else
-			accu
-	in
+			accu in
+
 	let rec int64_to_string01 i64 size accu =
-		let bit = Int64.logand i64 Int64.one
-		in
-		let res = (Int64.to_string bit) ^ accu
-		in
+		let bit = Int64.logand i64 Int64.one in
+		let res = (Int64.to_string bit) ^ accu in
 		if size > 0 then
 			int64_to_string01 (Int64.shift_right_logical i64 1) (size - 1) res
 		else
-			accu
-	in
+			accu in
+
 	let is_string_format regexp =
 		match regexp with
-		Str.Delim(t) ->
-			(String.compare t "%s") == 0
-		| _ ->
-			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_string_format)"
-	in
+		| Str.Delim(t) -> Irg.is_text_format t
+		| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_string_format)" in
+
 	let is_integer_format regexp =
 		match regexp with
-		Str.Delim(t) ->
-			(String.compare t "%d") == 0
-		| _ ->
-			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_integer_format)"
-	in
+		| Str.Delim(t) -> Irg.is_int_format t
+		| _ -> failwith (Printf.sprintf "bad integer format: %s" (result_to_str regexp)) in
+
 	let is_binary_format regexp =
 		match regexp with
-		Str.Delim(t) ->
-			if (String.length t) <= 2 then
-				false
-			else
-				t.[(String.length t) - 1] = 'b'
-		| _ ->
-			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_binary_format)"
-	in
+		| Str.Delim(t) -> Irg.is_bin_format t
+		| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_binary_format)" in
+
 	let is_float_format regexp =
 		match regexp with
-		Str.Delim(t) ->
-			(String.compare t "%f") == 0
-		| _ ->
-			failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_float_format)"
-	in
+		| Str.Delim(t) -> Irg.is_float_format t
+		| _ -> failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::is_float_format)" in
+
 	let replace_const_param_in_format_string regexp param =
 		match param with
-		CONST(t, c) ->
+		| CONST(t, c) ->
 			(match c with
-			CARD_CONST(i) ->
+			| CARD_CONST(i) ->
 				if is_integer_format regexp then
 					Str.Text(Int32.to_string i)
+				else if is_binary_format regexp then
+					Str.Text(int32_to_string01 i (get_length_from_format regexp) "")
 				else
-					if is_binary_format regexp then
-						Str.Text(int32_to_string01 i (get_length_from_format regexp) "")
-					else
-						failwith "bad format, a 32 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+					failwith (Printf.sprintf "bad escape sequence for an integer: %s" (result_to_str regexp))
 			| CARD_CONST_64(i) ->
 				if is_integer_format regexp then
 					Str.Text(Int64.to_string i)
-				else
-					if is_binary_format regexp then
+				else if is_binary_format regexp then
 						Str.Text(int64_to_string01 i (get_length_from_format regexp) "")
-					else
-						failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+				else
+					failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| STRING_CONST(s, b, _) ->
 				if b then
 					regexp
@@ -851,76 +822,54 @@ let rec remove_const_param_from_format f =
 					failwith "bad format, a string constant can be displayed only with \"%s\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| FIXED_CONST(f) ->
 				if is_float_format regexp then
-					(* TODO: check if the output is compatible with C textual representation of floats *)
 					Str.Text(string_of_float f)
 				else
 					failwith "bad format, a float constant can be displayed only with \"%f\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
 			| NULL ->
-				(* wtf!? isn't that supposed to be an error ? in the doubt... let it through *)
 				regexp
 			)
 		| _ ->
-			regexp
-	in
+			regexp in
+
 	let replace_const_param_in_param regexp param =
 		match param with
-		CONST(t, c) ->
-			[]
-		| _ ->
-			[param]
-	in
+		| CONST(t, c) -> []
+		| _ -> [param] in
+
 	(* simplify the regexp list *)
 	let rec r_aux r_l p_l =
 		match r_l with
-		[] ->
-			[]
+		| [] -> []
 		| a::b ->
-			(match a with
-			Str.Text(t) ->
-				a::(r_aux b p_l)
+			match a with
+			| Str.Text(t) -> a::(r_aux b p_l)
 			| Str.Delim(d) ->
 				(match p_l with
-				[] ->
-					(* not enough params ! *)
-					failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::r_aux)"
-				| t::u ->
-					(replace_const_param_in_format_string a t)::(r_aux b u)
-				)
-			)
-	in
+				| [] -> (* not enough params ! *)
+						failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::r_aux)"
+				| t::u -> (replace_const_param_in_format_string a t)::(r_aux b u)) in
+
 	(* simplify the param list *)
 	let rec p_aux r_l p_l =
 		match r_l with
-		[] ->
-			if p_l = [] then
-				[]
-			else
-				(* not enough formats ! *)
-				failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
+		| [] ->
+			if p_l = [] then []
+			else (* not enough formats ! *) failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
 		| a::b ->
-			(match a with
-			Str.Text(t) ->
-				p_aux b p_l
+			match a with
+			| Str.Text(t) -> p_aux b p_l
 			| Str.Delim(d) ->
-				(match p_l with
-				[] ->
-					(* not enough params ! *)
-					failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
-				| t::u ->
-					(replace_const_param_in_param a t) @ (p_aux b u)
-				)
-			)
-	in
+				match p_l with
+				| [] -> (* not enough params ! *) failwith "shouldn't happen (instantiate.ml::remove_const_param_from_format::p_aux)"
+				| t::u -> (replace_const_param_in_param a t) @ (p_aux b u) in
+
 	match f with
 	| FORMAT(s, p) ->
-		let r_l = string_to_regexp_list s in
+		let r_l = Irg.split_format_string s in
 		let new_s = str_list_to_str (regexp_list_to_str_list (r_aux r_l p)) in
 		let new_p = p_aux r_l p in
-		if new_p = [] then
-			(* format with no arg => simplified into a string constant *)
-			CONST(STRING, STRING_CONST(new_s, false, NO_TYPE))
-		else
-			FORMAT(new_s, new_p)
+		if new_p = [] then CONST(STRING, STRING_CONST(new_s, false, NO_TYPE))
+		else FORMAT(new_s, new_p)
 	| COERCE(t_e, e) ->
 		COERCE(t_e, remove_const_param_from_format e)
 	| CANON_EXPR(t_e, s, e_l) ->
@@ -965,7 +914,8 @@ let rec instantiate_in_stat sta param_list =
 	[] ->
 		sta
 	| (name, TYPE_ID(t))::q ->
-		instantiate_in_stat (substitute_in_stat name (prefix_name_of_params_in_spec (get_symbol t) name) sta) q
+		let spec = prefix_name_of_params_in_spec (get_symbol t) name in
+		instantiate_in_stat (substitute_in_stat name spec sta) q
 	| (name, TYPE_EXPR(e))::q ->
 		instantiate_in_stat sta q
 

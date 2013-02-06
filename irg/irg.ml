@@ -1229,3 +1229,52 @@ let get_root _ =
 		"instruction"
 	else
 		raise (Error (fun out -> Printf.fprintf out "one of root node, \"instruction\" or \"multi\" must be defined !"))
+
+
+(* regex for format decoding *)
+let format_regex = Str.regexp (
+	  "%[0-9]*\\(h\\|l\\|hh\\|ll\\)?[dioxXu]\\|"	(* integer formats *)
+	^ "%[0-9]*\\(\\.[0-9]+\\)?L?[aAeEfFgG]\\|"		(* float formats *)
+	^ "%[0-9]*s\\|"									(* string format *)
+	^ "%[0-9]*b\\|"									(* binary format *)
+	^ "%%")											(* double percent *)
+
+
+(**	Cut a format expression string into format specifiers and simple text,
+	format specifiers are similar to those in C language,
+	syntax: %[width specifier]b|d|x|f | %s, %% is for printing '%' character
+	@param	l	the Str.split_result list to transform
+	@return		a list of delimiters (format specifiers) and text
+*)
+let split_format_string s =
+	let process_double_percent e =
+		match e with
+		| Str.Delim("%%") -> Str.Text("%%")
+		| _ -> e in
+	List.map process_double_percent (Str.full_split format_regex s)
+
+
+(** Test if the given format is an integer format.
+	@param s	Format string s to test (must start with '%' and be at least two characters long).
+	@return		True if it is an integer format, false else. *)
+let is_int_format s =
+	List.mem (s.[(String.length s) - 1]) ['d'; 'i'; 'o'; 'x'; 'X'; 'u']
+
+
+(** Test if the given format is a float format.
+	@param s	Format string s to test (must start with '%' and be at least two characters long).
+	@return		True if it is a float format, false else. *)
+let is_float_format s =
+	List.mem (s.[(String.length s) - 1]) ['a'; 'A'; 'e'; 'E'; 'f'; 'F'; 'g'; 'G']
+
+(** Test if the given format is a text format.
+	@param s	Format string s to test (must start with '%' and be at least two characters long).
+	@return		True if it is a text format, false else. *)
+let is_text_format s =
+	(s.[(String.length s) - 1]) = 's'
+
+(** Test if the given format is a binary format.
+	@param s	Format string s to test (must start with '%' and be at least two characters long).
+	@return		True if it is a binary format, false else. *)
+let is_bin_format s =
+	(s.[(String.length s) - 1]) = 'b'
