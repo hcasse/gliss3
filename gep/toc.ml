@@ -1190,7 +1190,7 @@ and coerce info t1 expr parent prfx =
 	let t2 = Sem.get_type_expr expr in
 	let t1c = convert_type t1 in
 	let t2c = convert_type t2 in
-	if t1 = t2 or t1c = t2c then asis () else
+	if t1 = t2 then asis () else
 
 	(* generation *)
 	let eq0 f _ =
@@ -1213,6 +1213,10 @@ and coerce info t1 expr parent prfx =
 		Printf.fprintf info.out "%s_check_enum(" info.proc;
 		f ();
 		Printf.fprintf info.out ", %d)" (List.length vals) in
+	let exts n f a =
+		Printf.fprintf info.out "__%s_EXTS(%d, " (String.uppercase info.proc) n;
+		f a;
+		Printf.fprintf info.out ")" in
 
 	(* special cases *)
 	match (t1, t2) with
@@ -1237,11 +1241,16 @@ and coerce info t1 expr parent prfx =
 
 	(* conversion to int *)
 	| Irg.INT n, Irg.INT _
-	| Irg.INT n, Irg.CARD _
 	| Irg.INT n, Irg.BOOL
 	| Irg.INT n, Irg.RANGE _
 	| Irg.INT n, Irg.ENUM _
 	| Irg.INT n, Irg.FLOAT _ -> cast asis ()
+	| Irg.INT n, Irg.CARD m ->
+		let cn = ctype_size t1c in
+		let cm = ctype_size t2c in
+		if n = m && cn = cm then cast asis () else
+		if n >= m then exts (cn - m) (cast asis) ()
+		else exts (cn - n) (cast asis) ()
 
 	(* conversion to float *)
 	| Irg.FLOAT (23, 9), _
