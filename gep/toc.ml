@@ -263,7 +263,7 @@ let type_size t =
 	| Irg.BOOL -> 1
 	| Irg.INT n -> n
 	| Irg.CARD n -> n
-	| Irg.FLOAT (n, m) -> n + m
+	| Irg.FLOAT (n, m) -> n + m + 1
 	| Irg.RANGE (_, m) ->
 		int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))
 	| Irg.UNKNOW_TYPE -> 32
@@ -639,8 +639,8 @@ let resolve_alias name idx ub lb =
 			(match typ with
 			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
 			| _ -> failwith "OUPS!\n")
-		| _ ->
-			failwith "bad alias" in
+		| s ->
+			failwith ("bad alias: " ^ r) in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	res
 
@@ -1527,54 +1527,36 @@ let rec gen_stat info stat =
 	@param up	Upper bound.
 	@param expr	Value to set. *)
 and set_field info typ id idx lo up expr =
+	if lo = Irg.NONE then expr else
 
 	let transform_expr sufx a b arg3 b_o =
 		let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o)) in
 		let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx) in
-		if lo = Irg.NONE then expr
-		else
-
-			Irg.CANON_EXPR (
-				typ,
-				Printf.sprintf "%s_set_field%s%s"
-					info.proc (type_to_mem (convert_type (Sem.get_type_expr e))) sufx,
-				if arg3 then
-				[	if idx = Irg.NONE then Irg.REF id
-					else Irg.ITEMOF (typ, id, idx);
-					expr;
-					a;
-					b;
-					e_bo
-				]
-				else
-				[	if idx = Irg.NONE then Irg.REF id
-					else Irg.ITEMOF (typ, id, idx);
-					expr;
-					a;
-					b
-				]
-			)
+		let tl = if arg3 then [e_bo] else [] in
+		Irg.CANON_EXPR (
+			typ,
+			Printf.sprintf "%s_set_field%s%s" info.proc (type_to_mem (convert_type typ)) sufx,
+			e :: expr :: a :: b :: tl
+		)
 	in
 
-	try
+	let need_ext up =
+		match typ with
+		| Irg.INT(n) ->
+			((type_size typ) - 1) = (Int32.to_int up)	(* i: int(n); i<n-1..0> = v *)
+			&& (n <> (ctype_size (convert_type typ)))	(* n <> ctype(int(n)) *)
+		| _ -> false in 
 
-		(* check constant bounds *)
-		(*Printf.printf "DEBUG: lo=";
-		Irg.print_expr lo;
-		Printf.printf ", up=";
-		Irg.print_expr up;
-		Printf.printf "\n";*)
+	try
 		let up, lo = if info.bito = UPPERMOST then lo, up else up, lo in
-		(*let up, lo = if info.bito = UPPERMOST then up, lo else lo, up in*)
 		let uc = Sem.to_int32 (Sem.eval_const up) in
 		let lc = Sem.to_int32 (Sem.eval_const lo) in
-		(*Printf.printf "DEBUG: lo=%ld up=%ld\n" uc lc;*)
 		let inv, up, lo = 
 			if (Int32.compare uc lc) >= 0 then "", up, lo
 			else "_inverted", lo, up in
-
-		(* generate ad-hoc field set *)
-		transform_expr inv up lo false 0
+		let e = transform_expr inv up lo false 0 in
+		if not (need_ext uc) then  e else
+		Irg.CANON_EXPR(typ, Printf.sprintf "%s_ext" info.proc, [e])
 
 	(* no constant bounds *)
 	with Sem.SemError _ ->

@@ -1,0 +1,35 @@
+/*
+ * The goal of this test is to check the automatic sign extension
+ * when last bit of an int value is modified using bitfied access.
+ */
+let proc = "test"
+let bit_order = "uppermost"
+let gliss_isize = "32"
+
+reg PC[1, card(32)] pc = 1
+mem M[32, card(8)]
+
+op instruction(x: all)
+  syntax = x.syntax
+  image = x.image
+  action = { x.action ; }
+  
+op all = i | j
+
+op i(bof: int(24))
+	image = format("0000 0000 %24b", bof)
+	syntax = format("bof %d", bof)
+	action = {
+		bof<23..0> = 0xff;	// should generare bit extension
+		bof<15..8> = 0xff;	// shouldn't
+	}
+
+op j(bof: card(24))
+	image = format("0000 0001 %24b", bof)
+	syntax = format("bif %d", bof)
+	action = {
+		bof<23..0> = 0xff;	// shouldn't
+	}
+
+
+

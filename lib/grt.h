@@ -51,6 +51,9 @@
 uint32_t gliss_f2bits(float f);
 uint64_t gliss_d2bits(double f);
 
+/* extensions */
+#define gliss_ext(cs, vs, v)	(((v) << (cs - vs)) >> (cs  - vs))
+
 /*	Notations :
  * - v  : value
  * - u  : uppermost (meaning the most significant bit)
