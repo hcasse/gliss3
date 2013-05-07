@@ -1554,11 +1554,11 @@ and set_field info typ id idx lo up expr =
 		let up, lo = if info.bito = UPPERMOST then lo, up else up, lo in
 		let uc = Sem.to_int32 (Sem.eval_const up) in
 		let lc = Sem.to_int32 (Sem.eval_const lo) in
-		let inv, up, lo = 
-			if (Int32.compare uc lc) >= 0 then "", up, lo
-			else "_inverted", lo, up in
+		let inv, up, lo, higher = 
+			if (Int32.compare uc lc) >= 0 then "", up, lo, uc
+			else "_inverted", lo, up, lc in
 		let e = transform_expr inv up lo false 0 in
-		if not (need_ext uc) then  e else
+		if not (need_ext higher) then  e else
 		Irg.CANON_EXPR(typ, Printf.sprintf "%s_ext" info.proc,
 			[make_int_const (ctype_size (convert_type typ)); make_int_const(type_size typ); e])
 

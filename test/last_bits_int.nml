@@ -20,8 +20,10 @@ op i(bof: int(24))
 	image = format("0000 0000 %24b", bof)
 	syntax = format("bof %d", bof)
 	action = {
-		bof<23..0> = 0xff;	// should generare bit extension
+		bof<23..0> = 0xff;	// should generare sign extension
 		bof<15..8> = 0xff;	// shouldn't
+		bof<0..23> = 0xff;	// should generare sign extension
+		bof<8..15> = 0xff;	// shouldn't
 	}
 
 op j(bof: card(24))
@@ -29,6 +31,7 @@ op j(bof: card(24))
 	syntax = format("bif %d", bof)
 	action = {
 		bof<23..0> = 0xff;	// shouldn't
+		bof<0..23> = 0xff;	// shouldn't
 	}
 
 
