@@ -39,11 +39,11 @@ $(end)
 /* decoder macros */
 $(if !is_multi_set)$(if is_RISC)
 #define __EXTRACT(mask, offset_mask, inst)	  ( (uint$(C_inst_size)_t)((inst) & (mask)) >> (offset_mask))
-#define __EXTS(mask, offset_mask, inst, n)    (((int$(C_inst_size)_t)__EXTRACT(mask, offset_mask, inst) << (n)) >> (n))
+#define __EXTS(mask, offset_mask, inst, n)    (((int$(C_inst_size)_t)__EXTRACT(mask, offset_mask, inst) << ($(C_inst_size) - n)) >> ($(C_inst_size) - n))
 $(else)
 /* CISC, decoded parameters should be 64 bit max */
 #define __EXTRACT(mask, inst)	extract_mask(inst, mask)
-#define __EXTS(mask, inst, n)	(((int64_t)__EXTRACT(mask, inst) << (n)) >> (n))
+#define __EXTS(mask, inst, n)	(((int64_t)__EXTRACT(mask, inst) << (64 - n)) >> (64 - n))
 $(end)$(end)
 $(if is_multi_set)
 $(foreach instr_sets_sizes)
