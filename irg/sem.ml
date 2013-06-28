@@ -1696,9 +1696,11 @@ let check_image id params =
 		| Irg.SWITCH_EXPR (_, e, es, d)
 			-> List.fold_left (fun l (_, e) -> check l e) (check (check l e) d) es in
 	
-	let r = check names e in
-	if r = [] then ()
-	else raise (SemError (Printf.sprintf "parameters %s of %s are not used in the image" (make r) id))
+	if e <> Irg.NONE then begin
+		let r = check names e in
+		if r = [] then ()
+		else raise (SemError (Printf.sprintf "parameters %s of %s are not used in the image" (make r) id))
+	end
 
 
 (** Check if the given parameter is already declared.
