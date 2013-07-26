@@ -967,7 +967,7 @@ static void update_callback_infos(gliss_memory_t *mem)
 		secondary_memory_hash_table_t *secondary_hash_table = mem->primary_hash_table[i];
 		if (secondary_hash_table) {
 			for (j = 0 ; j < SECONDARYMEMORY_HASH_TABLE_SIZE ; j++) {
-				memory_page_table_entry_t *pte = secondary_hash_table->pte[i];
+				memory_page_table_entry_t *pte = secondary_hash_table->pte[j];
 				if (pte) {
 					do {
 						/* get callback info for beginning of page, let's hope the whole page has the same callback function */
