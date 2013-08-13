@@ -234,8 +234,8 @@ void gliss_mem_delete(gliss_memory_t *memory) {
 			free(secondary_hash_table); /* freeing each secondary hash table */
 		}
 	}
-	free(mem64); /* freeing the primary hash table */
-	/* freeing callback infos */
+
+	/* free the callback list */
 	memory->callback_infos.ptr = 0;
 	gliss_callback_info_t *info_ptr = memory->callback_infos.ptr;
 	gliss_callback_info_t *next_ptr = 0;
@@ -245,6 +245,9 @@ void gliss_mem_delete(gliss_memory_t *memory) {
 		free(info_ptr);
 		info_ptr = next_ptr;
 	}
+
+	/* free the memory */
+	free(mem64); 	/* freeing the primary hash table */
 }
 
 
