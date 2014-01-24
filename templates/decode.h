@@ -9,7 +9,6 @@ extern  "C"
 {
 #endif
 
-
 #define $(PROC)_DECODE_STATE
 #define $(PROC)_DECODE_INIT(s)
 #define $(PROC)_DECODE_DESTROY(s)

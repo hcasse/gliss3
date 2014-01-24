@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <gliss/api.h>
 #include <gliss/loader.h>
 
@@ -149,33 +150,91 @@ void destroy_list(list_entry_t *m)
 	free(t1);
 }
 
+
+/**
+ * Called when the option parsing fails.
+ * @param msg	Formatted string of the message.
+ * @param ...	Free arguments.
+ */
+static void fail_with_help(const char *msg, ...) {
+	va_list args;
+	
+	/* display syntax */
+	fprintf(stderr, "SYNTAX: disasm ");
+	if(gliss_modes[0].name)
+		fprintf(stderr, "[-m MODE] ");
+	fprintf(stderr, "EXECUTABLE\n");
+	
+	/* display modes */
+	if(gliss_modes[0].name) {
+		int i, fst = 1;
+		fprintf(stderr, "MODE may be one of ");
+		for(i = 0; gliss_modes[i].name; i++) {
+			if(!fst)
+				fprintf(stderr, ", ");
+			else
+				fst = 0;
+			fputs(gliss_modes[i].name, stderr);
+		}
+		fprintf(stderr, "\n");
+	}
+	
+	/* display error message */
+	fprintf(stderr, "\nERROR: ");
+	va_start(args, msg);
+	vfprintf(stderr, msg, args);
+	va_end(args);
+	fprintf(stderr, "\n");
+	exit(1);
+}
+
+
+/**
+ * Disassembly entry point.
+ */
 int main(int argc, char **argv) {
 	gliss_platform_t *pf;
 	int s_it;
-	/*Elf32_Shdr *s;*/
 	gliss_loader_sect_t *s_tab;
 	int sym_it;
-	/*Elf32_Sym *sym;*/
 	int nb_sect_disasm = 0;
 	gliss_loader_t *loader;
-	int max_size = 0, i;
-
+	int max_size = 0, i, j;
+	char *exe_path = 0;
+	arm_inst_t *(*decode)(arm_decoder_t *decoder, arm_address_t address) = gliss_decode;
 
 	/* test arguments */
-	if(argc != 2) {
-		fprintf(stderr, "ERROR: one argument required: the simulated program !\n");
-		return 1;
+	for(i = 1; i < argc; i++) {
+		if(gliss_modes[0].name && strcmp(argv[i], "-m") == 0) {
+			i++;
+			if(i >= argc)
+				fail_with_help("no argument for -m option");
+			for(j = 0; gliss_modes[j].name; j++)
+				if(strcmp(argv[i], gliss_modes[j].name) == 0) {
+					decode = gliss_modes[j].decode;
+					break;
+				}
+			if(!gliss_modes[j].name)
+				fail_with_help("no mode named %s", argv[i]);
+		}
+		else if(argv[i][0] == '-')
+			fail_with_help("unknown option %s", argv[i]);
+		else if(exe_path)
+			fail_with_help("several executable paths given");
+		else
+			exe_path = argv[i];
 	}
+	if(!exe_path)
+		fail_with_help("no executable path given!");
 
 	/* we need a loader alone for sections */
-	loader = gliss_loader_open(argv[1]);
-	if (loader == NULL)
-	{
-		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", argv[1]);
+	loader = gliss_loader_open(exe_path);
+	if (loader == NULL) {
+		fprintf(stderr, "ERROR: cannot load the given executable : %s.\n", exe_path);
 		return 2;
 	}
 
-	printf("found %d sections in the executable %s\n", gliss_loader_count_sects(loader)-1, argv[1]);
+	printf("found %d sections in the executable %s\n", gliss_loader_count_sects(loader)-1, exe_path);
 	/*s_tab = (Elf32_Shdr*)malloc(gliss_loader_count_sects(loader) * sizeof(Elf32_Shdr));
 	s = gliss_loader_first_sect(loader, &s_it);
 	while (s_it >= 0)*/
@@ -193,7 +252,7 @@ int main(int argc, char **argv) {
 	}
 	printf("found %d sections to disasemble\n", nb_sect_disasm);
 
-	printf("\nfound %d symbols in the executable %s\n", gliss_loader_count_syms(loader)-1, argv[1]);
+	printf("\nfound %d symbols in the executable %s\n", gliss_loader_count_syms(loader)-1, exe_path);
 	list_entry_t *list_labels = 0;
 	/*sym = gliss_loader_first_sym(loader, &sym_it);*/
 	for(sym_it = 0; sym_it < gliss_loader_count_syms(loader); sym_it++)
@@ -246,7 +305,7 @@ int main(int argc, char **argv) {
 		while (adr_start < adr_end) {
 			int size;
 			char buff[100];
-			gliss_inst_t *inst = gliss_decode(d, adr_start);
+			gliss_inst_t *inst = decode(d, adr_start);
 			gliss_disasm(buff, inst);
 			/*uint32_t code = gliss_mem_read32(gliss_get_memory(pf, 0), adr_start);*/
 			const char *n;
