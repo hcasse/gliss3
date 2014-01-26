@@ -31,6 +31,8 @@ CLEAN += config.ml
 include ../Makefile.tail
 
 # generate config.ml
-config.ml:
+VERSION=$(shell cat ../VERSION)
+config.ml: ../VERSION
 	echo "let install_dir = \"$(PREFIX)\"" > config.ml
 	echo "let source_dir = \"$(CURDIR)/..\"" >> config.ml
+	echo "let version = \"$(VERSION)\"" >> config.ml
