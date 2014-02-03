@@ -149,7 +149,7 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 /* decoding */
 typedef struct $(proc)_mode_t {
 	const char *name;
-	arm_inst_t *(*decode)(arm_decoder_t *decoder, arm_address_t address);
+	$(proc)_inst_t *(*decode)($(proc)_decoder_t *decoder, $(proc)_address_t address);
 } $(proc)_mode_t;
 extern $(proc)_mode_t $(proc)_modes[];
 

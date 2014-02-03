@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
 	gliss_loader_t *loader;
 	int max_size = 0, i, j;
 	char *exe_path = 0;
-	arm_inst_t *(*decode)(arm_decoder_t *decoder, arm_address_t address) = gliss_decode;
+	gliss_inst_t *(*decode)(gliss_decoder_t *decoder, gliss_address_t address) = gliss_decode;
 
 	/* test arguments */
 	for(i = 1; i < argc; i++) {
