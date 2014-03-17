@@ -29,9 +29,10 @@
 #if !defined(__WIN32) && !defined(__WIN64)
 #	include <sys/resource.h>
 #endif
+/* New versions of MINGW does not seem to require this.
 #ifdef __MINGW32__
 void *alloca(size_t);
-#endif
+#endif*/
 #include <unistd.h>
 #include <gliss/api.h>
 #include <gliss/macros.h>
