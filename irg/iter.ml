@@ -268,18 +268,20 @@ let sort_instr_set instr_list stat_list =
 	List.sort (fun a b -> (get b) - (get a)) instr_list
 
 
-(** sort instr into instr sets if multi defined *)
+(** Sort instr into instr sets if multi defined.
+	@param i_l	List of instructions. *)
 let enumerate_instr_sets i_l =
+
 	let is_same_i_set sp1 sp2 =
 		let a1 = try get_attr sp1 "instruction_set_select" with | Not_found -> EXPR Irg.NONE in
 		let a2 = try get_attr sp2 "instruction_set_select" with | Not_found -> EXPR Irg.NONE in
-		a1 = a2
-	in
+		a1 = a2 in
+
 	let add_to_list l sp =
 		match l with
 		| [] -> []
-		| a::b -> if is_same_i_set a sp then sp::l else l
-	in
+		| a::b -> if is_same_i_set a sp then sp::l else l in
+
 	let sort_inst sp l =
 		match l with
 		| [] -> [[sp]]
@@ -289,32 +291,15 @@ let enumerate_instr_sets i_l =
 				(* we found an instr from a new instr set *)
 				[sp]::l
 			else
-				res)
-	in(*
-	let print_list l =
-		match l with
-		| [] -> print_string "[0] "
-		| a::b -> 
-			let cond =
-				try
-					(match (get_attr a "instruction_set_select") with
-					| EXPR(e) -> e
-					| _ -> failwith "should not happen ()")
-				with | Not_found -> Irg.NONE
-			in
-			Printf.printf "[%d, cond=" (List.length l);
-			Irg.print_expr cond;
-			print_string "]\n"
-	in*)
-	let res = List.fold_left (fun a sp -> sort_inst sp a) [] i_l
-	in
-	(*  !!DEBUG!!
-	print_string "[";List.iter print_list res;print_string "]\n"; *)
+				res) in
+
+	let res = List.fold_left (fun a sp -> sort_inst sp a) [] i_l in
 	multi_set := res
 
 
 (** Get the list of instructions. If it has not been computed,
-	compute it. *)
+	compute it.
+	@return	List of instructions. *)
 let get_insts _ =
 	let root_inst = Irg.get_root () in
 

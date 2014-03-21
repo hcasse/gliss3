@@ -216,6 +216,13 @@ let get_ninstruction info maker f dict nb_inst cpt i =
 
 exception BadCSize
 
+
+(** Build a dictionary for an instruction set.
+	@param maker	Current maker.
+	@param f		Function to apply on the dictionnary.
+	@param dict		Initial dictionnary.
+	@param i_set	Instruction set information.
+	@return			Dictionnary with instruction set variables. *)
 let get_instruction_set maker f dict i_set =
 	let min_size =
 		List.fold_left
@@ -303,16 +310,14 @@ let get_instruction_set maker f dict i_set =
 		(* as described in nmp attr "instruction_set_name" *)
 		("iset_name", Templater.TEXT (fun out ->
 			let spec_ = List.hd i_set in
-			let name_attr =
-				match Iter.get_attr spec_ "instruction_set_name" with
-				| Iter.EXPR(e) -> e
-				| _ -> failwith "(app.ml::get_instruction_set::$(name)) attr instruction_set_name must be an expr"
-			in
-			match name_attr with
-			(* name should be just a string *)
-			| (Irg.CONST(Irg.STRING, Irg.STRING_CONST(n, _, _))) ->
-				output_string out n
-			| _ -> failwith "(app.ml::get_instruction_set::$(name)) attr instruction_set_name must be a const string")) ::
+			let name = try
+					match Iter.get_attr spec_ "instruction_set_name" with
+					| Iter.EXPR((Irg.CONST(Irg.STRING, Irg.STRING_CONST(n, _, _)))) -> n
+					| _ -> raise (Toc.Error "attribute 'instruction_set_name' must be a constant string")
+				with Not_found ->
+					if (List.length !Iter.multi_set) > 1 then raise (Toc.Error "no attribute 'instruction_set_name'")
+					else Irg.get_proc_name () in
+			output_string out name)) ::
 		dict))
 
 

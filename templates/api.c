@@ -1029,7 +1029,9 @@ void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address) {
  * Null-name ended list, provides the list of available decoding modes.
  */
 $(proc)_mode_t $(proc)_modes[] = {
-$(foreach instruction_sets)
-	{ "$(iset_name)", $(proc)_decode_$(iset_name) },
-$(end){ 0, 0 }
+$(if is_multi_set)$(foreach instruction_sets)
+	{ "$(iset_name)", $(proc)_decode_$(iset_name) },$(end)
+$(else)
+	{ "$(proc)", $(proc)_decode },
+$(end)	{ 0, 0 }
 };
