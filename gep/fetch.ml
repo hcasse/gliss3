@@ -68,7 +68,10 @@ let rec spec_list_mask sp_list =
 type dec_tree = DecTree of Bitmask.bitmask list * Irg.spec list * Bitmask.bitmask * Bitmask.bitmask * dec_tree list
 
 
+(** Display the given declaration tree.
+	@param tr		Tree to display. *)
 let print_dec_tree tr =
+
 	let name_of t =
 		let rec aux l s =
 			match l with
@@ -76,12 +79,10 @@ let print_dec_tree tr =
 				s
 			| a::b ->
 				let sa = Bitmask.to_string a in
-				aux b (if (String.length s)=0 then sa else (s ^ "_" ^ sa))
-		in
-		match t with
-		DecTree(i, s, m, g, d) ->
-			aux i ""
-	in
+				aux b (if (String.length s)=0 then sa else (s ^ "_" ^ sa)) in
+		let DecTree(i, s, m, g, d) = tr in
+		aux i "" in
+
 	match tr with
 	DecTree(int_l, sl, msk, gm, dt_l) ->
 		(Printf.printf "[[TREE, name : %s, " (name_of tr);
@@ -184,33 +185,28 @@ let sort_son_list vl =
 	res*)
 
 
-(* with the result of the previous function we can build the list of dec_tree associated,
-we just have to calculate the local masks to do this we need the father's masks,
-we also need the father's vals on mask to add the new one,
-by default all trees will be created with no link between them (no tree structure) *)
+(*	With the result of the previous function we can build the list of dec_tree associated,
+	we just have to calculate the local masks to do this we need the father's masks,
+	we also need the father's vals on mask to add the new one,
+	by default all trees will be created with no link between them (no tree structure)
+	
+	@param vl	List of children (mask, specification list).
+	@param msk	Parent mask.
+	@param gm	Global mask.
+	@param il	List of masks. *)
 let rec build_dectrees vl msk gm il =
-	match vl with
-	| [] -> []
-	| a::b ->
+	List.map
+		(fun a ->
 			let v = fst a in
 			let sl = snd a in
 			let common_mask = spec_list_mask sl in
-			(*!!DEBUG!!*)
-			(*print_string "build_dectrees\n";
-			Printf.printf "common mask=%s, %d instr\n" (Bitmask.to_string common_mask) (List.length sl);*)
-
-			let dt = DecTree(il@[v], sl, Bitmask.unmask common_mask gm, common_mask, [])(* ::(build_dectrees b msk gm il) *)
-			in
-			(* !!DEBUG!! *)
-			(*print_string "build_dectrees res = ";
-			print_dec_tree dt;
-			print_string "build_tree, sl=[\n";
-			List.iter (fun x -> print_string "    "; Irg.print_expr (get_image x); print_char '\n') sl;
-			print_string "]\n";*)
-			
-			dt::(build_dectrees b msk gm il)
+			DecTree(il @ [v], sl, Bitmask.unmask common_mask gm, common_mask, []))
+		vl
 
 
+(** Build the children of the given tree.
+	@param tr	Tree to find children for.
+	@return		List of children trees. *)
 let build_sons_of_tree tr =
 	match tr with
 	DecTree(int_l, sl, msk, gm, dt_l) ->
@@ -236,50 +232,42 @@ let build_sons_of_tree tr =
 			res
 
 
-(**
+(**	Build the tree to decode the instruction.
 	@param sp_l		List of instruction specifications.
-	@return			*)
+	@return			List of nodes of the tree. *)
 let build_dec_nodes sp_l =
-	let node_cond (DecTree(_, sl, lmask, gmask, _)) =
-		((List.length sl)<=1)
-	in
+
+	let node_cond (DecTree(_, sl, _, _, _)) = (List.length sl) <= 1 in
+
 	let rec stop_cond l =
 		match l with
-		| [] ->
-			(*print_string "stop_cond=true\n";flush stdout;*)
-			true
-		| a::b ->
-			if node_cond a then
-			((*print_string "stop_cond=[rec]\n";flush stdout;*)
-				stop_cond b )
-			else
-			((*print_string "stop_cond=false\n";flush stdout;*)
-				false )
-	in
+		| [] -> true
+		| a::b -> (node_cond a) && (stop_cond b) in
+
 	let get_sons x =
-		match x with
-		| DecTree(int_l, sl, msk, gm, dt_l) ->
-			if (List.length sl)>1 then
-				DecTree(int_l, [], msk, gm, dt_l)::(build_sons_of_tree x)
-			else
-				[x]
-	in
-	let rec aux dl =
-		if stop_cond dl then
-			dl
+		let DecTree(int_l, sl, msk, gm, dt_l) = x in
+		if (List.length sl) > 1 then
+			DecTree(int_l, [], msk, gm, dt_l) :: (build_sons_of_tree x)
 		else
-			aux (List.flatten (List.map get_sons dl))
-	in
+			[x] in
+				
+	let rec make_tree dl =
+		if stop_cond dl then dl
+		else make_tree (List.flatten (List.map get_sons dl)) in
+
 	let specs = sp_l in
 	let mask = spec_list_mask specs in
-	(*!!DEBUG!!*)
-	let res =
 	
-	aux [DecTree([], specs, mask, mask, [])]
+	(* common case *)
+	if (List.length specs) > 1
+	then make_tree [DecTree([], specs, mask, mask, [])]
 
-	in
-	Printf.printf ", res: %d nodes\n" (List.length res);
-	res
+	(* special case of one-instruction instruction set (weird) *)
+	else
+		let spec = List.hd specs in
+		let imsk = Bitmask.masked_value (Bitmask.get_value_mask spec) mask in
+		let inst = DecTree([imsk], specs, imsk, mask, []) in
+		[ DecTree([], [], mask, mask, [inst]); inst ]
 
 
 (* returns a list of the direct sons of a given DecTree among a given list *)
@@ -329,14 +317,17 @@ let fetch_generic = 0
 
 
 (* outputs the declaration of all structures related to the given DecTree dt in C language,
-all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
-everything will be output in the given channel,
-dl is the global list of all nodes, used to find sons for instance *)
-let output_table_C_decl fetch_size suffix out fetch_stat dt dl =
-(*!!DEBUG!!*)
-(*Printf.printf "output_table_C_decl, fsize=%d, suffix=%s, #dl=%d\n" fetch_size suffix (List.length dl);
-print_dec_tree dt;
-print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
+	all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
+	everything will be output in the given channel,
+	dl is the global list of all nodes, used to find sons for instance
+	@param fetch_size		Instruction size (in bits).
+	@param suffix			Suffix to name the table.
+	@param out				Output stream.
+	@param fetch_stat
+	@param dt
+	@param dl				*)
+let rec output_table_C_decl fetch_size suffix out fetch_stat dt dl =
+
 	let name_of t =
 		let correct_name s =
 			if s = "" then
@@ -352,35 +343,34 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 				aux b (if (String.length s) == 0 then sa else (s ^ "_" ^ sa))
 		in
 		match t with
-		| DecTree(i, s, m, g, d) -> correct_name (aux i "")
-	in
-	let sz_l_mask = get_local_mask_length dt in
-	let num_dec_ent =
+		| DecTree(i, s, m, g, d) -> correct_name (aux i "") in
+
 	(* we hope we never have a too big mask, we don't want to produce
 	 * fetch tables with millions of entries (most of them void).
 	 * if that unfortunate case happen => change the algorithm *)
 	(* don't forget also that caml int are 31 bit long,
 	 * let's limit ourself below this limit *)
 	 (* deactivated temporarily for testing with nml with only 1 instr (==> full length mask) *)
+	let sz_l_mask = get_local_mask_length dt in
+	let num_dec_ent =
 		if sz_l_mask > 32 then
 			failwith "shouldn't happen? mask too big (fetch.ml::output_table_C_decl::num_dec_ent)"
 		else
-			1 lsl sz_l_mask
-	in
+			1 lsl sz_l_mask in
+
 	let name = (suffix ^ (name_of dt)) in
 	let type_suffix =
 		if (List.length !Iter.multi_set) > 1 then
 			(if fetch_size != 0 then Printf.sprintf "_%d" fetch_size else "_CISC")
 		else
-			""
-	in
+			"" in
 	let l_mask =
 		match dt with
-		| DecTree(_, _, lm, _, _) -> lm
-	in
+		| DecTree(_, _, lm, _, _) -> lm in
 	let info = Toc.info () in
 	let sons = find_sons_of_node dt dl in
 	(* is i the last element of i_l? i is an int, i_l is an string int list *)
+
 	let rec is_suffix i i_l =
 		match i_l with
 		| a::b ->
@@ -388,31 +378,30 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 				i == (Bitmask.to_int a)
 			else
 				is_suffix i b
-		| [] -> false
-	in
+		| [] -> false in
+
 	let exists_in i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
-		in
-		List.exists predicate d_l
-	in
+			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l in
+		List.exists predicate d_l in
+
 	let get_i_th_son i d_l =
 		let predicate x =
 			match x with
-			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l
-		in
-		List.find predicate d_l
-	in (* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
+			| DecTree(i_l, _, _, _, _) -> is_suffix i i_l in
+		List.find predicate d_l in
+
+	(* the way the nodes are built implies that a terminal node is a node containing spec of 1 instruction, the other nodes being "empty" *)
 	let is_terminal_node d =
 		match d with
-		| DecTree(_, s, _, _, _) -> s != []
-	in
+		| DecTree(_, s, _, _, _) -> s != [] in
+
 	(* returns the spec of a supposed terminal node *)
 	let get_spec_of_term d =
 		match d with
-		| DecTree(_, s, _, _, _) -> List.hd s
-	in
+		| DecTree(_, s, _, _, _) -> List.hd s in
+
 	(* returns the number of instruction nodes produced *)
 	let produce_i_th_son i =
 		if exists_in i sons then
@@ -428,8 +417,8 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 				0)
 		else
 			(Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc);
-			0)
-	in
+			0) in
+
 	let rec produce_decode_ent i nb_nodes =
 		if i >= num_dec_ent then
 			nb_nodes
@@ -440,34 +429,20 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 				Printf.fprintf out "\n"
 			else
 				Printf.fprintf out ",\n";
-			produce_decode_ent (i+1) (nb_nodes + nb))
-	in
+			produce_decode_ent (i+1) (nb_nodes + nb)) in
+
 	let to_C_list mask =
 		let list = Bitmask.to_int32_list mask in
 		let rec aux comma l =
 			match l with
 			| [] -> ""
 			| a::b ->
-				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b)
-		in
-			aux false list
-	in
-	(* !!DEBUG!! *)(*
-	match dt with
-	DecTree(i_l, s_l, lm, gm, ss) ->
-	print_string ("node treated[" ^ (name_of dt) ^ "], spec=[");
-	List.iter (fun x -> (Printf.printf "(%s), " (Iter.get_name x))) s_l;
-	print_string  "], sons=[";
-	List.iter (fun x -> (Printf.printf "(%s), " (name_of x))) ss;
-	print_string "]\n";*)
+				((if comma then ", " else "") ^ (Printf.sprintf "0X%lX" a)) ^ (aux true b) in
+		aux false list in
+
 	if is_terminal_node dt then
-		(* !!DEBUG!! *)
-		(*print_string ((name_of dt) ^ ": [[terminal node]]\n")*)
 		()
-	else
-		(* !!DEBUG!! *)
-		(*print_string ((name_of dt) ^ ": [[normal node]]\n");*)
-( (*print_string "tree_to_C :"; print_dec_tree dt;*)
+	else (
 		Printf.fprintf out "static Decode_Ent table_table%s[%d] = {\n" name num_dec_ent;
 		let nb_nodes = produce_decode_ent 0 0 in
 		Printf.fprintf out "};\n";
@@ -483,7 +458,7 @@ print_string "<<<<<<<<<<<<<<<<<<<<\n";*)
 		Printf.fprintf out "\n";
 
 		if !output_fetch_stat then
-			Printf.fprintf fetch_stat "%8d/%8d, name=%s\n" nb_nodes num_dec_ent name)
+			Printf.fprintf fetch_stat "%8d/%8d, name=%s\n" nb_nodes num_dec_ent name )
 
 
 (* sort the DecTree in a given list according to a reverse pseudo-lexicographic order among the name of the DecTrees *)
@@ -592,19 +567,22 @@ let output_struct_decl out fetch_size idx =
 		output_string out ("\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n"))
 
 
-(** output a table C decl, if idx >= 0 table name will be suffixed *)
+(** output a table C decl, if idx >= 0 table name will be suffixed
+	@param out			Stream to output to.
+	@param sp_l			List of instructions.
+	@param fetch_size	Instruction size (in bits).
+	@param idx			Index of instruction set.
+	@param fetch_state
+	*)
 let output_table out sp_l fetch_size idx fetch_stat =
 	let suffix = if idx < 0 then "" else ("_" ^ (string_of_int idx)) in
 	let aux dl dt = output_table_C_decl fetch_size suffix out fetch_stat dt dl in
-	let dl = 
-		(* !!DEBUG!! *)
-		(*Printf.printf "output_table, #sp_l=%d, fetch_size=%d, idx=%d\n" (List.length sp_l) fetch_size idx;*)
-		sort_dectree_list (build_dec_nodes sp_l)
-	in
+	let dl =  sort_dectree_list (build_dec_nodes sp_l) in
 	List.iter (aux dl) dl
 
 
-(** output all C struct declarations and fetch tables *)
+(** output all C struct declarations and fetch tables
+	@param out		Stream to output to. *)
 let output_all_table_C_decl out =
 	let iss = !Iter.multi_set in
 	let iss_sizes = List.map (fun x -> (find_fetch_size x, x)) iss in
