@@ -24,84 +24,69 @@
 #include <stdarg.h>
 #include <gliss/api.h>
 #include <gliss/loader.h>
+#include <gliss/config.h>
 
-typedef struct list_entry_t
-{
+/**
+ * Data structure for storing labels.
+ */
+typedef struct list_entry_t {
 	const char *name;
 	gliss_address_t addr;
 	struct list_entry_t *next;
 } list_entry_t;
 
-void add_to_list(list_entry_t **m, const char *n, gliss_address_t a)
-{
+
+/**
+ * Print list of labels.
+ * @param l		List to print.
+ */
+void print_list(list_entry_t *l) {
+	fprintf(stderr, "printing list\n");
+	list_entry_t *e = l;
+	while(e) {
+		fprintf(stderr, "\t\"%s\"\t%08X\n", e->name, e->addr);
+		e = e->next;
+	}
+	fprintf(stderr, "end list.\n");
+}
+
+
+/**
+ * Add a symbol to the label list.
+ * @param m		List header.
+ * @param n		Name of label.
+ * @param a		Address of label.
+ */
+void add_to_list(list_entry_t **m, const char *n, gliss_address_t a) {
+
+#	ifdef GLISS_PROCESS_CODE_LABEL
+		{ GLISS_PROCESS_CODE_LABEL(a); }
+#	endif
+
+	/* build the node */
 	list_entry_t *e = (list_entry_t *)malloc(sizeof(list_entry_t));
-	if (e == 0)
-	{
+	if(e == 0) {
 		fprintf(stderr, "ERROR: malloc failed\n");
+		return;
 	}
 	e->name = n;
 	e->addr = a;
 	e->next = 0;
 
-	if (*m == 0)
-	{
-		*m = e;
-		return;
+	/* find the position */
+	list_entry_t *cur = *m;
+	list_entry_t **prev = m;
+	while(cur && cur->addr < a) {
+		prev = &cur->next;
+		cur = cur->next;
 	}
 
-	list_entry_t *t1 = *m;
-	list_entry_t *t2 = 0;
+	/* insert the node */
+	*prev = e;
+	if(cur)
+		e->next = cur;
+}	
 
-	while (t1)
-	{
-		if (a >= t1->addr)
-		{
-			if (t1->next)
-			{
-				if (t1->next->addr > a)
-				{
-					/* we found the right place */
-					t2 = t1->next;
-					t1->next = e;
-					e->next = t2;
-					break;
-				}
-				else
-					/* let's see the next one */
-					t1 = t1->next;
-			}
-			else
-			{
-				/* insertion in end of list */
-				t1->next = e;
-				break;
-			}
-		}
-		else
-		{
-			/* this case should occur only when testing the first entry of a list */
-			*m = e;
-			e->next = t1;
-			break;
-		}
-	}
-}
-
-void print_list(list_entry_t *l)
-{
-	printf("printing list\n");
-
-	list_entry_t *e = l;
-	while (e)
-	{
-		printf("\t\"%s\"\t%08X\n", e->name, e->addr);
-		if (e->next)
-			e = e->next;
-		else
-			break;
-	}
-	printf("end list.\n");
-}
 
 /**
  * Get the label name associated with an address
@@ -110,44 +95,38 @@ void print_list(list_entry_t *l)
  * @param	name	will point to the name if a label exists, NULL otherwise
  * @return	0 if no label exists for the given address, non zero otherwise
 */
-int get_label_from_list(list_entry_t *m, gliss_address_t addr, const char **name)
-{
+int get_label_from_list(list_entry_t *m, gliss_address_t addr, const char **name) {
+	
+	/* find the entry */
 	list_entry_t *e = m;
-	while (e)
-	{
-		if (e->addr > addr)
-		{
-			*name = 0;
-			return 0;
-		}
-
-		if (e->addr == addr)
-		{
-			*name = e->name;
-			return 1;
-		}
-
-		if (e->next)
-			e = e->next;
-		else
-			break;
+	while(e && e->addr < addr)
+		e = e->next;
+	
+	/* found ? */
+	if(e && e->addr == addr) {
+		*name = e->name;
+		return 1;
 	}
-	return 0;
+	
+	/* not found */
+	else {
+		*name = 0;
+		return 0;
+	}
 }
 
-void destroy_list(list_entry_t *m)
-{
-	if (m == 0)
-		return;
-	list_entry_t *t1 = m;
-	list_entry_t *t2 = 0;
-	while (t1->next)
-	{
-		t2 = t1;
-		t1 = t1->next;
-		free(t2);
+
+/**
+ * Destroy the label list.
+ * @param m		Label list header.
+ */
+void destroy_list(list_entry_t *m) {
+	list_entry_t *cur = m;
+	while(cur) {
+		list_entry_t *next = cur->next;
+		free(cur);
+		cur = next;
 	}
-	free(t1);
 }
 
 
@@ -295,23 +274,38 @@ int main(int argc, char **argv) {
 	}
 
 	/* disassemble the sections */
-	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++)
-	{
+	for (i_sect = 0; i_sect<nb_sect_disasm; i_sect++) {
+		
+		/* display new section */
 		gliss_address_t adr_start = s_tab[i_sect].addr;
 		gliss_address_t adr_end = s_tab[i_sect].addr + s_tab[i_sect].size;
-
+		gliss_address_t prev_addr = 0;
 		printf("\ndisasm new section, addr=%08X, size=%08X\n", s_tab[i_sect].addr, s_tab[i_sect].size);
 
+		/* traverse all instructions */
 		while (adr_start < adr_end) {
+			
+			/* disassemble instruction */
 			int size;
 			char buff[100];
 			gliss_inst_t *inst = decode(d, adr_start);
 			gliss_disasm(buff, inst);
-			/*uint32_t code = gliss_mem_read32(gliss_get_memory(pf, 0), adr_start);*/
 			const char *n;
-			if (get_label_from_list(list_labels, adr_start, &n))
+			
+			/* display label */
+			if(get_label_from_list(list_labels, adr_start, &n)) {
 				printf("\n%08X <%s>\n", adr_start, n);
-			printf("%08X:\t", adr_start);
+				prev_addr = adr_start;
+			}
+			
+			/* display the address */
+			if((prev_addr & 0xffff0000) == (adr_start & 0xffff0000))
+				printf("    %04X:\t", adr_start & 0x0000ffff);
+			else
+				printf("%08X:\t", adr_start);
+			prev_addr = adr_start;
+			
+			/* display the instruction bytes */
 			size = gliss_get_inst_size(inst) / 8;
 			for(i = 0; i < max_size; i++) {
 				if(i < size)
@@ -319,6 +313,8 @@ int main(int argc, char **argv) {
 				else
 					fputs("  ", stdout);
 			}
+			
+			/* displat the instruction */
 			printf("\t%s\n", buff);
 			/* inst size is given in bit, we want it in byte */
 			adr_start += size;

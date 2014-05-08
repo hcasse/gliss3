@@ -26,7 +26,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
 }
 
 static unsigned long $(proc)_size_ident[] = {
-	32$(foreach instructions),
+	$(min_instruction_size)$(foreach instructions),
 	$(size)$(end)
 };
 

@@ -318,6 +318,7 @@ let get_instruction_set maker f dict i_set =
 					if (List.length !Iter.multi_set) > 1 then raise (Toc.Error "no attribute 'instruction_set_name'")
 					else Irg.get_proc_name () in
 			output_string out name)) ::
+		("min_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 		dict))
 
 

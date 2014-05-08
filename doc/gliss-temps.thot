@@ -156,7 +156,11 @@ to know when a source has been generated)
 
 ''GLISS_PROFILED_JUMPS'' (//bool//) -- True when option '-PJ nb_instr' is activated in GEP more details ins section optimisation.
 
+''max_instruction_size'' (//text//) -- Maximal size of instructions (in bits).
+
 ''max_operand_nb'' (//text//) -- Indicates the maximum number of operands of the NML instruction set.
+
+''min_instruction_size'' (//text//) -- Minimal size of instructions (in bits).
 
 ''total_instruction_count'' (//text//) -- Total number of NML instruction set.
 
