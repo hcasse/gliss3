@@ -9,14 +9,29 @@
 
 
 /* useful macros */
-/*#define __GLISS_MASK(n, e) ((e) & ((1LL << n) - 1))*/
 #define __GLISS_MASK32(n, e) ((n)==32 ? (e) : ((e) & ((1 << n) - 1)))
 #define __GLISS_MASK64(n, e) ((n)==64 ? (e) : ((e) & ((1LL << n) - 1)))
 #define __GLISS_EXTS(n, e) (((e) << n) >> n)
 
 
-typedef void (*disasm_t)(char *buffer, $(proc)_inst_t *inst);
+/**
+ * Pointer allowing to change the way a label is solved.
+ */
+$(proc)_label_solver_t $(proc)_solve_label = $(proc)_solve_label_null;
 
+
+/**
+ * Default label solver.
+ * @param address	Address to look a label for.
+ * @return			Buffer to solved label (may be destroyed between two calls to this function).
+ */
+char *$(proc)_solve_label_null($(proc)_address_t address) {
+	static char buf[10];
+	sprintf(buf, "%08x", address);
+	return buf;
+}
+
+typedef void (*disasm_t)(char *buffer, $(proc)_inst_t *inst);
 
 /* functions */
 static void disasm_unknown(char *buffer, $(proc)_inst_t *inst) {

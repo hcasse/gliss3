@@ -53,6 +53,9 @@ let rec gen_disasm info inst expr =
 			let fmt = String.sub fmt s (i - s) in
 			Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args) in
 
+	let change_l fmt i =
+		(String.sub fmt 0 i) ^ "s" ^ (String.sub fmt (i + 1) ((String.length fmt) - i - 1)) in
+
 	let rec scan fmt args s used i =
 		match args with
 		| [] -> format fmt (List.rev used) s (String.length fmt)
@@ -60,14 +63,15 @@ let rec gen_disasm info inst expr =
 			if i >= (String.length fmt) then format fmt used s i else
 			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
 			if i + 1 >= String.length fmt then format fmt used s i else
-			if fmt.[i + 1] != 's' then
-				if fmt.[i + 1] = '%' then scan fmt args s used (i + 2)
-				else scan fmt tl s (hd::used) (i + 2)
-			else
-				Irg.SEQ (format fmt used s i,
-					Irg.SEQ(
-						process hd,
-						scan fmt tl (i + 2) [] (i + 2)))
+			(match fmt.[i + 1] with
+			| 's' ->
+				Irg.SEQ (format fmt used s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
+			| 'l' ->
+				scan (change_l fmt (i + 1)) tl s ((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [hd]))::used) (i + 2)
+			| '%' ->
+				scan fmt args s used (i + 2)
+			| _ ->
+				scan fmt tl s (hd::used) (i + 2))
 
 	and process expr =
 		check expr;

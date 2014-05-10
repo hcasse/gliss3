@@ -123,7 +123,7 @@ or to reduce typing effort using macro expressions.
 
 The macro command has the following syntax:
 <code>
-Macro ::= "macro" "(" (Identifier ("," Identifier)*)? ")" ([^\n] | "\\" "\n") "\n"
+Macro ::= "macro" "(" (Identifier ("," Identifier)*)? ")" "=" ([^\n] | "\\" "\n") "\n"
 </code>
 
 The macro is remplaced through the code by the body text following
@@ -581,6 +581,282 @@ To learn more about optimizing output code and the option '-gen-with-trace', see
 
 
 ====== Expressions ======
+
+SimNML expressions looks like, more or less, C expressions with
+some extensions to support easier handling of bit fields. Expression
+syntax is given below and detailed in the following paragraphs.
+
+<code>
+Expression ::=
+	| ConstantExpression
+	| IdentifierExpression
+	| UnaryExpression
+	| BinaryExpression
+	| BitFieldExpression
+	| ConcatExpression
+	| FormatExpression
+	| IfExpression
+	| SwitchExpression
+	| '(' Expression ')'
+</code>
+
+As usual, parentheses allows to cope with operator priority. 
+//ConstantExpression// follows the same syntax as in the specification
+of constants.
+
+===== Identifier Expression =====
+
+An identifier expression allows to get value of a constant,
+a register, a memory or a variable. According to the type of the identified entity,
+it may be indexed or not.
+
+<code>
+IdentifierExpression ::=
+	| Identifier
+	| Identifier '[' i: Expression ']'
+</code>
+
+The indexing expression, //i//, must be of type integer between
+0 and the size of the register / memory / variable minus 1.
+Named constants does not support indexation.
+
+
+===== UnaryExpression =====
+
+NML expressions support only four unary operations: identity ''+'',
+negation ''-'', bit inversion ''~'' and logical //NOT// ''!''.
+
+<code>
+UnaryExpression ::=
+	| '+' Expression
+	| '-' Expression
+	| '~' Expression
+	| '!' Expression
+</code>
+
+''-'' applies either on integer type, or on float types. For other types
+(except string types), the value is first converted of //int// of same size.
+
+''~'' applies to //card// type: if the operand is of a different type,
+it is automatically converted to //card// of same size.
+
+Finally, ''!'' applies only on boolean value. If the operand is of numeric
+type, it is automatically converted to boolean: //false// if it is equal
+to 0, //true// else.
+
+
+===== BinaryExpression =====
+
+There is a lot of binary operators. Whatever the operator, before
+the operation takes place, it may be an implicit converision of one
+operand to the other one: the smaller operand (in bits) is always
+automatically converted to the result of the bigger one. The result
+is in the type of the bigger operand.
+
+The binary operators may be classified in five categories:
+arithmetics, comparisons, logicals, bit operations and shift operations.
+<code>
+BinaryExpression ::=
+	| ArithmeticExpression
+	| ComparisonExpression
+	| LogicalExpression
+	| BitOperation
+	| ShiftOperation
+</code>
+
+Arithmetic operations applies on two integers, signed or unsigned.
+Booleans and other type are converted to integer, strings are not supported.
+If the operands have the same size (in bits) but one is signed and the other
+one not, the latter is converted to signed integer. Arithmetic operations
+are the addition ''+'', the subtraction ''-'', the multiplication ''*'',
+the euclidian division ''/'' and the modulo ''%''.
+
+Except for the modulo, these operations applies also to floating-point
+values. There are also conversion to the bigger operand and from integer
+to float value.
+
+<code>
+ArithmeticExpression ::=
+	| Expression '+' Expression
+	| Expression '-' Expression
+	| Expression '*' Expression
+	| Expression '/' Expression
+	| Expression '%' Expression
+</code>
+
+Comparison operators allows to compare two values: there is also
+automatic conversion from the smaller operand to the bigger one.
+The result of type boolean. These operators applies on any numeric
+type and not to string or bit string types.
+
+<code>
+ComparisonExpression ::=
+	| Expression '==' Expression
+	| Expression '!=' Expression
+	| Expression '<' Expression
+	| Expression '<=' Expression
+	| Expression '>' Expression
+	| Expression '>=' Expression
+</code>
+
+Logical operations allows usually to combine comparisons.
+They work on boolean operands and produces a boolean value.
+If the opetand are numeric value, they are converted to boolean:
+a value equal to 0 is //false// value, different from 0 is //true//.
+There are two logicial operations: //AND//, ''&&'' and //OR//, ''||''.
+
+<code>
+LogicalExpression ::=
+	| Expression '&&' Expression
+	| Expression '||' Expression
+</code>
+
+Bit expression allows to combine values at the bit level. If needed,
+smaller operand is converted to type of bigger one. There are 
+three operations: bit //AND// ''&'', bit //OR// ''|'', bit //XOR// ''^''.
+
+<code>
+BitOperation ::=
+	| Expression '&' Expression
+	| Expression '|' Expression
+	| Expression '^' Expression
+	| Expression '<<' Expression
+	| Expression '>>' Expression
+	| Expression '<<<' Expression
+	| Expression '>>>' Expression
+</code> 
+
+Shift operations allows to shift left ''<<'', shift right ''>>'',
+rotate left ''<<<'' and rotate right ''>>>''.
+The result is in the type of the first operand and, for the right shift,
+the operation is signed or not according to this type.
+
+<code>
+ShiftExpression ::=
+	| Expression ''<<'' Expression
+	| Expression ''>>'' Expression
+	| Expression ''<<<'' Expression
+	| Expression ''>>>'' Expression
+</code>
+
+
+===== Bit Field Expression =====
+
+A bit field expression allows to select a part of a numeric expressions
+from one bit, the lower bit index //l//, to another one, the upper bit index //u//.
+The result is of type //card// and of size //u - l + 1//.
+
+<code>
+BitFieldExpression ::= Expression '<' Expression '..' Expression '>'
+</code>
+
+//u// and //l// expressions must result to an integer type.
+In the expression, the order of //u// and //l// depends on the constant ''bit_order''.
+If ''bit_order'' is equal to ''uppermost'', the first index is //u// and the second //l//.
+(default case). If ''bit_order'' is ''lowermost'', //u// is the second bit index
+and //l// the first. This allows to adapt the NML expressions as closely as possible
+to the convetion of the implemented instruction set.
+
+Whatever the order, if //u// is lower than //l// value, the bit field operator
+inverses the bits in the result. Else, the bit order is maintained.
+Therefore, the bit field operator is also a way to inverse the bit string
+representing an integer. Yet, this operation must not be used too often
+because it is relative expensive in processing time.
+
+
+===== Concatenation Expression =====
+
+The concatenation operation allows to concatenate bit string
+or integer value. The result is of type //card// and of size,
+the sume of sizes of both operands. Before the operation takes place.
+both operands are converted to //card// (no effects of signess).
+
+<code>
+ConcatExpression ::= Expression '::' Expression
+</code>
+
+
+===== Format Expression =====
+
+Format expressions produces values of type //string// representing
+either a true string (as used in ''syntax'' attribute) or a bit string
+(as used in the ''image'' attribute).
+
+<code>
+FormatExpression ::= 'format' '(' StringConst ',' Arguments? ')'
+
+Arguments ::= Expression | Arguments ',' Expression
+</code>
+
+//fmt// is a format string whose meaning depends on the way the string
+is used. For string use, the result is the string itself where each
+''%'' (and some following characters) are replaced by the value of the matching argument.
+This works like the Posix ''printf'' function. ''%'' and arguments are matched
+according to their order in the string and in the argument list.
+Take a look to the documentation of ''printf'' for details on the format.
+In addition, the ''syntax'' attribute accepts ''%l'' that means that the argument
+is an address and the ''%'' is replaced by a representation of an address
+(the address itself in hexadecimal or a matching lable).
+
+For a bit string, only the following content is accepted:
+  * ''0'' -- a bit equal to 0,
+  * ''1'' -- a bit equal to 1,
+  * '' '' (space) -- ignored,
+  * ''X'' -- a bit of any value,
+  * ''%s'' -- replaced by an argument whose type must be a bit string,
+  * ''%Nb'' -- replaced by a bit string (from the arguments) of size //N//.  
+
+
+===== If Expression =====
+
+Conditionals may be applied to expressions: their syntax follow.
+
+<code>
+IfExpression ::=
+	'if' c: Expression 'then' t: Expression 'else' e: Expression 'endif''
+</code>
+
+Notice that, unlike the ''if'' statement, the ''else'' part is mandatory.
+
+The //c// expression is evaluated to a boolean and, according to its value,
+either the //t// is evaluated, and returned, or the //e// expression.
+//t// and //e// must be of same type or the smaller type is automatically
+converted to the bigger type.
+
+
+===== Switch Expression =====
+
+A switch expression allows to choice a value according to an index value.
+They are often used to implement associative tables.
+
+<code>
+SwitchExpression ::=
+	'switch' '(' c: Expression ')' '{' Case* Default? '}'
+
+Case ::=
+	'case' v: Expression ':' r: Expression
+
+Default ::=
+	'default' ':' r: Expression
+
+</code>
+
+One of //r// expressions is returned by the switch and, therefore,
+must be of the same type or, as needed, smaller type expressions
+are automatically converted to the bigger one.
+
+//c// expression must be numeric but no a float value.
+The //v// values must be integer and must evaluate as a constant.
+Either the set of //v// values must be equal to the set of values of //c//
+(and not default part is allowed), or a default part is required.
+
+Only the //r// expression whose //v// expression matches the //c// value
+is executed and its value returned. If there is a default part and no
+case //v// value matches //c//, this //r// is evaluated and returned.
+
+
+
+
 
 ====== Statements ======
 

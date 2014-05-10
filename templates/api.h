@@ -195,6 +195,9 @@ void $(proc)_set_exit_address($(proc)_sim_t *sim, $(proc)_address_t address);
 
 /* disassemble function */
 void $(proc)_disasm(char *buffer, $(proc)_inst_t *inst);
+typedef char *(*$(proc)_label_solver_t)($(proc)_address_t address);
+extern $(proc)_label_solver_t $(proc)_solve_label;
+char *$(proc)_solve_label_null($(proc)_address_t address);
 
 $(if is_CISC_present)
 /* variable length functions */
