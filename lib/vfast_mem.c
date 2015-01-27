@@ -197,7 +197,7 @@ typedef struct gliss_memory_t
 /**
  * Default spy function: do nothing.
  */
-static void gliss_mem_default_spy(gliss_memory_t *mem, gliss_address_t addr, size_t size, gliss_access_t access, void *data) {
+static void gliss_mem_default_spy(gliss_memory_t *mem, gliss_address_t addr, gliss_size_t size, gliss_access_t access, void *data) {
 }
 #endif
 
@@ -234,8 +234,14 @@ gliss_memory_t* gliss_mem_new(void) {
  */
 void gliss_mem_set_spy(gliss_memory_t *mem, gliss_mem_spy_t fun, void *data) {
 	assert(mem);
-	mem->spy_fun = fun;
-	mem->spy_data = data;
+	if(!fun) {
+		mem->spy_fun = gliss_mem_default_spy;
+		mem->spy_data = 0;
+	}
+	else {
+		mem->spy_fun = fun;
+		mem->spy_data = data;
+	}
 }
 #endif
 

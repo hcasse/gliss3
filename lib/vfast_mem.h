@@ -40,6 +40,7 @@
 #endif
 
 typedef uint32_t gliss_address_t;
+typedef uint32_t gliss_size_t;
 typedef struct gliss_memory_t gliss_memory_t;
 
 /* creation function */
@@ -70,7 +71,7 @@ void gliss_mem_write(gliss_memory_t *memory, gliss_address_t, void *buf, size_t 
 
 #ifdef GLISS_MEM_SPY
 typedef enum { gliss_access_read, gliss_access_write } gliss_access_t;
-typedef void (*gliss_mem_spy_t)(gliss_memory_t *mem, gliss_address_t addr, size_t size, gliss_access_t access, void *data);
+typedef void (*gliss_mem_spy_t)(gliss_memory_t *mem, gliss_address_t addr, gliss_size_t size, gliss_access_t access, void *data);
 void gliss_mem_set_spy(gliss_memory_t *mem, gliss_mem_spy_t fun, void *data);
 #endif
 
