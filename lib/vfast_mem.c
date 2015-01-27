@@ -46,7 +46,8 @@
 #define little	0
 #define big		1
 
-//#define STATS		// define it to collect and print statistics
+//#define STATS				// define it to collect and print statistics
+//#define GLISS_MEM_SPY		// define it to get memory action spy feature
 
 #ifndef NDEBUG
 #	define assertp(c, m)	\
@@ -184,26 +185,61 @@ typedef struct gliss_memory_t
 	int stats_pages[HASHTABLE_SIZE];
 	int stats_accesses[HASHTABLE_SIZE];
 #	endif
+#ifdef GLISS_MEM_SPY
+	gliss_mem_spy_t spy_fun;	/** spy function */
+	void *spy_data;				/** spy data */
+#endif
 } memory_64_t;
 
 // Functions ----------------------------------------------------------------------------
+
+#ifdef GLISS_MEM_SPY
+/**
+ * Default spy function: do nothing.
+ */
+static void gliss_mem_default_spy(gliss_memory_t *mem, gliss_address_t addr, size_t size, gliss_access_t access, void *data) {
+}
+#endif
+
 
 /**
  * Build a new memory handler.
  * @return	Memory handler or NULL if there is not enough memory.
  * @ingroup memory
  */
-gliss_memory_t* gliss_mem_new(void)
-{
-    unsigned int i;
-    memory_64_t*   mem;
+gliss_memory_t* gliss_mem_new(void) {
+	unsigned int i;
+	memory_64_t*   mem;
 
-    mem = (memory_64_t *)calloc(sizeof(memory_64_t), 1);
-    assertp(mem != NULL, "no more memory")
-    return (gliss_memory_t*) mem;
+	/* allocate memory */
+	mem = (memory_64_t *)calloc(sizeof(memory_64_t), 1);
+	assertp(mem != NULL, "no more memory")
+
+	/* initialize spy */
+#	ifdef GLISS_MEM_SPY
+		mem->spy_fun = gliss_mem_default_spy;
+		mem->spy_data = 0;
+#	endif
+
+	return (gliss_memory_t*) mem;
 }
 
-// --------------------------------------------------------------------------------------
+#ifdef GLISS_MEM_SPY
+/**
+ * Set the spy function on the given memory. This function will be called
+ * at each memory access with the details of the memory transaction.
+ * @param mem	Current memory.
+ * @param fun	Function called at each memory access.
+ * @param data	Data passed as the last argument when function fun is called.
+ */
+void gliss_mem_set_spy(gliss_memory_t *mem, gliss_mem_spy_t fun, void *data) {
+	assert(mem);
+	mem->spy_fun = fun;
+	mem->spy_data = data;
+}
+#endif
+
+
 /**
  * Free and delete the given memory.
  * @param memory	Memory to delete.
@@ -255,7 +291,7 @@ void gliss_mem_delete(gliss_memory_t *memory)
 	}
     free(mem64); // freeing the primary hash table
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Get the page matching the given address and create it if it does not exist.
@@ -326,7 +362,6 @@ static page_entry_t* mem_get_page(memory_64_t* mem, gliss_address_t addr)
     return NULL;
 }
 
-// --------------------------------------------------------------------------------------
 
 /**
  * Copy the current memory.
@@ -359,7 +394,6 @@ gliss_memory_t* gliss_mem_copy(gliss_memory_t* memory)
     return target;
 }
 
-// --------------------------------------------------------------------------------------
 
 /**
  * Write a buffer into memory.
@@ -425,8 +459,11 @@ void gliss_mem_write(gliss_memory_t* memory, gliss_address_t address, void* buff
 #       endif
     }
 
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, size, gliss_access_write, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read the memory into the given buffer.
@@ -494,8 +531,11 @@ void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffe
 #       endif
     }
 
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, size, gliss_access_read, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read an 8-bit integer.
@@ -508,14 +548,20 @@ uint8_t gliss_mem_read8(gliss_memory_t *mem, gliss_address_t address)
 {
     page_entry_t* pte    = mem_get_page(mem, address);
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
+    uint8_t r;
 
 #   if HOST_ENDIANNESS != TARGET_ENDIANNESS
-    return pte->storage[MEM_PAGE_SIZE-1 - offset];
+    	r = pte->storage[MEM_PAGE_SIZE-1 - offset];
 #   else
-    return pte->storage[offset];
-#endif
+    	r = pte->storage[offset];
+#	endif
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(r), gliss_access_read, mem->spy_data);
+#	endif
+    return r;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read a 16-bit integer.
@@ -529,26 +575,32 @@ uint16_t gliss_mem_read16(gliss_memory_t *mem, gliss_address_t address) {
 	/* get page */
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
     page_entry_t*   pte    = mem_get_page(mem, address);
+    uint16_t r;
 
 #   if HOST_ENDIANNESS != TARGET_ENDIANNESS
-    uint8_t* p = pte->storage + (MEM_PAGE_SIZE-2 - offset);
+    	uint8_t* p = pte->storage + (MEM_PAGE_SIZE-2 - offset);
 #   else
-    uint8_t* p = pte->storage + offset;
+    	uint8_t* p = pte->storage + offset;
 #   endif
 
     // aligned or cross-page ?
     if(!((offset & 0x1) | ((offset + 1) & MEM_PAGE_SIZE)))
-        return *(uint16_t *)p;
+        r = *(uint16_t *)p;
 	else {
 		union {
 			uint8_t bytes[2];
 			uint16_t half;
 		} val;
         gliss_mem_read(mem, address, val.bytes, 2);
-        return val.half;
+        r = val.half;
     }
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(r), gliss_access_read, mem->spy_data);
+#	endif
+    return r;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read a 32-bit integer.
@@ -563,16 +615,17 @@ uint32_t gliss_mem_read32(gliss_memory_t *mem, gliss_address_t address)
 	/* get page */
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
     page_entry_t* pte    = mem_get_page(mem, address);
+    uint32_t r;
 
 #   if HOST_ENDIANNESS != TARGET_ENDIANNESS
-    uint8_t* p = pte->storage + (MEM_PAGE_SIZE-4 - offset);
+    	uint8_t* p = pte->storage + (MEM_PAGE_SIZE-4 - offset);
 #   else
-    uint8_t* p = pte->storage + offset;
+    	uint8_t* p = pte->storage + offset;
 #   endif
 
     // aligned ?
     if(!((offset & 0x3) | ((offset + 3) & MEM_PAGE_SIZE)))
-        return *(uint32_t *)p;
+        r = *(uint32_t *)p;
     // unaligned !
     else
     {
@@ -581,10 +634,15 @@ uint32_t gliss_mem_read32(gliss_memory_t *mem, gliss_address_t address)
 			uint32_t word;
 		} val;
 		gliss_mem_read(mem, address, val.bytes, 4);
-        return val.word;
+        r = val.word;
     }
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(r), gliss_access_read, mem->spy_data);
+#	endif
+    return r;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read a 64-bit integer.
@@ -598,16 +656,17 @@ uint64_t gliss_mem_read64(gliss_memory_t *mem, gliss_address_t address) {
 	/* get page */
     page_entry_t* pte    = mem_get_page(mem, address);
     gliss_address_t offset = FMOD(address, MEM_PAGE_SIZE);
+    uint64_t r;
 
 #   if HOST_ENDIANNESS != TARGET_ENDIANNESS
-    uint8_t* p = pte->storage + (MEM_PAGE_SIZE-8 - offset);
-#   else
+    	uint8_t* p = pte->storage + (MEM_PAGE_SIZE-8 - offset);
+	#   else
     uint8_t* p = pte->storage + offset;
 #endif
 
     // aligned or cross-page ?
     if(!((offset & 0x7) | ((offset + 7) & MEM_PAGE_SIZE)))
-        return *(uint64_t *)p;
+        r = *(uint64_t *)p;
     // unaligned !
     else
     {
@@ -616,10 +675,15 @@ uint64_t gliss_mem_read64(gliss_memory_t *mem, gliss_address_t address) {
 			uint64_t dword;
 		} val;
         gliss_mem_read(mem, address, val.bytes, 8);
-        return val.dword;
+        r = val.dword;
     }
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(r), gliss_access_read, mem->spy_data);
+#	endif
+    return r;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read a float value.
@@ -628,16 +692,15 @@ uint64_t gliss_mem_read64(gliss_memory_t *mem, gliss_address_t address) {
  * @return			Read float.
  * @ingroup memory
  */
-float gliss_mem_readf(gliss_memory_t *memory, gliss_address_t address)
+float gliss_mem_readf(gliss_memory_t *mem, gliss_address_t address)
 {
 	union {
 		uint32_t i;
 		float f;
 	} val;
-    val.i = gliss_mem_read32(memory, address);
+    val.i = gliss_mem_read32(mem, address);
 	return val.f;
 }
-// --------------------------------------------------------------------------------------
 
 
 /**
@@ -647,16 +710,16 @@ float gliss_mem_readf(gliss_memory_t *memory, gliss_address_t address)
  * @return			Read float.
  * @ingroup memory
  */
-double gliss_mem_readd(gliss_memory_t *memory, gliss_address_t address)
+double gliss_mem_readd(gliss_memory_t *mem, gliss_address_t address)
 {
 	union {
 		uint64_t i;
 		double f;
 	} val;
-    val.i = gliss_mem_read64(memory, address);
+    val.i = gliss_mem_read64(mem, address);
 	return val.f;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Read a long double float value.
@@ -668,8 +731,9 @@ double gliss_mem_readd(gliss_memory_t *memory, gliss_address_t address)
 long double gliss_mem_readld(gliss_memory_t *memory, gliss_address_t address)
 {
 	assertp(0, "not implemented !");
+	return 0.;
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write an 8-bit integer in memory.
@@ -687,12 +751,16 @@ void gliss_mem_write8(gliss_memory_t* mem, gliss_address_t address, uint8_t val)
 
 
 #   if HOST_ENDIANNESS != TARGET_ENDIANNESS
-    pte->storage[MEM_PAGE_SIZE-1 - offset] = val;
+    	pte->storage[MEM_PAGE_SIZE-1 - offset] = val;
 #   else
-    pte->storage[offset] = val;
+    	pte->storage[offset] = val;
 #   endif
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write a 16-bit integer in memory.
@@ -727,8 +795,12 @@ void gliss_mem_write16(gliss_memory_t* mem, gliss_address_t address, uint16_t va
 		} *p = (union val_t *)&val;
 		gliss_mem_write(mem, address, p->bytes, 2);
 	}
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write a 32-bit integer in memory.
@@ -762,8 +834,12 @@ void gliss_mem_write32(gliss_memory_t* mem, gliss_address_t address, uint32_t va
 		} *p = (union val_t *)&val;
         gliss_mem_write(mem, address, p->bytes, 4);
 	}
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write a 64-bit integer in memory.
@@ -798,8 +874,12 @@ void gliss_mem_write64(gliss_memory_t *mem, gliss_address_t address, uint64_t va
 		} *p = (union val_t *)&val;
         gliss_mem_write(mem, address, p->bytes, 8);
 	}
+
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write a float in memory.
@@ -818,7 +898,6 @@ void gliss_mem_writef(gliss_memory_t *memory, gliss_address_t address, float val
     gliss_mem_write32(memory, address, v.i);
 }
 
-// --------------------------------------------------------------------------------------
 
 /**
  * Write a double float in memory.
@@ -836,7 +915,7 @@ void gliss_mem_writed(gliss_memory_t *memory, gliss_address_t address, double va
 	v.f = val;
     gliss_mem_write64(memory, address, v.i);
 }
-// --------------------------------------------------------------------------------------
+
 
 /**
  * Write a double float in memory.
@@ -849,5 +928,3 @@ void gliss_mem_writeld(gliss_memory_t *memory, gliss_address_t address, long dou
 {
 	assertp(0, "not implemented");
 }
-
-// End of vfast_mem.c -------------------------------------------------------------------

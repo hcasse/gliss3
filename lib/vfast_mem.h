@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-/*#include "config.h"*/
+#include "config.h"
 
 #if defined(__cplusplus)
     extern  "C" {
@@ -67,6 +67,12 @@ void gliss_mem_writef(gliss_memory_t *, gliss_address_t, float);
 void gliss_mem_writed(gliss_memory_t *, gliss_address_t, double);
 void gliss_mem_writeld(gliss_memory_t *, gliss_address_t, long double);
 void gliss_mem_write(gliss_memory_t *memory, gliss_address_t, void *buf, size_t size);
+
+#ifdef GLISS_MEM_SPY
+typedef enum { gliss_access_read, gliss_access_write } gliss_access_t;
+typedef void (*gliss_mem_spy_t)(gliss_memory_t *mem, gliss_address_t addr, size_t size, gliss_access_t access, void *data);
+void gliss_mem_set_spy(gliss_memory_t *mem, gliss_mem_spy_t fun, void *data);
+#endif
 
 #if defined(__cplusplus)
 }
