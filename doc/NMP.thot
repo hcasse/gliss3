@@ -860,5 +860,139 @@ case //v// value matches //c//, this //r// is evaluated and returned.
 
 ====== Statements ======
 
+The //action// attribute contains statements used to describe the behaviour
+of the microprocessor. The syntax of statements is given below.
+
+<code>
+Sequence ::= Statement*
+
+Statement ::=
+	| ActionStatement
+	| AssignmentStatement
+	| ConditionalStatement
+	| SwitchStatement
+	| CanonStatement
+	| CallStatement
+</code>
+
+===== Action Statement =====
+
+An action statement allows to invoke action contained in another
+operation or mode.
+
+<code>
+ActionStatement ::=
+	| Identifier ';'
+	| Identifier '.' Identifier ';'
+</code>
+
+In the first form, the identifier is replaced by the named attribute
+of the current opereation or mode. In the second form, the first identifier
+must be the name of a parameter of type operation or mode and the second
+identifier is the name of the attribute in this operation or mode.
+Notice that only actions of the current operation / mode or of a paremeter
+can be called this way.
+
+If an action invokes itself, a loop is created
+and therefore, the action must contain a condition with only one part
+performing the recursive invocation. This is a powerful to perform
+loops but it must be handled carefully to avoid unended loops. 
 
 
+===== Assignment Statement =====
+
+An assignment allows to change the state of the machine, that is,
+to change the value stored either in a register, or in memory.
+
+<code>
+AssignmentStatement ::=
+	Location '=' Expression ';'
+
+Location ::=
+	| Identifier										// f1
+	| Identifier '[' Expression ']'						// f2
+	| Location '<' Expression '..' Expression '>'		// f3
+	| Location '::' Location							// f4
+</code>
+ 
+The expression is evaluated. Whatever the type of the location of the
+assignment, the bits of the expression are assigned to the bits of the location.
+
+The location allows to identify which bits of the machine state are
+modified. Form //f1// modify a register or a variable made of only one instance.
+Form //f2// applies to a composed register or a variable or to a memory.
+In the former case, the number of the register or of the variable is given between
+brackets, in the latter, this is the address in memory. Whatever, the subscript
+expression must be of type integer.
+
+Form //f3// allows to only modify a bit range of the location (it is subject
+to same restrictions and rules as the expression bit field access).
+Form //f4// allows to easily assign several locations as if they were
+concatenated.
+
+
+===== Conditional Statement =====
+
+A conditional statement allows to choose between two sub-actions.
+
+<code>
+ConditionalStatement ::=
+	| 'if' c: Expression 'then' a: Sequence 'endif' ';'
+	| 'if' c: Expression 'then' a: Sequence 'else' b: Sequence 'endif' ';'
+</code>
+
+In the first form, the condition //c// is evaluated and, if results in a numeric value,
+is converted to a boolean value (//false// if the value equals to 0, //true// else).
+If the expression //c// is true, the action //a// is executed. Then, whatever
+the evaluation of //c//, the execution continues with the following statement.
+
+The second form evaluates the expression //c// in the same way.
+If it result to //true//, //a// is executed. If false, //b// is executed.
+And then the execution continues with the following statement.
+
+
+===== Switch Statement =====
+
+The switch statement allows to make a choice according to a special enumerated value.
+
+<code>
+SwitchStatement ::=
+	'switch' '(' c: Expression ')' '{' Case* default? '}' ';'
+
+Case ::= 'case' v: Expression ':' s: Sequence
+Default ::= 'default' ':' s: Sequence
+</code>
+
+The //c// expression must be of integer type  and //v// expression
+must be of same type and constants. If one value //v// equals to the
+choice expression //c//, the matching sequence //s// is executed.
+If present and if no value //v// is equal to the choice value //c//,
+the default //s// is executed.
+
+
+===== Canon Statement =====
+
+A canonical statement allows to invoke a function from the host environment.
+In //GLISS//, the called function is a C function and the parameters
+are passed as is to the C function.
+
+<code>
+CanonStatement ::=
+	StringConst '(' Arguments? ')' ';'
+|	'canonical' '(' StringConst (',' Expression)* ')'
+</code>
+
+The arguments must be of a type compatible of the type of the argument
+in the host environment.
+
+
+===== Call Statement =====
+
+A call statement allows to invoke built-in functions or macros.
+
+<code>
+CallStatement ::= Identifier '(' (Expression (',' Expression)*)? ')' ';'
+</code>
+
+Built-in functions includes:
+  * ''error''(message) -- that takes as parameter a message string.
