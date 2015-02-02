@@ -50,8 +50,10 @@ let rec gen_disasm info inst expr =
 		if s >= i then
 			Irg.NOP
 		else
-			let fmt = String.sub fmt s (i - s) in
-			Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args) in
+    		let fmt = String.sub fmt s (i - s) in
+    		if fmt <> "" then 
+        		Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args)
+      		else Irg.NOP in
 
 	let change_l fmt i =
 		(String.sub fmt 0 i) ^ "s" ^ (String.sub fmt (i + 1) ((String.length fmt) - i - 1)) in
@@ -79,7 +81,9 @@ let rec gen_disasm info inst expr =
 		| Irg.FORMAT (fmt, args) ->
 			scan fmt args 0 [] 0
 		| Irg.CONST (_, Irg.STRING_CONST(s, false, _)) ->
-			Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
+    		if s <> ""
+    		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
+      		else Irg.NOP 
 		| Irg.IF_EXPR (_, c, t, e) ->
 			Irg.IF_STAT(c, process t, process e)
 		| Irg.SWITCH_EXPR(_, c, cases, def) ->

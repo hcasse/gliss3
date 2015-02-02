@@ -820,7 +820,7 @@ int main(int argc, char **argv) {
 			getrusage(RUSAGE_SELF, &buf);
 			end_time = (uint64_t)buf.ru_utime.tv_sec*1000000.00 + buf.ru_utime.tv_usec;
 			delay = end_time - start_time;
-			fprintf(stderr, "Simulated instructions = %llu\n", inst_cnt);
+			fprintf(stderr, "Simulated instructions = %lu\n", inst_cnt);
 			fprintf(stderr, "Time = %f ms\n", (double)delay / 1000.00);
 			fprintf(stderr, "Rate = %f Mips\n", ((double)inst_cnt / (double)delay) );
 		}
