@@ -4,8 +4,8 @@ LIBADD += $$(shell bash ../src/$(proc)-config --libs)
 
 all: $(proc)-disasm
 
-$(proc)-disasm: $(proc)-disasm.o
-	$$(CC) $$(CFLAGS) -o $$@ $$^ $$(LIBADD)
+$(proc)-disasm: $(proc)-disasm.o ../src/lib$(proc).a
+	$$(CC) $$(CFLAGS) -o $$@ $$< $$(LIBADD)
 
 clean:
 	rm -rf $(proc)-disasm.o

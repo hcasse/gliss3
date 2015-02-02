@@ -13,28 +13,31 @@ $(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
 #define $(proc)_error(e) fprintf(stderr, "%s\n", (e))
 
 
-/* Extern Modules */
-/* Constants */
+/**
+ * Halt the fetch module.
+ */
+static void halt_fetch(void) {
+}
 
-
-/* Variables & Fonctions */
-
-static void halt_fetch(void)
-{
+/**
+ * Initialize the fetch module.
+ */
+static void init_fetch(void) {
 }
 
 
-static void init_fetch(void)
-{
-}
 
-
-
-/* initialization and destruction of $(proc)_fetch_t object */
-
+/**
+ *  initialization and destruction of $(proc)_fetch_t object
+ */
 static int number_of_fetch_objects = 0;
 
 
+/**
+ * Initialize a fetch handler.
+ * @param pf	Current platform.
+ * $(if is_multi_set)@param state	State to fetch instruction from.$(end)
+ */
 $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *pf$(if is_multi_set), $(proc)_state_t *state$(end))
 {
 	$(proc)_fetch_t *res = malloc(sizeof($(proc)_fetch_t));
@@ -49,6 +52,10 @@ $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *pf$(if is_multi_set), $(p
 }
 
 
+/**
+ * Delete the given fetch handler.
+ * @param fetch		Fetch handler to delete.
+ */
 void $(proc)_delete_fetch($(proc)_fetch_t *fetch)
 {
 	if (fetch == NULL)
@@ -61,41 +68,23 @@ void $(proc)_delete_fetch($(proc)_fetch_t *fetch)
 		halt_fetch();
 }
 
-
-$(if is_multi_set)
 $(foreach instr_sets_sizes)
-$(if is_RISC_size)
-/*
-	donne la valeur d'une zone mémoire (une instruction) en ne prenant
-	en compte que les bits indiqués par le mask
+$(if is_RISC_size)			//$ RISC instruction set
 
-	on fait un ET logique entre l'instruction et le masque,
-	on conserve seulement les bits indiqués par le masque
-	et on les concatène pour avoir un nombre sur bits
-
-	on suppose que le masque n'a pas plus de $(C_size) bits à 1,
-	sinon débordement
-
-	instr : instruction (de $(C_size) bits)
-	mask  : masque ($(C_size) bits aussi)
-*/
-static uint$(C_size)_t valeur_sur_mask_bloc$(C_size)(uint$(C_size)_t instr, uint$(C_size)_t mask)
-{
+/**
+ * Assemble bits representing the opcode.
+ * @param	instr	Instruction work.
+ * @param	mask	Mask of bits to group.
+ * @return			Opcode.
+ */
+static uint$(C_size)_t make_opcode$(C_size)(uint$(C_size)_t instr, uint$(C_size)_t mask) {
 	int i;
 	uint$(C_size)_t tmp_mask;
 	uint$(C_size)_t res = 0;
 
-	/* on fait un parcours du bit de fort poids de instr[0]
-	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-
 	tmp_mask = mask;
-	for (i = $(C_size) - 1; i >= 0; i--)
-	{
-		/* le bit i du mask est 1 ? */
-		if (tmp_mask & $(msb_size_mask))
-		{
-			/* si oui, recopie du bit i de l'instruction
-			à droite du resultat avec decalage prealable */
+	for (i = $(C_size) - 1; i >= 0; i--) {
+		if (tmp_mask & $(msb_size_mask)) {
 			res <<= 1;
 			res |= ((instr >> i) & 0x01);
 		}
@@ -104,152 +93,90 @@ static uint$(C_size)_t valeur_sur_mask_bloc$(C_size)(uint$(C_size)_t instr, uint
 	return res;
 }
 
-$(proc)_ident_t $(proc)_fetch_$(C_size)($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_size)_t *code, Table_Decodage_$(C_size) *table)
-{
+
+/**
+ * Fetch the instruction at the given address.
+ * @param fetch		Fetch handler.
+ * @param address	Address to fetch from.
+ * @param code		Bytes to store instruction code in.
+$(if is_multi_set) * @param table	Table to get decoding tree from.$(end)
+ */
+$(if is_multi_set)//$ 		RISC multi-set
+$(proc)_ident_t $(proc)_fetch_$(C_size)($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_size)_t *code, Table_Decodage_$(C_size) *table) {
+$(else)//$ 					RISC mono-set
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_size)_t *code) {
+$(end)
 	uint$(C_size)_t valeur;
-	Table_Decodage_$(C_size) *ptr;
-	Table_Decodage_$(C_size) *ptr2 = table;
+	Table_Decodage$(if is_multi_set)_$(C_size)$(end) *ptr;
+	Table_Decodage$(if is_multi_set)_$(C_size)$(end) *ptr2 = $(if !is_multi_set)$(proc)_$(end)table;
 	*code = $(proc)_mem_read$(C_size)(fetch->mem, address);
-
-	do
-	{
-                valeur = valeur_sur_mask_bloc$(C_size)(*code, ptr2->mask);
-                ptr  = ptr2;
+#	ifdef $(PROC)_ORDER_BYTES$(C_size) 
+		{ uint8_t *buff = (uint8_t *)code; $(PROC)_ORDER_BYTES$(C_size); }
+#	endif
+	do {
+		valeur = make_opcode$(C_size)(*code, ptr2->mask);
+		ptr  = ptr2;
 		ptr2 = ptr->table[valeur].ptr;
-	}
-	while (ptr->table[valeur].type == TABLEFETCH);
-
+	} while(ptr->table[valeur].type == TABLEFETCH);
 	return ($(proc)_ident_t)ptr->table[valeur].ptr;
 }
-$(else)/* code must be already initialized so it could contain any instruction (should be init to max size instr) */
-$(proc)_ident_t $(proc)_fetch_CISC($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code, Table_Decodage_CISC *table)
-{
-	uint32_t value;
 
-	Table_Decodage_CISC *ptr;
-	Table_Decodage_CISC *ptr2 = table;
-	do
-	{
-		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
-		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
-			uint8_t buff[4];
-			/* reads 4 bytes in the correct order */
-			$(proc)_mem_read(fetch->mem, address + (get_mask_length(code) >> 3), buff, 4);
-			uint32_t byte_ordered = (buff[0] << 24) | (buff[1] << 16) | (buff[2] << 8) | buff[3];
-			set_mask_chunk(code, get_mask_length(code) >> 5, byte_ordered);
-			set_mask_length(code, get_mask_length(code) + 32);
-		}
+$(else)//$ 					CISC instruction set
 
-		/* compute value on mask */
-		value = value_on_mask(code, ptr2->mask);
-                ptr  = ptr2;
-		ptr2 = ptr->table[value].ptr;
-	}
-	while (ptr->table[value].type == TABLEFETCH);
-
-	return ($(proc)_ident_t)ptr->table[value].ptr;
-}
-$(end)$(end)$(end)
-$(if !is_multi_set)
-$(if is_RISC)
-/*
-	donne la valeur d'une zone mémoire (une instruction) en ne prenant
-	en compte que les bits indiqués par le mask
-
-	on fait un ET logique entre l'instruction et le masque,
-	on conserve seulement les bits indiqués par le masque
-	et on les concatène pour avoir un nombre sur bits
-
-	on suppose que le masque n'a pas plus de $(C_inst_size) bits à 1,
-	sinon débordement
-
-	instr : instruction (de $(C_inst_size) bits)
-	mask  : masque ($(C_inst_size) bits aussi)
-*/
-static uint$(C_inst_size)_t valeur_sur_mask_bloc(uint$(C_inst_size)_t instr, uint$(C_inst_size)_t mask)
-{
-	int i;
-	uint$(C_inst_size)_t tmp_mask;
-	uint32_t res = 0;
-
-	/* on fait un parcours du bit de fort poids de instr[0]
-	à celui de poids faible de instr[nb_bloc-1], "de gauche à droite" */
-
-	tmp_mask = mask;
-	for (i = $(C_inst_size) - 1; i >= 0; i--)
-	{
-		/* le bit i du mask est 1 ? */
-		if (tmp_mask & $(msb_mask))
-		{
-			/* si oui, recopie du bit i de l'instruction
-			à droite du resultat avec decalage prealable */
-			res <<= 1;
-			res |= ((instr >> i) & 0x01);
-		}
-		tmp_mask <<= 1;
-	}
-	return res;
-}
-
-
-/* Fonctions Principales */
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_inst_size)_t *code)
-{
-	uint$(C_inst_size)_t valeur;
-	Table_Decodage *ptr;
-	Table_Decodage *ptr2 = $(proc)_table;
-	*code = $(proc)_mem_read$(C_inst_size)(fetch->mem, address);
-
-	do
-	{
-                valeur = valeur_sur_mask_bloc(*code, ptr2->mask);
-                ptr  = ptr2;
-		ptr2 = ptr->table[valeur].ptr;
-	}
-	while (ptr->table[valeur].type == TABLEFETCH);
-
-	return ($(proc)_ident_t)ptr->table[valeur].ptr;
-}
-$(else)
-
-/* here we deal with variable size instructions (CISC) */
-
-
-/* Fonctions Principales */
-
-/* code must be already initialized so it could contain any instruction (should be init to max size instr) */
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code)
-{
-	uint32_t value;
-
-	Table_Decodage *ptr;
-	Table_Decodage *ptr2 = $(proc)_table;
-	do
-	{
-		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
-		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
-			uint8_t buff[4];
-			/* reads 4 bytes in the correct order */
-			$(proc)_mem_read(fetch->mem, address + (get_mask_length(code) >> 3), buff, 4);
-			uint32_t byte_ordered = (buff[0] << 24) | (buff[1] << 16) | (buff[2] << 8) | buff[3];
-			set_mask_chunk(code, get_mask_length(code) >> 5, byte_ordered);
-			set_mask_length(code, get_mask_length(code) + 32);
-		}
-
-		/* compute value on mask */
-		value = value_on_mask(code, ptr2->mask);
-                ptr  = ptr2;
-		ptr2 = ptr->table[value].ptr;
-	}
-	while (ptr->table[value].type == TABLEFETCH);
-
-	return ($(proc)_ident_t)ptr->table[value].ptr;
-}
-$(end)$(end)
-
+/**
+ * Fetch and decode an instruction (for CISC instruction set).
+ * @param fetch		Fetch handler.
+ * @param address	Address of instruction to fetch.
+ * @param code		Bytes to store instruction word in.
+$(if is_multi_set) * @param table	Fetch table to use.$(end)
+ * @return			Index of the fetched instruction.
+ */
 $(if is_multi_set)
-$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, code_t *code)
-{
+$(proc)_ident_t $(proc)_fetch_CISC($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code, Table_Decodage_CISC *table) {
+$(else)
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, mask_t *code) {
+$(end)
+	uint32_t value;
+	Table_Decodage_CISC *ptr;
+	Table_Decodage_CISC *ptr2 = $(if !is_multi_set)$(proc)_$(end)table;
+
+	do {
+		
+		/* if inst buffer has not enough bits to apply mask, read and add what's needed, read a 32 bit chunk (like in mask_t) at a time */
+		while (get_mask_length(code) < get_mask_length(ptr2->mask)) {
+			uint8_t buff[4];
+			uint32_t word;
+			$(proc)_mem_read(fetch->mem, address + (get_mask_length(code) >> 3), buff, 4);
+#			ifdef $(PROC)_ORDER_BYTES_CISC
+				$(PROC)_ORDER_BYTES_CISC;
+#			elif HOST_ENDIANNESS == TARGET_ENDIANNESS
+				word = (buff[0] << 24) | (buff[1] << 16) | (buff[2] << 8) | buff[3];
+#			endif
+			set_mask_chunk(code, get_mask_length(code) >> 5, word);
+			set_mask_length(code, get_mask_length(code) + 32);
+		}
+
+		/* compute value on mask */
+		value = value_on_mask(code, ptr2->mask);
+                ptr  = ptr2;
+		ptr2 = ptr->table[value].ptr;
+
+	} while (ptr->table[value].type == TABLEFETCH);
+
+	return ($(proc)_ident_t)ptr->table[value].ptr;
+}
+$(end)
+$(end)
+
+
+$(if is_multi_set)//$ 		for multiset, single entry must be generated
+/**
+ * Fetch the instruction at the given address.
+ * @param fetch		Fetch handler.
+ * @param address	Address to fetch from.
+ * @param code		Bytes to store instruction code in.
+ */
+$(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address, code_t *code) {
 	$(proc)_state_t *state = fetch->state;
 	assert(state);
 	$(foreach instruction_sets)
@@ -259,6 +186,4 @@ $(proc)_ident_t $(proc)_fetch($(proc)_fetch_t *fetch, $(proc)_address_t address,
 	}
 	$(end)
 }
-
 $(end)
-/* End of file $(proc)_fetch.c */

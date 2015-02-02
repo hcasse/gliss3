@@ -124,49 +124,54 @@ let add_read (rds, wrs) id num =
 	@param lst		List of collected used registers (identifier, number). *)
 let collect info =
 		let variable = ref false in
-		let rec collect_stat stat lst =
+		
+		let rec collect_stat stat lst (line: string * int) =
 		match stat with
 			| Irg.NOP -> lst
-			| Irg.SEQ (s1, s2) -> collect_stat s1 (collect_stat s2 lst)
+			| Irg.SEQ (s1, s2) -> collect_stat s1 (collect_stat s2 lst line) line
 			| Irg.EVAL id -> collect_call id lst
 			| Irg.EVALIND _ -> failwith "gliss-used-regs: collect_stat"
 			| Irg.SETSPE (l, e)
-			| Irg.SET (l, e) -> collect_loc l (collect_expr e lst)
-			| Irg.CANON_STAT (_, args) -> List.fold_left (fun l e -> collect_expr e l) lst args
+			| Irg.SET (l, e) -> collect_loc l (collect_expr e lst line) line
+			| Irg.CANON_STAT (_, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
 			| Irg.ERROR _ -> lst
-			| Irg.IF_STAT (c, t, e) -> collect_expr c (collect_stat t (collect_stat e lst))
-			| Irg.SWITCH_STAT (c, cs, d) -> List.fold_left (fun l (_, s) -> collect_stat s l) (collect_expr c (collect_stat d lst )) cs
-			| Irg.LINE (_, _, s) -> collect_stat s lst
+			| Irg.IF_STAT (c, t, e) -> collect_expr c (collect_stat t (collect_stat e lst line) line) line
+			| Irg.SWITCH_STAT (c, cs, d) ->
+				List.fold_left
+					(fun l (_, s) -> collect_stat s l line)
+					(collect_expr c (collect_stat d lst line) line)
+					cs
+			| Irg.LINE (f, l, s) -> collect_stat s lst (f, l)
 			| Irg.INLINE _ -> lst
 
-		and unalias id idx lst =
+		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
 			| Irg.REG (_, _, _, attrs) ->
 				(match Toc.get_alias attrs with
-				| Irg.LOC_NONE -> collect_reg add_read lst id idx
-				| loc -> collect_expr (Toc.unalias_expr id idx Irg.NONE Irg.NONE Irg.BOOL) lst)
+				| Irg.LOC_NONE -> collect_reg add_read lst id idx line
+				| loc -> collect_expr (Toc.unalias_expr id idx Irg.NONE Irg.NONE Irg.BOOL) lst line)
 			| _ -> lst
 
-		and collect_expr expr lst =
+		and collect_expr expr lst (line: string * int) =
 			match expr with
 			| Irg.NONE -> lst
-			| Irg.COERCE (_, e) -> collect_expr e lst
+			| Irg.COERCE (_, e) -> collect_expr e lst line
 			| Irg.FORMAT (_, args)
-			| Irg.CANON_EXPR (_, _, args) -> List.fold_left (fun l e -> collect_expr e l) lst args
-			| Irg.REF id -> unalias id Irg.NONE lst
+			| Irg.CANON_EXPR (_, _, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
+			| Irg.REF id -> unalias id Irg.NONE lst line
 			| Irg.FIELDOF (_, _, _) -> lst
-			| Irg.ITEMOF (_, id, idx) -> unalias id idx (collect_expr idx lst)
-			| Irg.BITFIELD (_, b, l, u) -> collect_expr b (collect_expr l (collect_expr u lst))
-			| Irg.UNOP (_, _, e) -> collect_expr e lst
-			| Irg.BINOP (_, _, e1, e2) -> collect_expr e1 (collect_expr e2 lst)
-			| Irg.IF_EXPR (_, c, t, e) -> collect_expr c (collect_expr t (collect_expr e lst))
-			| Irg.SWITCH_EXPR (_, c, cs, d) -> collect_expr c (collect_expr d (List.fold_left (fun l (_, e) -> collect_expr e l) lst cs))
+			| Irg.ITEMOF (_, id, idx) -> unalias id idx (collect_expr idx lst line) line
+			| Irg.BITFIELD (_, b, l, u) -> collect_expr b (collect_expr l (collect_expr u lst line) line) line
+			| Irg.UNOP (_, _, e) -> collect_expr e lst line
+			| Irg.BINOP (_, _, e1, e2) -> collect_expr e1 (collect_expr e2 lst line) line
+			| Irg.IF_EXPR (_, c, t, e) -> collect_expr c (collect_expr t (collect_expr e lst line) line) line
+			| Irg.SWITCH_EXPR (_, c, cs, d) -> collect_expr c (collect_expr d (List.fold_left (fun l (_, e) -> collect_expr e l line) lst cs) line) line
 			| Irg.CONST _ -> lst
-			| Irg.ELINE (_, _, e) -> collect_expr e lst
+			| Irg.ELINE (f, l, e) -> collect_expr e lst (f, l)
 			| Irg.EINLINE _ -> lst
-			| Irg.CAST (_, e) -> collect_expr e lst
+			| Irg.CAST (_, e) -> collect_expr e lst line
 
-		and collect_loc loc lst =
+		and collect_loc loc lst (line: string * int) =
 			match loc with
 			| Irg.LOC_NONE _ -> lst
 			| Irg.LOC_REF (_, id, idx, l, u) ->
@@ -174,16 +179,16 @@ let collect info =
 				| Irg.REG (_, _, _, attrs) ->
 					(match Toc.get_alias attrs with
 					| Irg.LOC_NONE ->
-						let lst = collect_expr l (collect_expr u (collect_expr idx lst)) in
-						collect_reg add_write lst id idx
+						let lst = collect_expr l (collect_expr u (collect_expr idx lst line) line) line in
+						collect_reg add_write lst id idx line
 					| Irg.LOC_REF (t, id, idx, l, u) ->
-						collect_stat (Toc.unalias_set info Irg.NOP id idx l u Irg.NONE) lst
+						collect_stat (Toc.unalias_set info Irg.NOP id idx l u Irg.NONE) lst line
 					| Irg.LOC_CONCAT (_, l1, l2) ->
-						collect_loc l1 (collect_loc l2 lst))
+						collect_loc l1 (collect_loc l2 lst line) line)
 				| _ -> lst)
-			| Irg.LOC_CONCAT (_, l1, l2) -> collect_loc l1 (collect_loc l2 lst)
+			| Irg.LOC_CONCAT (_, l1, l2) -> collect_loc l1 (collect_loc l2 lst line) line
 
-		and collect_reg f lst id idx =
+		and collect_reg f lst (id: string) idx ((file, line): string * int) =
 			match Irg.get_symbol id with
 			| Irg.REG (_, s, _, _) ->
 				if s = 1 then f lst id Irg.NONE else
@@ -192,8 +197,9 @@ let collect info =
 					if not !variable then
 						Printf.fprintf
 							stderr
-							"WARNING: instruction %s contains non-static register numbers: cannot generate safe register usage !\n"
-							(Iter.get_user_id info.Toc.inst);
+							"WARNING: instruction %s (%s:%d) contains non-static register numbers: cannot generate safe register usage !\n"
+							(Iter.get_user_id info.Toc.inst)
+							file line;
 					variable := true;
 					lst
 				end
@@ -205,7 +211,7 @@ let collect info =
 			let stat = Toc.get_stat_attr name in
 			let before = info.Toc.calls in
 			info.Toc.calls <- (name, "")::info.Toc.calls;
-			let lst = collect_stat stat lst in
+			let lst = collect_stat stat lst ("", 0) in
 			info.Toc.calls <- before;
 			lst in
 		

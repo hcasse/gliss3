@@ -269,8 +269,6 @@ void gliss_delete_fetch(gliss_fetch_t *fetch);
 </code>
 Delete a fetch handler.
 
-
-
 ===== ''decode'' interface =====
 
 Implements the decoder phase, that is, the phase that decode arguments

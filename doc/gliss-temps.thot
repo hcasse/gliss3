@@ -6,6 +6,16 @@ in generation. It allows also to have a C-close view of the sources
 and to propose different generation modes. In addition, users may easily
 modify the used symbol in order to meet their needs.
 
+===== Lexing Level =====
+
+Sequences of code that does not start by ''$'' are copied as is in the result file.
+If a single ''$'' is needed, just double it as ''$$''.
+
+Template-level comment are also supported: they spans from the token ''//$''
+to the end of the line. They are removed by the template generator
+and does not appear on the output file. In addition, as they fits
+C/C++ syntax of comments, they are colored as comments in a text editor.
+
 
 ===== Template System =====
 
@@ -146,7 +156,11 @@ to know when a source has been generated)
 
 ''GLISS_PROFILED_JUMPS'' (//bool//) -- True when option '-PJ nb_instr' is activated in GEP more details ins section optimisation.
 
+''max_instruction_size'' (//text//) -- Maximal size of instructions (in bits).
+
 ''max_operand_nb'' (//text//) -- Indicates the maximum number of operands of the NML instruction set.
+
+''min_instruction_size'' (//text//) -- Minimal size of instructions (in bits).
 
 ''total_instruction_count'' (//text//) -- Total number of NML instruction set.
 
