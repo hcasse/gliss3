@@ -483,31 +483,26 @@ let rec get_type_ident id=
 
 (** Get the type of an expression
 	@param exp 	Expression  to evaluate
-	@return		the type of the parameter exp	*)
-and get_type_expr exp=
-	(**)
-	(*print_string "Expr : ";
-	print_expr exp;
-	print_string "\n";*)
-	(**)
+	@return		the type of the parameter exp *)
+and get_type_expr exp =
 	match exp with
-	| NONE->NO_TYPE
-	| COERCE(t, _) -> t
-	| FORMAT (_, _) -> STRING
-	| CANON_EXPR (t, _, _) -> t
-	| REF id -> get_type_ident id
-	| FIELDOF (t, _, _) -> t
-	| ITEMOF (t, _, _) -> t
-	| BITFIELD (FLOAT(n, m), _, _, _) -> CARD(n + m)
-	| BITFIELD (t, _, _, _) -> t
-	| UNOP (t, _, _) -> t
-	| BINOP (t, _, _, _) -> t
-	| IF_EXPR (t, _, _, _) -> t
-	| SWITCH_EXPR (t, _, _, _) -> t
-	| CONST (t,_)->t
-	| ELINE (_, _, e) -> get_type_expr e
-	| EINLINE _ -> NO_TYPE
-	| CAST(t, _) -> t
+	| NONE								-> NO_TYPE
+	| COERCE(t, _)						-> t
+	| FORMAT (_, _)						-> STRING
+	| CANON_EXPR (t, _, _)				-> t
+	| REF id							-> get_type_ident id
+	| FIELDOF (t, _, _)					-> t
+	| ITEMOF (t, _, _)					-> t
+	| BITFIELD (FLOAT(n, m), _, _, _) 	-> CARD(n + m)
+	| BITFIELD (t, _, _, _) 			-> t
+	| UNOP (t, _, _) 					-> t
+	| BINOP (t, _, _, _)				-> t
+	| IF_EXPR (t, _, _, _)				-> t
+	| SWITCH_EXPR (t, _, _, _)			-> t
+	| CONST (t,_)						-> t
+	| ELINE (_, _, e) 					-> get_type_expr e
+	| EINLINE _ 						-> NO_TYPE
+	| CAST(t, _) 						-> t
 
 
 (** Give the bit length of a type expression
@@ -774,9 +769,9 @@ let rec get_concat e1 e2 =
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
 	with Failure "length unknown" ->
 		let dsp= fun _->
-			(print_string "op 1 : "; print_expr e1;print_string " type : "; print_type_expr (get_type_expr e1); print_string "\n";
-			print_string "op 2 : "; print_expr e2;print_string " type : "; print_type_expr (get_type_expr e2); print_string "\n") in
-		raise (SemErrorWithFun ("unable to concatenate these operandes",dsp))
+			(print_string "operand 1: "; print_expr e1;print_string ": "; print_type_expr (get_type_expr e1); print_string "\n";
+			print_string "operand 2: "; print_expr e2;print_string ": "; print_type_expr (get_type_expr e2); print_string "\n") in
+		raise (SemErrorWithFun ("unable to concatenate these operands",dsp))
 
 
 (** Check types in comparison.
@@ -1163,18 +1158,17 @@ let check_switch_expr test list_case default=
 	(* This part check if all the possible result of a switch expression are of the same type *)
 	and check_switch_return_type =
 		let type_default = get_type_expr default in
-		let rec sub_fun list_c t=
-			match list_c with
-			| [] -> true
-			| (_,e)::l -> 
-			(*!!DEBUG!!*)
-			(*print_string "**check_switch_return_type, case:";Irg.print_type_expr (get_type_expr e); print_string "\n";*)
-			(get_type_expr e)=t  && sub_fun l  t in
-		(*!!DEBUG!!*)
-		(*print_string "**check_switch_return_type, default:";Irg.print_type_expr type_default; print_string "\n";*)
-		if type_default = NO_TYPE
-		then sub_fun list_case (get_type_expr (snd (List.hd list_case)))
-		else sub_fun list_case type_default
+		let set = if type_default == NO_TYPE then [] else [type_default] in
+		let set = List.fold_left (fun set (c, v) ->
+					let t = get_type_expr v in
+					if (List.exists (fun tt -> t = tt) set) then set else t::set)
+					set list_case in
+		if (List.length set) = 1 then true else
+		raise (SemErrorWithFun ("functional switch with different case types.",
+			(fun _ ->
+				List.iter (fun (c, v) -> prerrln [PTEXT "\t case "; PEXPR c; PTEXT ": "; PTYPE (get_type_expr v)]) list_case;
+				if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default]
+			)))
 
 	(* This part check if all the possibles values of the expression to test are covered *)
 	and check_switch_all_possibilities =
@@ -1210,10 +1204,9 @@ let check_switch_expr test list_case default=
 	(* --- And finally we apply all these three subfunctions to check the switch --- *)
 	if not check_switch_cases then
 		raise (SemError "the cases of a functional switch must be consistent with the expression to test")
-	else if not check_switch_return_type then
-		raise (SemError "the return values of a functional switch must be of the sames type")
 	else if not check_switch_all_possibilities then
-		raise (SemError "the cases of a functional switch must cover all possibilities or contain a default")
+		raise (SemErrorWithFun ("the cases of a functional switch must cover all possibilities or contain a default",
+			(fun _ -> prerrln [PTEXT "Switch type is "; PTYPE (get_type_expr test)])))
 	else if (get_type_expr default != NO_TYPE)
 		then get_type_expr default
 		else get_type_expr (snd (List.hd list_case))
@@ -1364,11 +1357,19 @@ let build_format str exp_list=
 					| "f" -> (match (get_type_expr e_i) with (FLOAT _) -> true | _ -> false)
 					| "l" -> (match (get_type_expr e_i) with INT _ | CARD _ -> true | _ -> false)
 					| _ -> failwith "internal error : build_format"
-				) ref_list exp_list
-			in
-			if not (List.for_all (fun e -> e) test_list)
-			then raise (SemError (Printf.sprintf "incorrect type in this format "))
-			else FORMAT (str, (List.rev exp_list))
+				) ref_list exp_list in
+			let rec find x n l =
+				match l with
+				| [] -> -1
+				| h::t when h = x -> n
+				| _::t -> find x (n + 1) t in
+			if List.for_all (fun e -> e) test_list
+			then FORMAT (str, (List.rev exp_list))
+			else
+				let n = find false 1 test_list in
+				raise (SemErrorWithFun (
+					Printf.sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str,
+					(fun _ -> prerrln [PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n)); PTEXT " does not match format "; PTEXT (List.nth ref_list n)])))
 
 (*
 
@@ -1710,3 +1711,93 @@ let check_param_exists name =
 	match Irg.get_symbol name with
 	| Irg.PARAM _ -> raise (SemError (Printf.sprintf "parameter %s declared twice." name))
 	| _ -> ()
+
+
+(** Get type expression from a simple type.
+		@param t  Type to convert.
+		@return   Matching type expression. *)
+let get_expr_from_type t =
+	match t with
+	| TYPE_ID id -> get_type_ident id
+	| TYPE_EXPR t -> t 
+
+
+(** Split an image format according escape sequences.
+		@param image Image to split.
+		@return      List of image pieces made of Str.split_result. *)
+let split_image image =
+	Str.full_split (Str.regexp "%[0-9]+b") image
+
+
+(** Compute size in bits of image escape sequence "%[0-9]+b".
+		@param esc Escape to measure.
+		@return    Escape size in bits. *)
+let image_escape_size esc =
+	if (String.length esc) <= 2
+	then 1
+	else int_of_string (String.sub esc 1 ((String.length esc) - 2))
+	
+
+(** Split an syntax format according % sequences.
+		@param syntax Syntax to split.
+		@return       List of syntax pieces made of Str.split_result. *)
+let split_syntax syntax =
+	Str.full_split (Str.regexp "%[0-9]+l*dxXuoOs") syntax
+
+
+(** Look for a field type.
+	@param spec			Specification to look in.
+	@param id			Field identifier.
+	@return				Field type (possibly UNKNOWN_TYPE for non-unique OR_MODE/OP).
+	@raise  Not_found	If the field cannot be found. *)
+let rec get_field_type spec id =
+
+	let join t1 t2 =
+		match (t1, t2) with
+		| (t1, t2) when t1 = t2	-> t1
+		| (Irg.UNKNOW_TYPE, _)
+		| (_, Irg.UNKNOW_TYPE) 	-> Irg.UNKNOW_TYPE
+		| (Irg.NO_TYPE, t)
+		| (t, Irg.NO_TYPE) 		-> t
+		| _ 					-> Irg.UNKNOW_TYPE in
+
+	let rec find params attrs =
+		let e = Irg.attr_expr id attrs Irg.NONE in
+		if e = Irg.NONE then raise Not_found else
+		Irg.param_stack params;
+		let tt = get_type_expr e in
+		Irg.param_unstack params;
+		tt in
+	
+	let rec collect syms tt =
+		if tt = Irg.UNKNOW_TYPE then tt else
+		match syms with
+		| [] 	-> tt
+		| h::t	-> collect t (join tt (get_field_type (Irg.get_symbol h) id)) in 
+	
+	match spec with
+	| Irg.AND_MODE (_, params, _, attrs)
+	| Irg.AND_OP (_, params, attrs)	-> find params attrs
+	| Irg.OR_MODE (_, syms)
+	| Irg.OR_MODE (_, syms) 		-> collect syms Irg.NO_TYPE
+	| _ 							-> raise Not_found
+
+
+(** Build and type a field expression.
+	@param pid		Parent identifier.
+	@param cid		Child identifier.
+	@return			Built field expression. *)
+let make_field_of pid cid =
+	if Irg.is_defined pid then
+		match Irg.get_symbol pid with
+		| Irg.PARAM(_, t) ->
+			(match t with
+			| Irg.TYPE_ID(name) ->
+				let tt =
+					(try get_field_type (Irg.get_symbol name) cid
+					with Not_found -> Irg.UNKNOW_TYPE) in
+				Irg.FIELDOF (tt, pid, cid)
+			| _ -> raise (SemError (Printf.sprintf "%s cannot have a %s attribute\n" pid cid)))
+		| _ -> raise (SemError (Printf.sprintf "%s can not have a %s attribute\n" pid cid))
+	else
+		raise (SemError (Printf.sprintf "the identifier %s is undefined\n" pid))

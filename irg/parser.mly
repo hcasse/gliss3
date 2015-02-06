@@ -406,7 +406,8 @@ OpSpec:
 		}
 |	OP LocatedID EQ Identifier_Or_List
 		{ $2, Irg.OR_OP ($2, $4) }
-
+|	OP LocatedID error
+		{ raise (Irg.SyntaxError "missing '=' or '('") }
 ;
 
 
@@ -494,18 +495,11 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 		{ Irg.ATTR_STAT ("action", $4) }
 |	USES EQ UsesDef
 		{ Irg.ATTR_USES }
+|	ID EQ error
+		{ raise (Irg.SyntaxError "attributes only accept expressions, { } actions or use clauses.") }
 ;
 
 AttrExpr :
-/*	no more restriction on attribute expression
-	ID DOT SYNTAX
-		{ eline (Irg.FIELDOF (Irg.STRING, $1, "syntax")) }
-|	ID DOT IMAGE
-		{ eline (Irg.FIELDOF (Irg.STRING, $1, "image")) }
-|	STRING_CONST
-		{ eline (Irg.CONST (Irg.STRING,Irg.STRING_CONST $1)) }
-|	FORMAT LPAREN STRING_CONST  COMMA  FormatIdlist RPAREN
-		{  eline (Sem.build_format $3 $5) }*/
 |	Expr
 		{ eline $1 }
 ;
@@ -672,6 +666,8 @@ Location :
 				(Sem.get_type_length (Sem.get_loc_type $3)) in
 			Irg.LOC_CONCAT (Irg.CARD length, $1, $3)
 		}
+|	LPAREN Location RPAREN
+ 		{ $2 }
 ;
 
 
@@ -735,48 +731,7 @@ Expr :
 			then eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
 			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT ID
-		{
-		if Irg.is_defined $1
-			then
-				match (Irg.get_symbol $1) with
-					(* we should get a previously stacked param *)
-					Irg.PARAM(_, t) ->
-					(match t with
-						Irg.TYPE_ID(name) ->
-						(try
-							let sp = Irg.get_symbol name in
-							let params =
-								match sp with
-									Irg.AND_MODE(_, p_l, _, _) -> p_l
-									| Irg.AND_OP(_, p_l, _) -> p_l
-									| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
-							in
-							(match Iter.get_attr sp $3 with
-								Iter.EXPR(e) ->
-									(try
-										(* stack sp params, get type & unstack'em (should be recursive ?) *)
-										Irg.param_stack params;
-										let tt = Sem.get_type_expr e in
-										Irg.param_unstack params;
-										eline (Irg.FIELDOF (tt, $1, $3))
-									with
-										Sem.SemError _
-										| Irg.Symbol_not_found _ ->
-										Irg.param_unstack params;
-										eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1, $3)))
-								| _ ->
-									raise (Sem.SemError (Printf.sprintf " %s doesn't have an expression attribute named %s\n" $1 $3)))
-						with Not_found ->
-							raise (Sem.SemError (Printf.sprintf " %s doesn't have a %s attribute\n" $1 $3))
-							| _ -> eline (Irg.FIELDOF (Irg.UNKNOW_TYPE, $1, $3))
-						)
-						| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
-					)
-					| _ -> raise (Sem.SemError (Printf.sprintf " %s can not have a %s attribute\n" $1 $3))
-				(*end*)
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
+		{ eline (Sem.make_field_of $1 $3) }
 |	Expr DOUBLE_COLON Expr
 		{
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)

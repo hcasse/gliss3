@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+exception SyntaxError of string
 exception Error of (out_channel -> unit)
 
 
@@ -265,12 +266,7 @@ let get_symbol n =
 	try
 		StringHashtbl.find syms n
 	with Not_found ->
-		(*if n = "bit_order" then*)
-			UNDEF
-		(*else*)
-		(* !!DEBUG!! *)
-		(*failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")*)
-		(*raise (Symbol_not_found(n))*)
+		UNDEF
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
@@ -1204,6 +1200,31 @@ let rec attr_stat id attrs def =
 	| _::tl -> attr_stat id tl def
 
 
+(** Get the name of an attribute.
+		@param attr Attribute to get name from.
+		@return     Attribute name or empty string for USES. *)
+let attr_name attr =
+	match attr with
+	| ATTR_EXPR (n, _)
+	| ATTR_STAT (n, _)
+	| ATTR_LOC (n, _) -> n
+	| _ -> ""
+
+
+(** Change the value of an attribute in the attribute list.
+		@param value Attribute Value.
+		@param attrs Attribute list to change.
+		@return      Changed attribute list. *)
+let set_attr value attrs =
+	let id = attr_name value in
+	let rec process res attrs =
+		match attrs with
+		| [] -> res
+		| h::t when (attr_name h) = id -> process res t
+		| h::t -> process (h::res) t in
+	 value :: (process [] attrs)
+
+
 (** Apply the given functions to all specifications.
 	@param f	Function to apply. *)
 let iter f =
@@ -1279,3 +1300,67 @@ let is_text_format s =
 	@return		True if it is a binary format, false else. *)
 let is_bin_format s =
 	(s.[(String.length s) - 1]) = 'b'
+
+
+(** Type to perform mixed printing of IRG information. *)
+type printable =
+	| PTEXT of string
+	| PSTAT of stat
+	| PEXPR of expr
+	| PLOC of location
+	| PTYPE of type_expr
+
+
+(** Print a message made of IRG items.
+	@param out Output channel.
+	@param lst List of items to print. *)
+let output out lst =
+	let output_item item =
+		match item with
+		| PTEXT t -> output_string out t
+		| PSTAT s -> output_statement out s
+		| PEXPR e -> output_expr out e
+		| PLOC  l -> output_location out l
+		| PTYPE t -> output_type_expr out t in
+	List.iter output_item lst 
+
+
+(** Print a message made of IRG items.
+	@param lst List of items to print. *)
+let print lst = output stdout lst
+
+
+(** Print an error message made of IRG items.
+	@param lst List of items to print. *)
+let prerr lst = output stderr lst
+
+
+(** Print a message made of IRG items and output a new line.
+	@param out Output channel.
+	@param lst List of items to print. *)
+let outputln out lst =
+	output out lst;
+	output_string out "\n"
+
+
+(** Print a message made of IRG items and output a new line.
+	@param lst List of items to print. *)
+let println lst = outputln stdout lst
+
+
+(** Print an error message made of IRG items and output a new line.
+	@param lst List of items to print. *)
+let prerrln lst = outputln stderr lst
+
+
+(** Get attributes of the given specification.
+	@param spec		Spec to look in.
+	@return			Attribute list (or empty list). *) 
+let attrs_of spec =
+	match spec with
+	| MEM (_, _, _, attrs)
+	| REG (_, _, _, attrs)
+	| AND_MODE (_, _, _, attrs)
+	| AND_OP (_, _, attrs)		-> attrs
+	| _ 						-> []
+

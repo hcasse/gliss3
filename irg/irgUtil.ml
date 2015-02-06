@@ -148,3 +148,34 @@ let load path =
 	(* else error *)
 	else
 		raise (Sys_error (Printf.sprintf "ERROR: unknown file type: %s\n" path))
+
+
+(** Load the given that may be .NMP, .NML or .IRG
+	and display message to standard error channel if an error is raised.
+	@param path		Path of file to load. *)
+let load_with_error_support path =
+	try
+		load path;
+	with
+	  Parsing.Parse_error ->
+		Lexer.display_error "syntax error"; exit 2
+	| Irg.SyntaxError msg ->
+		Lexer.display_error msg; exit 2
+	| Irg.Error f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n';
+		exit 2
+	| Lexer.BadChar chr ->
+		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
+	| Sem.SemError msg ->
+		Lexer.display_error msg; exit 2
+	| Irg.Symbol_not_found sym ->
+		Lexer.display_error (Printf.sprintf "symbol not found: %s" sym); exit 2
+	| Irg.IrgError msg ->
+		Lexer.display_error msg; exit 2
+	| Sem.SemErrorWithFun (msg, fn) ->
+		Lexer.display_error msg;
+		fn (); exit 2
+	| Irg.RedefinedSymbol s ->
+		Lexer.display_error (Printf.sprintf "redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2

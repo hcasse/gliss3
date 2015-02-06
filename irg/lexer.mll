@@ -205,10 +205,8 @@ rule main = parse
 |	"'"			{ chr "" lexbuf }
 |	"#line"		{ scan_line lexbuf; scan_file lexbuf; main lexbuf }
 
-|num as v 		{	try(
-					CARD_CONST (Int32.of_string v)
-				)with Failure _-> CARD_CONST_64 (Int64.of_string v)
-			}
+|num as v 		{	try CARD_CONST (Int32.of_string v)
+					with Failure _-> CARD_CONST_64 (Int64.of_string v) }
 
 | binint as v		{	let size = (String.length v) - 2 in
 				try(
