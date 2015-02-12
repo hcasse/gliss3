@@ -24,6 +24,7 @@ exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
 
 let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)
+let sprintf = Printf.sprintf
 
 (** Threshold which integer as suffixed under *)
 let int_threshold = Int32.of_int 255
@@ -643,7 +644,8 @@ let resolve_alias name idx ub lb =
 			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
 			| _ -> failwith "OUPS!\n")
 		| s ->
-			failwith ("bad alias: " ^ r) in
+			Irg.print_spec (Irg.get_symbol r);
+			failwith ("toc: bad alias: " ^ r) in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	res
 
@@ -1120,7 +1122,8 @@ and gen_itemof info t name idx prfx =
 			(state_macro info (unaliased_mem_name name) prfx);
 		gen_expr info idx prfx;
 		output_string info.out ")"
-	| _ -> failwith "invalid itemof"
+	| _ ->
+		failwith (sprintf "invalid itemof on '%s'" name)
 
 
 (** Generate code for unary operation.
@@ -1199,7 +1202,7 @@ and coerce info t1 expr parent prfx =
 	let eq0 f _ =
 		output_string info.out "((";
 		f ();
-		output_string info.out ") == 0)" in
+		output_string info.out ") != 0)" in
 	let cast f _ =
 		Printf.fprintf info.out "((%s)(" (type_to_string t1c);
 		f ();
@@ -1290,9 +1293,9 @@ and gen_cast info typ expr prfx =
 	let asis _ = gen_expr info expr prfx in
 	
 	let equal_zero _ =
-		Printf.fprintf info.out "(0 == (";
+		Printf.fprintf info.out "(0 != (";
 		asis ();
-		Printf.fprintf info.out ")" in
+		Printf.fprintf info.out "))" in
 
 	match typ, etyp with
 	| Irg.FLOAT _, Irg.FLOAT _-> do_cast ()

@@ -655,7 +655,10 @@ let get_value_mask sp =
 	in
 	(*!DEBUG!!*)
 	(*let res =*)
-	BITMASK(revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
+	BITMASK(revert_bytes
+		(get_mask_from_regexp_list
+			(Str.full_split (Str.regexp "%[0-9]*[bdfxs]")
+				(remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
 	(*in
 	let s = get_intern_val res in
 	Printf.printf "get_value_mask, [%s] (%d)\n" s (String.length s);

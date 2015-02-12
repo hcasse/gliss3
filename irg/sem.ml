@@ -26,6 +26,7 @@ open Printf
 exception SemError of string
 exception SemErrorWithFun of string * (unit -> unit)
 exception ManyDefaultsInSwitch
+exception NoSize of Irg.expr
 
 
 (** False value. *)
@@ -527,7 +528,7 @@ let get_type_length t =
 	| NO_TYPE
 	| STRING
 	| UNKNOW_TYPE ->
-		failwith "length unknown"
+		failwith "sem: length unknown"
 
 
 (** Give the bit lenght of an expression
@@ -539,50 +540,42 @@ let get_length_from_expr e=
 	get_type_length (get_type_expr e)
 
 
-(** Check the matching of a unary operation and the type of its operand.
-	@param t	Type to check.
-	@param uop	Operation to check.
-	@return	True if they match, false else.
-*)
-let check_unop_type t uop =
-	match t with
-	 UNKNOW_TYPE->true
-	|(CARD _|INT _	|FIX (_,_) | FLOAT (_,_))->((uop=NOT)||(uop=NEG)||(uop=BIN_NOT))
-	|STRING->false
-	|_->(uop=NOT||uop=BIN_NOT)
+(** Check an unary operation.
+	@param e	Operand.
+	@param uop	Unary operation.
+	@return		(result type, actual operand).
+	@raise		Irg.Error *)
+let check_unop e uop =
+	let t = get_type_expr e in
+	
+	match (uop, t) with
+	| (_, UNKNOW_TYPE) -> (UNKNOW_TYPE, e)
+	| (NOT, BOOL)
+	| (NOT, CARD _)
+	| (NOT, INT _)
+	| (NOT, FIX _)
+	| (NOT, FLOAT _)
+	| (NEG, CARD _)
+	| (NEG, INT _)
+	| (NEG, FIX _)
+	| (NEG, FLOAT _)
+	| (BIN_NOT, CARD _)
+	| (BIN_NOT, INT _)
+	| (BIN_NOT, FIX _)
+	| (BIN_NOT, FLOAT _) -> (t, e)
+	| _ ->
+		Irg.error_with_msg [Irg.PTEXT "bad operand type "; Irg.PTYPE t; Irg.PTEXT " for "; Irg.PEXPR (Irg.UNOP(Irg.NO_TYPE, uop, e))]
 
 
-(** Create a unary operation with a correct type in function of its operand.
-	@param e	First operand.
+(** Make a unary operation with a correct type in function of its operand.
+	@param e	Operand.
 	@param uop	Operation to apply.
-	@return	An UNOP expression
+	@return		(result type, operand)
 	@raise SemErrorWithFun	Raised when the type of the operand is not compatible with the operation
 *)
-let get_unop e uop=
-
-	let t=get_type_expr e
-	in
-	if(not (check_unop_type t uop))
-		then	let aff=fun _->(
-						print_string (string_of_unop uop);
-						print_string " ";
-						print_string "(";
-						print_expr e;
-						print_string ") -";
-						print_type_expr t;
-						print_string "-";
-						print_string "\n"
-					 )
-			in
-			raise (SemErrorWithFun ("This unary operation is semantically incorrect",aff))
-
-
-
-		else 	(match (uop,t) with
-			(_,UNKNOW_TYPE)->UNOP (UNKNOW_TYPE, uop,e)
-			|(NEG,CARD n)->UNOP(INT n,uop,e)	(*for the negation of a CARD, the type is INT *)
-			|_->UNOP (t,uop,e))
-
+let get_unop e uop =
+	let (t, e) = check_unop e uop in
+	UNOP (t, uop, e)
 
 
 (** Perform automatic-coercition between numeric types, coercing to bigger type.
@@ -767,7 +760,7 @@ let rec get_concat e1 e2 =
 	try
 		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
-	with Failure "length unknown" ->
+	with Failure "sem: length unknown" ->
 		let dsp= fun _->
 			(print_string "operand 1: "; print_expr e1;print_string ": "; print_type_expr (get_type_expr e1); print_string "\n";
 			print_string "operand 2: "; print_expr e2;print_string ": "; print_type_expr (get_type_expr e2); print_string "\n") in
@@ -1469,6 +1462,26 @@ let get_loc_ref_type name =
 	| _ -> raise (SemError (name ^ " is not a location"))
 
 
+(** Check if the alias atribute matches the current entity.
+	@param mem	Memory entity to test (may be REG, VAR or MEM).
+	@return		None if it matches, Some id if it doesn't match with id the problematic memory. *) 
+let check_alias mem =
+	let attrs = Irg.attrs_of mem in
+	
+	let rec test loc =
+		match loc with
+		| Irg.LOC_NONE -> mem
+		| Irg.LOC_CONCAT (_, l1, l2) -> (test l1; test l2)
+		| Irg.LOC_REF (_, id, _, _, _) ->
+			(match (mem, Irg.get_symbol id) with
+			| (Irg.MEM _, Irg.MEM _)
+			| (Irg.REG _, Irg.REG _)
+			| (Irg.VAR _, Irg.VAR _) -> mem
+			| (_, _) -> Irg.error (Printf.sprintf "unconsistant alias to %s" id)) in
+	
+	test (Irg.attr_loc "alias" attrs Irg.LOC_NONE)
+				 
+
 (* list of undefined canonical type *)
 let undef_canons: string list ref = ref []
 
@@ -1787,16 +1800,14 @@ let rec get_field_type spec id =
 	@param pid		Parent identifier.
 	@param cid		Child identifier.
 	@return			Built field expression. *)
-let make_field_of pid cid =
+let type_of_field pid cid =
 	if Irg.is_defined pid then
 		match Irg.get_symbol pid with
 		| Irg.PARAM(_, t) ->
 			(match t with
 			| Irg.TYPE_ID(name) ->
-				let tt =
-					(try get_field_type (Irg.get_symbol name) cid
-					with Not_found -> Irg.UNKNOW_TYPE) in
-				Irg.FIELDOF (tt, pid, cid)
+				(try get_field_type (Irg.get_symbol name) cid
+				with Not_found -> Irg.UNKNOW_TYPE)
 			| _ -> raise (SemError (Printf.sprintf "%s cannot have a %s attribute\n" pid cid)))
 		| _ -> raise (SemError (Printf.sprintf "%s can not have a %s attribute\n" pid cid))
 	else

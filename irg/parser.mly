@@ -296,24 +296,17 @@ LetExpr:
 
 MemorySpec:
 	MEM LocatedID LBRACK MemPart RBRACK OptionalMemAttrDefList
-		{
-			Irg.add_pos $2 !(Lexer.file) $1;
-			$2, Irg.MEM ($2, fst $4, snd $4, $6)
-		}
+		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Sem.check_alias (Irg.MEM ($2, fst $4, snd $4, $6))) }
 ;
 
 RegisterSpec:
 	REG LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{
-			Irg.add_pos $2 !(Lexer.file) $1;
-			$2, Irg.REG ($2, fst $4, snd $4, $6) }
+		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Sem.check_alias (Irg.REG ($2, fst $4, snd $4, $6))) }
 ;
 
 VarSpec:
 	VAR LocatedID LBRACK RegPart RBRACK
-		{
-			Irg.add_pos $2 !(Lexer.file) $1;
-			$2, Irg.VAR ($2, fst $4, snd $4) }
+		{ Irg.add_pos $2 !(Lexer.file) $1; $2, Irg.VAR ($2, fst $4, snd $4) }
 ;
 
 MemPart:
@@ -362,8 +355,7 @@ MemLocation:
 	MemLocBase
 		{ Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, Irg.NONE, Irg.NONE) }
 |	MemLocBase BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{ 
-		Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, $3, $5) }
+		{  Irg.LOC_REF (Sem.get_loc_ref_type (fst $1), fst $1, snd $1, $3, $5) }
 ;
 
 MemLocBase:
@@ -497,6 +489,8 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 		{ Irg.ATTR_USES }
 |	ID EQ error
 		{ raise (Irg.SyntaxError "attributes only accept expressions, { } actions or use clauses.") }
+|	ID error
+ 		{ raise (Irg.SyntaxError "missing '=' in attribute definition") }
 ;
 
 AttrExpr :
@@ -576,6 +570,8 @@ Statement:
 		{ Irg.EVAL "action" }
 |	ID
 		{ Irg.EVAL $1 }
+|	ID LPAREN
+		{ raise (Irg.SyntaxError (Printf.sprintf "unreduced macro '%s'" $1)) }
 |	ID DOT ACTION
 		{ Irg.EVALIND ($1, "action")  }
 |	ID DOT ID
@@ -674,6 +670,8 @@ Location :
 ConditionalStatement:
 	IF Expr THEN Sequence OptionalElse ENDIF
 		{ Irg.IF_STAT ($2, $4, $5) }
+|	IF Expr THEN Sequence OptionalElse RBRACE
+		{ raise (Irg.SyntaxError "missing endif") }
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseBody RBRACE
 		{Irg.SWITCH_STAT ($3, fst $6, snd $6)}
 
@@ -718,8 +716,12 @@ Expr :
 				else
 					raise (Sem.SemError "unable to an expression coerce into a string")
 		}
+|	COERCE error
+		{ raise (Irg.SyntaxError "syntax error in coerce expression") }
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
 		{ eline (Sem.build_format $3 $5) }
+|	FORMAT error
+		{ raise (Irg.SyntaxError "syntax error in format expression") }
 |	STRING_CONST LPAREN ArgList RPAREN
 		{ Sem.test_canonical $1; eline (Sem.build_canonical_expr $1 (List.rev $3)) }
 |	ID DOT SYNTAX
@@ -731,7 +733,7 @@ Expr :
 			then eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
 			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT ID
-		{ eline (Sem.make_field_of $1 $3) }
+		{ eline (Irg.FIELDOF(Sem.type_of_field $1 $3, $1, $3)) }
 |	Expr DOUBLE_COLON Expr
 		{
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
@@ -742,6 +744,9 @@ Expr :
 			let v = Sem.get_data_expr_attr $1 in
 			if v != Irg.NONE then eline (v) else eline (Irg.REF $1)
 		}
+
+|	ID LPAREN
+		{ raise (Irg.SyntaxError "unreduced macro here") }
 
 /* TODO: still strange.
 
@@ -792,6 +797,9 @@ Expr :
 					raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
 		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
+|	ID LBRACK error
+		{ raise (Irg.SyntaxError "unclosed bracket expression") }
+
 /*	TODO: What a strange thing here !
 	|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
 		{
@@ -934,10 +942,18 @@ Expr :
 		}
 |	LPAREN Expr RPAREN
 		{ $2 }
+|	LPAREN error
+		{ raise (Irg.SyntaxError "no expression after '('") }
+|	LPAREN Expr error
+		{ raise (Irg.SyntaxError "unclosed '('") }
 |	IF Expr THEN Expr ELSE Expr ENDIF
 		{ eline (Irg.IF_EXPR (Sem.check_if_expr $4 $6, $2, $4, $6)) }
+|	IF error
+		{ raise (Irg.SyntaxError "malformed if expression") }
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
 		{ eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6)) }
+|	SWITCH error
+		{ raise (Irg.SyntaxError "malformed switch expression") }
 |	AROBAS STRING_CONST
 		{ eline (Irg.EINLINE $2) }
 |	Constant

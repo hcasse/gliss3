@@ -21,6 +21,7 @@
 
 exception SyntaxError of string
 exception Error of (out_channel -> unit)
+exception PreError of (out_channel -> unit)
 
 
 (** Deprecated *)
@@ -38,6 +39,22 @@ let error_with_fun f = raise (Error f)
 (** Raise an error exception with the given message.
 	@param msg	Message to display. *)
 let error msg = raise (Error (fun out -> output_string out msg))
+
+
+(** Emit a PreError exception. PreError are error without source line information
+	that need to be fulfilled with this information.
+	@param msg	Message of the preerror.
+	@raise 		PreError *)
+let pre_error msg = raise (PreError (fun out -> output_string out msg))
+
+
+(** Take a pre-error exception and build a complete error message.
+	@param m	Message function (out_channel -> unit).
+	@param f	Source file.
+	@param l	Source line.
+	@raise		Error. *)
+let complete_error m f l =
+	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
 
 
 (** May be set to true to dump line information during expression/statement
@@ -314,7 +331,7 @@ let add_symbol name sym =
 			| NO_TYPE
 			| STRING
 			| UNKNOW_TYPE ->
-				failwith "length unknown"
+				failwith "irg: length unknown"
 		in
 		let b_o =
 			match get_symbol "bit_order" with
@@ -1183,6 +1200,23 @@ let rec attr_expr id attrs def =
 	| _::tl -> attr_expr id tl def
 
 
+(** Get an attribute as a location.œ.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error _	If the attribute exists but does not have the right type. *)
+let rec attr_loc id attrs def =
+	let error _ =
+		raise (IrgError (Printf.sprintf "attribute \"%s\" should be a location" id)) in
+	match attrs with
+	| [] -> def
+	| (ATTR_LOC (id', e))::_ when id = id' -> e
+	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_loc id tl def
+
+
 (** Get an attribute as a statement.
 	@param id		Identifier of the looked attribute.
 	@param attrs	List of attributes.
@@ -1364,3 +1398,9 @@ let attrs_of spec =
 	| AND_OP (_, _, attrs)		-> attrs
 	| _ 						-> []
 
+
+(** Raise an error with message displayed by prerrln.
+	@param lst	List of arguments to display.
+	@raise		Error. *)
+let error_with_msg lst =
+	raise (Error (fun out -> prerrln lst))

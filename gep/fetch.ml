@@ -567,6 +567,78 @@ let output_struct_decl out fetch_size idx =
 		output_string out ("\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n"))
 
 
+(** Provide support for range parameter by instruction duplication.
+		Return list of instructions without any range parameter.
+		@param iset Instruction set.
+		@return Instruction set without range parameter. *)
+let remove_ranges iset =
+	
+	let to_bin v l =
+		let rec compute v l r =
+			if l = 0 then r else
+			let d = if (Int32.logand v Int32.one) = Int32.zero then "0" else "1" in
+			compute (Int32.shift_right v 1) (l - 1) (d ^ r) in
+		compute v l "" in
+	
+	let rec enum_range l u r =
+		if (Int32.compare l u) > 0
+		then r
+		else enum_range (Int32.succ l) u (l::r) in
+	
+	let contain_range (_, t) =
+		match (Sem.get_expr_from_type t) with
+		| Irg.RANGE _ -> true
+		| _ -> false in
+
+	let finalize (id, params, attrs) fmt args =
+		Irg.AND_OP (id, params, Irg.set_attr
+			(Irg.ATTR_EXPR ("image", Irg.FORMAT(fmt, (List.rev args)))) attrs) in
+
+	let rec scan spec ifmt iargs fmt args =
+		match ifmt with
+		| [] -> [finalize spec fmt args]
+		| (Str.Text s)::ifmt   -> scan spec ifmt iargs (fmt ^ s) args
+		| (Str.Delim s)::ifmt ->
+			let iarg :: iargs = iargs in
+			(match iarg with
+			| Irg.REF id ->
+				(match Sem.get_type_ident id with
+				| Irg.RANGE (l, u) -> mult spec ifmt iargs fmt args l u (Sem.image_escape_size s)
+				| _                -> scan spec ifmt iargs (fmt ^ s) (iarg :: args))
+			| _                  -> scan spec ifmt iargs (fmt ^ s) (iarg :: args))
+		and mult spec ifmt iargs fmt args l u s =
+			let lst = enum_range l u [] in
+			let specs = List.map (fun v -> scan spec ifmt iargs (fmt ^ (to_bin v s)) args) lst in
+			List.flatten specs in
+
+	let transform id params attrs fmt args =
+		Irg.param_stack params;
+		let r = scan (id, params, attrs) (Sem.split_image fmt) args "" [] in
+		Irg.param_unstack params;
+		r in
+
+	let look res inst =
+		match inst with
+		| Irg.AND_OP (id, params, attrs) ->
+			(match (Irg.attr_expr "image" attrs Irg.NONE) with
+			| Irg.FORMAT(fmt, args) ->
+				if (List.exists contain_range params)
+				then (transform id params attrs fmt args) @ res
+				else inst::res
+			| _ -> inst :: res)
+		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in  
+			
+	let rec process res lst =
+		match lst with
+		| [] -> res
+		| h::t -> process (look res h) t in
+	
+	Printf.printf "start range\n"; flush stdout;
+	let r = process [] iset in
+	Printf.printf "end range\n"; flush stdout;
+	r
+
+
 (** output a table C decl, if idx >= 0 table name will be suffixed
 	@param out			Stream to output to.
 	@param sp_l			List of instructions.
@@ -575,6 +647,7 @@ let output_struct_decl out fetch_size idx =
 	@param fetch_state
 	*)
 let output_table out sp_l fetch_size idx fetch_stat =
+	let sp_l = remove_ranges sp_l in
 	let suffix = if idx < 0 then "" else ("_" ^ (string_of_int idx)) in
 	let aux dl dt = output_table_C_decl fetch_size suffix out fetch_stat dt dl in
 	let dl =  sort_dectree_list (build_dec_nodes sp_l) in
