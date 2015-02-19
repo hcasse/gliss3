@@ -1,0 +1,40 @@
+
+let proc="mine"
+let gliss_isize = "32"
+let bit_order = "UPPERMOST"
+
+reg pcc[1, card(32)] pc=1
+reg r[32, card(32)]
+reg r64[16, card(64)] alias = r[0]
+
+var t32[1, card(32)]
+var t64[1, card(64)]
+type R_NO_PC = [0 .. 14]
+
+op init()
+	action = { }
+
+op instruction = gen | single | multii | alone
+
+op gen(r: R_NO_PC)
+	syntax = "gen"
+	image = format("0000 %4b XXXXXXXX XXXXXXXX XXXXXXXX", r)
+	action = {
+	}
+
+op single()
+	syntax = "single"
+	image = "0000 1111 XXXXXXXX XXXXXXXX XXXXXXXX"
+	action = {
+	}
+
+op multii(r1: [0..2], r2: [0..2])
+	syntax = "multi"
+	image = format("0001 %2b00 %2b00 XXXX  XXXXXXXX XXXXXXXX", r1, r2)
+	action = { }
+
+op alone()
+	syntax = "alone"
+	image = "0001 1100 1100 XXXX  XXXXXXXX XXXXXXXX"
+	action = { }
+

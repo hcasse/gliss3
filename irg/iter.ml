@@ -25,6 +25,9 @@ type inst = Irg.spec
 (** Null instruction. *)
 let null = Irg.UNDEF
 
+(** Identifier of instruction identifiers. *)
+let id = "$ID"
+
 type value = STAT of Irg.stat | EXPR of Irg.expr
 
 let print_value v =
@@ -165,7 +168,7 @@ let must_expr_attr inst attr =
  * @param instr		Instruction to get name for.
  * @return			C name for the instruction.
  *)
-let get_name instr =
+let build_name instr =
 	let rec to_string e =
 		match e with
 		  Irg.FORMAT(s, e_l) -> s
@@ -176,8 +179,31 @@ let get_name instr =
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
 		| _ -> failwith "unsupported operator in syntax" in
 
-	let syntax = to_string (must_expr_attr instr "syntax") in
-	NameTable.make instr syntax
+	let mkstr s =
+		Irg.CONST (Irg.STRING, Irg.STRING_CONST(s, false, Irg.NO_TYPE)) in
+
+	match instr with
+	| Irg.AND_OP(sid, params, attrs) ->
+		(match Irg.attr_expr "syntax" attrs Irg.NONE with
+		| Irg.NONE ->
+			failwith "iter: no syntax attribute"
+		| e ->
+			let syntax = to_string e in
+			let cid = NameTable.build instr syntax in
+			Irg.AND_OP (sid, params, (Irg.ATTR_EXPR (id, mkstr cid)) :: attrs))
+	| _ -> failwith "iter: not an instruction"
+
+
+(**
+ * Get C identifier for the current instruction.
+ * This name may be used to build other valid C names.
+ * @param instr		Instruction to get name for.
+ * @return			C name for the instruction.
+ *)
+let get_name inst =
+	match  Irg.attr_expr id (Irg.attrs_of inst) Irg.NONE with
+	| Irg.CONST (_, Irg.STRING_CONST(v, _, _)) -> v
+	| _ -> failwith "iter: identifier undefined"
 
 
 (** Get instruction identification for the user.
@@ -306,7 +332,8 @@ let get_insts _ =
 	(* initialization *)
 	if !instr_set = [Irg.UNDEF] then
 		(try
-			instr_set :=  List.map check_coerce (Instantiate.instantiate_instructions root_inst);
+			instr_set := List.map check_coerce (Instantiate.instantiate_instructions root_inst);
+			instr_set := List.map build_name !instr_set;
 			if !multi_set = [] then
 				enumerate_instr_sets !instr_set;			
 		with Instantiate.Error (sp, msg) ->

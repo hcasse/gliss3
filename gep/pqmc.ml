@@ -1,5 +1,6 @@
 (*
- * GLISS2 -- Quine - Mac Cluskey method implementation.
+ * GLISS2 -- Pseudo-Quine - Mac Cluskey method implementation.
+  *			 (we do not want overlapping terms).
  * Copyright (c) 2015, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of GLISS2.
@@ -18,6 +19,12 @@
  * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
+
+(** This module aims to reduce a set of binary words M to a smaller set M' where
+	by introducing Xs when two words differs only in one bit. This is very close
+	to the Quine-Mc Cluskey algorithm but differ in the fact that any word of M
+	must match exactly one word M', that is, the words of M' cannot overlap.
+	Thus, the name of the module s pqmc (Pseudo-Quine-Mc Cluskey).*)
 
 type term_t = string
 
@@ -88,6 +95,28 @@ end
 module TermSet = Set.Make(OrderedTerm)	
 
 
+(** Test if both bits overlap, that is may design the same value.
+	@param b1	First bit to test.
+	@param b2	Second bit to test.
+	@return		True if both bits overlap, false else. *)
+let overlap_bit b1 b2 =
+	b1 = b2 || b1 = x || b2 = x
+
+
+(** Test if two words overlap.
+	@param w1	First word.
+	@param w2	Second word.
+	@return		True if both words overlap, false else. *)
+let overlap w1 w2 =
+	let rec test i =
+		if i >= (String.length w1) then true else
+		if not (overlap_bit (String.get w1 i) (String.get w2 i)) then false else
+		test (i + 1) in
+	let r = test 0 in
+	(*Printf.printf "overlap(%s, %s) = %b\n" w1 w2 r;*)
+	r
+
+
 (** Compute the prime terms for the given term.
 	@param terms	Term to compute primes on.
 	@return			Minimal set of primes. *)
@@ -120,57 +149,87 @@ let compute_primes terms =
 		match (cs1, cs2) with
 		| ([], _) -> set
 		| (c1::t1, c2::t2) -> combine (combine_a set c1 c2) t1 t2
-		| _ -> failwith "qmc.compute_primes/combine" in
+		| _ -> failwith "pqmc.compute_primes/combine" in
 	
-	let rec add_missing terms set =
-		List.fold_left
-			(fun set term -> if (TermSet.exists (fun m -> matches term m) set) then set else TermSet.add term set)
-			set
-			terms in
-		
-	let rec iter terms =
+	let rec overlap_terms t tl =
+		match tl with
+		| [] -> false
+		| ht::tt when overlap t ht -> true
+		| _::tt -> overlap_terms t tt in
+	
+	let rec split st ft =
+		match st with
+		| [] -> ft
+		| h::t when overlap_terms h ft -> split t ft
+		| h::t -> split t (h::ft) in
+
+	let rec get_missing tt xt =
+		match tt with
+		| [] -> []
+		| h::t when overlap_terms h xt -> get_missing t xt
+		| h::t -> h :: (get_missing t xt) in
+	
+	(*let print_terms msg terms =
+		print_string (msg ^ " = [ ");
+		List.iter (fun t -> print_string (t ^ " ")) terms;
+		print_string " ]\n" in*)
+							
+	let rec minimize terms =
+		(*print_terms "terms" terms;*)
 		let classes = make_classes terms in
 		if (count_classes classes) == 1 then terms else
-		let set = add_missing terms (TermSet.remove "" (combine TermSet.empty (List.tl classes) classes)) in
+		let set = TermSet.remove "" (combine TermSet.empty (List.tl classes) classes) in
 		let nterms = TermSet.elements set in
-		if terms = nterms then nterms else
-		iter nterms in
+		if terms = nterms || nterms = [] then terms else minimize nterms in
 	
-	iter terms
+	let rec sort terms =
+		let mins = minimize terms in
+		let mins = split mins [] in
+		(*print_terms "mins" mins;*)
+		let missing = get_missing terms mins in
+		(*print_terms "missing" missing;*)
+		if missing = [] then mins else mins @ (sort missing) in
+	
+	sort terms
 
 
-let _ =
-	(*let ex = [
-		"00";
-		"01";
-		"10"
-	] in*) 
-	(*let ex = [
-		"001";
-		"010";
-		"100";
-		"011";
-		"101";
-		"111"
-	] in*)
-	let ex = [
-		"0000";
-		"0001";
-		"0010";
-		"0011";
-		"0100";
-		"0101";
-		"0110";
-		"0111";
-		"1000";
-		"1001";
-		"1010";
-		"1011";
-		"1100";
-		"1101";
-		"1110"
-	] in
-	List.iter (Printf.printf "%s\n") (compute_primes ex)
+(* expected 0X 10 *)
+(*let ex = [
+	"00";
+	"01";
+	"10"
+] in*) 
+(* expected XX1 010 100 *)
+(* let ex = [
+	"001";
+	"010";
+	"100";
+	"011";
+	"101";
+	"111"
+] in *)
+(* expected 0XXX 10XX 110X 1110 *)
+(*let ex = [
+	"0000";
+	"0001";
+	"0010";
+	"0011";
+	"0100";
+	"0101";
+	"0110";
+	"0111";
+	"1000";
+	"1001";
+	"1010";
+	"1011";
+	"1100";
+	"1101";
+	"1110"
+]*)
+
+(*let _ =
+	List.iter (Printf.printf "%s\n") (compute_primes ex)*)
+
 
 	
  

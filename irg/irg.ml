@@ -64,16 +64,16 @@ let dump_type = ref true
 
 (** Type expression *)
 type type_expr =
-	  NO_TYPE
-	| BOOL
-	| INT of int
-	| CARD of int
-	| FIX of int * int
-	| FLOAT of int * int
-	| RANGE of int32 * int32
-	| STRING
-	| ENUM of string list
-	| UNKNOW_TYPE		(* Used for OR_MODE only. The evaluation is done in a dynamic way *)
+	  NO_TYPE					(** only used for undefined type *)
+	| BOOL						(** boolean value, supports value 0 or 1 *)
+	| INT of int				(** (bits number) signed integer type *)
+	| CARD of int				(** (bits number) unsigned interger type *)
+	| FIX of int * int			(** (integer part bits number, fractional part bits number) fixed point type *)
+	| FLOAT of int * int		(** (exponent bits number, mantissa bits number) floating-point type *)
+	| RANGE of int32 * int32	(** (low, up) integer range *)
+	| STRING					(** string uniquely used for disassembly *)
+	| ENUM of string list		(** (list of value identifier) enumerated type *)
+	| UNKNOW_TYPE				(** used to represent a variable type (usually induced by OR-mode or operations *)
 
 (** Use of a type *)
 type typ =
@@ -1404,3 +1404,12 @@ let attrs_of spec =
 	@raise		Error. *)
 let error_with_msg lst =
 	raise (Error (fun out -> prerrln lst))
+
+
+(** Get expression with line information removed.
+	@param expr		Expression to examine.
+	@return			Expression without line information. *)
+let rec escape_eline expr =
+	match expr with
+	| ELINE (_, _, expr) -> escape_eline expr
+	| _ -> expr

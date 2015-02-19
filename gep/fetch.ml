@@ -19,9 +19,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*
-  Here is the module in charge of the generation of the fetch_table.h
-*)
+(** Here is the module in charge of the generation of fetch_table.h *)
+
 (*
   Useful list of dependencies in order to work with the interactive Ocaml toplevel :
   (Do not forget to do make to have the latest version of the cmo binaries)
@@ -41,9 +40,12 @@
   #load "toc.cmo";;
 *)
 
-(* flag: output or not fetch tables stats *)
+(** Flag to output or not fetch tables stats *)
 let output_fetch_stat    = ref false
 
+(** Threshold for number of duplications of entries of an instruction opcode
+	before the PQMC support (PQMC allows grouping opcodes using X and reduce number of opcodes). *)
+let pqmc_threshold = Int32.of_int 64
 
 
 (*********************************************************************
@@ -567,12 +569,19 @@ let output_struct_decl out fetch_size idx =
 		output_string out ("\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n"))
 
 
+
+
 (** Provide support for range parameter by instruction duplication.
 		Return list of instructions without any range parameter.
 		@param iset Instruction set.
 		@return Instruction set without range parameter. *)
 let remove_ranges iset =
 	
+	let count_range (_, t) =
+		match Sem.get_expr_from_type t with
+		| Irg.RANGE (l, u) -> Int32.add Int32.one (Int32.sub u l) 
+		| _ -> Int32.one in
+
 	let to_bin v l =
 		let rec compute v l r =
 			if l = 0 then r else
@@ -580,40 +589,45 @@ let remove_ranges iset =
 			compute (Int32.shift_right v 1) (l - 1) (d ^ r) in
 		compute v l "" in
 	
-	let rec enum_range l u r =
-		if (Int32.compare l u) > 0
-		then r
-		else enum_range (Int32.succ l) u (l::r) in
+	let rec enum_range r l u n =
+		if (Int32.compare l u) > 0 then r
+		else enum_range ((to_bin l n)::r) (Int32.succ l) u n in
 	
-	let contain_range (_, t) =
-		match (Sem.get_expr_from_type t) with
-		| Irg.RANGE _ -> true
-		| _ -> false in
+	let min_range l u n =
+		Pqmc.compute_primes (enum_range [] l u n) in
+	
+	let finalize (id, params, attrs) fmts args =
+		List.map 
+			(fun f -> Irg.AND_OP (id, params, Irg.set_attr
+				(Irg.ATTR_EXPR ("image", Irg.FORMAT(f, (List.rev args)))) attrs))
+			fmts  in
 
-	let finalize (id, params, attrs) fmt args =
-		Irg.AND_OP (id, params, Irg.set_attr
-			(Irg.ATTR_EXPR ("image", Irg.FORMAT(fmt, (List.rev args)))) attrs) in
-
-	let rec scan spec ifmt iargs fmt args =
+	let concat strs str =
+		List.map (fun p -> p ^ str) strs in
+	
+	let mult l1 l2 =
+		List.flatten
+			(List.map
+				(fun s1 -> List.map (fun s2 -> s1 ^ s2) l2)
+				l1) in
+	
+	let rec scan spec ifmt iargs fmts args f =
 		match ifmt with
-		| [] -> [finalize spec fmt args]
-		| (Str.Text s)::ifmt   -> scan spec ifmt iargs (fmt ^ s) args
-		| (Str.Delim s)::ifmt ->
+		| [] 					-> finalize spec fmts args
+		| (Str.Text s)::ifmt	-> scan spec ifmt iargs (concat fmts s) args f
+		| (Str.Delim s)::ifmt	->
 			let iarg :: iargs = iargs in
-			(match iarg with
+			(match Irg.escape_eline iarg with
 			| Irg.REF id ->
 				(match Sem.get_type_ident id with
-				| Irg.RANGE (l, u) -> mult spec ifmt iargs fmt args l u (Sem.image_escape_size s)
-				| _                -> scan spec ifmt iargs (fmt ^ s) (iarg :: args))
-			| _                  -> scan spec ifmt iargs (fmt ^ s) (iarg :: args))
-		and mult spec ifmt iargs fmt args l u s =
-			let lst = enum_range l u [] in
-			let specs = List.map (fun v -> scan spec ifmt iargs (fmt ^ (to_bin v s)) args) lst in
-			List.flatten specs in
+				| Irg.RANGE (l, u)
+								-> scan spec ifmt iargs (mult fmts (f l u (Sem.image_escape_size s))) args f
+				| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
+			| e 				-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f) in
 
-	let transform id params attrs fmt args =
+	let transform id params attrs fmt args f =
 		Irg.param_stack params;
-		let r = scan (id, params, attrs) (Sem.split_image fmt) args "" [] in
+		let r = scan (id, params, attrs) (Sem.split_image fmt) args [""] [] f in
 		Irg.param_unstack params;
 		r in
 
@@ -622,9 +636,11 @@ let remove_ranges iset =
 		| Irg.AND_OP (id, params, attrs) ->
 			(match (Irg.attr_expr "image" attrs Irg.NONE) with
 			| Irg.FORMAT(fmt, args) ->
-				if (List.exists contain_range params)
-				then (transform id params attrs fmt args) @ res
-				else inst::res
+				let c = List.fold_left (fun c p -> Int32.mul c (count_range p)) Int32.one params in
+				if Int32.one = c then inst::res else
+				let f = if (Int32.compare c pqmc_threshold) >= 0 then min_range else (enum_range []) in
+				let r = transform id params attrs fmt args f in
+				r @ res
 			| _ -> inst :: res)
 		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in  
 			
@@ -633,9 +649,10 @@ let remove_ranges iset =
 		| [] -> res
 		| h::t -> process (look res h) t in
 	
-	Printf.printf "start range\n"; flush stdout;
+	(*Printf.printf "start range\n"; flush stdout;*)
 	let r = process [] iset in
-	Printf.printf "end range\n"; flush stdout;
+	(*Printf.printf "end range\n"; flush stdout;*)
+	(*List.iter Irg.print_spec r;*)
 	r
 
 
