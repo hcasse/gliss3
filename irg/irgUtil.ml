@@ -166,8 +166,8 @@ let load path =
 		Lexer.line_offset := 0;
 		Lexer.lexbuf := lexbuf;
 		Parser.top Lexer.main lexbuf;
-		check_ops ();
-		check_modes () in		
+		let _ = Iter.get_insts () in
+		() in		
 
 	(* is it an IRG file ? *)
 	if Filename.check_suffix path ".irg" then

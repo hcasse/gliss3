@@ -25,10 +25,9 @@ exception PreError of (out_channel -> unit)
 
 
 (** Deprecated *)
-exception RedefinedSymbol of string
-
-(** Deprecated *)
 exception IrgError of string
+exception RedefinedSymbol of string
+exception Symbol_not_found of string
 
 
 (** Raise the error exception.
@@ -55,6 +54,21 @@ let pre_error msg = raise (PreError (fun out -> output_string out msg))
 	@raise		Error. *)
 let complete_error m f l =
 	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
+
+
+(** Manage errors from the IRG ELINE or SLINE.
+	Call teh given function with the given argument and handle any PreError.
+	@param fn 		Function to call.
+	@param arg		Argument to the function.
+	@param file		Current source file.
+	@param line		Current source line.
+	@return			Result of fn call.
+	@raise Error	If there is an error. *)
+let handle_error fn arg file line =
+	try
+		fn arg
+	with PreError msg ->
+		complete_error msg file line
 
 
 (** May be set to true to dump line information during expression/statement
@@ -267,14 +281,28 @@ let pos_of sym =
 		"<no line>"
 
 
+(** Handle an error from a symbol.
+	@param name		Name of the symbol.
+	@param msg		Message of the error.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_symbol name msg =
+	raise (Error (fun out -> Printf.fprintf out "%s: %s" (pos_of name) msg))	
+
+
+(** Handle an error from a specification.
+	@param spec		Specification.
+	@param msg		Message of the error.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_spec spec msg =
+	error_symbol (name_of spec) msg
+	
+
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 let _ =
 	StringHashtbl.add syms "__IADDR" (PARAM ("__IADDR", TYPE_EXPR (CARD(32))));
 	StringHashtbl.add syms "__ISIZE" (PARAM ("__ISIZE", TYPE_EXPR (CARD(32))))
 
-
-exception Symbol_not_found of string
 
 (** Get the symbol matching the given name or UNDEF if not found.
 	@param n	Symbol to look for.

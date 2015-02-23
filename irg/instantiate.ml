@@ -899,14 +899,12 @@ let rec remove_const_param_from_format f =
 (*************************************************************)
 
 
-
 (**
 	instantiate all vars refering to given parameters in a statement, each original parameter
 	in the statement' spec is instantiated (no more mode nor op) to basic types (and more parameters usually)
-	@param	sta	statement in which we instantiate
-	@param	param_list	list of instantiated parameters
-	@return		the instantiated statement
-*)
+	@param	sta				statement in which we instantiate
+	@param	param_list		list of instantiated parameters
+	@return					the instantiated statement. *)
 let rec instantiate_in_stat sta param_list =
 (* !!DEBUG!! *)
 (*print_string "inst_in_s, param_list=";Irg.print_param_list param_list;Irg.print_statement sta; print_char '\n';*)
@@ -923,10 +921,9 @@ let rec instantiate_in_stat sta param_list =
 (**
 	instantiate all vars refering to given parameters in an expression, each original parameter
 	in the expression' spec is instantiated (no more mode nor op) to basic types (and more parameters usually)
-	@param	ex	expression in which we instantiate
-	@param	param_list	list of instantiated parameters
-	@return		the instantiated expression
-*)
+	@param	ex				expression in which we instantiate
+	@param	param_list		list of instantiated parameters
+	@return					the instantiated expression. *)
 let rec instantiate_in_expr ex param_list =
 (* !!DEBUG!! *)
 (*print_string "inst_in_e, param_list=";Irg.print_param_list param_list;Irg.print_expr ex; print_char '\n';*)
@@ -942,40 +939,28 @@ let rec instantiate_in_expr ex param_list =
 	aux ex param_list
 
 
-(**
-	instantiate a given parameter to its basic modes or ops (terminal OR nodes),
+(**	Instantiate a given parameter to its basic modes or ops (terminal OR nodes),
 	all possibilities are dealt with. If the param refers already to a simple type,
 	it is returned unchanged
-	@param	param	parameter to instantiate
-	@return		list of all the instantiated possibilities for param
+	@param from		Origin mode or operation.
+	@param param	Parameter to instantiate.
+	@return			List of all the instantiated possibilities for param.
 *)
-let instantiate_param param =
-	let rec aux p =
-		match p with
-		| (name, TYPE_ID(typeid))::q ->
-			(match get_symbol typeid with
-			| OR_OP(_, str_l) ->
-				(List.flatten (List.map (fun x -> aux [(name, TYPE_ID(x))]) str_l)) @ (aux q)
-			| OR_MODE(_, str_l) ->
-				(List.flatten (List.map (fun x -> aux [(name, TYPE_ID(x))]) str_l)) @ (aux q)
-			| AND_OP(_, _, _) ->
-				p @ (aux q)
-			| AND_MODE(_, _, _, _) ->
-				p @ (aux q)
-			| _ ->
-				p @ (aux q) (* will this happen? *)
-			)
-		| [] ->
-			[]
-		| _ ->
-			p
-	in
-	match param with
-	| (name, TYPE_EXPR(te)) ->
-		[param]
-	| (_ , _) ->
-		aux [param]
+let instantiate_param from param =
 
+	let rec process from name tid =
+		match get_symbol tid with
+		| UNDEF				-> Irg.error_symbol from (Printf.sprintf "undefined symbol '%s'" tid)
+		| OR_OP(_, ops) 	-> List.flatten (List.map (fun x -> process tid name x) ops)
+		| OR_MODE(_, mods)	-> List.flatten (List.map (fun x -> process tid name x) mods)
+		| AND_OP _
+		| AND_MODE _
+		| TYPE _			-> [(name, TYPE_ID tid)] 
+		| _					-> Irg.error_symbol from (Printf.sprintf "symbol '%s' should be an op or a mode" tid) in
+
+	match param with
+	| (name, TYPE_EXPR(te))	-> [param]
+	| (name , TYPE_ID tid) 	-> process from name tid
 
 
 (**
@@ -1046,14 +1031,12 @@ let list_prod p_ll =
 (**
 	takes a list of parameters (coming from a spec) and instantiate it by returning every possible
 	resulting instantiated parameter list
-	@param	p_l	a list of parameters coming from a spec
+	@param from	Origin mode or operation.
+	@paramp_l	a list of parameters coming from a spec
 	@return		list of all possible instantiated parameter lists from p_l
 *)
-let instantiate_param_list p_l =
-	let a = List.map instantiate_param p_l
-	in
-	list_prod a
-
+let instantiate_param_list from p_l =
+	list_prod (List.map (instantiate_param from) p_l)
 
 
 (**
@@ -1064,7 +1047,7 @@ let instantiate_param_list p_l =
 *)
 let instantiate_attr a params=
 	match a with
-	ATTR_EXPR(n, e) ->
+	| ATTR_EXPR(n, e) ->
 		ATTR_EXPR(n, remove_const_param_from_format (simplify_format_expr (instantiate_in_expr e params)))
 	| ATTR_STAT(n, s) ->
 		ATTR_STAT(n, instantiate_in_stat s params)
@@ -1265,41 +1248,40 @@ let replace_param_list p_l =
 
 (**
 	instantiate a spec with a fully instantiated parameter list (each parameter refering to a basic type)
-	@param	sp	the spec to instantiate
+	@param	sp			the spec to instantiate
 	@param	param_list	the parameters to instantiate in the spec
-	@return		a spec which is the result of the instantiation of all parameters from param_list in sp
+	@return				a spec which is the result of the instantiation of all parameters from param_list in sp
 *)
 let instantiate_spec sp param_list =
-	let is_type_def_spec sp =
+	let spec = sp in
+	
+	let get_type name =
+		let sp = get_symbol name in
 		match sp with
-		| TYPE(_, _) -> true
-		| _ -> false
-	in
+		| TYPE(_, t)	-> Some t
+		| AND_OP _
+		| OR_OP _
+		| AND_MODE _
+		| OR_MODE _		-> None
+		| _				-> failwith "instantiate_spec: unresolved symbol" in
+
 	(* replace all types by basic types (replace type definitions) *)
 	let simplify_param p =
 		match p with
 		| (str, TYPE_ID(n)) ->
 			(* we suppose n can refer only to an OP or MODE, or to a TYPE *)
-			let sp = get_symbol n in
-			if is_type_def_spec sp then
-				(match sp with
-				| TYPE(_, t_e) -> (str, TYPE_EXPR(t_e))
-				| _ -> p
-				)
-			else
-				p
-		| (_, _) -> p
-	in
-	let simplify_param_list p_l =
-		List.map simplify_param p_l
-	in
-	let new_param_list = simplify_param_list param_list
-	in
+			(match get_type n with
+			| None 		-> p
+			| Some t	-> (str, TYPE_EXPR(t)))
+		| (_, _) -> p in
+
+	let simplify_param_list p_l = List.map simplify_param p_l in
+	let new_param_list = simplify_param_list param_list in
+	
 	match sp with
 	| AND_OP(name, params, attrs) ->
 		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
 	| _ -> UNDEF
-
 
 
 (**
@@ -1308,7 +1290,7 @@ let instantiate_spec sp param_list =
 	@return		the list of all fully instantiated specs (one for each parameter combination) derived from the starting spec
 *)
 let instantiate_spec_all_combinations sp =
-	let new_param_lists = instantiate_param_list (get_param_of_spec sp) in
+	let new_param_lists = instantiate_param_list (name_of sp) (get_param_of_spec sp) in
 	List.map (fun x -> instantiate_spec sp x) new_param_lists
 
 
@@ -1418,24 +1400,23 @@ let instantiate_instructions name =
 		else
 			s_l
 	in
-	let rec instantiate_to_andop s_l =
-		let rec inst_one s =
+
+	let rec instantiate_to_andop name =
+		let rec inst_one name =
+			let s = get_symbol name in
 			match s with
-			| AND_OP(_, _, _) -> [s]
-			| OR_OP(_, str_list) -> List.flatten (List.map (fun x -> inst_one (get_symbol x)) str_list)
-			| _ -> failwith "shouldn't happen (instantiate.ml::instantiate_instructions::instantiate_to_andop::inst_one)"
-		in
-		List.flatten (List.map inst_one s_l)
-	in
-	clean_instructions (aux (instantiate_to_andop [get_symbol name]))
+			| UNDEF				-> Irg.error_spec s (Printf.sprintf "symbol '%s' is not defined" name)
+			| AND_OP(_, _, _)	-> [s]
+			| OR_OP(_, ops) 	-> List.flatten (List.map inst_one ops)
+			| _					-> Irg.error_spec s (Printf.sprintf "symbol '%s' should be an op or a mode" name) in
+		inst_one name in
 
-
-
+	clean_instructions (aux (instantiate_to_andop name))
 
 
 (* a few testing functions *)
 
-
+(*
 let test_instant_spec name =
 	let rec print_spec_list l =
 		match l with
@@ -1466,4 +1447,5 @@ let test_instant_param p =
 	end
 	in
 	print_param_list_list (instantiate_param_list [("z",TYPE_EXPR(CARD(5))); ("x",TYPE_ID("_A")); ("y",TYPE_ID("_D"))])
+*)
 
