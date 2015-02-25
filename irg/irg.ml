@@ -58,15 +58,14 @@ let complete_error m f l =
 
 (** Manage errors from the IRG ELINE or SLINE.
 	Call teh given function with the given argument and handle any PreError.
-	@param fn 		Function to call.
-	@param arg		Argument to the function.
 	@param file		Current source file.
 	@param line		Current source line.
+	@param fn 		Function to call with ().
 	@return			Result of fn call.
 	@raise Error	If there is an error. *)
-let handle_error fn arg file line =
+let handle_error file line fn =
 	try
-		fn arg
+		fn ()
 	with PreError msg ->
 		complete_error msg file line
 
@@ -182,7 +181,7 @@ type stat =
 
 (** attribute specifications *)
 type attr =
-	  ATTR_EXPR of string * expr
+	| ATTR_EXPR of string * expr
 	| ATTR_STAT of string * stat
 	| ATTR_USES
 	| ATTR_LOC of string * location
@@ -200,7 +199,7 @@ type spec =
 	| TYPE of string * type_expr
 	| MEM of string * int * type_expr * attr list
 	| REG of string * int * type_expr * attr list
-	| VAR of string * int * type_expr
+	| VAR of string * int * type_expr * attr list
 	| AND_MODE of string * (string * typ) list * expr * attr list
 	| OR_MODE of string * string list
 	| AND_OP of string * (string * typ) list * attr list
@@ -226,7 +225,7 @@ let name_of spec =
 	| TYPE (name, _) -> name
 	| MEM (name, _, _, _) -> name
 	| REG (name, _, _, _) -> name
-	| VAR (name, _, _) -> name
+	| VAR (name, _, _, _) -> name
 	| AND_MODE (name, _, _, _) -> name
 	| OR_MODE (name, _) -> name
 	| AND_OP (name, _, _) -> name
@@ -339,7 +338,7 @@ let add_symbol name sym =
 			match get_symbol nm with
 			MEM(_, i, _, _)
 			| REG(_, i, _, _)
-			| VAR(_, i, _) ->
+			| VAR(_, i, _, _) ->
 				i > 1
 			| _ ->
 				false
@@ -984,10 +983,12 @@ let output_spec out spec =
 		print_string "]";
 		output_mem_attrs out attrs;
 		print_newline ()
-	| VAR (name, size, typ) ->
+	| VAR (name, size, typ, attrs) ->
 		Printf.fprintf out "var %s [%d, " name size;
 		output_type_expr out typ;
-		print_string "]\n";
+		print_string "]";
+		output_mem_attrs out attrs;
+		print_newline ()
 	| RES name ->
 		Printf.fprintf out "resource %s\n" name
 	| EXN name ->
@@ -1431,7 +1432,7 @@ let attrs_of spec =
 	@param lst	List of arguments to display.
 	@raise		Error. *)
 let error_with_msg lst =
-	raise (Error (fun out -> prerrln lst))
+	raise (Error (fun out -> output out lst))
 
 
 (** Get expression with line information removed.

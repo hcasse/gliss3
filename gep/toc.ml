@@ -441,7 +441,7 @@ let add_var info name cnt typ =
 let declare_temps info =
 	List.iter
 		(fun (name, typ) ->
-			Irg.add_symbol name (Irg.VAR (name, 1, typ));
+			Irg.add_symbol name (Irg.VAR (name, 1, typ, []));
 			Printf.fprintf info.out "\t%s %s;\n"
 				(type_to_string (convert_type typ))
 				name
@@ -549,6 +549,8 @@ let rec unaliased_mem_name name =
 		| _ -> failwith "no concat !")
 	| _ -> failwith "not memory !"
 
+
+(* Debug Function
 let print_alias msg (r, i, il, ub, lb, t) =
 	Printf.printf "\t%s(%s [" msg r;
 	Irg.print_expr i;
@@ -559,6 +561,7 @@ let print_alias msg (r, i, il, ub, lb, t) =
 	print_string " > : ";
 	Irg.print_type_expr t;
 	print_string ")\n"
+*)
 
 
 (** Perform alias resolution, that is, translate a state read/write into
@@ -631,8 +634,8 @@ let resolve_alias name idx ub lb =
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
 			process_alias tr attrs v
-		| Irg.VAR (_, _, tr) ->
-			process_alias tr [] v
+		| Irg.VAR (_, _, tr, attrs) ->
+			process_alias tr attrs v
 		| Irg.LET _
 		| Irg.CANON_DEF _ ->
 			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
@@ -720,9 +723,9 @@ let rec unalias_ref info expr stats =
 				unalias_expr name idx Irg.NONE Irg.NONE typ
 			else
 				expr
-		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
+		| Irg.VAR (_, cnt, Irg.NO_TYPE, _) ->
 			expr
-		| Irg.VAR (_, cnt, t) ->
+		| Irg.VAR (_, cnt, t, attrs) ->
 			add_var info name cnt t; expr
 		| _ ->
 			expr in
@@ -877,7 +880,7 @@ let unalias_set info stats name idx ub lb expr =
 		process tt
 	| Irg.MEM (_, _, tt, _) ->
 		seq stats (set_full (i) ub lb expr)
-	| Irg.VAR (_, cnt, tt) ->
+	| Irg.VAR (_, cnt, tt, _) ->
 		add_var info name cnt tt;
 		seq stats (set_full i ub lb expr)
 	| Irg.CANON_DEF _ ->
@@ -1437,7 +1440,7 @@ let rec gen_stat info stat =
 	| Irg.SET (Irg.LOC_REF(typ, id, idx, lo, up), expr) ->
 		line (fun _ ->
 			match Irg.get_symbol id with
-			| Irg.VAR (_, _, t)
+			| Irg.VAR (_, _, t, _)
 			| Irg.REG (_, _, t, _)
 			| Irg.PARAM (_, Irg.TYPE_EXPR(t))
 			| Irg.CANON_DEF (_, _, t, _) ->

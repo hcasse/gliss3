@@ -19,20 +19,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(** This module is in charge of semantics verification of IRG code.
+	
+	From now on, error of this module must be issued using Irg.PreError.
+	This will let the caller (either the parser, or instanciation time checker)
+	to install the correct source file/line informatin for the error display.
+	
+	Other exception are considered as deprecated. *)
 
 open Irg
 open Printf
 
+(** deprecated *)
 exception SemError of string
+
+(** deprecated *)
 exception SemErrorWithFun of string * (unit -> unit)
+
+(** deprecated *)
 exception ManyDefaultsInSwitch
+
+(** deprecated *)
 exception NoSize of Irg.expr
 
 
 (** False value. *)
-let false_const = (*Irg.*)CARD_CONST Int32.zero
+let false_const = CARD_CONST Int32.zero
 (** True value. *)
-let true_const = (*Irg.*)CARD_CONST Int32.one
+let true_const = CARD_CONST Int32.one
+
+(** Get the current line information. *)
+let current_line _ = Printf.sprintf "%s:%d" !(Lexer.file) !(Lexer.line)
 
 
 (** Convert from OCAML boolean to SimNML boolean.
@@ -449,7 +466,7 @@ let rec get_type_ident id=
 			|_->t)
 	|MEM (_,_,t,_)->t
 	|REG (_,_,t,_)->t
-	|VAR (_,_,t)->t
+	|VAR (_,_,t, _)->t
 	|AND_MODE (_,l,e,_)->	(
 				 param_stack l;
 				 let t= get_type_expr e
@@ -1210,29 +1227,32 @@ let check_switch_expr test list_case default=
 	To allow compatibility with older versions, is_loc_mode and is_loc_spe must be used in conjunction with this function
 	@param id	the id to check
 	@return True if the id is a valid memory location, false otherwise *)
-let rec is_location id=
-	let sym =
-		try Irg.get_symbol id
-		with Irg.Symbol_not_found _ -> raise (SemError (Printf.sprintf "unknown symbol: %s" id))
-	and is_location_param id=
-		let sym=Irg.get_symbol id
-		in
-		match sym with
-			 (MEM (_,_,_,_)|REG (_,_,_,_)|VAR(_,_,_))->true
-			|_->false
-	in
-	(**)
-	(*print_spec sym;*)
-	(**)
-	match sym with
-	 (MEM (_,_,_,_)|REG (_,_,_,_)|VAR(_,_,_))->true
-	|PARAM (n,t)->	(rm_symbol n;
-			let value=(match t with
-			 TYPE_ID idb-> is_location_param idb
-			|TYPE_EXPR _->false)
-			in
-			add_param (n,t);value)
-	|_->false
+let rec is_location id =
+
+	let scan_param n t =
+		match t with
+		| TYPE_ID idb -> (rm_symbol n; let v = is_location idb in add_param (n,t); v)  
+		| TYPE_EXPR _ -> false in
+
+	match Irg.get_symbol id with
+	| UNDEF -> true
+	| MEM _
+	| REG _
+	| VAR _ -> true
+	| PARAM (n, t)-> scan_param n t
+	| UNDEF
+	| LET _
+	| TYPE _
+	| AND_MODE _
+	| OR_MODE _
+	| AND_OP _
+	| OR_OP _
+	| RES _
+	| EXN _
+	| ATTR _
+	| ENUM_POSS _
+	| CANON_DEF _ ->false
+
 
 (** Check is the given id refer to a MODE.
 	This is needed for compatibility with some versions of GLISS v1 where assignements in modes where used.
@@ -1457,7 +1477,7 @@ let get_loc_ref_type name =
 	| Irg.UNDEF -> raise (SemError (name ^ " is undefined"))
 	| Irg.MEM (_, _, t, _) -> t
 	| Irg.REG (_, _, t, _) -> t
-	| Irg.VAR (_, _, t) -> t
+	| Irg.VAR (_, _, t, _) -> t
 	| Irg.PARAM _ -> Irg.UNKNOW_TYPE
 	| _ -> raise (SemError (name ^ " is not a location"))
 
@@ -1477,7 +1497,7 @@ let check_alias mem =
 			| (Irg.MEM _, Irg.MEM _)
 			| (Irg.REG _, Irg.REG _)
 			| (Irg.VAR _, Irg.VAR _) -> mem
-			| (_, _) -> Irg.error (Printf.sprintf "unconsistant alias to %s" id)) in
+			| (_, _) -> pre_error (Printf.sprintf "unconsistant alias to %s" id)) in
 	
 	test (Irg.attr_loc "alias" attrs Irg.LOC_NONE)
 				 
@@ -1812,3 +1832,213 @@ let type_of_field pid cid =
 		| _ -> raise (SemError (Printf.sprintf "%s can not have a %s attribute\n" pid cid))
 	else
 		raise (SemError (Printf.sprintf "the identifier %s is undefined\n" pid))
+
+
+(** Build a concatenated location.
+	@param l1	First location.
+	@param l2	Second location.
+	@return		Built location.
+	*)
+let make_concat_loc l1 l2 =
+	let length =
+		(get_type_length (get_loc_type l1)) +
+		(get_type_length (get_loc_type l2)) in
+	LOC_CONCAT (CARD length, l1, l2)
+
+
+(** Build an access location, i.e. access to a memory with an index
+	and and bit field.
+	@param id	Resource identifier.
+	@param idx	Index.
+	@param up	Upper bit.
+	@param lo	Lower bit.
+	@return 	Built location . *)
+let make_access_loc id idx up lo =
+	(* TODO
+		* check id is existing,
+		* either idx is None and size(id) = 1, or idx must be card or int,
+		* if up is not None, it must be int or card,
+		* if lo is not None, it must be int or card.
+	*)
+	if (is_location id) || (is_loc_spe id)
+	then Irg.LOC_REF (get_loc_ref_type id, id, idx, up, lo)
+	else pre_error (Printf.sprintf "'%s' is not a valid location" id) 
+
+
+(** Build a coercition expression.
+	@param t			Type to coerce to.
+	@param expr			Coerced expression.
+	@return				Built expression.
+	@raise Irg.Error	If coercition is impossible or expr contains an error.*)
+let make_coerce t expr =
+	if t = STRING then pre_error "unable to coerce a string into another expression type" else
+	if (get_type_expr expr) = STRING then pre_error "unable to an expression coerce into a string" else
+	COERCE (t, expr)
+
+
+(** Build a bitfield expression.
+	@param base			Base expression.
+	@param up			Upper bit.
+	@param lo			Lower bit.
+	@return				Built expression.
+	@raise Irg.PreError	If error. *)
+let make_bitfield base up lo =
+	(* generic bitfield expr *)
+	(* !!DEBUG!! *)
+	(* for the moment.. *)
+	try
+		let v1 = Int32.to_int (to_int32 (eval_const up)) in
+		let v2 = Int32.to_int(to_int32 (eval_const lo)) in
+		let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
+		(* !!TODO!! check type (only scalar allowed) and length if possible *)
+		BITFIELD (CARD (v2 - v1 + 1), base, up, lo)
+	with SemError _ ->
+		BITFIELD (get_type_expr base, base, up, lo)
+
+
+(** Build an IF expression.
+	@param cond		Condition.
+	@param e1				Then expression.
+	@param e2				Else expression.
+	@return					Built expression.
+	@raise Irg.PreError		If an error is found. *)
+let make_if_expr cond e1 e2 =
+	IF_EXPR (check_if_expr e1 e2, cond, e1, e2)
+
+
+(** Build a switch expression.
+	@param cond				Switch values.
+	@param cases			Cases of the switch.
+	@param def				Default expression.
+	@raise Irg.PreError		If an error is found. *)
+let make_switch_expr cond cases def =
+	SWITCH_EXPR (check_switch_expr cond cases def, cond, cases, def)
+
+
+(** Check type of expression after instruction instanciation.
+	@param expr	Expression to check type for.
+	@return		Fully typed expression (no more UNKNOWN_TYPE). *)
+let rec check_expr_inst expr =
+	match expr with
+	| NONE
+	| REF _
+	| FIELDOF _
+	| CONST _
+	| EINLINE _ ->
+		expr
+	| COERCE (t, e) ->
+		let e' = check_expr_inst e in
+		if e == e' then expr else make_coerce t e'
+	| FORMAT (fmt, args) ->
+		let args' = List.map check_expr_inst args in
+		if args = args' then expr else FORMAT(fmt, args')
+	| CANON_EXPR (t, id, args) ->
+		let args' = List.map check_expr_inst args in
+		if args = args' then expr else CANON_EXPR(t, id, args')
+	| ITEMOF (t, id, idx) ->
+		let idx' = check_expr_inst idx in
+		if idx == idx' then expr else ITEMOF (t, id, idx')
+	| BITFIELD (t, e1, e2, e3) ->
+		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
+		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' && e3 == e3' then expr else make_bitfield e1' e2' e3'
+	| UNOP (t, op, e) ->
+		let e' = check_expr_inst e in
+		if t <> UNKNOW_TYPE && e == e' then expr else get_unop e' op
+	| BINOP (t, op, e1, e2) ->
+		let e1', e2' = check_expr_inst e1, check_expr_inst e2 in
+		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' then expr else get_binop e1' e2' op
+	| IF_EXPR (t, cond, e1, e2) ->
+		let cond', e1', e2' = check_expr_inst cond, check_expr_inst e1, check_expr_inst e2 in
+		if t <> UNKNOW_TYPE && cond == cond' && e1 == e1' && e2 == e2' then expr else make_if_expr cond e1 e2
+	| SWITCH_EXPR (t, cond, cases, def) ->
+		let cond', def' = check_expr_inst cond, check_expr_inst def in
+		let cases' = List.map (fun (c, e) -> (c, check_expr_inst e)) cases in
+		if t <> UNKNOW_TYPE && cond == cond' && def == def' && cases = cases' then expr else make_switch_expr cond' cases' def'
+	| CAST (t, e) ->
+		let e' = check_expr_inst e in
+		if t <> UNKNOW_TYPE && e == e' then expr else CAST(get_type_expr e', e')
+	| ELINE (file, line, e) ->
+		handle_error file line (fun _ ->
+			let e' = check_expr_inst e in
+			if e == e' then expr else ELINE (file, line, e')) 
+		
+
+(** Check type of a location after instruction instanciation.
+	@param loc	Location to check type for.
+	@return		Fully typed location (no more UNKNOWN_TYPE). *)
+let rec check_loc_inst loc =
+	match loc with
+	| LOC_NONE -> loc
+	| LOC_REF(t, id, e1, e2, e3) ->
+		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
+		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' && e3 = e3' then loc else
+		make_access_loc id e1' e2' e3'
+	| LOC_CONCAT(t, l1, l2) ->
+		let l1', l2' = check_loc_inst l1, check_loc_inst l2 in
+		if t <> UNKNOW_TYPE && l1 == l1' && l2 == l2' then loc else
+		make_concat_loc l1' l2'
+
+
+(** Check type of statements after instruction instanciation.
+	@param stat	Statement to check type for.
+	@return		Fully typed statement (no more UNKNOWN_TYPE). *)
+let rec check_stat_inst stat =
+	match stat with
+	| NOP
+	| EVAL _
+	| EVALIND _
+	| ERROR _
+	| INLINE _ ->
+		stat
+	| SEQ (s1, s2) ->
+		let s1', s2' = check_stat_inst s1, check_stat_inst s2 in
+		if s1 == s1' && s2 == s2' then stat else SEQ(s1', s2')
+	| SET (loc, expr)
+	| SETSPE (loc, expr) ->
+		let expr' = check_expr_inst expr in
+		if expr == expr' then stat else make_set loc expr'
+	| CANON_STAT (id, args) ->
+		let args' = List.map check_expr_inst args in
+		if args = args' then stat else CANON_STAT (id, args')
+	| IF_STAT (cond, s1, s2) ->
+		let cond', s1', s2' = check_expr_inst cond, check_stat_inst s1, check_stat_inst s2 in
+		if cond == cond' && s1 == s1' && s2 == s2' then stat else IF_STAT(cond', s1', s2')
+	| SWITCH_STAT (cond, cases, def) ->
+		let cond', def' = check_expr_inst cond, check_stat_inst def in
+		let cases' = List.map (fun (c, s) -> (c, check_stat_inst s)) cases in
+		if cond == cond' && def == def' && cases = cases' then stat else SWITCH_STAT (cond', cases', def')
+	| LINE (file, line, stat) ->
+		let stat' = check_stat_inst stat in
+		if stat == stat' then stat else LINE (file, line, stat)
+
+
+(** Check type of attribute after instruction instanciation.
+	@param attr	Attribute to check type for.
+	@return		Fully typed attribute (no more UNKNOWN_TYPE). *)
+let check_attr_inst attr =
+	match attr with
+	| ATTR_EXPR (id, expr) ->
+		let expr' = check_expr_inst expr in
+		if expr == expr' then attr else ATTR_EXPR(id, expr') 
+	| ATTR_STAT (id, stat) ->
+		let stat' = check_stat_inst stat in
+		if stat == stat' then attr else ATTR_STAT(id, stat')
+	| ATTR_USES ->
+		attr
+	| ATTR_LOC (id, loc) ->
+		attr
+
+
+(** Check type of specification after instruction instanciation.
+	@param spec	Specification to check type for.
+	@return		Fully typed specification (no more UNKNOWN_TYPE). *)
+let check_spec_inst spec =
+	match spec with
+	| AND_OP (id, params, attrs) ->
+		Irg.param_stack params;
+		Irg.attr_stack attrs;
+		let nattrs = List.map check_attr_inst attrs in
+		Irg.attr_unstack attrs;
+		Irg.param_unstack params;
+		AND_OP(id, params, nattrs)
+	| _ -> failwith "Sem.check_spec_inst: bad specification"

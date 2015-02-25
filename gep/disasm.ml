@@ -170,7 +170,7 @@ let _ =
 			options
 			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 			(fun info ->
-				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE));
+				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE, []));
 
 				(* generate disassemble source *)
 				let maker = App.maker () in

@@ -25,6 +25,37 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 let line s = Irg.LINE (!(Lexer.file), !(Lexer.line), s)
 
 
+(** Handle an expression in the parser, i.e. put source file/line information
+	or add file/line information when an error is raised.
+	@param f			Function to perform expression building. It is called with () argument.
+	@return				Built expression.
+	@raise Irg.Error	If there is an error. *)
+let handle_expr f =
+	try
+		Irg.ELINE (!(Lexer.file), !(Lexer.line), f ())
+	with Irg.PreError ef ->
+		raise (Irg.Error (fun out -> Printf.fprintf out "%s:%d: " !(Lexer.file) !(Lexer.line); ef out))
+
+
+(** Handle an statement in the parser, i.e. put source file/line information
+	or add file/line information when an error is raised.
+	@param f			Function to perform statement building. It is called with () argument.
+	@return				Built statement.
+	@raise Irg.Error	If there is an error. *)
+let handle_stat f =
+	try
+		Irg.LINE (!(Lexer.file), !(Lexer.line), f ())
+	with Irg.PreError ef ->
+		raise (Irg.Error (fun out -> Printf.fprintf out "%s:%d: " !(Lexer.file) !(Lexer.line); ef out))
+
+
+(** Raise a syntax error exception.
+	@param msg	Error message.
+	@raise Irg.SyntaxError	Syntax error. *)
+let syntax_error msg =
+	raise (Irg.SyntaxError msg)
+
+
 (** Get information to extend the symbol x.
 	@param x				Name of the symbol to extend (must an AND-op or an AND-mode).
 	@return					(specification of the symbol, list of parameters, list of attributes)
@@ -305,8 +336,8 @@ RegisterSpec:
 ;
 
 VarSpec:
-	VAR LocatedID LBRACK RegPart RBRACK
-		{ Irg.add_pos $2 !(Lexer.file) $1; $2, Irg.VAR ($2, fst $4, snd $4) }
+	VAR LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
+		{ Irg.add_pos $2 !(Lexer.file) $1; $2, Irg.VAR ($2, fst $4, snd $4, $6) }
 ;
 
 MemPart:
@@ -559,8 +590,10 @@ Sequence:
 ;
 
 StatementList:
-	Statement { line $1 }
-|	StatementList SEMI Statement { line(Irg.SEQ ($1, line $3)) }
+	Statement
+		{ line $1 }
+|	StatementList SEMI Statement
+		{ handle_stat (fun _ -> Irg.SEQ ($1, line $3)) }
 ;
 
 Statement:
@@ -577,10 +610,10 @@ Statement:
 |	ID DOT ID
 		{ Irg.EVALIND ($1, $3) }
 |	Location EQ Expr
-		{
+		{ handle_stat (fun _ -> 
 			if Sem.is_setspe $1
 			then Irg.SETSPE ($1,$3)
-			else Sem.make_set $1 $3
+			else Sem.make_set $1 $3)
 		}
 |	ConditionalStatement
 		{ $1 }
@@ -605,63 +638,15 @@ Opt_Bit_Optr :
 
 Location :
 	ID
-		{ if (Sem.is_location $1) || (Sem.is_loc_spe $1) || (Sem.is_loc_mode $1)
-			then	Irg.LOC_REF (Sem.get_loc_ref_type $1, $1, Irg.NONE, Irg.NONE, Irg.NONE)
-			else
-				let dsp=fun _->(
-					print_string "Type : ";
-					Irg.print_spec (Irg.get_symbol $1)
-					)
-				in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-		}
-
+		{ Sem.make_access_loc $1 Irg.NONE Irg.NONE Irg.NONE } 
 |	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1)	 || (Sem.is_loc_mode $1)
-			then
-				Irg.LOC_REF (Sem.get_loc_ref_type $1, $1, Irg.NONE, $3, $5)
-			else
-				let dsp = fun _->(
-						print_string "Type : ";
-						Irg.print_spec (Irg.get_symbol $1)
-						)
-				in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-		}
+		{ Sem.make_access_loc $1 Irg.NONE $3 $5 }
 |	ID LBRACK Expr RBRACK
-		{
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
-			then
-				Irg.LOC_REF (Sem.get_loc_ref_type $1, $1, $3, Irg.NONE, Irg.NONE)
-			else
-				let dsp = fun _->(
-						print_string "Type : ";
-						Irg.print_spec (Irg.get_symbol $1)
-						)
-				in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-		}
+		{ Sem.make_access_loc $1 $3 Irg.NONE Irg.NONE }
 |	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
-			then
-				Irg.LOC_REF (Sem.get_loc_ref_type $1, $1, $3, $6, $8)
-			else
-				let dsp = fun _->(
-						print_string "Type : ";
-						Irg.print_spec (Irg.get_symbol $1)
-						)
-				in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-		}
+		{ Sem.make_access_loc $1 $3 $6 $8 }
 |	Location DOUBLE_COLON Location
-		{
-			let length =
-				(Sem.get_type_length (Sem.get_loc_type $1)) +
-				(Sem.get_type_length (Sem.get_loc_type $3)) in
-			Irg.LOC_CONCAT (Irg.CARD length, $1, $3)
-		}
+		{ Sem.make_concat_loc $1 $3 }
 |	LPAREN Location RPAREN
  		{ $2 }
 ;
@@ -703,25 +688,15 @@ Default:
 ;
 
 
-Expr :
+Expr:
 	COERCE LPAREN Type COMMA Expr RPAREN
-		{
-			if not ($3 = Irg.STRING)
-				then
-					if not ((Sem.get_type_expr $5)=Irg.STRING)
-						then
-							eline (Irg.COERCE ($3,$5))
-						else
-							raise (Sem.SemError "unable to coerce a string into another expression type")
-				else
-					raise (Sem.SemError "unable to an expression coerce into a string")
-		}
+		{ handle_expr (fun _ -> Sem.make_coerce $3 $5) }
 |	COERCE error
-		{ raise (Irg.SyntaxError "syntax error in coerce expression") }
+		{ syntax_error "syntax error in coerce expression" }
 |	FORMAT LPAREN STRING_CONST COMMA ArgList RPAREN
 		{ eline (Sem.build_format $3 $5) }
 |	FORMAT error
-		{ raise (Irg.SyntaxError "syntax error in format expression") }
+		{ syntax_error "syntax error in format expression" }
 |	STRING_CONST LPAREN ArgList RPAREN
 		{ Sem.test_canonical $1; eline (Sem.build_canonical_expr $1 (List.rev $3)) }
 |	ID DOT SYNTAX
@@ -744,44 +719,8 @@ Expr :
 			let v = Sem.get_data_expr_attr $1 in
 			if v != Irg.NONE then eline (v) else eline (Irg.REF $1)
 		}
-
 |	ID LPAREN
 		{ raise (Irg.SyntaxError "unreduced macro here") }
-
-/* TODO: still strange.
-
-|	ID BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{
-			Sem.test_data $1 false;
-			let v = Sem.get_data_expr_attr $1 in
-			let v_id = if v != Irg.NONE then eline (v) else Irg.REF $1 in
-			(* accepted : locations, expr attribute from itself *)
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1)  || (Sem.is_loc_mode $1) || (v != Irg.NONE) then
-				(try
-					let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
-					let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
-					let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
-					eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), v_id, $3, $5))
-				with Sem.SemError _ -> eline (Irg.BITFIELD (Sem.get_type_ident $1, v_id, $3, $5)))
-			else
-				let dsp = fun _-> (print_string "Type : "; Irg.print_spec (Irg.get_symbol $1)) in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "Can't apply bitfield on %s" $1),dsp))
-			
-			(*if not (Irg.is_defined $1) then
-				raise (Sem.SemError (Printf.sprintf "\"%s\" is undefined\n" $1))
-			else if not (Sem.is_location $1) && not (Sem.is_loc_spe $1) && not (Sem.is_loc_mode $1) && not (Sem.is_expr_attr $1) then
-				let dsp = fun _-> (print_string "Type : "; Irg.print_spec (Irg.get_symbol $1)) in
-				raise (Sem.SemErrorWithFun ((Printf.sprintf "Can't apply bitfield on %s" $1),dsp))
-			else try
-				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
-				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
-				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
-				eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), Irg.REF $1, $3, $5))
-			with Sem.SemError _ ->
-				eline (Irg.BITFIELD (Sem.get_type_ident $1, Irg.REF $1, $3, $5))*)
-		}
-*/
-
 |	ID LBRACK Expr RBRACK
 		{
 		if Irg.is_defined $1 then
@@ -798,162 +737,73 @@ Expr :
 		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
 |	ID LBRACK error
-		{ raise (Irg.SyntaxError "unclosed bracket expression") }
-
-/*	TODO: What a strange thing here !
-	|	ID LBRACK Expr RBRACK BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{
-			if Irg.is_defined $1
-			then
-				if (Sem.is_location $1) || (Sem.is_loc_spe $1) (* || (Sem.is_loc_mode $1) *)
-					then
-						(* copied from Expr<Bit_Expr..Bit_Expr> *)
-						try
-							let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $6)) in
-							let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $8)) in
-							let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
-							(* !!TODO!! check type (only scalar allowed) and length if possible *)
-								eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8))
-						with Sem.SemError _ ->
-							eline (Irg.BITFIELD ((Sem.get_type_ident $1), Irg.ITEMOF ((Sem.get_type_ident $1),$1, $3), $6, $8)) (* A changer *)
-					else
-						let dsp = fun _->(
-								print_string "Type : ";
-								Irg.print_spec (Irg.get_symbol $1)
-								)
-						in
-						raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}*/
-
+		{ syntax_error "unclosed bracket expression" }
 |	Expr BIT_LEFT Bit_Expr DOUBLE_DOT Bit_Expr GT
-		{
-			(* generic bitfield expr *)
-			(* !!DEBUG!! *)
-			(* for the moment.. *)
-			try
-				let v1 = Int32.to_int (Sem.to_int32 (Sem.eval_const $3)) in
-				let v2 = Int32.to_int(Sem.to_int32 (Sem.eval_const $5)) in
-				let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
-				(* !!TODO!! check type (only scalar allowed) and length if possible *)
-				eline (Irg.BITFIELD (Irg.CARD (v2 - v1 + 1), $1, $3, $5))
-			with Sem.SemError _ ->
-				eline (Irg.BITFIELD (Sem.get_type_expr $1, $1, $3, $5))
-		}
-
+		{ handle_expr (fun _ -> Sem.make_bitfield $1 $3 $5) }
 |	Expr PLUS Expr
-		{
-			Sem.get_binop $1 $3 Irg.ADD
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.ADD) }
 |	Expr MINUS Expr
-		{
- 			Sem.get_binop $1 $3 Irg.SUB
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.SUB) }
 |	Expr STAR Expr
-		{
-			eline (Sem.get_binop $1 $3 Irg.MUL)
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.MUL) }
 |	Expr SLASH Expr
-		{
-			eline (Sem.get_binop $1 $3 Irg.DIV)
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.DIV) }
 |	Expr PERCENT Expr
-		{
-			Sem.get_binop $1 $3 Irg.MOD
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.MOD) }
 |	Expr DOUBLE_STAR Expr
-		{
-			Sem.get_binop $1 $3 Irg.EXP
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.EXP) }
 |	Expr LEFT_SHIFT Expr
-		{
-			Sem.get_binop $1 $3 Irg.LSHIFT
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.LSHIFT) }
 |	Expr RIGHT_SHIFT Expr
-		{
-			Sem.get_binop $1 $3 Irg.RSHIFT
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.RSHIFT) }
 |	Expr ROTATE_LEFT Expr
-		{
-			Sem.get_binop $1 $3 Irg.LROTATE
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.LROTATE) }
 |	Expr ROTATE_RIGHT Expr
-		{
-			Sem.get_binop $1 $3 Irg.RROTATE
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.RROTATE) }
 |	Expr LT Expr
-		{
-			Sem.get_binop $1 $3 Irg.LT
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.LT) }
 |	Expr GT Expr
-		{
-			Sem.get_binop $1 $3 Irg.GT
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.GT) }
 |	Expr LEQ Expr
-		{
-			Sem.get_binop $1 $3 Irg.LE
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.LE) }
 |	Expr GEQ Expr
-		{
-			Sem.get_binop $1 $3 Irg.GE
-		 }
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.GE) }
 |	Expr EQU Expr
-		{
-			Sem.get_binop $1 $3 Irg.EQ
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.EQ) }
 |	Expr NEQ Expr
-		{
-			Sem.get_binop $1 $3 Irg.NE
-		}
-
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.NE) }
 |	Expr AMPERS Expr
-		{
-			Sem.get_binop $1 $3 Irg.BIN_AND
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.BIN_AND) }
 |	Expr CIRC Expr
-		{
-			Sem.get_binop $1 $3 Irg.BIN_XOR
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.BIN_XOR) }
 |	Expr PIPE Expr
-		{
-			Sem.get_binop $1 $3 Irg.BIN_OR
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.BIN_OR) }
 |	EXCLAM Expr
-		{
-			Sem.get_unop $2  Irg.NOT
-		}
+		{ handle_expr (fun _ -> Sem.get_unop $2 Irg.NOT) }
 |	TILD Expr
-		{
-			Sem.get_unop $2  Irg.BIN_NOT
-		}
-
+		{ handle_expr (fun _ -> Sem.get_unop $2 Irg.BIN_NOT) }
 |	PLUS Expr %prec TILD
 		{ $2 }
-|	MINUS Expr %prec TILD		{
-			Sem.get_unop $2  Irg.NEG
-		}
+|	MINUS Expr %prec TILD
+		{ handle_expr (fun _ -> Sem.get_unop $2 Irg.NEG) }
 |	Expr AND Expr
-		{
-			Sem.get_binop $1 $3 Irg.AND
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.AND) }
 |	Expr OR Expr
-		{
-			Sem.get_binop $1 $3 Irg.OR
-		}
+		{ handle_expr (fun _ -> Sem.get_binop $1 $3 Irg.OR) }
 |	LPAREN Expr RPAREN
 		{ $2 }
 |	LPAREN error
-		{ raise (Irg.SyntaxError "no expression after '('") }
+		{ syntax_error "no expression after '('" }
 |	LPAREN Expr error
-		{ raise (Irg.SyntaxError "unclosed '('") }
+		{ syntax_error "unclosed '('" }
 |	IF Expr THEN Expr ELSE Expr ENDIF
-		{ eline (Irg.IF_EXPR (Sem.check_if_expr $4 $6, $2, $4, $6)) }
+		{ handle_expr (fun _ -> Sem.make_if_expr $2 $4 $6) }
 |	IF error
-		{ raise (Irg.SyntaxError "malformed if expression") }
+		{ syntax_error "malformed if expression" }
 |	SWITCH LPAREN Expr RPAREN LBRACE CaseExprBody RBRACE
-		{ eline (Irg.SWITCH_EXPR (Sem.check_switch_expr $3 (fst $6) (snd $6),$3, fst $6, snd $6)) }
+		{ handle_expr (fun _ -> Sem.make_switch_expr $3 (fst $6) (snd $6)) }
 |	SWITCH error
-		{ raise (Irg.SyntaxError "malformed switch expression") }
+		{ syntax_error "malformed switch expression" }
 |	AROBAS STRING_CONST
 		{ eline (Irg.EINLINE $2) }
 |	Constant

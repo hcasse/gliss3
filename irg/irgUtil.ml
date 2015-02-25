@@ -208,6 +208,11 @@ let load_with_error_support path =
 		f stderr;
 		output_char stderr '\n';
 		exit 2
+	| Irg.PreError f ->
+		Printf.fprintf stderr "%s: " (Lexer.current_loc ());
+		f stderr;
+		output_char stderr '\n';
+		exit 2		
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->

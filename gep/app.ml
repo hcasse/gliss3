@@ -597,35 +597,13 @@ let add_switch name value dict =
  *)
 let process file f opti =
 	try
-		IrgUtil.load file;
+		IrgUtil.load_with_error_support file;
 		(*check ();*)
 		if opti then
 			Optirg.optimize (Irg.get_root ());
 		let info = Toc.info () in
 		f info
 	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
-	| Irg.Error f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n';
-		exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "%s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Irg.RedefinedSymbol s ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2
-	| Irg.Symbol_not_found id ->
-		Lexer.display_error (Printf.sprintf "can not find symbol \"%s\"" id); exit 2
-	| Irg.RedefinedSymbol sym ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;
 	| Toc.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
 	| Toc.PreError f ->

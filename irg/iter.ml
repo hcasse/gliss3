@@ -334,6 +334,7 @@ let get_insts _ =
 		(try
 			instr_set := List.map check_coerce (Instantiate.instantiate_instructions root_inst);
 			instr_set := List.map build_name !instr_set;
+			instr_set := List.map Sem.check_spec_inst !instr_set;
 			if !multi_set = [] then
 				enumerate_instr_sets !instr_set;			
 		with Instantiate.Error (sp, msg) ->
