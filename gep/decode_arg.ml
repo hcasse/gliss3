@@ -136,8 +136,7 @@ let rec scan_decode_argument e m y =
 		| _ -> raise (Toc.PreError (fun c -> Printf.fprintf c "unsupported symbol in image: %s" x)))
 
 	| Irg.ELINE (file, line, e) ->
-		(try scan_decode_argument e m y
-		with Toc.PreError f -> raise (Toc.LocError (file, line, f)))
+		Toc.handle_error file line (fun _ -> scan_decode_argument e m y)
 
 	| Irg.UNOP (t, Irg.BIN_NOT, e) ->
 		scan_decode_argument e m (Irg.UNOP (t, Irg.BIN_NOT, y))
@@ -187,7 +186,7 @@ let rec scan_decode_argument e m y =
 					(Bitmask.sub (Bitmask.shift_left m (Int32.to_int k)) (Int32.to_int k) (Bitmask.length m))
 					(shl y (cst k))
 			with Sem.SemError _ ->
-				raise (Toc.PreError (asis "only forms as 'x >> k' are supported in image")))
+				raise (Irg.PreError (asis "only forms as 'x >> k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.LSHIFT, e1, e2) ->
 		(try
@@ -196,16 +195,11 @@ let rec scan_decode_argument e m y =
 					(Bitmask.shift_right_logical m (Int32.to_int k))
 					(shr y (cst k))
 			with Sem.SemError _ ->
-				raise (Toc.PreError (asis "only forms as 'x << k' are supported in image")))
+				raise (Irg.PreError (asis "only forms as 'x << k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
 		let s1 = Sem.get_length_from_expr e1 in
 		let s2 = Sem.get_length_from_expr e2 in
-		(*Printf.printf "::, s1=%d, s2=%d\n" s1 s2;
-		(scan_decode_argument e1
-			(and_mask m (Bitmask.shift_left (mask s1) s2))
-			(shr (and_ y (cst64 (Int64.shift_left (mask64 (Int64.of_int s1)) s2))) (csti s2))) @
-		(scan_decode_argument e2 (and_mask m (mask s2)) (and_ y (cst64 (mask64 (Int64.of_int s2)))))*)
 		(scan_decode_argument e1 (and_mask m (mask s1)) (shr (and_ y (cst64 (Int64.shift_left (mask64 (Int64.of_int s1)) s2))) (csti s2)))
 		@ (scan_decode_argument e2 (and_mask m (mask s2)) (and_ y (cst64 (mask64 (Int64.of_int s2)))))
 
@@ -219,6 +213,7 @@ let rec scan_decode_argument e m y =
 			scan_decode_argument e2 (and_mask m (Bitmask.of_int32 k)) (and_ y (cst k))
 			with Sem.SemError _ ->
 				raise (Toc.PreError (asis "only forms as 'x & k' or 'k & x' are supported in image")))
+				
 	| Irg.BINOP (t, Irg.BIN_OR, e1, e2) ->
 		let l1 = scan_decode_argument e1 m y in
 		let l2 = scan_decode_argument e2 m y in
@@ -227,8 +222,8 @@ let rec scan_decode_argument e m y =
 		let mr = and_mask m1 m2 in
 		if Bitmask.is_null mr then l1 @ l2
 		else raise (Toc.PreError (asis "both parts of the OR must be independent in an image"))
-	| _
-		-> raise (Toc.PreError (asis "unsupported expression"))
+	| _ ->
+		Toc.pre_error (Irg.output [Irg.PTEXT "unsupported expression "; Irg.PEXPR e])
 
 
 (** Decode all arguments with the given initial values.
@@ -236,12 +231,11 @@ let rec scan_decode_argument e m y =
 	@param vals		Value of the image arguments.
 	@return			Triplet list of (parameter, mask, expression). *)
 let scan_decode_arguments args vals =
-(*print_string "scan_decode_args";
-print_string ":::args=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) args; print_string "]\n";
-print_string ":::vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", "; ) vals; print_string "]\n";
-*)
 	List.fold_left2
-		(fun r a v -> r @ (scan_decode_argument a (mask_of_expr a) v))
+		(fun r a v ->
+			try r @ (scan_decode_argument a (mask_of_expr a) v)
+			with Toc.PreError f ->
+				Toc.pre_error(Irg.join f (fun out -> Printf.fprintf out " in argument %d " (1 + (Irg.index_of a args)))))
 		[] args vals
 
 
@@ -252,8 +246,9 @@ print_string ":::vals=["; List.iter (fun x -> Irg.print_expr x; print_string ", 
 	@param inst		Currently processed instruction.
 	@return			Decoding pairs. *)
 let decode_parameters params args vals inst =
-
-	let t = scan_decode_arguments args vals in
+	let t =
+		try scan_decode_arguments args vals
+		with Toc.PreError f -> raise (Toc.OpError (inst, f)) in
 	let rec process (p, m, e) (p', m', e') =
 		if p <> p' then
 			(p, m, e)

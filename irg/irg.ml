@@ -70,6 +70,34 @@ let handle_error file line fn =
 		complete_error msg file line
 
 
+(** Output the given text when the out stream will be passed.
+	@param text		Text to display.
+	@param out		Output stream. *)
+let asis text out =
+	output_string out text
+
+
+(** Join two output functions.
+	@param f1	First output function.
+	@param f2	Second output function.
+	@return		Output function joining both functions. *)
+let join f1 f2 out =
+	f1 out; f2 out
+	
+
+(** Find index of an item in a list.
+	@param item		Looked item.
+	@param list		List to look in.
+	@return			Position of item in list or -1. *)
+let index_of item list =
+	let rec scan list i =
+		match list with
+		| [] -> -1
+		| h::_ when item = h -> i
+		| _::t -> scan t (i + 1) in
+	scan list 0
+
+
 (** May be set to true to dump line information during expression/statement
 	output. *)
 let dump_lines = ref false
@@ -1377,7 +1405,7 @@ type printable =
 (** Print a message made of IRG items.
 	@param out Output channel.
 	@param lst List of items to print. *)
-let output out lst =
+let output lst out =
 	let output_item item =
 		match item with
 		| PTEXT t -> output_string out t
@@ -1390,30 +1418,30 @@ let output out lst =
 
 (** Print a message made of IRG items.
 	@param lst List of items to print. *)
-let print lst = output stdout lst
+let print lst = output lst stdout
 
 
 (** Print an error message made of IRG items.
 	@param lst List of items to print. *)
-let prerr lst = output stderr lst
+let prerr lst = output lst stderr
 
 
 (** Print a message made of IRG items and output a new line.
 	@param out Output channel.
 	@param lst List of items to print. *)
-let outputln out lst =
-	output out lst;
+let outputln lst out =
+	output lst out;
 	output_string out "\n"
 
 
 (** Print a message made of IRG items and output a new line.
 	@param lst List of items to print. *)
-let println lst = outputln stdout lst
+let println lst = outputln lst stdout
 
 
 (** Print an error message made of IRG items and output a new line.
 	@param lst List of items to print. *)
-let prerrln lst = outputln stderr lst
+let prerrln lst = outputln lst stderr
 
 
 (** Get attributes of the given specification.
@@ -1432,7 +1460,7 @@ let attrs_of spec =
 	@param lst	List of arguments to display.
 	@raise		Error. *)
 let error_with_msg lst =
-	raise (Error (fun out -> output out lst))
+	raise (Error (fun out -> output lst out))
 
 
 (** Get expression with line information removed.
@@ -1442,3 +1470,80 @@ let rec escape_eline expr =
 	match expr with
 	| ELINE (_, _, expr) -> escape_eline expr
 	| _ -> expr
+
+
+(** No source line information .*)
+let no_line = ("", 0)
+
+type line =
+	| LEXPR of expr
+	| LSTAT of stat
+
+
+(** Find the closer line source information.
+	@param expr		Expression to look in.
+	@return			(source file, source line) or ("", 0). *)
+let rec line_from_expr expr =
+	match expr with
+	| NONE
+	| REF _
+	| FIELDOF _
+	| CONST _
+	| EINLINE _
+		-> no_line
+	| COERCE (_, e)
+	| ITEMOF (_, _, e)
+	| UNOP (_, _, e)
+	| CAST (_, e)
+		-> line_from_expr e
+	| FORMAT (_, args)
+	| CANON_EXPR (_, _, args)
+		-> line_from_list (List.map (fun e -> LEXPR e) args)
+	| IF_EXPR (_, e1, e2, e3)
+	| BITFIELD (_, e1, e2, e3)
+		-> line_from_list [LEXPR e1; LEXPR e2; LEXPR e3]
+	| BINOP (t, _, e1, e2)
+		-> line_from_list [LEXPR e1; LEXPR e2]
+	| SWITCH_EXPR (_, c, cs, d)
+		-> line_from_list ([LEXPR c; LEXPR d] @ (List.flatten (List.map (fun (c, e) -> [LEXPR c; LEXPR e]) cs))) 
+	| ELINE (f, l, _)
+		-> (f, l)
+
+
+(** Find the closer line source information.
+	@param stat		Statement to look in.
+	@return			(source file, source line) or ("", 0). *)
+and line_from_stat stat =
+	match stat with
+	| NOP
+	| EVAL _
+	| EVALIND _
+	| ERROR _
+	| INLINE _
+		-> no_line
+	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
+	| SETSPE (l, e)
+	| SET (l, e) -> line_from_expr e 
+	| CANON_STAT (_, args) -> line_from_list (List.map (fun a -> LEXPR a) args)
+	| IF_STAT (c, s1, s2) -> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
+	| SWITCH_STAT (c, cs, d) -> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))
+	| LINE (f, l, _) -> (f, l)
+
+and line_from_list lst =
+	match lst with
+	| [] -> no_line
+	| (LEXPR e)::t ->
+		let l = line_from_expr e in
+		if l <> no_line then l else line_from_list t
+	| (LSTAT s)::t ->
+		let l = line_from_stat s in
+		if l <> no_line then l else line_from_list t
+
+
+(** Test if the given ID design a register.
+	@param id	Identifier.
+	@return		True if it is a register, false else. *)
+let is_reg id =
+	match get_symbol id with
+	| REG _ -> true
+	| _ -> false

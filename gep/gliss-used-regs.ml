@@ -77,24 +77,87 @@ let rec stateless expr =
 	match expr with
 	| Irg.NONE -> true
 	| Irg.COERCE (_, e) -> stateless e
-	| Irg.FORMAT (_, args) -> List.fold_left (fun v e -> v && (stateless e)) true args
-	| Irg.CANON_EXPR (_, _, args)  -> false
+	| Irg.FORMAT (_, args) -> List.for_all stateless args
+	| Irg.CANON_EXPR (_, _, args)  -> List.for_all stateless args
 	| Irg.REF id -> stateless_id id
-	| Irg.FIELDOF _ -> false
+	| Irg.FIELDOF _ -> assert false
 	| Irg.ITEMOF (_, id, idx) -> (stateless_id id) && (stateless idx)
 	| Irg.BITFIELD (_, e, _, _) -> stateless e
 	| Irg.UNOP (_, _, e) -> stateless e
 	| Irg.BINOP (_, _, e1, e2) -> (stateless e1) && (stateless e2)
 	| Irg.IF_EXPR (_, c, t, e) -> (stateless c) && (stateless t) && (stateless e)
-	| Irg.SWITCH_EXPR (_, c, cs, d) -> (stateless c) && (stateless d) && (List.fold_left (fun v (_, e) -> v && (stateless e)) true cs)
+	| Irg.SWITCH_EXPR (_, c, cs, d) -> (stateless c) && (stateless d) && (List.for_all (fun (_, e) -> stateless e) cs)
 	| Irg.CONST _ -> true
 	| Irg.ELINE (_, _, e) -> stateless e
-	| Irg.EINLINE _ -> false
+	| Irg.EINLINE _ -> true
 	| Irg.CAST (_, e) -> stateless e
 and stateless_id id =
 	(match Irg.get_symbol id with
-	| Irg.REG _ | Irg.MEM _  | Irg.VAR _ -> false
+	| Irg.REG _ | Irg.MEM _ -> false
 	| _ -> true)
+
+
+(** Test if the expression contains register access with stateless indexes.
+	@param expr		Expression to test.
+	@return			True if all accessed register have statless indexes, false else. *)
+let rec stateless_expr expr =
+	match expr with
+	| Irg.NONE
+	| Irg.CONST _
+	| Irg.EINLINE _ -> true
+	| Irg.UNOP (_, _, e)
+	| Irg.ELINE (_, _, e)
+	| Irg.COERCE (_, e)
+	| Irg.CAST (_, e) -> stateless_expr e
+	| Irg.CANON_EXPR (_, _, args)
+	| Irg.FORMAT (_, args) -> List.for_all stateless_expr args
+	| Irg.REF id -> true
+	| Irg.ITEMOF (_, id, idx) -> if Irg.is_reg id then stateless idx else true 
+	| Irg.IF_EXPR (_, e1, e2, e3)
+	| Irg.BITFIELD (_, e1, e2, e3) -> (stateless_expr e1) && (stateless_expr e2) && (stateless_expr e3)
+	| Irg.BINOP (_, _, e1, e2) -> (stateless_expr e1) && (stateless_expr e2)
+	| Irg.SWITCH_EXPR (_, c, cs, d) -> (stateless_expr c) && (stateless_expr d) && List.for_all (fun (_, e) -> stateless_expr e) cs
+	| Irg.FIELDOF _ -> assert false
+
+
+(** Test if the given location is stateless, i.e.
+	not access processor state (register or memory).
+	@param loc		Location to test.
+	@return			True if stateless, false else. *)
+let rec stateless_loc loc =
+	match loc with
+	| Irg.LOC_NONE ->
+		true
+	| Irg.LOC_REF (t, id, idx, up, lo)	->
+		(if Irg.is_reg id then (stateless idx) else (stateless_expr idx)) && (stateless_expr up) && (stateless_expr lo) 
+	| Irg.LOC_CONCAT (_, l1, l2) ->
+		(stateless_loc l1) && (stateless_loc l2)
+
+
+(** Test if the given instruction is stateless, i.e.
+	not access processor state (register or memory).
+	@param stat		Statement to test.
+	@return			True if stateless, false else. *)
+let rec stateless_stat stat sp =
+	match stat with
+	| Irg.NOP
+	| Irg.ERROR _
+	| Irg.INLINE _ 					-> true
+	| Irg.SEQ(s1, s2) 				-> (stateless_stat s1 sp) && (stateless_stat s2 sp)
+	| Irg.SET (l, e) 				-> (stateless_loc l) && (stateless e) 
+	| Irg.CANON_STAT (_, args) 		-> List.for_all stateless_expr args
+	| Irg.IF_STAT (c, s1, s2) 		-> (stateless_expr c) && (stateless_stat s1 sp) && (stateless_stat s2 sp)
+	| Irg.SWITCH_STAT (c, cs, d)	-> (stateless_expr c) && (stateless_stat d sp) && List.for_all (fun (_, s) -> stateless_stat s sp) cs
+	| Irg.LINE (_, _, s) 			-> stateless_stat s sp 
+	| Irg.EVAL id					-> stateless_stat_id id sp
+	| Irg.SETSPE _
+	| Irg.EVALIND _ 				-> assert false
+and stateless_stat_id id sp =
+	if List.mem id sp then true else
+	match Irg.get_symbol id with
+	| Irg.ATTR (Irg.ATTR_STAT (_, s))	-> stateless_stat s (id::sp)
+	| _									-> assert false
+	
 
 
 (** Add a written register.
@@ -146,10 +209,14 @@ let collect info =
 
 		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
+			| Irg.UNDEF -> assert false (*failwith ("undefined symbol " ^ id)*)
 			| Irg.REG (_, _, _, attrs) ->
 				(match Toc.get_alias attrs with
 				| Irg.LOC_NONE -> collect_reg add_read lst id idx line
-				| loc -> collect_expr (Toc.unalias_expr id idx Irg.NONE Irg.NONE Irg.BOOL) lst line)
+				| loc ->
+					let e = Toc.unalias_expr id idx Irg.NONE Irg.NONE Irg.BOOL in
+					collect_expr e lst line)
+			| Irg.MEM (_, _, _, attrs) -> collect_expr idx lst line
 			| _ -> lst
 
 		and collect_expr expr lst (line: string * int) =
@@ -160,7 +227,7 @@ let collect info =
 			| Irg.CANON_EXPR (_, _, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
 			| Irg.REF id -> unalias id Irg.NONE lst line
 			| Irg.FIELDOF (_, _, _) -> lst
-			| Irg.ITEMOF (_, id, idx) -> unalias id idx (collect_expr idx lst line) line
+			| Irg.ITEMOF (_, id, idx) -> unalias id idx lst (*collect_expr idx lst line*) line
 			| Irg.BITFIELD (_, b, l, u) -> collect_expr b (collect_expr l (collect_expr u lst line) line) line
 			| Irg.UNOP (_, _, e) -> collect_expr e lst line
 			| Irg.BINOP (_, _, e1, e2) -> collect_expr e1 (collect_expr e2 lst line) line
@@ -173,7 +240,7 @@ let collect info =
 
 		and collect_loc loc lst (line: string * int) =
 			match loc with
-			| Irg.LOC_NONE _ -> lst
+			| Irg.LOC_NONE -> lst
 			| Irg.LOC_REF (_, id, idx, l, u) ->
 				(match Irg.get_symbol id with
 				| Irg.REG (_, _, _, attrs) ->
@@ -239,20 +306,13 @@ let extract_regs inst out =
 	let proc = String.uppercase info.Toc.proc in
 	let gen op (id: string) idx =
 		let name = reg_name proc id in
-		Irg.CANON_STAT(op, [
-			if idx = Irg.NONE then Irg.EINLINE name
-			else Irg.CANON_EXPR (Irg.NO_TYPE, name, [idx])]) in
+			Irg.CANON_STAT(op, [
+				if idx = Irg.NONE then Irg.EINLINE name
+				else Irg.CANON_EXPR (Irg.NO_TYPE, name, [idx])]) in
 	let stats = Toc.seq
 		(Toc.seq_list (List.map (fun (id, idx) -> gen "add_read" id idx) rds))
 		(Toc.seq_list (List.map (fun (id, idx) -> gen "add_write" id idx) wrs)) in
 	
-	(* add help information *)
-	(*let rec display_source stat =
-		match stat with
-		| Irg.LINE (file, line, _) -> Printf.fprintf out "\t/* %s:%d */\n" file line
-		| Irg.SEQ (s1, _) -> display_source s1
-		| _ -> () in
-	display_source (Toc.get_stat_attr "action");*)
 	let id = match inst with
 		| Irg.AND_OP (n, _, _) -> n
 		| _ -> "???" in
@@ -292,6 +352,7 @@ let compile_regs inst stat out =
 			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.EINLINE (reg_name proc id)])
 			| _ -> error ())
 		| Irg.ITEMOF (_, id, idx) ->
+			if not (stateless idx) then Toc.expr_error idx (Irg.asis "register index in 'used_regs' is not stateless") else
 			(match Irg.get_symbol id with
 			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CANON_EXPR (Irg.NO_TYPE, reg_name proc id, [idx])])
 			| _ -> error())
@@ -310,9 +371,7 @@ let compile_regs inst stat out =
 	let rec scan_stat stat =
 		match stat with
 		| Irg.NOP
-		| Irg.EVALIND _
 		| Irg.ERROR _
-		| Irg.SETSPE _
 		| Irg.INLINE _
 		| Irg.SET _ -> stat
 		| Irg.EVAL id ->
@@ -334,6 +393,9 @@ let compile_regs inst stat out =
 			Irg.SWITCH_STAT (c, List.map (fun (c, s) -> (c, scan_stat s)) cs, scan_stat d)
 		| Irg.LINE (f, l, s) ->
 			Toc.locate_error f l (fun _ -> Irg.LINE (f, l, scan_stat s)) ()
+		| Irg.EVALIND _
+		| Irg.SETSPE _ ->
+			assert false
 	
 	and scan_call name =
 		if 	not (List.mem_assoc name info.Toc.calls) then
@@ -361,9 +423,13 @@ let compile_regs inst stat out =
 	@param out		Stream to output to. *)
 let gen_used_regs inst out =
 	match Irg.get_symbol "used_regs" with
-	| Irg.UNDEF -> extract_regs inst out
-	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> compile_regs inst stat out
-	| _ -> raise (Toc.Error "when defined, used_regs attribute must contain statements")
+	| Irg.UNDEF ->
+			extract_regs inst out
+	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) ->
+		if stateless_stat stat ["used_regs"] then compile_regs inst stat out else
+		Toc.stat_error stat (Irg.asis "Stateful register index here! Cannot generate register usage.")
+	| _  ->
+		raise (Toc.OpError (inst, Irg.asis "when defined, used_regs attribute must contain statements"))
 
 
 (** Build the instruction dictionary adding the definition of $(use_regs).

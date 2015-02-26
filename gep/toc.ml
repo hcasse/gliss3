@@ -22,6 +22,8 @@ exception UnsupportedExpression of Irg.expr
 exception Error of string
 exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
+exception OpError of Irg.spec * (out_channel -> unit)
+
 
 let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)
 let sprintf = Printf.sprintf
@@ -34,6 +36,42 @@ let int_threshold = Int32.of_int 255
 	@return		Constant expression. *)
 let make_int_const i =
 	Irg.CONST (Irg.INT(32), Irg.CARD_CONST (Int32.of_int i))
+
+
+(** Raise a PreError.
+	@param f		Function to display error.
+	@raise PreError	Raised exception. *)
+let pre_error f = raise (PreError f)
+
+
+(** Raise an error relative to a statement.
+	@param stat		Errored statement.
+	@param fn 		Function to display error. *)
+let stat_error stat fn =
+	let (f, l) = Irg.line_from_stat stat in
+	raise (LocError (f, l, fn))
+
+
+(** Raise an error relative to an expression.
+	@param expr		Errored Expression.
+	@param fn 		Function to display error. *)
+let expr_error expr fn =
+	let (f, l) = Irg.line_from_expr expr in
+	raise (LocError (f, l, fn))
+
+
+(** Call f with () parameter and catch PreError exception and requalify
+	them with file and line.
+	@param	file		Source file.
+	@param	line		Source line.
+	@param  f			Function to call.
+	@return				Result of f.
+	@raise Toc.LocError	In case of error. *)
+let handle_error file line f =
+	try
+		f ()
+	with PreError f ->
+		raise (LocError (file, line, f))
 
 
 (* StringHash module *)

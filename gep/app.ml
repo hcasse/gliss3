@@ -606,16 +606,13 @@ let process file f opti =
 	with
 	| Toc.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
-	| Toc.PreError f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n';
-		exit 4
 	| Toc.LocError (file, line, f) ->
 		Printf.fprintf stderr "ERROR: %s:%d: " file line;
 		f stderr;
 		output_char stderr '\n';
 		exit 1
+	| Toc.OpError (inst, f) ->
+		Printf.fprintf stderr "ERROR: "; f stderr; Printf.fprintf stderr " from instruction '%s'\n" (Iter.get_user_id inst); exit (1)
 	| Sys_error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
