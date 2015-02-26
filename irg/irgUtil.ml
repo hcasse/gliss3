@@ -222,5 +222,3 @@ let load_with_error_support path =
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error msg;
 		fn (); exit 2
-	| Irg.RedefinedSymbol s ->
-		Lexer.display_error (Printf.sprintf "redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2

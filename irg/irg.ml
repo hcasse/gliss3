@@ -25,7 +25,6 @@ exception PreError of (out_channel -> unit)
 
 
 (** Deprecated *)
-exception RedefinedSymbol of string
 exception Symbol_not_found of string
 
 
@@ -572,7 +571,7 @@ let add_canon fun_name sym =
 	in
 	if CanonHashtbl.mem canon_table name
 	(* symbol already exists *)
-	then raise (RedefinedSymbol fun_name)
+	then pre_error (Printf.sprintf "redefined symbol \"%s\", firstly defined at %s" fun_name (pos_of fun_name))
 	(* add the symbol to the hashtable *)
 	else CanonHashtbl.add canon_table name canon_def_sym
 
