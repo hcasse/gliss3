@@ -25,7 +25,6 @@ exception PreError of (out_channel -> unit)
 
 
 (** Deprecated *)
-exception IrgError of string
 exception RedefinedSymbol of string
 exception Symbol_not_found of string
 
@@ -1241,14 +1240,14 @@ let rec attr_defined id attrs =
 
 
 (** Get an attribute as an expression.
-	@param id		Identifier of the looked attribute.
-	@param attrs	List of attributes.
-	@param def		Default value if the attribute is not found.
-	@return			Found attribute value or the default.
-	@raise Error _	If the attribute exists but does not have the right type. *)
+	@param id			Identifier of the looked attribute.
+	@param attrs		List of attributes.
+	@param def			Default value if the attribute is not found.
+	@return				Found attribute value or the default.
+	@raise PreError _	If the attribute exists but does not have the right type. *)
 let rec attr_expr id attrs def =
 	let error _ =
-		raise (IrgError (Printf.sprintf "attribute \"%s\" should be an expression" id)) in
+		pre_error (Printf.sprintf "attribute \"%s\" should be an expression" id) in
 	match attrs with
 	| [] -> def
 	| (ATTR_EXPR (id', e))::_ when id = id' -> e
@@ -1265,7 +1264,7 @@ let rec attr_expr id attrs def =
 	@raise Error _	If the attribute exists but does not have the right type. *)
 let rec attr_loc id attrs def =
 	let error _ =
-		raise (IrgError (Printf.sprintf "attribute \"%s\" should be a location" id)) in
+		pre_error (Printf.sprintf "attribute \"%s\" should be a location" id) in
 	match attrs with
 	| [] -> def
 	| (ATTR_LOC (id', e))::_ when id = id' -> e
@@ -1282,7 +1281,7 @@ let rec attr_loc id attrs def =
 	@raise Error _	If the attribute exists but does not have the right type. *)
 let rec attr_stat id attrs def =
 	let error _ =
-		raise (IrgError (Printf.sprintf "attribute \"%s\" should be a statement" id)) in
+		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
 	match attrs with
 	| [] -> def
 	| (ATTR_STAT (id', s))::_ when id = id' -> s

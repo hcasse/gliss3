@@ -59,7 +59,7 @@ let syntax_error msg =
 (** Get information to extend the symbol x.
 	@param x				Name of the symbol to extend (must an AND-op or an AND-mode).
 	@return					(specification of the symbol, list of parameters, list of attributes)
-	@raise Irg.IrgError		If the symbol is not extensible. *)
+	@raise Irg.Error		If the symbol is not extensible. *)
 let get_spec_extend x =
 	let sym = Irg.get_symbol x in
 	match sym with
@@ -67,9 +67,9 @@ let get_spec_extend x =
 	| Irg.AND_OP (_, pars, attrs) ->
 		(sym, pars, attrs)
 	| Irg.UNDEF ->
-		raise (Irg.IrgError (Printf.sprintf "symbol %s does not exists" x))
+		Irg.error (Printf.sprintf "symbol %s does not exists" x)
 	| _ ->
-		raise (Irg.IrgError (Printf.sprintf "can not extend %s" x))
+		Irg.error (Printf.sprintf "can not extend %s" x)
 
 
 (** Intersect parameter declaration.
