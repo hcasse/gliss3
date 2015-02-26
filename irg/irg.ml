@@ -24,10 +24,6 @@ exception Error of (out_channel -> unit)
 exception PreError of (out_channel -> unit)
 
 
-(** Deprecated *)
-exception Symbol_not_found of string
-
-
 (** Raise the error exception.
 	@param f	Function to display error. *)
 let error_with_fun f = raise (Error f)
@@ -1106,12 +1102,9 @@ let print_spec spec =
     return the gliss_isize defined in nmp sources
 *)
 let get_isize _ =
-	let s = try get_symbol "gliss_isize" with Symbol_not_found _ -> UNDEF
-	in
-	match s with
+	match get_symbol "gliss_isize" with
 	(* if gliss_isize not defined, we assume we have a cisc isa *)
-	UNDEF ->
-		[]
+	| UNDEF -> []
 	| LET(st, cst) ->
 		(match cst with
 		STRING_CONST(nums, _, _) ->

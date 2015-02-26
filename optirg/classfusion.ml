@@ -66,9 +66,7 @@ let fusion_by_classes (node_to_optimize:Irg.spec) :unit =
 			| _ 	-> failwith "Impossible"
 		in
 		let nodes_list = 
-			try
 				List.map (Irg.get_symbol) nodes_name_list
-			with Irg.Symbol_not_found(n) -> failwith ("fusion_by_classes : A son (\""^n^"\") is not present in syms. ")
 		in
 		let part = classify nodes_list in 
 		let _ = print_string (string_of_partition part) in 

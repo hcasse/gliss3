@@ -494,19 +494,15 @@ let list_exceptions f dict =
 		) in
 
 	let rec process exn =
-		try
 			(match Irg.get_symbol exn with
 			| Irg.OR_OP (_, exns) -> List.iter process exns
 			| Irg.AND_OP (_, _, attrs) -> gen exn attrs
-			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn))
-		with Irg.Symbol_not_found n -> Toc.error (Printf.sprintf "exception %s is undefined" exn) in
+			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn)) in
 
-	try
 		(match Irg.get_symbol "exceptions" with
+		| Irg.UNDEF -> ()
 		| Irg.OR_OP (_, exns) -> List.iter process exns
 		| _ -> ())
-	with Irg.Symbol_not_found _ -> ()
-
 
 
 let maker _ = {

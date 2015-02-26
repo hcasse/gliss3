@@ -538,9 +538,7 @@ let number_of_instr () =
 			List.fold_right (
 				fun (_,t) res ->  
 					res * 
-					try 
 						(count (get_symbol (name_of_typ t)))
-					with Symbol_not_found(_) -> 1
 				) 
 				arglist 1
 	| 	OR_MODE(_,arglist)| 	OR_OP(_,arglist) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0

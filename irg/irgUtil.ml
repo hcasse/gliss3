@@ -217,8 +217,6 @@ let load_with_error_support path =
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
 		Lexer.display_error msg; exit 2
-	| Irg.Symbol_not_found sym ->
-		Lexer.display_error (Printf.sprintf "symbol not found: %s" sym); exit 2
 	| Sem.SemErrorWithFun (msg, fn) ->
 		Lexer.display_error msg;
 		fn (); exit 2

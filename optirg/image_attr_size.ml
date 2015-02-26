@@ -161,9 +161,7 @@ and
  	sizeOfNodeKey  
 	(key:string) 
 	:int = 
-	try
 		sizeOfSpec (Irg.get_symbol key)
-	with Irg.Symbol_not_found(n) -> failwith ("image_attr_size.ml::sizeOfNodeKey : \""^n^"\" is not present in syms. ")
 and
 (**
 	Return the size of a node's expression.
@@ -238,9 +236,7 @@ and
  fclassOfNodeKey  
 	(key:string) 
 	:string * (string list) = 
-	try
 		fclassOfSpec (Irg.get_symbol key)
-		with Irg.Symbol_not_found(n) -> failwith ("image_attr_size.ml::fclassOfNodeKey : \""^n^"\" is not present in syms. ")
 and
 (**
 	Return the format class of a node's expression.

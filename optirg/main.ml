@@ -22,10 +22,9 @@ let arg_error msg =
 
 let find_irg_root_node _ =
 	let is_defined id =
-		try
 			match Irg.get_symbol id with
+			| UNDEF -> false
 			| _ -> true
-		with Irg.Symbol_not_found _ -> false
 	in
 	if is_defined "multi" then
 		"multi"
