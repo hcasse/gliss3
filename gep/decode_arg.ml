@@ -120,8 +120,7 @@ let rec or_masks l m =
 	@param e	argument expression
 	@param m	current mask
 	@param y	current reverse expression
-	@return		list of triplets (operation parameter, maskn reverse expression).
-	@throw		*)
+	@return		list of triplets (operation parameter, maskn reverse expression). *)
 let rec scan_decode_argument e m y =
 (*print_string "scan_decode_argument, e=";Irg.print_expr e; Printf.printf ", m=%s(%d), y=" (Bitmask.to_string m) (Bitmask.length m); Irg.print_expr y;print_string "\n";*)
 	match e with

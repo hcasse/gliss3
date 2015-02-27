@@ -18,4 +18,4 @@ autodoc: autodoc-force
 
 autodoc-force:
 	test -d autodoc || mkdir autodoc
-	ocamldoc -html -d autodoc $(DOCFLAGS) $(DOCS)
+	ocamldoc -html -d autodoc $(DOCFLAGS) $(DOCS) -sort -t "GLISS v2 Autodocumentation"

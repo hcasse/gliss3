@@ -1324,7 +1324,7 @@ let fold f d =
 
 (** Get the root node of the ISA.
 	@return			root name
-	@throw Error	If no root can be found. *)
+	@raise Error	If no root can be found. *)
 let get_root _ =
 	if is_defined "multi" then
 		"multi"
