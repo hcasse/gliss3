@@ -410,9 +410,9 @@ let rec substitute_in_location name op loc =
 					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (instantiate.ml::substitute_in_location)"
-			| BITFIELD(typ, REF(nn), lb, ub) when i = NONE && u = NONE & l = NONE
+			| BITFIELD(typ, REF(nn), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(typ, nn, NONE, lb, ub)
-			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE & l = NONE
+			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(t, n, idx, lb, ub)
 			| BITFIELD(t, ELINE(_, _, e), lb, ub) ->
 				subst_mode_value (BITFIELD (t, e, lb, ub))
@@ -1253,7 +1253,6 @@ let replace_param_list p_l =
 	@return				a spec which is the result of the instantiation of all parameters from param_list in sp
 *)
 let instantiate_spec sp param_list =
-	let spec = sp in
 	
 	let get_type name =
 		let sp = get_symbol name in

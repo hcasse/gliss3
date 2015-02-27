@@ -146,10 +146,10 @@ let rec scan_decode_argument e m y =
 	| Irg.BITFIELD (t, b, u, l) ->
 		let uc =
 			try Sem.to_int32 (Sem.eval_const u)
-			with Sem.SemError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
+			with Irg.Error _ | Irg.PreError _ -> raise (Toc.PreError (asis "upper bitfield bound must be constant")) in
 		let lc =
 			try Sem.to_int32 (Sem.eval_const l)
-			with Sem.SemError _ -> raise (Toc.PreError (asis "lower bitfield bound must be constant")) in
+			with Irg.Error _ | Irg.PreError _ -> raise (Toc.PreError (asis "lower bitfield bound must be constant")) in
 		scan_decode_argument
 			b
 			(Bitmask.shift_left m (Int32.to_int lc))
@@ -160,22 +160,22 @@ let rec scan_decode_argument e m y =
 		(try
 			let k = Sem.eval_const e2 in
 			scan_decode_argument e1 m (sub y (csta k))
-		with Sem.SemError _ ->
+		with Irg.Error _ | Irg.PreError _ ->
 			try
 				let k = Sem.eval_const e1 in
 				scan_decode_argument e2 m (sub y (csta k))
-			with Sem.SemError _ ->
+			with Irg.Error _ | Irg.PreError _ ->
 				raise (Toc.PreError (asis "only forms as 'x + k' or 'k + x' are supported in image")))
 
 	| Irg.BINOP (t, Irg.SUB, e1, e2) ->
 		(try
 			let k = Sem.eval_const e2 in
 			scan_decode_argument e1 m (add y (csta k))
-		with Sem.SemError _ ->
+		with Irg.Error _ | Irg.PreError _ ->
 			try
 				let k = Sem.eval_const e1 in
 				scan_decode_argument e2 m (sub (csta k) y)
-			with Sem.SemError _ ->
+			with Irg.Error _ | Irg.PreError _ ->
 				raise (Toc.PreError (asis "only forms as 'x + k' or 'k + x' are supported in image")))
 
 	| Irg.BINOP (t, Irg.RSHIFT, e1, e2) ->
@@ -184,7 +184,7 @@ let rec scan_decode_argument e m y =
 				scan_decode_argument e1
 					(Bitmask.sub (Bitmask.shift_left m (Int32.to_int k)) (Int32.to_int k) (Bitmask.length m))
 					(shl y (cst k))
-			with Sem.SemError _ ->
+			with Irg.Error _ | Irg.PreError _ ->
 				raise (Irg.PreError (asis "only forms as 'x >> k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.LSHIFT, e1, e2) ->
@@ -193,7 +193,7 @@ let rec scan_decode_argument e m y =
 				scan_decode_argument e1
 					(Bitmask.shift_right_logical m (Int32.to_int k))
 					(shr y (cst k))
-			with Sem.SemError _ ->
+			with Irg.Error _ | Irg.PreError _ ->
 				raise (Irg.PreError (asis "only forms as 'x << k' are supported in image")))
 
 	| Irg.BINOP (t, Irg.CONCAT, e1, e2) ->
@@ -206,11 +206,11 @@ let rec scan_decode_argument e m y =
 		(try
 			let k = Sem.to_int32 (Sem.eval_const e2) in
 			scan_decode_argument e1 (and_mask m (Bitmask.of_int32 k)) (and_ y (cst k))
-		with Sem.SemError _ ->
+		with Irg.Error _ | Irg.PreError _ ->
 			try
 			let k = Sem.to_int32 (Sem.eval_const e1) in
 			scan_decode_argument e2 (and_mask m (Bitmask.of_int32 k)) (and_ y (cst k))
-			with Sem.SemError _ ->
+			with Irg.Error _ | Irg.PreError _ ->
 				raise (Toc.PreError (asis "only forms as 'x & k' or 'k & x' are supported in image")))
 				
 	| Irg.BINOP (t, Irg.BIN_OR, e1, e2) ->

@@ -200,8 +200,7 @@ let info _ =
 		Irg.StringHashtbl.fold aux Irg.syms None in
 
 	let is_true e =
-		try Sem.is_true (Sem.eval_const e)
-		with Sem.SemError msg -> raise (Error msg) in
+		Sem.is_true (Sem.eval_const e) in
 
 	let get_reg_name name =
 		match get_attr_regs name is_true with
@@ -1347,13 +1346,14 @@ and gen_cast info typ expr prfx =
 		Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
 		gen_expr info expr prfx;
 		output_char info.out ')'
-	| Irg.INT n, _
 	| Irg.BOOL, Irg.CARD n when n <= 8 -> asis ()
 	| Irg.BOOL, Irg.INT n when n <= 8 -> asis ()
 	| Irg.CARD _, Irg.BOOL
 	| Irg.INT _, Irg.BOOL 
 		-> asis ()
-	| Irg.CARD n, _ -> do_cast ()
+	| Irg.INT n, _
+	| Irg.CARD n, _
+		-> do_cast ()
 	| Irg.BOOL, Irg.CARD _
 	| Irg.BOOL, Irg.INT _
 		-> equal_zero ()
@@ -1417,7 +1417,7 @@ and gen_bitfield info typ expr lo up prfx =
 		output_field_common_C_code inv up lo false 0
 
 	(* no constant bounds *)
-	with Sem.SemError _ ->
+	with Irg.Error _ | Irg.PreError _ ->
 		output_field_common_C_code "_generic" lo up true (bitorder_to_int info.bito)
 
 
@@ -1607,7 +1607,7 @@ and set_field info typ id idx lo up expr =
 			[make_int_const (ctype_size (convert_type typ)); make_int_const(type_size typ); e])
 
 	(* no constant bounds *)
-	with Sem.SemError _ ->
+	with Irg.Error _ | Irg.PreError _ ->
 		transform_expr "_generic" lo up true (if info.bito = LOWERMOST then 0 else 1);
 
 

@@ -99,7 +99,7 @@ let check sw =
 				incr num;
 				n)
 			
-		with Sem.SemError s -> -1)
+		with Irg.Error _ | Irg.PreError _ -> -1)
 	| _ -> raise Not_found
 
 

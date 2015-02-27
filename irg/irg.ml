@@ -26,7 +26,7 @@ exception PreError of (out_channel -> unit)
 
 (** Raise the error exception.
 	@param f	Function to display error. *)
-let error_with_fun f = raise (Error f)
+let error_with_fun f = raise (PreError f)
 
 
 (** Raise an error exception with the given message.
@@ -1388,6 +1388,10 @@ type printable =
 	| PEXPR of expr
 	| PLOC of location
 	| PTYPE of type_expr
+	| PFUN of (out_channel -> unit)
+	| PINT of int
+	| PINT32 of Int32.t
+	| PINT64 of Int64.t
 
 
 (** Print a message made of IRG items.
@@ -1396,11 +1400,15 @@ type printable =
 let output lst out =
 	let output_item item =
 		match item with
-		| PTEXT t -> output_string out t
-		| PSTAT s -> output_statement out s
-		| PEXPR e -> output_expr out e
-		| PLOC  l -> output_location out l
-		| PTYPE t -> output_type_expr out t in
+		| PTEXT t 	-> output_string out t
+		| PSTAT s 	-> output_statement out s
+		| PEXPR e	-> output_expr out e
+		| PLOC  l 	-> output_location out l
+		| PTYPE t 	-> output_type_expr out t 
+		| PFUN f	-> f out
+		| PINT i	-> output_value out i
+		| PINT32 i	-> output_string out (Int32.to_string i)  
+		| PINT64 i	-> output_string out (Int64.to_string i) in
 	List.iter output_item lst 
 
 

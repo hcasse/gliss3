@@ -25,6 +25,12 @@ let eline e = Irg.ELINE (!(Lexer.file), !(Lexer.line), e)
 let line s = Irg.LINE (!(Lexer.file), !(Lexer.line), s)
 
 
+(** Raise an error at the current parsing position.
+	@param f	Function to display error. *)
+let error f =
+		raise (Irg.Error (fun out -> Printf.fprintf out "%s:%d: " !(Lexer.file) !(Lexer.line); f out))
+
+
 (** Handle an expression in the parser, i.e. put source file/line information
 	or add file/line information when an error is raised.
 	@param f			Function to perform expression building. It is called with () argument.
@@ -34,7 +40,7 @@ let handle_expr f =
 	try
 		Irg.ELINE (!(Lexer.file), !(Lexer.line), f ())
 	with Irg.PreError ef ->
-		raise (Irg.Error (fun out -> Printf.fprintf out "%s:%d: " !(Lexer.file) !(Lexer.line); ef out))
+		error ef
 
 
 (** Handle an statement in the parser, i.e. put source file/line information
@@ -46,7 +52,7 @@ let handle_stat f =
 	try
 		Irg.LINE (!(Lexer.file), !(Lexer.line), f ())
 	with Irg.PreError ef ->
-		raise (Irg.Error (fun out -> Printf.fprintf out "%s:%d: " !(Lexer.file) !(Lexer.line); ef out))
+		error ef
 
 
 (** Raise a syntax error exception.
@@ -701,11 +707,11 @@ Expr:
 |	ID DOT SYNTAX
 		{	if Irg.is_defined $1
 			then eline (Irg.FIELDOF (Irg.STRING, $1,"syntax"))
-			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
+			else error (Irg.asis (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT IMAGE
 		{	if Irg.is_defined $1
 			then eline (Irg.FIELDOF (Irg.STRING, $1,"image"))
-			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1)) }
+			else error (Irg.asis (Printf.sprintf "the keyword %s is undefined\n" $1)) }
 |	ID DOT ID
 		{ eline (Irg.FIELDOF(Sem.type_of_field $1 $3, $1, $3)) }
 |	Expr DOUBLE_COLON Expr

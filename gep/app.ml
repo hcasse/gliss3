@@ -338,7 +338,7 @@ let rec reg_format id size attrs =
 	| [] -> if size > 1 then id ^ "%d" else id
 	| (Irg.ATTR_EXPR ("fmt", e))::_ ->
 		(try Sem.to_string e
-		with Sem.SemError m -> Toc.error "bad \"fmt\" attribute: should evaluate to string")
+		with Irg.Error _ | Irg.PreError _ -> Toc.error "bad \"fmt\" attribute: should evaluate to string")
 	| _ :: tl -> reg_format id size tl
 
 
@@ -411,7 +411,7 @@ let get_label name attrs =
 	let l = Irg.attr_expr "label" attrs Irg.NONE in
 	if l = Irg.NONE then name else
 	try Sem.to_string l
-	with Sem.SemError _ -> Toc.error "\"label\" attribute should be a string constant !"
+	with Irg.Error _ | Irg.PreError _ -> Toc.error "\"label\" attribute should be a string constant !"
 
 
 let get_register id f dict maker _ sym =

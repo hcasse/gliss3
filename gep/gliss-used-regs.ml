@@ -365,8 +365,8 @@ let compile_regs inst stat out =
 			if cnt > !max_read then max_read := cnt;
 			let cnt = Sem.to_int (Sem.eval_const wcnt) in
 			if cnt > !max_write then max_write := cnt;
-		with Sem.SemError msg ->
-			Toc.error (Printf.sprintf "can not evaluate count: %s" msg) in
+		with Irg.Error f | Irg.PreError f ->
+			Irg.error_with_fun (Irg.output [Irg.PTEXT "can not evaluate count: "; Irg.PFUN f]) in
 
 	let rec scan_stat stat =
 		match stat with

@@ -30,10 +30,6 @@
 open Irg
 open Printf
 
-(** deprecated *)
-exception SemError of string
-
-
 (** False value. *)
 let false_const = CARD_CONST Int32.zero
 (** True value. *)
@@ -56,7 +52,7 @@ let to_bool v = if v then true_const else false_const
 let to_int32 c =
 	match c with
 	  CARD_CONST v -> v
-	| _ -> raise (SemError "should evaluate to an int")
+	| _ -> pre_error "should evaluate to an int."
 
 
 (** Convert an expression to a string.
@@ -67,7 +63,7 @@ let rec to_string e =
 	match e with
 	| Irg.CONST (_, Irg.STRING_CONST (s, _, _)) -> s
 	| Irg.ELINE (_, _, e) -> to_string e
-	| _ -> raise (SemError "should evaluate to a string")
+	| _ -> pre_error "should evaluate to a string"
 
 (** Convert constant to int.
 	@param c		Constant to convert.
@@ -88,15 +84,6 @@ let is_true c =
 	| STRING_CONST(v, _, _) -> v <> ""
 	| FIXED_CONST v -> v <> 0.0
 
-
-
-
-
-(**)
-(* A verifier :
-	-Est ce normal que y soit de type Int32 ?
-	-Ne devrait on pas utiliser des shift_<left/right>_logical ?
-*)
 
 (** Rotate an int32 to the left.
 	@param x	Value to rotate.
@@ -131,8 +118,7 @@ let rec eval_unop op c =
 	| (NEG, FIXED_CONST v) ->
 		FIXED_CONST (-. v)
 	| _ ->
-		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_unop op)))
+		pre_error (sprintf "bad type operand for '%s'" (string_of_unop op))
 
 
 (** Evaluate a binary operation.
@@ -185,8 +171,7 @@ let eval_binop_card op v1 v2 =
 	| (*Irg.*)BIN_XOR	->
 		(*Irg.*)CARD_CONST (Int32.logxor v1 v2)
 	| _ ->
-		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op)))
+		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
 
 (** Evaluate a fixed binary operation.
@@ -223,8 +208,7 @@ let eval_binop_fixed op v1 v2 =
 	| OR		->
 		if v1 <> 0. || v2 <> 0. then true_const else false_const
 	| _ ->
-		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op)))
+		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
 
 (** Evaluate a string binary operation.
@@ -242,8 +226,7 @@ let eval_binop_string op v1 v2 =
 	| NE		-> to_bool (v1 <> v2)
 	| CONCAT	-> STRING_CONST(v1 ^ v2, false, NO_TYPE)
 	| _ ->
-		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op)))
+		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
 
 
@@ -266,10 +249,9 @@ let eval_binop op c1 c2 =
 		if not b1 && not b2 then
 			eval_binop_string op v1 v2
 		else
-			raise (SemError "cannot evaluate a canonical const here, value can only be got via C code")
+			pre_error "cannot evaluate a canonical const here, value can only be got via C code"
 	| _ ->
-		raise (SemError (Printf.sprintf "bad type operand for '%s'"
-			(string_of_binop op)))
+		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
 
 (** Perform the coercition function on the given value.
@@ -298,7 +280,7 @@ let eval_coerce t v =
 	| CARD n, FIXED_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_float (abs_float i))
 	| FLOAT _, CARD_CONST i -> FIXED_CONST (Int32.to_float i)
 	| FLOAT _, CARD_CONST_64 i -> FIXED_CONST (Int64.to_float i)	
-	| _ -> raise (SemError "unsupported constant coerction")
+	| _ -> pre_error "unsupported constant coerction"
 
 
 (** Perform the expression switch.
@@ -330,12 +312,12 @@ and eval_const expr =
 		(match get_symbol id with
 		  LET (_, cst) -> cst
 		| ENUM_POSS (_,_,v,_) -> CARD_CONST v
-		| _ -> raise (SemError (id ^ " is not a constant symbol")))
-	| BITFIELD (t, e, u, l) -> raise (SemError "unsupported bitfield")
+		| _ -> pre_error (id ^ " is not a constant symbol"))
+	| BITFIELD (t, e, u, l) -> pre_error "unsupported bitfield"
 	| ELINE (_, _, e) -> eval_const e
 	| COERCE (t, e) -> eval_coerce t (eval_const e)
 	| _ ->
-		raise (SemError "this expression should be constant")
+		pre_error "this expression should be constant"
 
 
 (** Find a type by its identifier.
@@ -347,9 +329,9 @@ let type_from_id id =
 	try
 		match StringHashtbl.find syms id with
 		  TYPE (_, te) -> te
-		| _ ->	raise (SemError (Printf.sprintf "%s does not named a type" id))
+		| _ ->	pre_error (sprintf "%s does not named a type" id)
 	with Not_found ->
-		raise (SemError (Printf.sprintf "unknown identifier \"%s\"" id))
+		pre_error (sprintf "unknown identifier \"%s\"" id)
 
 
 (** Check the matching of a type and a constant.
@@ -420,10 +402,8 @@ let is_IEEE754_float f = match f with
 			 32 -> (e =8)&&(m=24)
 			| 64 -> (e = 11)&&(m =53)
 			| 80 -> (e = 15)&&(m = 65)
-			| _  -> raise (SemError "float number doesn't follow IEEE754 specification "))
-	| _ -> raise (SemError "function expect float number but parameter is not ")
-
-
+			| _  -> pre_error "float number doesn't follow IEEE754 specification ")
+	| _ -> pre_error "function expect float number but parameter is not "
 
 
 (** Get the type associated with an identifiant.
@@ -437,13 +417,9 @@ let rec get_type_ident id=
 
 	if symb=UNDEF
 	then
-		raise (SemError (Printf.sprintf "The keyword \"%s\" not defined" id))
+		pre_error (sprintf "The keyword \"%s\" not defined" id)
 	else
 
-	(**)
-	(*print_string "Spec : ";
-	print_spec symb;*)
-	(**)
 	match symb with
 	 LET (_,c)-> (match c with
 			 NULL-> NO_TYPE
@@ -466,15 +442,6 @@ let rec get_type_ident id=
 				 t
 				)
 
-	(* --- this was used to check that all the modes composing an OR_MODE where of the same type. But it was abandoned because of compatibility issues --- *)
-	(*|OR_MODE (n,l)->let type_mode = get_type_ident (List.hd l)
-			in
-			if List.for_all (fun a-> if (get_type_ident a)=type_mode then true else false) (List.tl l)
-				then type_mode
-				else
-					let dsp=(fun _-> (	(List.map (fun a->print_string "\n--- ";print_string a;print_string " : ";print_type_expr (get_type_ident a);print_string "\n") l)	);()	)
-					in
-					raise (SemErrorWithFun ((Printf.sprintf "The or_mode %s is not of consistant type\n" n),dsp))*)
 	|OR_MODE _->UNKNOW_TYPE
 
 	|PARAM (n,t)->( rm_symbol n;
@@ -572,7 +539,7 @@ let check_unop e uop =
 	| (BIN_NOT, FIX _)
 	| (BIN_NOT, FLOAT _) -> (t, e)
 	| _ ->
-		Irg.error_with_msg [Irg.PTEXT "bad operand type "; Irg.PTYPE t; Irg.PTEXT " for "; Irg.PEXPR (Irg.UNOP(Irg.NO_TYPE, uop, e))]
+		error_with_msg [PTEXT "bad operand type "; PTYPE t; PTEXT " for "; PEXPR (UNOP (NO_TYPE, uop, e))]
 
 
 (** Make a unary operation with a correct type in function of its operand.
@@ -637,77 +604,8 @@ let num_auto_coerce e1 e2 =
 	| FLOAT _, RANGE _
 	| FLOAT _, ENUM _ -> (e1, COERCE(t1, e2))
 
-	| _ -> 
-	(* !!DEBUG!! *)
-	print_string "num_auto_coerce, t1=";
-	Irg.print_type_expr t1;
-	print_string ", t2=";
-	Irg.print_type_expr t2;
-	print_string "\n";
-	raise (SemError "forbidden operation")
-
-
-(** Check the matching of a binary operation and the type of its operands.
-	@param t1	First type to check.
-	@param t2	Second type to check
-	@param bop	Operation to check.
-	@return	True if they match, false else.
-*)
-(*let check_binop_type t1 t2 bop =
-	if(t1=NO_TYPE ||t2=NO_TYPE)
-	then false
-	else
-
-	if (t1=UNKNOW_TYPE||t2=UNKNOW_TYPE)
-	then true
-	else
-
-	match bop with
-	|(ADD|SUB)->(match (t1,t2) with
-			((CARD _,CARD _)
-			 |(INT _,INT _)
-			 |(INT _, CARD _)
-			 |(CARD _,INT _)
-			 |(FLOAT _,FLOAT _)
-			 |(FIX _,FIX _))->true
-			|_->false)
-	|(MUL|DIV|MOD)-> (match (t1,t2) with
-			((CARD _,CARD _)
-			 |(INT _,INT _)
-			 |(INT _, CARD _)
-			 |(CARD _,INT _)
-			 |(FLOAT _,FLOAT _)
-			 |(FIX _,FIX _)
-			 |(FIX _,CARD _)
-			 |(CARD _,FIX _)
-			 |(FLOAT _,CARD _)
-			 |(CARD _,FLOAT _)
-			 |(FIX _,INT _)
-			 |(INT _,FIX _)
-			 |(FLOAT _,INT _)
-			 |(INT _,FLOAT _))->true
-			|_->false)
-	|EXP-> (t1!=BOOL)&&(t2!=BOOL)&&(t1!=STRING)&&(t2!=STRING)
-	|(LSHIFT|RSHIFT|LROTATE|RROTATE)->
-					(match t1 with
-					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
-									(CARD _|INT _)->true
-									|_->false)
-					|_->false)
-
-
-	|(LT|GT|LE|GE|EQ|NE)->	(match t1 with
-					(CARD _|INT _|FIX _|FLOAT _)->(match t2 with
-									(CARD _|INT _|FIX _|FLOAT _)->true
-									|_->false)
-					|_->false)
-	|(AND|OR)->true
-	|(BIN_AND|BIN_OR|BIN_XOR)-> (match t1 with
-					(BOOL|CARD _|INT _|FIX _|FLOAT _)->(match t2 with
-									(BOOL|CARD _|INT _|FIX _|FLOAT _)->true
-									|_->false)
-					|_->false)
-	|CONCAT-> true*)
+	| _ ->
+		error_with_fun (output [PTEXT "no common coercition between types\n"; PTYPE t1; PTEXT "and "; PTYPE t2])
 
 
 (** Create an add/sub with a correct type in function of its operands.
@@ -901,9 +799,9 @@ let rec get_binop e1 e2 bop =
 		| BIN_OR
 		| BIN_XOR -> get_bin bop e1 e2
 		| CONCAT-> get_concat e1 e2
-	with SemError msg ->
+	with PreError f ->
 		error_with_fun (output
-			[PTEXT msg;
+			[PFUN f;
 			PEXPR e1; PTEXT ": "; PTYPE (get_type_expr e1);
 			PTEXT " "; PTEXT (string_of_binop bop); PTEXT " ";
 			PEXPR e2; PTEXT ": "; PTYPE (get_type_expr e2)])
@@ -1169,26 +1067,26 @@ let check_switch_expr test list_case default=
 		else
 			let min, max = interval_of (get_type_expr test) in
 			if (min, max) = (0, 0) then
-				raise (SemError ("bad type for 'switch' test: only integer types supported"))
+				pre_error "bad type for 'switch' test: only integer types supported"
 			else
 				let vals = List.sort compare
 					(List.map (fun (case, _) -> to_int (eval_const case)) list_case) in
 				let vals = List.map
 					(fun v ->
 						if v >= min || v <= max then v else
-						raise (SemError (sprintf "%d out of switch bounds" v)))
+						pre_error (sprintf "%d out of switch bounds" v))
 					vals in
 				let rec test i l =
 					if i > max then true
 					else if l = [] || i <> (List.hd l) then
-						raise (SemError (sprintf "uncomplete switch: %d is lacking" i))
+						pre_error (sprintf "uncomplete switch: %d is lacking" i)
 					else
 						test (i + 1) (List.tl l) in
 				test min vals in
 
 	(* --- And finally we apply all these three subfunctions to check the switch --- *)
 	if not check_switch_cases then
-		raise (SemError "the cases of a functional switch must be consistent with the expression to test")
+		pre_error "the cases of a functional switch must be consistent with the expression to test"
 	else if not check_switch_all_possibilities then
 		error_with_fun (output
 			[PTEXT "the cases of a functional switch must cover all possibilities or contain a default entry:\n";
@@ -1332,7 +1230,7 @@ let build_format str exp_list=
 
 	if (not (List.length ref_list = List.length exp_list)) || List.length exp_list = 0	(* it is not allowed to use format for printing a string without at least one variable *)
 		then
-			raise (SemError (Printf.sprintf "incorrect number of parameters in format"))
+			pre_error "incorrect number of parameters in format"
 		else
 			let test_list = List.map2 (fun e_s e_i ->	(* here we check if all variables are given a parameter of the good type *)
 					if (get_type_expr e_i=UNKNOW_TYPE) then true else
@@ -1404,7 +1302,7 @@ let check_params name list_param =
 	try
 		List.map2 check_type list_param canon.type_param
 	with Invalid_argument _ ->
-		raise (SemError "bad number of arguments")
+		pre_error "bad number of arguments"
 
 
 (** This function build a canonical expression, after checked if the parameters are corrects.
@@ -1451,12 +1349,12 @@ let get_loc_type loc =
 						or is not a location. *)
 let get_loc_ref_type name =
 	match Irg.get_symbol name with
-	| Irg.UNDEF -> raise (SemError (name ^ " is undefined"))
+	| Irg.UNDEF -> pre_error (name ^ " is undefined")
 	| Irg.MEM (_, _, t, _) -> t
 	| Irg.REG (_, _, t, _) -> t
 	| Irg.VAR (_, _, t, _) -> t
 	| Irg.PARAM _ -> Irg.UNKNOW_TYPE
-	| _ -> raise (SemError (name ^ " is not a location"))
+	| _ -> pre_error (name ^ " is not a location")
 
 
 (** Check if the alias atribute matches the current entity.
@@ -1507,7 +1405,7 @@ let test_canonical name =
 let test_data name indexed =
 	let v = Irg.get_symbol name in
 	match v with
-	| Irg.UNDEF -> raise (SemError (Printf.sprintf "the identifier \"%s\" is undefined" name))
+	| Irg.UNDEF -> pre_error (sprintf "the identifier \"%s\" is undefined" name)
 
 	(* never indexed *)
 	| Irg.LET _
@@ -1515,14 +1413,14 @@ let test_data name indexed =
 	| Irg.ATTR _
 	| Irg.ENUM_POSS _ ->
 		if indexed
-		then raise (SemError (Printf.sprintf "data \"%s\" can not be indexed" name))
+		then pre_error (sprintf "data \"%s\" can not be indexed" name)
 		else ()
 
 	(* may be indexed *)
 	| Irg.MEM _				(* for compatibility with GLISS v1 *)
 	| Irg.REG _
 	| Irg.VAR _ -> ()
-	| _ -> raise (SemError (Printf.sprintf "the idenfifier \"%s\" does not design a data" name))
+	| _ -> pre_error (sprintf "the idenfifier \"%s\" does not design a data" name)
 
 
 (**	Used to return the expression associated to an expr attr, Irg.NONE if no expression extractable
@@ -1708,7 +1606,7 @@ let check_image id params =
 	if e <> Irg.NONE then begin
 		let r = check names e in
 		if r = [] then ()
-		else raise (SemError (Printf.sprintf "parameters %s of %s are not used in the image" (make r) id))
+		else pre_error (sprintf "parameters %s of %s are not used in the image" (make r) id)
 	end
 
 
@@ -1717,7 +1615,7 @@ let check_image id params =
 	@raise SemError		If the parameter already exists. *)
 let check_param_exists name =
 	match Irg.get_symbol name with
-	| Irg.PARAM _ -> raise (SemError (Printf.sprintf "parameter %s declared twice." name))
+	| Irg.PARAM _ -> pre_error (sprintf "parameter %s declared twice." name)
 	| _ -> ()
 
 
@@ -1800,12 +1698,12 @@ let type_of_field pid cid =
 		| Irg.PARAM(_, t) ->
 			(match t with
 			| Irg.TYPE_ID(name) ->
-				(try get_field_type (Irg.get_symbol name) cid
-				with Not_found -> Irg.UNKNOW_TYPE)
-			| _ -> raise (SemError (Printf.sprintf "%s cannot have a %s attribute\n" pid cid)))
-		| _ -> raise (SemError (Printf.sprintf "%s can not have a %s attribute\n" pid cid))
+				(try get_field_type (get_symbol name) cid
+				with Not_found -> UNKNOW_TYPE)
+			| _ -> pre_error (Printf.sprintf "%s cannot have a %s attribute\n" pid cid))
+		| _ -> pre_error (sprintf "%s can not have a %s attribute\n" pid cid)
 	else
-		raise (SemError (Printf.sprintf "the identifier %s is undefined\n" pid))
+		pre_error (sprintf "the identifier %s is undefined\n" pid)
 
 
 (** Build a concatenated location.
@@ -1857,16 +1755,13 @@ let make_coerce t expr =
 	@return				Built expression.
 	@raise Irg.PreError	If error. *)
 let make_bitfield base up lo =
-	(* generic bitfield expr *)
-	(* !!DEBUG!! *)
-	(* for the moment.. *)
 	try
 		let v1 = Int32.to_int (to_int32 (eval_const up)) in
 		let v2 = Int32.to_int(to_int32 (eval_const lo)) in
 		let v1, v2 = if v1 <= v2 then v1, v2 else v2, v1 in
 		(* !!TODO!! check type (only scalar allowed) and length if possible *)
 		BITFIELD (CARD (v2 - v1 + 1), base, up, lo)
-	with SemError _ ->
+	with PreError _ ->
 		BITFIELD (get_type_expr base, base, up, lo)
 
 
