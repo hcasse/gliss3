@@ -36,12 +36,6 @@ exception SemError of string
 (** deprecated *)
 exception SemErrorWithFun of string * (unit -> unit)
 
-(** deprecated *)
-exception ManyDefaultsInSwitch
-
-(** deprecated *)
-(*exception NoSize of Irg.expr*)
-
 
 (** False value. *)
 let false_const = CARD_CONST Int32.zero
