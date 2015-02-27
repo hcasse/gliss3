@@ -40,7 +40,7 @@ exception SemErrorWithFun of string * (unit -> unit)
 exception ManyDefaultsInSwitch
 
 (** deprecated *)
-exception NoSize of Irg.expr
+(*exception NoSize of Irg.expr*)
 
 
 (** False value. *)
