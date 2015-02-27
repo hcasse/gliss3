@@ -36,16 +36,16 @@ let error msg = raise (Error (fun out -> output_string out msg))
 
 (** Emit a PreError exception. PreError are error without source line information
 	that need to be fulfilled with this information.
-	@param msg	Message of the preerror.
-	@raise 		PreError *)
+	@param msg		Message of the preerror.
+	@raise PreError Ever.*)
 let pre_error msg = raise (PreError (fun out -> output_string out msg))
 
 
 (** Take a pre-error exception and build a complete error message.
-	@param m	Message function (out_channel -> unit).
-	@param f	Source file.
-	@param l	Source line.
-	@raise		Error. *)
+	@param m		Message function (out_channel -> unit).
+	@param f		Source file.
+	@param l		Source line.
+	@raise Error	Ever. *)
 let complete_error m f l =
 	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
 
@@ -555,8 +555,7 @@ let rec get_canon name=
 
 (** Add a canonical definition to the namespace.
 	@param sym	Canonical specification (Irg.CANON_DEF(...)).
-	@param fun_name	Canonical name.
-	@raise RedefinedSymbol	If the symbol is already defined. *)
+	@param fun_name	Canonical name. *)
 let add_canon fun_name sym =
 	let canon_def_sym =
 		match sym with
@@ -879,12 +878,10 @@ let rec output_statement out stat =
 	| SETSPE (loc, exp) ->
 		output_string out "\t\t";
 		output_location out loc;
-		(* !!DEBUG!! *)
-		output_string out "=";(*"=[[SETSPE]]";*)
+		output_string out "=";
 		output_expr out exp;
 		output_string out ";\n"
 	| LINE (file, line, s) ->
-		(*Printf.fprintf out "#line \"%s\" %d\n" file line;*)
 		output_statement out s
 	| INLINE s ->
 		Printf.fprintf out "inline(%s)\n" s
@@ -936,7 +933,7 @@ let print_attr attr =
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
 let output_mem_attr out attr =
-	let rec print_call id args =
+	(*let rec print_call id args =
 		print_string id;
 		if args <> [] then
 			begin
@@ -950,7 +947,7 @@ let output_mem_attr out attr =
 	and print_arg arg =
 		match arg with
 		| ATTR_ID (id, args) -> print_call id args
-		| ATTR_VAL cst -> output_const out cst in
+		| ATTR_VAL cst -> output_const out cst in*)
 
 	match attr with
 	| ATTR_EXPR("volatile", CONST(_, CARD_CONST n)) ->
@@ -1236,7 +1233,7 @@ let rec attr_defined id attrs =
 	@param attrs		List of attributes.
 	@param def			Default value if the attribute is not found.
 	@return				Found attribute value or the default.
-	@raise PreError _	If the attribute exists but does not have the right type. *)
+	@raise PreError		If the attribute exists but does not have the right type. *)
 let rec attr_expr id attrs def =
 	let error _ =
 		pre_error (Printf.sprintf "attribute \"%s\" should be an expression" id) in
@@ -1253,7 +1250,7 @@ let rec attr_expr id attrs def =
 	@param attrs	List of attributes.
 	@param def		Default value if the attribute is not found.
 	@return			Found attribute value or the default.
-	@raise Error _	If the attribute exists but does not have the right type. *)
+	@raise Error	If the attribute exists but does not have the right type. *)
 let rec attr_loc id attrs def =
 	let error _ =
 		pre_error (Printf.sprintf "attribute \"%s\" should be a location" id) in
@@ -1270,7 +1267,7 @@ let rec attr_loc id attrs def =
 	@param attrs	List of attributes.
 	@param def		Default value if the attribute is not found.
 	@return			Found attribute value or the default.
-	@raise Error _	If the attribute exists but does not have the right type. *)
+	@raise Error	If the attribute exists but does not have the right type. *)
 let rec attr_stat id attrs def =
 	let error _ =
 		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
@@ -1448,8 +1445,8 @@ let attrs_of spec =
 
 
 (** Raise an error with message displayed by prerrln.
-	@param lst	List of arguments to display.
-	@raise		Error. *)
+	@param lst		List of arguments to display.
+	@raise Error 	Ever.*)
 let error_with_msg lst =
 	raise (Error (fun out -> output lst out))
 

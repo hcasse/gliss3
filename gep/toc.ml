@@ -1348,12 +1348,12 @@ and gen_cast info typ expr prfx =
 		gen_expr info expr prfx;
 		output_char info.out ')'
 	| Irg.INT n, _
-	| Irg.CARD n, _ -> do_cast ()
 	| Irg.BOOL, Irg.CARD n when n <= 8 -> asis ()
 	| Irg.BOOL, Irg.INT n when n <= 8 -> asis ()
 	| Irg.CARD _, Irg.BOOL
 	| Irg.INT _, Irg.BOOL 
 		-> asis ()
+	| Irg.CARD n, _ -> do_cast ()
 	| Irg.BOOL, Irg.CARD _
 	| Irg.BOOL, Irg.INT _
 		-> equal_zero ()
@@ -1369,12 +1369,12 @@ and gen_cast info typ expr prfx =
 	@param hi		Higher bit index. *)
 and gen_bitfield info typ expr lo up prfx =
 
-	let rec is_const e =
+	(*let rec is_const e =
 		match e with
 		| Irg.CONST(_, _) -> true
 		| Irg.ELINE(_, _, ee) -> is_const ee
 		| Irg.CAST(_, expr) -> is_const expr
-		| _ -> false in
+		| _ -> false in*)
 
 	let bitorder_to_int bo =
 		match bo with
@@ -1465,9 +1465,9 @@ let rec gen_stat info stat =
 			true
 			args) in
 
-	let loc_to_expr t id idx =
+	(* let loc_to_expr t id idx =
 		if idx = Irg.NONE then Irg.REF id
-		else Irg.ITEMOF(t, id, idx) in
+		else Irg.ITEMOF(t, id, idx) in *)
 	
 	match stat with
 	| Irg.NOP -> ()

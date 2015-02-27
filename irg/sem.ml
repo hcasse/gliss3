@@ -549,10 +549,10 @@ let get_length_from_expr e=
 
 
 (** Check an unary operation.
-	@param e	Operand.
-	@param uop	Unary operation.
-	@return		(result type, actual operand).
-	@raise		Irg.Error *)
+	@param e			Operand.
+	@param uop			Unary operation.
+	@return				(result type, actual operand).
+	@raise	Irg.Error	In case of error. *)
 let check_unop e uop =
 	let t = get_type_expr e in
 	
@@ -1142,7 +1142,7 @@ let check_switch_expr test list_case default=
 		| _ -> (*!!DEBUG!!*)(*print_string "check_switch, t_=";Irg.print_type_expr t;*) false
 
 	(* This part check if all the possible result of a switch expression are of the same type *)
-	and check_switch_return_type =
+	(*and check_switch_return_type =
 		let type_default = get_type_expr default in
 		let set = if type_default == NO_TYPE then [] else [type_default] in
 		let set = List.fold_left (fun set (c, v) ->
@@ -1153,7 +1153,7 @@ let check_switch_expr test list_case default=
 		Irg.error_with_fun (fun out ->
 			fprintf out "functional switch with different case types.";
 			List.iter (fun (c, v) -> prerrln [PTEXT "\t case "; PEXPR c; PTEXT ": "; PTYPE (get_type_expr v)]) list_case;
-			if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default])
+			if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default])*)
 
 	(* This part check if all the possibles values of the expression to test are covered *)
 	and check_switch_all_possibilities =
@@ -1216,7 +1216,6 @@ let rec is_location id =
 	| REG _
 	| VAR _ -> true
 	| PARAM (n, t)-> scan_param n t
-	| UNDEF
 	| LET _
 	| TYPE _
 	| AND_MODE _
@@ -1469,7 +1468,8 @@ let check_alias mem =
 	let rec test loc =
 		match loc with
 		| Irg.LOC_NONE -> mem
-		| Irg.LOC_CONCAT (_, l1, l2) -> (test l1; test l2)
+		| Irg.LOC_CONCAT (_, l1, l2) ->
+			let m, _ = test l1, test l2 in m
 		| Irg.LOC_REF (_, id, _, _, _) ->
 			(match (mem, Irg.get_symbol id) with
 			| (Irg.MEM _, Irg.MEM _)
@@ -1502,7 +1502,7 @@ let test_canonical name =
 	(constant, memory, variable, register, parameter)
 	@param name		Name of the symbol.
 	@param indexed	Test if the data is indexed.
-	@raise			SemError if either the symbol does not exists,
+	@raise	SemError if either the symbol does not exists,
 					or it is not data. *)
 let test_data name indexed =
 	let v = Irg.get_symbol name in
@@ -1786,7 +1786,6 @@ let rec get_field_type spec id =
 	match spec with
 	| Irg.AND_MODE (_, params, _, attrs)
 	| Irg.AND_OP (_, params, attrs)	-> find params attrs
-	| Irg.OR_MODE (_, syms)
 	| Irg.OR_MODE (_, syms) 		-> collect syms Irg.NO_TYPE
 	| _ 							-> raise Not_found
 
