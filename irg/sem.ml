@@ -33,9 +33,6 @@ open Printf
 (** deprecated *)
 exception SemError of string
 
-(** deprecated *)
-exception SemErrorWithFun of string * (unit -> unit)
-
 
 (** False value. *)
 let false_const = CARD_CONST Int32.zero
@@ -772,10 +769,10 @@ let rec get_concat e1 e2 =
 		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
 	with Failure "sem: length unknown" ->
-		let dsp= fun _->
-			(print_string "operand 1: "; print_expr e1;print_string ": "; print_type_expr (get_type_expr e1); print_string "\n";
-			print_string "operand 2: "; print_expr e2;print_string ": "; print_type_expr (get_type_expr e2); print_string "\n") in
-		raise (SemErrorWithFun ("unable to concatenate these operands",dsp))
+		Irg.error_with_fun
+			(Irg.output [Irg.PTEXT "unable to concatenate these operands:";
+				Irg.PTEXT "\noperand 1:"; Irg.PEXPR e1; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e1);
+				Irg.PTEXT "\noperand 2:"; Irg.PEXPR e2; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e2)])
 
 
 (** Check types in comparison.
@@ -880,46 +877,36 @@ let get_shift bop e1 e2 =
 	@raise SemErrorWithFun	Raised when the type of the operands is not compatible with the operation
 *)
 let rec get_binop e1 e2 bop =
-
-	let aff _ =
-		let t1 = get_type_expr e1 in
-		let t2 = get_type_expr e2 in
-		print_expr e1;
-		print_string ": ";
-		print_type_expr t1;
-		print_string (" " ^ (string_of_binop bop) ^ " ");
-		print_expr e2;
-		print_string ": ";
-		print_type_expr t2;
-		print_string "\n" in
-
 	try
-		Irg.ELINE (!Lexer.file, !Lexer.line,
-			match bop with
-	 		| ADD
-	 		| SUB -> get_add_sub e1 e2 bop
-			| MUL
-			| DIV
-			| MOD -> get_mult_div_mod  e1 e2 bop
-			| EXP -> BINOP (get_type_expr e1, bop, e1, e2)
-			| LSHIFT
-			| RSHIFT
-			| LROTATE
-			| RROTATE -> get_shift bop e1 e2
-			| LT
-			| GT
-			| LE
-			| GE
-			| EQ
-			| NE -> get_compare bop e1 e2
-			| AND
-			| OR -> get_logic bop e1 e2
-			| BIN_AND
-			| BIN_OR
-			| BIN_XOR -> get_bin bop e1 e2
-			| CONCAT-> get_concat e1 e2)
+		match bop with
+ 		| ADD
+ 		| SUB -> get_add_sub e1 e2 bop
+		| MUL
+		| DIV
+		| MOD -> get_mult_div_mod  e1 e2 bop
+		| EXP -> BINOP (get_type_expr e1, bop, e1, e2)
+		| LSHIFT
+		| RSHIFT
+		| LROTATE
+		| RROTATE -> get_shift bop e1 e2
+		| LT
+		| GT
+		| LE
+		| GE
+		| EQ
+		| NE -> get_compare bop e1 e2
+		| AND
+		| OR -> get_logic bop e1 e2
+		| BIN_AND
+		| BIN_OR
+		| BIN_XOR -> get_bin bop e1 e2
+		| CONCAT-> get_concat e1 e2
 	with SemError msg ->
-		raise (SemErrorWithFun (msg, aff))
+		error_with_fun (output
+			[PTEXT msg;
+			PEXPR e1; PTEXT ": "; PTYPE (get_type_expr e1);
+			PTEXT " "; PTEXT (string_of_binop bop); PTEXT " ";
+			PEXPR e2; PTEXT ": "; PTYPE (get_type_expr e2)])
 
 
 (** coerce, eventually, the rvalue in a SET or SETSPE statement if needed,
@@ -982,14 +969,9 @@ let check_set_stat l e =
 	@param t1	Type of first operand.
 	@param t2	Type of second operand. *)
 let raise_type_error_two_operand t1 t2 =
-	let f _ =
-		print_string "first operand : ";
-		Irg.print_type_expr t1;
-		print_string "\n";
-		print_string "second operand : ";
-		Irg.print_type_expr t2;
-		print_string "\n" in
-	raise (SemErrorWithFun ("incompatible type of 'if' parts", f))
+	error_with_fun (output [PTEXT "incompatible type of 'if' parts";
+		PTEXT "\nfirst operand: "; PTYPE t1;
+		PTEXT "\nsecond operand: "; PTYPE t2])
 
 
 (** Check if the possible expressions of the conditionnal branchs of an
@@ -1168,11 +1150,10 @@ let check_switch_expr test list_case default=
 					if (List.exists (fun tt -> t = tt) set) then set else t::set)
 					set list_case in
 		if (List.length set) = 1 then true else
-		raise (SemErrorWithFun ("functional switch with different case types.",
-			(fun _ ->
-				List.iter (fun (c, v) -> prerrln [PTEXT "\t case "; PEXPR c; PTEXT ": "; PTYPE (get_type_expr v)]) list_case;
-				if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default]
-			)))
+		Irg.error_with_fun (fun out ->
+			fprintf out "functional switch with different case types.";
+			List.iter (fun (c, v) -> prerrln [PTEXT "\t case "; PEXPR c; PTEXT ": "; PTYPE (get_type_expr v)]) list_case;
+			if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default])
 
 	(* This part check if all the possibles values of the expression to test are covered *)
 	and check_switch_all_possibilities =
@@ -1209,8 +1190,9 @@ let check_switch_expr test list_case default=
 	if not check_switch_cases then
 		raise (SemError "the cases of a functional switch must be consistent with the expression to test")
 	else if not check_switch_all_possibilities then
-		raise (SemErrorWithFun ("the cases of a functional switch must cover all possibilities or contain a default",
-			(fun _ -> prerrln [PTEXT "Switch type is "; PTYPE (get_type_expr test)])))
+		error_with_fun (output
+			[PTEXT "the cases of a functional switch must cover all possibilities or contain a default entry:\n";
+			PTEXT "switch type is "; PTYPE (get_type_expr test)])
 	else if (get_type_expr default != NO_TYPE)
 		then get_type_expr default
 		else get_type_expr (snd (List.hd list_case))
@@ -1374,9 +1356,11 @@ let build_format str exp_list=
 			then FORMAT (str, (List.rev exp_list))
 			else
 				let n = find false 1 test_list in
-				raise (SemErrorWithFun (
-					Printf.sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str,
-					(fun _ -> prerrln [PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n)); PTEXT " does not match format "; PTEXT (List.nth ref_list n)])))
+				error_with_fun (output [
+					PTEXT (sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str);
+					PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n));
+					PTEXT " does not match format "; PTEXT (List.nth ref_list n)])
+
 
 (*
 
@@ -1609,14 +1593,11 @@ let make_set loc expr =
 		print_string " = ";
 		Irg.print_expr expr;
 		print_char '\n';
-		raise (SemErrorWithFun ("unsuppored assignment",
-			fun _ ->
-				print_string "LHS type:";
-				Irg.print_type_expr ltype;
-				print_string "\nRHS type:";
-				Irg.print_type_expr etype;
-				print_char '\n'
-			))
+		error_with_fun (output [
+			PTEXT "unsuppored assignment";
+			PTEXT "\nLHS type:"; PTYPE ltype;
+			PTEXT "\nRHS type:"; PTYPE etype;
+		])
 
 
 (** This function is used to modify parameters of a format called into a specific attribute

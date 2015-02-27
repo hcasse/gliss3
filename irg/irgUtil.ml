@@ -217,6 +217,3 @@ let load_with_error_support path =
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
 		Lexer.display_error msg; exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error msg;
-		fn (); exit 2

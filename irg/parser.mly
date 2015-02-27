@@ -299,11 +299,10 @@ TypeExpr:
 		if ((Int32.compare v1 v2)<=0)
 			then Irg.RANGE (v1,v2)
 			else
-				let dsp=fun _->(
-					 Printf.printf "Value of the first operand : %d\n Value of the second operand : %d" (Int32.to_int v1) (Int32.to_int v2)
-					)
-				in
-				raise (Sem.SemErrorWithFun ("In a range type declaration, the first operand must be lesser than the second", dsp))
+				Irg.error_with_fun (Irg.output [
+					Irg.PTEXT "In a range type declaration, the first operand must be lesser than the second\n";
+					Irg.PTEXT (Printf.sprintf "Value of the first operand : %d\n Value of the second operand : %d"
+						(Int32.to_int v1) (Int32.to_int v2))])
 		 }
 |	ENUM LPAREN IdentifierList RPAREN
 		{
@@ -728,13 +727,8 @@ Expr:
 				then
 					eline (Irg.ITEMOF ((Sem.get_type_ident $1), $1, $3))
 				else
-					let dsp = fun _->(
-							print_string "Type : ";
-							Irg.print_spec (Irg.get_symbol $1)
-							)
-					in
-					raise (Sem.SemErrorWithFun ((Printf.sprintf "%s is not a valid location" $1),dsp))
-		else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+					Irg.error_with_fun (Irg.output [Irg.PTEXT $1; Irg.PTEXT " is not a valid location: type is "])
+		else Irg.pre_error (Printf.sprintf "the keyword %s is undefined\n" $1)
 		}
 |	ID LBRACK error
 		{ syntax_error "unclosed bracket expression" }

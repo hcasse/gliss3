@@ -54,6 +54,3 @@ let _ =
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
 	| Sem.SemError msg ->
 		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2
