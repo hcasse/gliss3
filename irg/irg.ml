@@ -347,8 +347,6 @@ type stat =
 	| ERROR of string	(* a changer : stderr ? *)
 	| IF_STAT of expr * stat * stat
 	| SWITCH_STAT of expr * (expr * stat) list * stat
-	| SETSPE of location * expr		(** Used for allowing assigment of parameters (for exemple in predecode attribute).
-					   				This is NOT in the nML standard and is only present for compatibility *)
 	| LINE of string * int * stat	(** Used to memorise the position of a statement *)
 	| INLINE of string				(** inline source in statement (for internal use only) *)
 
@@ -750,10 +748,12 @@ let output_const out cst =
 	| CARD_CONST_64 v->
 		output_string out (Int64.to_string v);
 		output_string out "LL"
-	| STRING_CONST(v) ->
+	| CANON v
+	| STRING_CONST v ->
 		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
 		Printf.fprintf out "%f" v
+
 
 (** Print a constant.
 	@param cst	Constant to display. *)
@@ -1029,12 +1029,6 @@ let rec output_statement out stat =
 		output_string out "\t\t\t default : \n\t\t";
 		output_statement out stat;
 		output_string out "\t\t }; \n"
-	| SETSPE (loc, exp) ->
-		output_string out "\t\t";
-		output_location out loc;
-		output_string out "=";
-		output_expr out exp;
-		output_string out ";\n"
 	| LINE (file, line, s) ->
 		output_statement out s
 	| INLINE s ->
@@ -1672,7 +1666,6 @@ and line_from_stat stat =
 	| INLINE _
 		-> no_line
 	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
-	| SETSPE (l, e)
 	| SET (l, e) -> line_from_expr e 
 	| CANON_STAT (_, args) -> line_from_list (List.map (fun a -> LEXPR a) args)
 	| IF_STAT (c, s1, s2) -> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]

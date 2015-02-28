@@ -380,7 +380,7 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 		let rec get_location = function 
 			| LINE(_,_,s) -> (get_location s) 
 			| SEQ(s1,s2) -> (get_location s1)@(get_location s2)
-			| SET(loc,_) | SETSPE(loc,_) -> get_names_from_location loc
+			| SET(loc,_) -> get_names_from_location loc
 			| _ -> []
 		in	
 		match (Irg.get_symbol name) with 
@@ -470,7 +470,7 @@ let affect_constraint (list_name: string list) :unit=
 		let rec modify_stat list_param = function 
 			| LINE(a,b,s) -> LINE(a,b,(modify_stat list_param s))
 			| SEQ(s1,s2) -> SEQ((modify_stat list_param s1),(modify_stat list_param s2))
-			| SET(loc,e) | SETSPE(loc,e) as set -> 
+			| SET(loc,e) as set -> 
 				let name_of_loc= List.hd (get_names_from_location loc) in
 				let type_of_loc= try name_of_typ ( List.assoc name_of_loc list_param ) with | _ -> " " in  
 				(* (3) *)

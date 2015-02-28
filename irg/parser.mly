@@ -615,17 +615,13 @@ Statement:
 |	ID DOT ID
 		{ Irg.EVALIND ($1, $3) }
 |	Location EQ Expr
-		{ handle_stat (fun _ -> 
-			if Sem.is_setspe $1
-			then Irg.SETSPE ($1,$3)
-			else Sem.make_set $1 $3)
-		}
+		{ handle_stat (fun _ -> Sem.make_set $1 $3) }
 |	ConditionalStatement
 		{ $1 }
 |	STRING_CONST LPAREN ArgList RPAREN
 		{ Sem.build_canonical_stat $1 (List.rev $3) }
 |	ERROR LPAREN STRING_CONST RPAREN
-		{ Irg.ERROR $3 }
+		{ handle_stat (fun _ -> Irg.ERROR $3) }
 ;
 
 ArgList :

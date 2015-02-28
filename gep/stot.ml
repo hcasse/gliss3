@@ -155,8 +155,6 @@ let transform_aux attr =
 			(s, process_attr name info)
 		| SET (l, e) ->
 			(SET (process_loc l, process_expr e), info)
-		| SETSPE (l, e) ->
-			(SETSPE (process_loc l, process_expr e), info)
 		| CANON_STAT (n, args) ->
 			(CANON_STAT(n, List.map process_expr args), info)
 		| IF_STAT (c, t, e) ->

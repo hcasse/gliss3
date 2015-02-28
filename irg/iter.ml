@@ -52,8 +52,6 @@ let check_coerce spec =
 			Irg.IF_STAT(e, check_stat s1, check_stat s2)
 		| Irg.SWITCH_STAT(e, es_l, s) ->
 			Irg.SWITCH_STAT(e, List.map (fun (ex, st) -> (ex, check_stat st)) es_l, check_stat s)
-		| Irg.SETSPE(l, e) ->
-			Irg.SETSPE(l, Sem.check_set_stat l e)
 		| Irg.LINE(s, i, st) ->
 			Irg.LINE(s, i, check_stat st)
 		| _ ->

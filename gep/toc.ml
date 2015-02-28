@@ -979,10 +979,6 @@ let rec prepare_stat info stat =
 	| Irg.LINE (file, line, stat) ->
 		Irg.LINE (file, line, prepare_stat info stat)
 
-	| Irg.SETSPE (l, e) ->
-		(* !!TODO!! fix type here *)
-		prepare_stat info (Irg.SET (l, e))
-
 	| Irg.EVAL name ->
 		prepare_call info name;
 		stat
@@ -1412,7 +1408,6 @@ let rec multiple_stats stat =
 	| Irg.CANON_STAT _
 	| Irg.ERROR _
 	| Irg.SWITCH_STAT _
-	| Irg.SETSPE _
 	| Irg.INLINE _ -> false
 	| Irg.EVAL _
 	| Irg.EVALIND _
@@ -1543,8 +1538,7 @@ let rec gen_stat info stat =
 		line (fun _ -> out s)
 
 	| Irg.SET _
-	| Irg.EVALIND _
-	| Irg.SETSPE _ ->
+	| Irg.EVALIND _ ->
 		failwith "must have been removed"
 
 (** Generate the code for setting a field.
@@ -1643,7 +1637,6 @@ let find_recursives info name =
 						(fun recs (_, s) -> look_stat s recs)
 						recs
 						cases)
-				| Irg.SETSPE (loc, expr) -> recs
 				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
 				| Irg.INLINE _ -> recs in
 

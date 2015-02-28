@@ -90,7 +90,6 @@
 	- {!is_loc_mode}
 	- {!is_loc_spe}
 	- {!is_location}
-	- {!is_setspe}
 	- {!raise_type_error_two_operand}
 	- {!test_canonical}
 	- {!test_data}
@@ -1276,26 +1275,6 @@ let rec is_loc_spe id=
 	|_->false
 
 
-(** Check if the given location is a parameter.
-	This possibility is not allowed in the nML standard. But it was with some versions of GLISS v1 (in the predecode attribute).
-	The locations which verify this condition are the ones allowed in is_loc_spe.
-	We keep it here for compatibility with previous versions only.
-	@param id	the id to check
-	@return True if the id refer to a parameter false otherwise
-*)
-let is_setspe loc=
-	match loc with
-	LOC_REF (_, id, Irg.NONE, _, _) -> (let symb= get_symbol id
-			in
-			match  symb with
-				|PARAM _->true
-				|_->false
-		   )
-	|_->false
-
-
-
-
 (* this is the regular expression whitch represent a call to a parameter in a format *)
 let reg_exp = Str.regexp "%[0-9]*[ldbxsfu%]"	
 	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
@@ -1927,8 +1906,7 @@ let rec check_stat_inst stat =
 	| SEQ (s1, s2) ->
 		let s1', s2' = check_stat_inst s1, check_stat_inst s2 in
 		if s1 == s1' && s2 == s2' then stat else SEQ(s1', s2')
-	| SET (loc, expr)
-	| SETSPE (loc, expr) ->
+	| SET (loc, expr) ->
 		let expr' = check_expr_inst expr in
 		if expr == expr' then stat else make_set loc expr'
 	| CANON_STAT (id, args) ->

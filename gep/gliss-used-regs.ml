@@ -150,7 +150,6 @@ let rec stateless_stat stat sp =
 	| Irg.SWITCH_STAT (c, cs, d)	-> (stateless_expr c) && (stateless_stat d sp) && List.for_all (fun (_, s) -> stateless_stat s sp) cs
 	| Irg.LINE (_, _, s) 			-> stateless_stat s sp 
 	| Irg.EVAL id					-> stateless_stat_id id sp
-	| Irg.SETSPE _
 	| Irg.EVALIND _ 				-> assert false
 and stateless_stat_id id sp =
 	if List.mem id sp then true else
@@ -194,7 +193,6 @@ let collect info =
 			| Irg.SEQ (s1, s2) -> collect_stat s1 (collect_stat s2 lst line) line
 			| Irg.EVAL id -> collect_call id lst
 			| Irg.EVALIND _ -> failwith "gliss-used-regs: collect_stat"
-			| Irg.SETSPE (l, e)
 			| Irg.SET (l, e) -> collect_loc l (collect_expr e lst line) line
 			| Irg.CANON_STAT (_, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
 			| Irg.ERROR _ -> lst
@@ -393,8 +391,7 @@ let compile_regs inst stat out =
 			Irg.SWITCH_STAT (c, List.map (fun (c, s) -> (c, scan_stat s)) cs, scan_stat d)
 		| Irg.LINE (f, l, s) ->
 			Toc.locate_error f l (fun _ -> Irg.LINE (f, l, scan_stat s)) ()
-		| Irg.EVALIND _
-		| Irg.SETSPE _ ->
+		| Irg.EVALIND _ ->
 			assert false
 	
 	and scan_call name =
