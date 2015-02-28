@@ -141,8 +141,7 @@ let rec stateless_loc loc =
 let rec stateless_stat stat sp =
 	match stat with
 	| Irg.NOP
-	| Irg.ERROR _
-	| Irg.INLINE _ 					-> true
+	| Irg.ERROR _  					-> true
 	| Irg.SEQ(s1, s2) 				-> (stateless_stat s1 sp) && (stateless_stat s2 sp)
 	| Irg.SET (l, e) 				-> (stateless_loc l) && (stateless e) 
 	| Irg.CANON_STAT (_, args) 		-> List.for_all stateless_expr args
@@ -203,7 +202,6 @@ let collect info =
 					(collect_expr c (collect_stat d lst line) line)
 					cs
 			| Irg.LINE (f, l, s) -> collect_stat s lst (f, l)
-			| Irg.INLINE _ -> lst
 
 		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
@@ -370,7 +368,6 @@ let compile_regs inst stat out =
 		match stat with
 		| Irg.NOP
 		| Irg.ERROR _
-		| Irg.INLINE _
 		| Irg.SET _ -> stat
 		| Irg.EVAL ("", id) ->
 			scan_call id; stat

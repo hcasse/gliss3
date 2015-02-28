@@ -347,7 +347,6 @@ type stat =
 	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
 	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
 	| LINE of string * int * stat						(** Used to store source information.  *)
-	| INLINE of string									(** inline source in statement (for internal use only) *)
 
 
 (** attribute specifications *)
@@ -1028,8 +1027,6 @@ let rec output_statement out stat =
 		output_string out "\t\t }; \n"
 	| LINE (file, line, s) ->
 		output_statement out s
-	| INLINE s ->
-		Printf.fprintf out "inline(%s)\n" s
 
 
 (** Print a statement
@@ -1659,7 +1656,6 @@ and line_from_stat stat =
 	| NOP
 	| EVAL _
 	| ERROR _
-	| INLINE _
 		-> no_line
 	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
 	| SET (l, e) -> line_from_expr e 

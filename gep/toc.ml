@@ -986,9 +986,6 @@ let rec prepare_stat info stat =
 	| Irg.EVAL _ ->
 		failwith "prepare_stat: must have been removed !"
 
-	| Irg.INLINE _ ->
-		stat
-
 
 and prepare_call info name =
 	if not (StringHashtbl.mem info.attrs name) then
@@ -1407,8 +1404,7 @@ let rec multiple_stats stat =
 	| Irg.SET _
 	| Irg.CANON_STAT _
 	| Irg.ERROR _
-	| Irg.SWITCH_STAT _
-	| Irg.INLINE _ -> false
+	| Irg.SWITCH_STAT _ -> false
 	| Irg.EVAL _
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
@@ -1533,9 +1529,6 @@ let rec gen_stat info stat =
 	| Irg.EVAL ("", name) ->
 		gen_call info name
 
-	| Irg.INLINE s ->
-		line (fun _ -> out s)
-
 	| Irg.SET _
 	| Irg.EVAL _ ->
 		failwith "must have been removed"
@@ -1636,8 +1629,7 @@ let find_recursives info name =
 						(fun recs (_, s) -> look_stat s recs)
 						recs
 						cases)
-				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
-				| Irg.INLINE _ -> recs in
+				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs) in
 
 			look_stat (get_stat_attr name) recs in
 	

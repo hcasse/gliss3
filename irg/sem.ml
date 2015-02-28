@@ -1899,8 +1899,7 @@ let rec check_stat_inst stat =
 	match stat with
 	| NOP
 	| EVAL _
-	| ERROR _
-	| INLINE _ ->
+	| ERROR _ ->
 		stat
 	| SEQ (s1, s2) ->
 		let s1', s2' = check_stat_inst s1, check_stat_inst s2 in
