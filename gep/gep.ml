@@ -229,7 +229,7 @@ let output_decoder_complex info inst idx sfx size is_risc out =
 		let rec get_str e =
 			match e with
 			| Irg.FORMAT(str, _) -> str
-			| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
+			| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str)) -> str
 			| Irg.ELINE(_, _, e) -> get_str e
 			| _ -> ""
 		in

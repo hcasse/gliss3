@@ -296,12 +296,14 @@ type binop =
 	| BIN_XOR
 	| CONCAT
 
+(** Type to describe constants. *)
 type const =
-	  NULL
-	| CARD_CONST of Int32.t
-	| CARD_CONST_64 of Int64.t
-	| STRING_CONST of string * bool	* type_expr	(** bool indicates if const is canonical, if bool is true then 3rd field is the type of canonical const *)
-	| FIXED_CONST of float
+	  NULL						(** Null value. *)
+	| CARD_CONST of Int32.t		(** Natural 32-bits. *)
+	| CARD_CONST_64 of Int64.t	(** Natural 64-bits. *)
+	| STRING_CONST of string	(** String. *)
+	| FIXED_CONST of float		(** Fixed-precision real value. *)
+	| CANON of string			(** Canonical constant. *)
 
 type expr =
 	  NONE									(* null expression *)
@@ -486,7 +488,7 @@ let get_symbol n =
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
-	| LET(_, STRING_CONST(name, _, _)) -> name
+	| LET(_, STRING_CONST(name)) -> name
 	| _                         ->
 		failwith ("Unable to find 'proc_name'."^
 				  "'proc' must be defined as a string let")
@@ -535,7 +537,7 @@ let add_symbol name sym =
 		let b_o =
 			match get_symbol "bit_order" with
 			UNDEF -> true
-			| LET(_, STRING_CONST(id, _, _)) ->
+			| LET(_, STRING_CONST(id)) ->
 				if (String.uppercase id) = "UPPERMOST" then true
 				else if (String.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
@@ -748,7 +750,7 @@ let output_const out cst =
 	| CARD_CONST_64 v->
 		output_string out (Int64.to_string v);
 		output_string out "LL"
-	| STRING_CONST(v, _, _) ->
+	| STRING_CONST(v) ->
 		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
 		Printf.fprintf out "%f" v
@@ -1256,7 +1258,7 @@ let get_isize _ =
 	| UNDEF -> []
 	| LET(st, cst) ->
 		(match cst with
-		STRING_CONST(nums, _, _) ->
+		STRING_CONST(nums) ->
 			List.map
 			(fun x ->
 				try

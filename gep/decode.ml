@@ -52,9 +52,8 @@ let get_format_string sp =
 		| Irg.CONST(t_e, c) ->
 			if t_e=Irg.STRING then
 				match c with
-				Irg.STRING_CONST(str, false, _) ->
-					str
-				| _ -> ""
+				| Irg.STRING_CONST(str) -> str
+				| _ 					-> ""
 			else
 				""
 		| Irg.ELINE(_, _, e) -> get_str e

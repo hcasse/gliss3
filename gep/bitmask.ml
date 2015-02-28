@@ -529,7 +529,7 @@ let rec get_str e =
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
-			| Irg.STRING_CONST(str, false, _) -> str
+			| Irg.STRING_CONST(str) -> str
 			| _ -> ""
 		else
 			""

@@ -44,7 +44,7 @@ let options = [
 	@raise Error	If there is an unsupported syntax expression. *)
 let rec gen_disasm info inst expr =
 
-	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST(text, false, Irg.NO_TYPE)) in
+	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST(text)) in
 
 	let format fmt args s i =
 		if s >= i then
@@ -80,7 +80,7 @@ let rec gen_disasm info inst expr =
 		match expr with
 		| Irg.FORMAT (fmt, args) ->
 			scan fmt args 0 [] 0
-		| Irg.CONST (_, Irg.STRING_CONST(s, false, _)) ->
+		| Irg.CONST (_, Irg.STRING_CONST(s)) ->
     		if s <> ""
     		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
       		else Irg.NOP 

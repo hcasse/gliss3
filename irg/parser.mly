@@ -819,19 +819,19 @@ Constant :
 		{ (Irg.CARD 32, Irg.CARD_CONST $1) }
 |	CARD_CONST_64
 		{ (Irg.CARD 64, Irg.CARD_CONST_64 $1) }
+|	BIN_CONST
+		{ (Irg.CARD (snd $1), Irg.CARD_CONST (fst $1)) }
+|	BIN_CONST_64
+		{ (Irg.CARD (snd $1), Irg.CARD_CONST_64 (fst $1)) }
 |	STRING_CONST
 		{
 			if  (Irg.is_defined_canon $1) then
 				(Sem.test_canonical $1;
 				let e = Irg.get_canon $1 in
-					(e.Irg.type_res, Irg.STRING_CONST($1, true, e.Irg.type_res)))
+					(e.Irg.type_res, Irg.CANON($1)))
 			else
-				(Irg.STRING, Irg.STRING_CONST($1, false, Irg.NO_TYPE))
+				(Irg.STRING, Irg.STRING_CONST($1))
 		}
-|	BIN_CONST
-		{ (Irg.CARD (snd $1), Irg.CARD_CONST (fst $1)) }
-|	BIN_CONST_64
-		{ (Irg.CARD (snd $1), Irg.CARD_CONST_64 (fst $1)) }
 ;
 
 
@@ -875,9 +875,9 @@ Bit_Expr :
 			if  (Irg.is_defined_canon $1) then
 				(Sem.test_canonical $1;
 				let e = Irg.get_canon $1 in
-					eline (Irg.CONST (e.Irg.type_res, Irg.STRING_CONST($1, true, e.Irg.type_res))))
+					eline (Irg.CONST (e.Irg.type_res, Irg.CANON($1))))
 			else
-				eline (Irg.CONST (Irg.STRING, Irg.STRING_CONST($1, false, Irg.NO_TYPE)))
+				eline (Irg.CONST (Irg.STRING, Irg.STRING_CONST($1)))
 		}
 ;
 

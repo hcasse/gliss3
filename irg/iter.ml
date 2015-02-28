@@ -172,7 +172,7 @@ let build_name instr =
 	let rec to_string e =
 		match e with
 		  Irg.FORMAT(s, e_l) -> s
-		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str, false, _)) -> str
+		| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str)) -> str
 		| Irg.ELINE(_, _, e) -> to_string e
 		| Irg.IF_EXPR (_, _, _, e) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->
@@ -180,7 +180,7 @@ let build_name instr =
 		| _ -> failwith "unsupported operator in syntax" in
 
 	let mkstr s =
-		Irg.CONST (Irg.STRING, Irg.STRING_CONST(s, false, Irg.NO_TYPE)) in
+		Irg.CONST (Irg.STRING, Irg.STRING_CONST(s)) in
 
 	match instr with
 	| Irg.AND_OP(sid, params, attrs) ->
@@ -202,7 +202,7 @@ let build_name instr =
  *)
 let get_name inst =
 	match  Irg.attr_expr id (Irg.attrs_of inst) Irg.NONE with
-	| Irg.CONST (_, Irg.STRING_CONST(v, _, _)) -> v
+	| Irg.CONST (_, Irg.STRING_CONST(v)) -> v
 	| _ -> failwith "iter: identifier undefined"
 
 
@@ -215,7 +215,7 @@ let get_user_id inst =
 		| Irg.FORMAT(str, _) -> str
 		| Irg.CONST(Irg.STRING, c) ->
 				(match c with
-				| Irg.STRING_CONST(str, false, _) -> str
+				| Irg.STRING_CONST(str) -> str
 				| _ -> "")
 		| Irg.ELINE(_, _, e) -> make e
 		| _ -> "" in
@@ -437,7 +437,7 @@ let get_instruction_length sp =
 		| Irg.CONST(t_e, c) ->
 			if t_e=Irg.STRING then
 				match c with
-				Irg.STRING_CONST(str, false, _) ->
+				Irg.STRING_CONST(str) ->
 					str
 				| _ -> ""
 			else

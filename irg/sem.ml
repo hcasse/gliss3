@@ -161,7 +161,7 @@ let to_int32 c =
 	@raise SemError	If the conversion cannot be done. *)
 let rec to_string e =
 	match e with
-	| Irg.CONST (_, Irg.STRING_CONST (s, _, _)) -> s
+	| Irg.CONST (_, Irg.STRING_CONST (s)) -> s
 	| Irg.ELINE (_, _, e) -> to_string e
 	| _ -> pre_error "should evaluate to a string"
 
@@ -181,8 +181,9 @@ let is_true c =
 	  NULL -> false
 	| CARD_CONST v -> v <> Int32.zero
 	| CARD_CONST_64 v-> v <> Int64.zero
-	| STRING_CONST(v, _, _) -> v <> ""
+	| STRING_CONST(v) -> v <> ""
 	| FIXED_CONST v -> v <> 0.0
+	| CANON _ -> false
 
 
 (** Rotate an int32 to the left.
@@ -324,7 +325,7 @@ let eval_binop_string op v1 v2 =
 	| GE		-> to_bool (v1 >= v2)
 	| EQ		-> to_bool (v1 = v2)
 	| NE		-> to_bool (v1 <> v2)
-	| CONCAT	-> STRING_CONST(v1 ^ v2, false, NO_TYPE)
+	| CONCAT	-> STRING_CONST(v1 ^ v2)
 	| _ ->
 		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
@@ -345,11 +346,8 @@ let eval_binop op c1 c2 =
 		eval_binop_fixed op (Int32.to_float v1) v2
 	| (Irg.FIXED_CONST v1, Irg.FIXED_CONST v2) ->
 		eval_binop_fixed op v1 v2
-	| (Irg.STRING_CONST(v1, b1, t1), Irg.STRING_CONST(v2, b2, t2)) ->
-		if not b1 && not b2 then
-			eval_binop_string op v1 v2
-		else
-			pre_error "cannot evaluate a canonical const here, value can only be got via C code"
+	| (Irg.STRING_CONST(v1), Irg.STRING_CONST(v2)) ->
+		eval_binop_string op v1 v2
 	| _ ->
 		pre_error (sprintf "bad type operand for '%s'" (string_of_binop op))
 
@@ -521,20 +519,21 @@ let rec get_type_ident id=
 	else
 
 	match symb with
-	 LET (_,c)-> (match c with
-			 NULL-> NO_TYPE
-			|CARD_CONST _->CARD 32
-			|CARD_CONST_64 _->CARD 64
-			|STRING_CONST(_, b, t) -> if b then t else STRING
-			|FIXED_CONST _->FLOAT (24,8))
-	|TYPE (_,t)->(match t with
+	| LET (_,c)-> (match c with
+			| NULL				-> NO_TYPE
+			| CARD_CONST _		->CARD 32
+			| CARD_CONST_64 _	->CARD 64
+			| STRING_CONST _	-> STRING
+			| FIXED_CONST _		-> FLOAT (24,8)
+			| CANON _ 			-> ANY_TYPE)
+	| TYPE (_,t)->(match t with
 			ENUM l->(let i = List.length l in
 				CARD (int_of_float (ceil ((log (float i)) /. (log 2.)))))
 			|_->t)
-	|MEM (_,_,t,_)->t
-	|REG (_,_,t,_)->t
-	|VAR (_,_,t, _)->t
-	|AND_MODE (_,l,e,_)->	(
+	| MEM (_,_,t,_)->t
+	| REG (_,_,t,_)->t
+	| VAR (_,_,t, _)->t
+	| AND_MODE (_,l,e,_)->	(
 				 param_stack l;
 				 let t= get_type_expr e
 				 in
@@ -542,9 +541,9 @@ let rec get_type_ident id=
 				 t
 				)
 
-	|OR_MODE _ -> ANY_TYPE
+	| OR_MODE _ -> ANY_TYPE
 
-	|PARAM (n,t)->( rm_symbol n;
+	| PARAM (n,t)->( rm_symbol n;
 			let type_res=(
 				match t with
 				 TYPE_ID idb->get_type_ident idb

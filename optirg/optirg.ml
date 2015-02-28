@@ -47,7 +47,7 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 		let image_expr = (Image_attr_size.get_expr_of_image attr_list) in 
 		let rec int_of_expr expr = 
 			match expr with 
-			| CONST(STRING,STRING_CONST(image_string, false, _)) -> 
+			| CONST(STRING,STRING_CONST(image_string)) -> 
 				int_of_string ("0b"^image_string)
 			| ELINE(_,_,e) -> int_of_expr e
 			| _ -> failwith ("code_from_spec: Optimization need constant string as image. ("^(String_of_expr.name_of_expr image_expr)^") ")

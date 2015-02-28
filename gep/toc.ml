@@ -164,7 +164,7 @@ let info _ =
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, Irg.STRING_CONST(id, _, _)) ->
+		| Irg.LET(_, Irg.STRING_CONST(id)) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -1101,13 +1101,10 @@ and gen_const info typ cst =
 			Printf.fprintf info.out "%ldL" v
 	| Irg.CARD _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "0x%LxLLU" v
 	| _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "%LdLL" v
-	| _, Irg.STRING_CONST(s, b, _) ->
-		if b then
-			(* canonical const *)
-			Printf.fprintf info.out "%s" (cstring s)
-		else
-			(* simple string const *)
-			Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.STRING_CONST s ->
+		Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.CANON s ->
+		Printf.fprintf info.out "%s" (cstring s)
 	| _, Irg.FIXED_CONST v -> Printf.fprintf info.out "%f" v
 
 

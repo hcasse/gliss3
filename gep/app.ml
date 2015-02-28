@@ -312,7 +312,7 @@ let get_instruction_set maker f dict i_set =
 			let spec_ = List.hd i_set in
 			let name = try
 					match Iter.get_attr spec_ "instruction_set_name" with
-					| Iter.EXPR((Irg.CONST(Irg.STRING, Irg.STRING_CONST(n, _, _)))) -> n
+					| Iter.EXPR((Irg.CONST(Irg.STRING, Irg.STRING_CONST(n)))) -> n
 					| _ -> raise (Toc.Error "attribute 'instruction_set_name' must be a constant string")
 				with Not_found ->
 					if (List.length !Iter.multi_set) > 1 then raise (Toc.Error "no attribute 'instruction_set_name'")
@@ -373,7 +373,7 @@ let gen_reg_access name size typ attrs out attr make =
 	@param t	Type of variable.
 	@param v	Name of the variable. *)
 let make_canon_var t v =
-	Irg.CONST (t, Irg.STRING_CONST(v, true, t))
+	Irg.CONST (t, Irg.CANON(v))
 	
 
 (** Generate the setter of a register value for a debugger.
