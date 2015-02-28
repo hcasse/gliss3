@@ -257,7 +257,8 @@ type type_expr =
 	| RANGE of int32 * int32	(** (low, up) integer range *)
 	| STRING					(** string uniquely used for disassembly *)
 	| ENUM of string list		(** (list of value identifier) enumerated type *)
-	| UNKNOW_TYPE				(** used to represent a variable type (usually induced by OR-mode or operations *)
+	| ANY_TYPE					(** used to represent a variable type (usually induced by OR-mode or operations *)
+
 
 (** Use of a type *)
 type typ =
@@ -528,7 +529,7 @@ let add_symbol name sym =
 				int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
 			| NO_TYPE
 			| STRING
-			| UNKNOW_TYPE ->
+			| ANY_TYPE ->
 				failwith "irg: length unknown"
 		in
 		let b_o =
@@ -674,7 +675,7 @@ let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 (* list of all defined canonical functions *)
 let canon_list = [
 			(* this is the "default" canonical function, used for unknown functions *)
-			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE };
+			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=ANY_TYPE };
 			{ name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE };
 			
 			(* for debugging generation *)
@@ -783,7 +784,7 @@ let output_type_expr out t =
 		Printf.fprintf out "%s" (List.hd (List.rev l));
 		List.iter (fun i->(Printf.fprintf out ",%s" i)) (List.tl (List.rev l));
 		output_string out ")"
-	| UNKNOW_TYPE -> output_string out "unknow_type"
+	| ANY_TYPE -> output_string out "any_type"
 
 
 (** Print a type expression.

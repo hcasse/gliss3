@@ -273,7 +273,7 @@ let rec convert_type t =
 	| Irg.ENUM _ -> UINT32
 	| Irg.RANGE (_, m) ->
 		convert_type (Irg.INT (int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))))
-	| Irg.UNKNOW_TYPE ->
+	| Irg.ANY_TYPE ->
 		(* we have some of this type in bitfield expr, we can't determine the real type and mem size
 		so let's patch it up for the moment, uint32 should be the least worst choice *)
 		UINT32
@@ -291,7 +291,7 @@ let type_size t =
 	| Irg.FLOAT (n, m) -> n + m + 1
 	| Irg.RANGE (_, m) ->
 		int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))
-	| Irg.UNKNOW_TYPE -> 32
+	| Irg.ANY_TYPE -> 32
 	| _ -> unsupported_type t
 
 

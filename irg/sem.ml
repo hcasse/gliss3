@@ -542,7 +542,7 @@ let rec get_type_ident id=
 				 t
 				)
 
-	|OR_MODE _->UNKNOW_TYPE
+	|OR_MODE _ -> ANY_TYPE
 
 	|PARAM (n,t)->( rm_symbol n;
 			let type_res=(
@@ -602,7 +602,7 @@ let get_type_length t =
 		int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
 	| NO_TYPE
 	| STRING
-	| UNKNOW_TYPE ->
+	| ANY_TYPE ->
 		failwith "sem: length unknown"
 
 
@@ -624,7 +624,7 @@ let check_unop e uop =
 	let t = get_type_expr e in
 	
 	match (uop, t) with
-	| (_, UNKNOW_TYPE) -> (UNKNOW_TYPE, e)
+	| (_, ANY_TYPE) -> (ANY_TYPE, e)
 	| (NOT, BOOL)
 	| (NOT, CARD _)
 	| (NOT, INT _)
@@ -717,9 +717,9 @@ let num_auto_coerce e1 e2 =
 	@raise Failure	Raised when the type of the operands are not compatible with the operation *)
 let get_add_sub e1 e2 bop =
 	match (get_type_expr e1, get_type_expr e2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| _, _ ->
 		let (e1, e2) = num_auto_coerce e1 e2 in
 		BINOP (get_type_expr e1, bop, e1, e2)
@@ -737,9 +737,9 @@ let get_mult_div_mod e1 e2 bop=
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| _, _ ->
 		let (e1, e2) = num_auto_coerce e1 e2 in
 		BINOP (get_type_expr e1, bop, e1, e2)
@@ -781,9 +781,9 @@ let get_compare bop e1 e2 =
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| _, _ ->
 		let (e1, e2) = num_auto_coerce e1 e2 in
 		BINOP (BOOL, bop, e1, e2)
@@ -794,7 +794,7 @@ let get_compare bop e1 e2 =
 	@return		Converted expression. *)
 let to_bool e =
 	match get_type_expr e with
-	| UNKNOW_TYPE
+	| ANY_TYPE
 	| BOOL -> e
 	| _ -> COERCE(BOOL, e)
 
@@ -804,7 +804,7 @@ let to_bool e =
 	@return		Converted expression. *)
 let to_cond e =
 	match get_type_expr e with
-	| UNKNOW_TYPE
+	| ANY_TYPE
 	| _ -> e
 
 
@@ -817,9 +817,9 @@ let get_logic bop e1 e2 =
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| _, _ ->
 		BINOP (BOOL, bop, to_cond e1, to_cond e2)
 
@@ -833,9 +833,9 @@ let get_bin bop e1 e2 =
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| NO_TYPE, _
 	| _, NO_TYPE -> BINOP(NO_TYPE, bop, e1, e2)
 	| _, _ ->
@@ -858,9 +858,9 @@ let get_shift bop e1 e2 =
 	let t1 = get_type_expr e1
 	and t2 = get_type_expr e2 in
 	match (t1,t2) with
-	| UNKNOW_TYPE, _
-	| _, UNKNOW_TYPE ->
-		BINOP (UNKNOW_TYPE, bop, e1, e2)
+	| ANY_TYPE, _
+	| _, ANY_TYPE ->
+		BINOP (ANY_TYPE, bop, e1, e2)
 	| _, _ ->
 		let s = get_type_length t1 in
 		BINOP(CARD(s), bop, to_card e1, e2)
@@ -991,10 +991,10 @@ let check_if_expr e1 e2=
 	| (FIX _,FIX _)
 	| (STRING, STRING)
 	(* added to debug x86,a lot of unknown types (mode values) are encountered *)
-	| (UNKNOW_TYPE, UNKNOW_TYPE)
+	| (ANY_TYPE, ANY_TYPE)
 		-> t1
-	| (UNKNOW_TYPE, STRING)
-	| (STRING, UNKNOW_TYPE)
+	| (ANY_TYPE, STRING)
+	| (STRING, ANY_TYPE)
 		-> STRING
 	| _ ->
 	(* !!DEBUG!! *)
@@ -1135,7 +1135,7 @@ let check_switch_expr test list_case default=
 		match t with
 		| ENUM _ -> sub_fun list_case
 		(* UNKNOW_TYPE corresponds to an expr like x.item not yet instantiated *)
-		| BOOL | CARD _ | INT _ | RANGE _ | UNKNOW_TYPE -> is_int list_case
+		| BOOL | CARD _ | INT _ | RANGE _ | ANY_TYPE -> is_int list_case
 		| _ -> (*!!DEBUG!!*)(*print_string "check_switch, t_=";Irg.print_type_expr t;*) false
 
 	(* This part check if all the possible result of a switch expression are of the same type *)
@@ -1332,7 +1332,7 @@ let build_format str exp_list=
 			pre_error "incorrect number of parameters in format"
 		else
 			let test_list = List.map2 (fun e_s e_i ->	(* here we check if all variables are given a parameter of the good type *)
-					if (get_type_expr e_i=UNKNOW_TYPE) then true else
+					if (get_type_expr e_i=ANY_TYPE) then true else
 					match Str.last_chars e_s 1 with
 					| "d" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
 					| "u" -> (match (get_type_expr e_i) with (CARD _|INT _) -> true | _ -> false)
@@ -1398,7 +1398,7 @@ let build_canonical_expr name param =
 *)
 let build_canonical_stat name param =
 	let e = get_canon name in
-	if not (e.type_res = NO_TYPE || e.type_res = UNKNOW_TYPE) then
+	if not (e.type_res = NO_TYPE || e.type_res = ANY_TYPE) then
 		Lexer.display_warning (Printf.sprintf "the result of the canonical function %s is not used" name);
 	CANON_STAT (name , check_params name param)
 
@@ -1421,11 +1421,11 @@ let get_loc_type loc =
 						or is not a location. *)
 let get_loc_ref_type name =
 	match Irg.get_symbol name with
-	| Irg.UNDEF -> pre_error (name ^ " is undefined")
-	| Irg.MEM (_, _, t, _) -> t
-	| Irg.REG (_, _, t, _) -> t
-	| Irg.VAR (_, _, t, _) -> t
-	| Irg.PARAM _ -> Irg.UNKNOW_TYPE
+	| UNDEF -> pre_error (name ^ " is undefined")
+	| MEM (_, _, t, _) -> t
+	| REG (_, _, t, _) -> t
+	| VAR (_, _, t, _) -> t
+	| PARAM _ -> ANY_TYPE
 	| _ -> pre_error (name ^ " is not a location")
 
 
@@ -1437,17 +1437,17 @@ let check_alias mem =
 	
 	let rec test loc =
 		match loc with
-		| Irg.LOC_NONE -> mem
-		| Irg.LOC_CONCAT (_, l1, l2) ->
+		| LOC_NONE -> mem
+		| LOC_CONCAT (_, l1, l2) ->
 			let m, _ = test l1, test l2 in m
 		| Irg.LOC_REF (_, id, _, _, _) ->
-			(match (mem, Irg.get_symbol id) with
-			| (Irg.MEM _, Irg.MEM _)
-			| (Irg.REG _, Irg.REG _)
-			| (Irg.VAR _, Irg.VAR _) -> mem
+			(match (mem, get_symbol id) with
+			| (MEM _, MEM _)
+			| (REG _, REG _)
+			| (VAR _, VAR _) -> mem
 			| (_, _) -> pre_error (Printf.sprintf "unconsistant alias to %s" id)) in
 	
-	test (Irg.attr_loc "alias" attrs Irg.LOC_NONE)
+	test (Irg.attr_loc "alias" attrs LOC_NONE)
 				 
 
 (* list of undefined canonical type *)
@@ -1553,8 +1553,8 @@ let make_set loc expr =
 			output_char stderr '\n';
 			res
 
-	| CARD _, UNKNOW_TYPE
-	| INT _, UNKNOW_TYPE ->
+	| CARD _, ANY_TYPE
+	| INT _, ANY_TYPE ->
 		(* !!DEBUG!! Lexer.display_warning "unknown in right of set";*)
 		Irg.SET (loc, Irg.CAST(ltype, expr))
 
@@ -1727,31 +1727,31 @@ let rec get_field_type spec id =
 	let join t1 t2 =
 		match (t1, t2) with
 		| (t1, t2) when t1 = t2	-> t1
-		| (Irg.UNKNOW_TYPE, _)
-		| (_, Irg.UNKNOW_TYPE) 	-> Irg.UNKNOW_TYPE
-		| (Irg.NO_TYPE, t)
-		| (t, Irg.NO_TYPE) 		-> t
-		| _ 					-> Irg.UNKNOW_TYPE in
+		| (ANY_TYPE, _)
+		| (_, ANY_TYPE) 	-> ANY_TYPE
+		| (NO_TYPE, t)
+		| (t, NO_TYPE) 		-> t
+		| _ 					-> ANY_TYPE in
 
 	let rec find params attrs =
-		let e = Irg.attr_expr id attrs Irg.NONE in
-		if e = Irg.NONE then raise Not_found else
-		Irg.param_stack params;
+		let e = attr_expr id attrs NONE in
+		if e = NONE then raise Not_found else
+		param_stack params;
 		let tt = get_type_expr e in
-		Irg.param_unstack params;
+		param_unstack params;
 		tt in
 	
 	let rec collect syms tt =
-		if tt = Irg.UNKNOW_TYPE then tt else
+		if tt = ANY_TYPE then tt else
 		match syms with
 		| [] 	-> tt
-		| h::t	-> collect t (join tt (get_field_type (Irg.get_symbol h) id)) in 
+		| h::t	-> collect t (join tt (get_field_type (get_symbol h) id)) in 
 	
 	match spec with
-	| Irg.AND_MODE (_, params, _, attrs)
-	| Irg.AND_OP (_, params, attrs)	-> find params attrs
-	| Irg.OR_MODE (_, syms) 		-> collect syms Irg.NO_TYPE
-	| _ 							-> raise Not_found
+	| AND_MODE (_, params, _, attrs)
+	| AND_OP (_, params, attrs)	-> find params attrs
+	| OR_MODE (_, syms) 		-> collect syms NO_TYPE
+	| _ 						-> raise Not_found
 
 
 (** Build and type a field expression.
@@ -1759,13 +1759,13 @@ let rec get_field_type spec id =
 	@param cid		Child identifier.
 	@return			Built field expression. *)
 let type_of_field pid cid =
-	if Irg.is_defined pid then
+	if is_defined pid then
 		match Irg.get_symbol pid with
-		| Irg.PARAM(_, t) ->
+		| PARAM(_, t) ->
 			(match t with
-			| Irg.TYPE_ID(name) ->
+			| TYPE_ID(name) ->
 				(try get_field_type (get_symbol name) cid
-				with Not_found -> UNKNOW_TYPE)
+				with Not_found -> ANY_TYPE)
 			| _ -> pre_error (Printf.sprintf "%s cannot have a %s attribute\n" pid cid))
 		| _ -> pre_error (sprintf "%s can not have a %s attribute\n" pid cid)
 	else
@@ -1799,7 +1799,7 @@ let make_access_loc id idx up lo =
 		* if lo is not None, it must be int or card.
 	*)
 	if (is_location id) || (is_loc_spe id)
-	then Irg.LOC_REF (get_loc_ref_type id, id, idx, up, lo)
+	then LOC_REF (get_loc_ref_type id, id, idx, up, lo)
 	else pre_error (Printf.sprintf "'%s' is not a valid location" id) 
 
 
@@ -1875,23 +1875,23 @@ let rec check_expr_inst expr =
 		if idx == idx' then expr else ITEMOF (t, id, idx')
 	| BITFIELD (t, e1, e2, e3) ->
 		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
-		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' && e3 == e3' then expr else make_bitfield e1' e2' e3'
+		if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 == e3' then expr else make_bitfield e1' e2' e3'
 	| UNOP (t, op, e) ->
 		let e' = check_expr_inst e in
-		if t <> UNKNOW_TYPE && e == e' then expr else get_unop e' op
+		if t <> ANY_TYPE && e == e' then expr else get_unop e' op
 	| BINOP (t, op, e1, e2) ->
 		let e1', e2' = check_expr_inst e1, check_expr_inst e2 in
-		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' then expr else get_binop e1' e2' op
+		if t <> ANY_TYPE && e1 == e1' && e2 == e2' then expr else get_binop e1' e2' op
 	| IF_EXPR (t, cond, e1, e2) ->
 		let cond', e1', e2' = check_expr_inst cond, check_expr_inst e1, check_expr_inst e2 in
-		if t <> UNKNOW_TYPE && cond == cond' && e1 == e1' && e2 == e2' then expr else make_if_expr cond e1 e2
+		if t <> ANY_TYPE && cond == cond' && e1 == e1' && e2 == e2' then expr else make_if_expr cond e1 e2
 	| SWITCH_EXPR (t, cond, cases, def) ->
 		let cond', def' = check_expr_inst cond, check_expr_inst def in
 		let cases' = List.map (fun (c, e) -> (c, check_expr_inst e)) cases in
-		if t <> UNKNOW_TYPE && cond == cond' && def == def' && cases = cases' then expr else make_switch_expr cond' cases' def'
+		if t <> ANY_TYPE && cond == cond' && def == def' && cases = cases' then expr else make_switch_expr cond' cases' def'
 	| CAST (t, e) ->
 		let e' = check_expr_inst e in
-		if t <> UNKNOW_TYPE && e == e' then expr else CAST(get_type_expr e', e')
+		if t <> ANY_TYPE && e == e' then expr else CAST(get_type_expr e', e')
 	| ELINE (file, line, e) ->
 		handle_error file line (fun _ ->
 			let e' = check_expr_inst e in
@@ -1906,11 +1906,11 @@ let rec check_loc_inst loc =
 	| LOC_NONE -> loc
 	| LOC_REF(t, id, e1, e2, e3) ->
 		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
-		if t <> UNKNOW_TYPE && e1 == e1' && e2 == e2' && e3 = e3' then loc else
+		if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 = e3' then loc else
 		make_access_loc id e1' e2' e3'
 	| LOC_CONCAT(t, l1, l2) ->
 		let l1', l2' = check_loc_inst l1, check_loc_inst l2 in
-		if t <> UNKNOW_TYPE && l1 == l1' && l2 == l2' then loc else
+		if t <> ANY_TYPE && l1 == l1' && l2 == l2' then loc else
 		make_concat_loc l1' l2'
 
 

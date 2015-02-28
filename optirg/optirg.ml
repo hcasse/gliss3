@@ -114,7 +114,7 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.COERCE(type_expr,_) -> type_expr
 	| 	Irg.FORMAT(_,_)-> Irg.STRING
 	| 	Irg.CANON_EXPR( type_expr,_,_)-> type_expr
-	| 	Irg.REF(_)-> Irg.UNKNOW_TYPE
+	| 	Irg.REF(_)-> Irg.ANY_TYPE
 	| 	Irg.FIELDOF(type_expr,_,_) -> type_expr
 	| 	Irg.ITEMOF (type_expr,_,_)-> type_expr
 	| 	Irg.BITFIELD (type_expr,_,_,_) -> type_expr
@@ -491,7 +491,7 @@ let affect_constraint (list_name: string list) :unit=
 				if( List.exists ((=) type_of_loc) list_name) then 
 					(* (2) *)
 					SWITCH_STAT(
-						FIELDOF(UNKNOW_TYPE, name_of_loc, "__val"),
+						FIELDOF(ANY_TYPE, name_of_loc, "__val"),
 						List.map ( create_case_stat loc e ) (case_list ()), 
 						NOP
 					)

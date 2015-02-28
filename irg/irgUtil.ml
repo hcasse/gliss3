@@ -115,17 +115,17 @@ let check_modes _ =
 let rec check_expr e =
 	
 	let check t =
-		if t == Irg.UNKNOW_TYPE then Irg.pre_error "unresolved type" else t in
+		if t == Irg.ANY_TYPE then Irg.pre_error "unresolved type" else t in
 	
 	match e with
 	| Irg.COERCE (t, e) -> Irg.COERCE(t, check_expr e)
 	| Irg.FORMAT (f, args) -> Irg.FORMAT (f, List.map check_expr args)
 	| Irg.CANON_EXPR(t, f, args) ->
-		if t == Irg.UNKNOW_TYPE
+		if t == Irg.ANY_TYPE
 		then Irg.CANON_EXPR (Irg.(CARD 32), f, List.map check_expr args) 
 		else Irg.CANON_EXPR (t, f, List.map check_expr args)
 	| Irg.FIELDOF (t, pid, cid) ->
-		let t = if t = Irg.UNKNOW_TYPE then check (Sem.type_of_field pid cid) else t in 
+		let t = if t = Irg.ANY_TYPE then check (Sem.type_of_field pid cid) else t in 
 		Irg.FIELDOF (t, pid, cid)
 	| Irg.ELINE (f, l, e) ->
 		(try Irg.ELINE(f, l, check_expr e)
@@ -136,10 +136,10 @@ let rec check_expr e =
 		let v = check_expr v in
 		let u = check_expr u in
 		let l = check_expr l in
-		let t = if t == Irg.UNKNOW_TYPE then (check (Sem.get_type_expr v)) else t in
+		let t = if t == Irg.ANY_TYPE then (check (Sem.get_type_expr v)) else t in
 		Irg.BITFIELD (t, v, u, l)	
 	| Irg.UNOP (t, op, e) ->
-		if t == Irg.UNKNOW_TYPE then
+		if t == Irg.ANY_TYPE then
 			let (t, e) = Sem.check_unop (check_expr e) op in
 			Irg.UNOP (check t, op, e)
 		else e	
