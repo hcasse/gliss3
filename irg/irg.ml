@@ -339,16 +339,15 @@ type attr_arg =
 (** A statement in an action. *)
 type stat =
 	  NOP
-	| SEQ of stat * stat
-	| EVAL of string
-	| EVALIND of string * string
-	| SET of location * expr
-	| CANON_STAT of string * expr list
+	| SEQ of stat * stat								(** (s1, s2) Sequential execution of s1 then s2. *)
+	| EVAL of string * string							(** (parameter, attribute) Access to an attribye. If parameter = "", this is a self-attribute. *)
+	| SET of location * expr							(** (location, expression) Assignment of expression to the given location *)
+	| CANON_STAT of string * expr list					(** Call to a canonical procedure. *)
 	| ERROR of string	(* a changer : stderr ? *)
-	| IF_STAT of expr * stat * stat
-	| SWITCH_STAT of expr * (expr * stat) list * stat
-	| LINE of string * int * stat	(** Used to memorise the position of a statement *)
-	| INLINE of string				(** inline source in statement (for internal use only) *)
+	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
+	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
+	| LINE of string * int * stat						(** Used to store source information.  *)
+	| INLINE of string									(** inline source in statement (for internal use only) *)
 
 
 (** attribute specifications *)
@@ -987,10 +986,8 @@ let rec output_statement out stat =
 	| SEQ (stat1, stat2) ->
 		output_statement out stat1;
 		output_statement out stat2
-	| EVAL ch ->
-		Printf.fprintf out "\t\t%s;\n" ch
-	| EVALIND (ch1, ch2) ->
-		Printf.fprintf out "\t\t%s.%s;\n" ch1 ch2
+	| EVAL (ch1, ch2) ->
+		if ch1 <> "" then Printf.fprintf out "\t\t%s.%s;\n" ch1 ch2 else Printf.fprintf out "\t\t%s;\n" ch2
 	| SET (loc, exp) ->
 		output_string out "\t\t";
 		output_location out loc;
@@ -1661,7 +1658,6 @@ and line_from_stat stat =
 	match stat with
 	| NOP
 	| EVAL _
-	| EVALIND _
 	| ERROR _
 	| INLINE _
 		-> no_line

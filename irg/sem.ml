@@ -1899,7 +1899,6 @@ let rec check_stat_inst stat =
 	match stat with
 	| NOP
 	| EVAL _
-	| EVALIND _
 	| ERROR _
 	| INLINE _ ->
 		stat

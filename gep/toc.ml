@@ -979,11 +979,11 @@ let rec prepare_stat info stat =
 	| Irg.LINE (file, line, stat) ->
 		Irg.LINE (file, line, prepare_stat info stat)
 
-	| Irg.EVAL name ->
+	| Irg.EVAL ("", name) ->
 		prepare_call info name;
 		stat
 
-	| Irg.EVALIND _ ->
+	| Irg.EVAL _ ->
 		failwith "prepare_stat: must have been removed !"
 
 	| Irg.INLINE _ ->
@@ -1410,7 +1410,6 @@ let rec multiple_stats stat =
 	| Irg.SWITCH_STAT _
 	| Irg.INLINE _ -> false
 	| Irg.EVAL _
-	| Irg.EVALIND _
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
 	| Irg.LINE (_, _, stat) -> multiple_stats stat
@@ -1531,14 +1530,14 @@ let rec gen_stat info stat =
 	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
 
-	| Irg.EVAL name ->
+	| Irg.EVAL ("", name) ->
 		gen_call info name
 
 	| Irg.INLINE s ->
 		line (fun _ -> out s)
 
 	| Irg.SET _
-	| Irg.EVALIND _ ->
+	| Irg.EVAL _ ->
 		failwith "must have been removed"
 
 (** Generate the code for setting a field.
@@ -1626,8 +1625,8 @@ let find_recursives info name =
 				match stat with
 				| Irg.NOP -> recs
 				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
-				| Irg.EVAL name -> look_attr name stack recs
-				| Irg.EVALIND _ -> error "unsupported form"
+				| Irg.EVAL ("", name) -> look_attr name stack recs
+				| Irg.EVAL _ -> error "unsupported form"
 				| Irg.SET _ -> recs
 				| Irg.CANON_STAT _ -> recs
 				| Irg.ERROR _ -> recs

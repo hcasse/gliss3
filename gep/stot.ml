@@ -151,7 +151,7 @@ let transform_aux attr =
 			let (s1, info) = process_stat s1 info in
 			let (s2, info) = process_stat s2 info in
 			(SEQ (s1, s2), info)
-		| EVAL name ->
+		| EVAL ("", name) ->
 			(s, process_attr name info)
 		| SET (l, e) ->
 			(SET (process_loc l, process_expr e), info)

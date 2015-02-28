@@ -605,15 +605,15 @@ Statement:
 	/* empty */
 		{ Irg.NOP }
 |	ACTION
-		{ Irg.EVAL "action" }
+		{ Irg.EVAL ("", "action") }
 |	ID
-		{ Irg.EVAL $1 }
+		{ Irg.EVAL ("", $1) }
 |	ID LPAREN
 		{ raise (Irg.SyntaxError (Printf.sprintf "unreduced macro '%s'" $1)) }
 |	ID DOT ACTION
-		{ Irg.EVALIND ($1, "action")  }
+		{ Irg.EVAL ($1, "action")  }
 |	ID DOT ID
-		{ Irg.EVALIND ($1, $3) }
+		{ Irg.EVAL ($1, $3) }
 |	Location EQ Expr
 		{ handle_stat (fun _ -> Sem.make_set $1 $3) }
 |	ConditionalStatement

@@ -40,11 +40,8 @@ let is_stat_attr_recursive sp name =
 			false
 		| SEQ(s1, s2) ->
 			(find_occurence str s1) || (find_occurence str s2)
-		| EVAL(s) ->
-			((String.compare s str) == 0)
-		| EVALIND(n, attr) ->
-			(* recursivity occurs only when we refer to oneself, 'EVALIND' always refers to another spec *)
-			false
+		| EVAL(n, attr) ->
+			n = "" &&  str = attr
 		| SET(l, e) ->
 			false
 		| CANON_STAT(n, el) ->
@@ -459,19 +456,18 @@ let rec substitute_in_stat name op statement =
 		NOP
 	| SEQ(s1, s2) ->
 		SEQ(substitute_in_stat name op s1, substitute_in_stat name op s2)
-	| EVAL(s) ->
-		EVAL(s)
-	| EVALIND(n, attr) ->
-		if (String.compare n name) == 0 then
+	| EVAL(n, attr) ->
+		if n = "" then statement else
+		if n = name then
 		begin
 			if is_stat_attr_recursive op attr then
 				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
-				EVAL(n ^ "_" ^ attr)
+				EVAL("", n ^ "_" ^ attr)
 			else
 				get_stat_from_attr_from_spec op attr
 		end
 		else
-			EVALIND(n, attr)
+			statement
 	| SET(l, e) ->
 		SET(substitute_in_location name op l, substitute_in_expr name op e)
 	| CANON_STAT(n, el) ->
@@ -504,13 +500,12 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 		NOP
 	| SEQ(s1, s2) ->
 		SEQ(change_name_of_var_in_stat s1 var_name new_name, change_name_of_var_in_stat s2 var_name new_name)
-	| EVAL(str) ->
-		EVAL(str)
-	| EVALIND(v, attr_name) ->
+	| EVAL(v, attr_name) ->
+		if v = "" then sta else
 		if (String.compare v var_name) == 0 then
-			EVALIND(new_name, attr_name)
+			EVAL(new_name, attr_name)
 		else
-			EVALIND(v, attr_name)
+			EVAL(v, attr_name)
 	| SET(l, e) ->
 		SET(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
 	| CANON_STAT(str, e_l) ->
@@ -1086,11 +1081,11 @@ let add_attr_to_spec sp param =
 			match st with
 			| SEQ(s1, s2) ->
 				SEQ(aux s1 name, aux s2 name)
-			| EVAL(str) ->
+			| EVAL("", str) ->
 				if (String.compare str name) == 0 then
-					EVAL(pfx ^ "_" ^ name)
+					EVAL("", pfx ^ "_" ^ name)
 				else
-					EVAL(str)
+					EVAL("", str)
 			| IF_STAT(e, s1, s2) ->
 				IF_STAT(e, aux s1 name, aux s2 name)
 			| SWITCH_STAT(e, es_l, s) ->
