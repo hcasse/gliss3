@@ -19,6 +19,160 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(** IRG module is dedicated to the Intermediate Representation in GLISS (IRG) of SimNML
+	and to its associate facilities.
+	
+	{2 Intermediate representation}
+	The intermediate representation uses a recursive tree of several datatypes.
+	Interesting types includes:
+	- {!spec} - top level specification item (type, constant, operation, mode, etc).
+	- {!attr} - representation of attributes on object supporting them (AND operation, AND mode, registers, etc);
+	  Attributes supports values that may be locations, expression or statements.
+	- {!location} - allows to design resources supporting assignments (like registers, memories and variables).
+	- {!expr} - represents a computation expression (i.e. constant, binary or unary operations, resource access, etc).
+	- {!stat} - represents statements in SimNML i.e. assignment, sequence, selection, multiple-selection.
+	
+	Once parsed, a SimNML file (extension [.nmp] or [.nml]) is a collection of specifications
+	that are stored in the main dictionnary provided by this module.  
+	
+	Functions this collection of specifications includes:
+	- {!add_attr} to add an attribute,
+	- {!add_canon} to add and declare a canonical function,
+	- {!add_param} to add a parameter,
+	- {!add_pos} to add source information for a symbol,
+	- {!add_symbol} to add a new symbol,
+	- {!fold} to perform a computation on the set of symbols,
+	- {!get_canon} to get a canonical function,
+	- {!get_isize} to get the instruction size special constant,
+	- {!get_proc_name} to get ISA name,
+	- {!get_root} to get the root operation(s),
+	- {!get_symbol} to get a symbol by its name,
+	- {!iter} to iterate on the set of symbols,
+	- {!is_defined} to test if a symbol is defined,
+	- {!is_defined_canon} to test if a canonical function is defined,
+	- {!pos_of} to get source information about a symbol,
+	- {!rm_symbol} to remove a symbol.
+	
+	This module provides also function to serialize/deserialize the instruction to/from
+	a file (files with extension [.irg]:
+	- {!load}
+	- {!save}
+	
+	{2 Working with AND-mode or -operations}
+	
+	IRG does not provide a hierarchical table of symbols. As is, the symbol tables contains top-level
+	symbols, that is, the top-level specification. When some one has to work inside
+	an AND-mode or an AND-operation, the symbol table needs to be populated with parameters and
+	attributes. This is done with function:
+	- {!param_stack}
+	- {!attr_stack}
+	
+	After the work has been done, the symbol table need to be cleaned with functions:
+	- {!param_unstack}
+	- {!attr_unstack}
+	
+	{2 Useful Accessors}
+	
+	As IRG is not so easy to handle, some functions are provided to help the user to handle attributes:
+	- {!attr_defined} to test if an attribute is in a list of attributes,
+	- {!attr_expr} to get an attribute of type expression,
+	- {!attr_loc} to get an attribute of type location,
+	- {!attr_name} to get the name of an attribute,
+	- {!attrs_of} to get the attributes of a specification,
+	- {!set_attr} to set an attribute value in an attribute list.
+	
+	Other function are useful to handle specifications:
+	- {!escape_eline} allows to remove source information around an expression,
+	- {!is_reg} to test if a symbol is a register,
+	- {!name_of} to get name of a specification,
+	- {!string_of_binop} to convert binary operator to string,
+	- {!string_of_unop} to convert unary operator to string.
+	
+	Some functions are designed to support format strings: 
+	- {!is_bin_format} to test if an escape sequence is binary,
+	- {!is_float_format} to test if an escape sequence is float,
+	- {!is_int_format} to test if an escape sequence is integer,
+	- {!is_text_format} to test if ane scape sequence is a string/text,
+	- {!split_format_string} to split format string from [format] function.
+	
+	Other functions and data allows working with source information :
+	- {!line_from_expr} to lookup in expression for source information,
+	- {!line_from_stat} to lookup in statement for source information,
+	- {!no_line} represents empty source information.
+	
+	{2 Pretty Printing}
+	
+	IRG module provides lots of function to pretty-print the IRG elements on standard output:
+	- {!print_attr},
+	- {!print_const},
+	- {!print_expr},
+	- {!print_location},
+	- {!print_mem_attr},
+	- {!print_mem_attrs},
+	- {!print_pos},
+	- {!print_spec},
+	- {!print_statement},
+	- {!print_type},
+	- {!print_type_expr}.
+	Or any output stream:
+	- {!output_attr},
+	- {!output_const},
+	- {!output_expr},
+	- {!output_location},
+	- {!output_mem_attr},
+	- {!output_mem_attrs},
+	- {!output_spec},
+	- {!output_statement},
+	- {!output_type},
+	- {!output_type_expr}.
+
+	As these functions may be a bit tedious to use, it is possible to combine alltogether
+	in a list of {!printable} (supporting statement, expressiones, type or simple string or integers).
+	The following functions supports this feature:
+	- {!output},
+	- {!outputln},
+	- {!prerr},
+	- {!prerrln}
+	- {!print},
+	- {!println}.
+	
+	{2 Error Management}
+	
+	This module provides also a collection of exception that may be used when IRG is processed:
+	- {!SyntaxError} - only raised at parsing time to alert about a syntax error (this usually stops the parsing),
+	- {!Error} - raised to alert about a error during IRG processing or building,
+	- {!PreError} - errors that has not been localized.
+
+	An important issue concerns the way the error message is provided to the final catcher of the error: basically,
+	as function taking as unique parameter the stream to output to. This method provide bunch of flexibility in the way
+	the message are displayed. In addition, this module provides several tool function to handle error message functions:
+	- {!asis} text - generate an error function displaying the given text.
+	- {!join} f1 f2 - generate an error function concatenating both messages of f1 and f2.
+	- {!output} list - generate an error function displaying complex IRG message.
+	
+	Raising an error in a compiler may be a tricky action: to make useful by the human user, the error must be located
+	relatively to the sources. IRG provides source information through special constructors put in {!expr} and {!stat} datatypes.
+	When an error is raised during the processing of an expression or of a statement, one has to find back the closer
+	source information to locate the error. IRG provide facilities to do that if the a {!PreError} is raised:
+	an handler, associated with source information, will catch it and add missing source information to the error
+	message, that is, will transform it in {!Error} exception.
+	
+	To support this scheme, the user must call the following functions to raise an error:
+	- {!error} - to raise a PreError that will be fixed thereafter.
+	- {!handle_error} file line f - will call f with () parameter but will catch any {!PreError} and will locate it.
+	- {!complete_error} f file line - build an error function that will display file and line and append the f error function message.
+	
+	Alternatively, one may look in {!expr} or {!stat} to find closer source information (not very precise but may do the trick):
+	- {!expr_error} e f -- generate an error with display closer source information from e and message from f.
+	- {!stat_error} s f -- generate an error with display closer source information from s and message from f.
+	
+	For error concerning other IRG elements, like specification, IRG maintains an associative map between the element and the source information
+	where they are declared. The following functions may be used:
+	- {!error_symbol} name f - raise an error that displays source information of named symbol and message from f.
+	- {!error_spec} spec f - raise an error that displays source information of the given specification and message from f.
+*)
+
+
 exception SyntaxError of string
 exception Error of (out_channel -> unit)
 exception PreError of (out_channel -> unit)
@@ -26,12 +180,7 @@ exception PreError of (out_channel -> unit)
 
 (** Raise the error exception.
 	@param f	Function to display error. *)
-let error_with_fun f = raise (PreError f)
-
-
-(** Raise an error exception with the given message.
-	@param msg	Message to display. *)
-let error msg = raise (Error (fun out -> output_string out msg))
+let error f = raise (PreError f)
 
 
 (** Emit a PreError exception. PreError are error without source line information
@@ -77,8 +226,8 @@ let asis text out =
 	@return		Output function joining both functions. *)
 let join f1 f2 out =
 	f1 out; f2 out
-	
 
+	
 (** Find index of an item in a list.
 	@param item		Looked item.
 	@param list		List to look in.
@@ -304,18 +453,18 @@ let pos_of sym =
 
 (** Handle an error from a symbol.
 	@param name		Name of the symbol.
-	@param msg		Message of the error.
+	@param f		Message function.
 	@raise Error	Located to the given symbol with the given message. *)
-let error_symbol name msg =
-	raise (Error (fun out -> Printf.fprintf out "%s: %s" (pos_of name) msg))	
+let error_symbol name f =
+	raise (Error (fun out -> Printf.fprintf out "%s: " (pos_of name); f out))	
 
 
 (** Handle an error from a specification.
 	@param spec		Specification.
 	@param msg		Message of the error.
 	@raise Error	Located to the given symbol with the given message. *)
-let error_spec spec msg =
-	error_symbol (name_of spec) msg
+let error_spec spec f =
+	error_symbol (name_of spec) f
 	
 
 (** table of symbols of the current loaded NMP or IRG file. *)
@@ -473,9 +622,11 @@ let param_unstack l= List.iter (StringHashtbl.remove syms) (List.map fst l)
 let add_attr attr =
 	StringHashtbl.add syms (name_of (ATTR(attr))) (ATTR(attr))
 
+
 (**	Add a list of attributes to the namespace.
 		@param l	The list of attributes to add.	*)
 let attr_stack l= List.iter add_attr l
+
 
 (**	Remove a list of attributes from the namespace.
 		@param l	The list of attributes to remove.	*)
@@ -1534,6 +1685,22 @@ and line_from_list lst =
 	| (LSTAT s)::t ->
 		let l = line_from_stat s in
 		if l <> no_line then l else line_from_list t
+
+
+(** Raise an error relative to a statement.
+	@param stat		Errored statement.
+	@param fn 		Function to display error. *)
+let stat_error stat fn =
+	let (f, l) = line_from_stat stat in
+	complete_error fn f l
+
+
+(** Raise an error relative to an expression.
+	@param expr		Errored Expression.
+	@param fn 		Function to display error. *)
+let expr_error expr fn =
+	let (f, l) = line_from_expr expr in
+	complete_error fn f l
 
 
 (** Test if the given ID design a register.

@@ -47,15 +47,6 @@ let run_nmp2nml file =
 	Unix.open_process_in cmd
 
 
-(** Generate an IRG with the given specification, prefixing it
-	with source file and source line of specification declaration.
-	@param name			Name of the specification.
-	@param msg			Message of error.
-	@raise Irg.Error	As an overall result. *)
-let error_spec name msg =
-	Irg.error (Printf.sprintf "%s: %s" (Irg.pos_of name) msg)
-
-
 (** Performed several checks once all specification are known:
 	* that all OR-operation are defined,
 	* that all AND-operation parameters are defined.
@@ -72,13 +63,13 @@ let check_ops _ =
 			| Irg.OR_MODE _
 			| Irg.AND_OP _
 			| Irg.OR_OP _ -> ()
-			| _ -> error_spec op_name (Printf.sprintf "parameter type \"%s\" used in \"%s\" is not a valid type" n op_name ) in
+			| _ -> Irg.error_symbol op_name (fun out -> Printf.fprintf out "parameter type \"%s\" used in \"%s\" is not a valid type" n op_name ) in
 
 	let check name op =
 		match get_symbol op with
-		| Irg.UNDEF -> error_spec name (Printf.sprintf "symbol \"%s\" used in op \"%s\" is not defined" op name)
+		| Irg.UNDEF -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in op \"%s\" is not defined" op name)
 		| Irg.AND_OP _ | Irg.OR_OP _ -> ()
-		| _ -> error_spec name (Printf.sprintf "op \"%s\" used in \"%s\" should be an op" op name) in
+		| _ -> error_symbol name (fun out -> Printf.fprintf out "op \"%s\" used in \"%s\" should be an op" op name) in
 		
 	Irg.iter (fun name spec ->
 		match spec with
@@ -99,13 +90,13 @@ let check_modes _ =
 			| Irg.TYPE _
 			| Irg.AND_MODE _
 			| Irg.OR_MODE _ -> ()
-			| _ -> error_spec mode_name (Printf.sprintf "parameter type \"%s\" used in \"%s\" is not a valid type" n mode_name ) in
+			| _ -> error_symbol mode_name (fun out -> Printf.fprintf out "parameter type \"%s\" used in \"%s\" is not a valid type" n mode_name ) in
 
 	let check name mode =
 		match get_symbol mode with
-		| Irg.UNDEF -> error_spec name (Printf.sprintf "symbol \"%s\" used in mode \"%s\" is not defined" mode name)
+		| Irg.UNDEF -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in mode \"%s\" is not defined" mode name)
 		| Irg.OR_MODE _ | Irg.AND_MODE _ -> ()
-		| _ -> error_spec name (Printf.sprintf "symbol \"%s\" used in \"%s\" should be a mode" mode name) in
+		| _ -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in \"%s\" should be a mode" mode name) in
 	Irg.iter (fun name spec ->
 		match spec with
 		| Irg.OR_MODE (_, modes) -> List.iter (check name) modes

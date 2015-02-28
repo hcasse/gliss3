@@ -44,22 +44,6 @@ let make_int_const i =
 let pre_error f = raise (PreError f)
 
 
-(** Raise an error relative to a statement.
-	@param stat		Errored statement.
-	@param fn 		Function to display error. *)
-let stat_error stat fn =
-	let (f, l) = Irg.line_from_stat stat in
-	raise (LocError (f, l, fn))
-
-
-(** Raise an error relative to an expression.
-	@param expr		Errored Expression.
-	@param fn 		Function to display error. *)
-let expr_error expr fn =
-	let (f, l) = Irg.line_from_expr expr in
-	raise (LocError (f, l, fn))
-
-
 (** Call f with () parameter and catch PreError exception and requalify
 	them with file and line.
 	@param	file		Source file.

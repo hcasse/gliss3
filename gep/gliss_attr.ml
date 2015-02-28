@@ -119,7 +119,7 @@ let process inst out info =
 	with Not_found ->
 		output_string info.Toc.out !def
 	| Irg.Error f | Irg.PreError f ->
-			Irg.error_with_fun (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
+		Irg.error (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
 
 
 

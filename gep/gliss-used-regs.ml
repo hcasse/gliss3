@@ -352,7 +352,7 @@ let compile_regs inst stat out =
 			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.EINLINE (reg_name proc id)])
 			| _ -> error ())
 		| Irg.ITEMOF (_, id, idx) ->
-			if not (stateless idx) then Toc.expr_error idx (Irg.asis "register index in 'used_regs' is not stateless") else
+			if not (stateless idx) then Irg.expr_error idx (Irg.asis "register index in 'used_regs' is not stateless") else
 			(match Irg.get_symbol id with
 			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CANON_EXPR (Irg.NO_TYPE, reg_name proc id, [idx])])
 			| _ -> error())
@@ -366,7 +366,7 @@ let compile_regs inst stat out =
 			let cnt = Sem.to_int (Sem.eval_const wcnt) in
 			if cnt > !max_write then max_write := cnt;
 		with Irg.Error f | Irg.PreError f ->
-			Irg.error_with_fun (Irg.output [Irg.PTEXT "can not evaluate count: "; Irg.PFUN f]) in
+			Irg.error (Irg.output [Irg.PTEXT "can not evaluate count: "; Irg.PFUN f]) in
 
 	let rec scan_stat stat =
 		match stat with
@@ -427,7 +427,7 @@ let gen_used_regs inst out =
 			extract_regs inst out
 	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) ->
 		if stateless_stat stat ["used_regs"] then compile_regs inst stat out else
-		Toc.stat_error stat (Irg.asis "Stateful register index here! Cannot generate register usage.")
+		Irg.stat_error stat (Irg.asis "Stateful register index here! Cannot generate register usage.")
 	| _  ->
 		raise (Toc.OpError (inst, Irg.asis "when defined, used_regs attribute must contain statements"))
 

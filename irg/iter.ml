@@ -338,7 +338,7 @@ let get_insts _ =
 			if !multi_set = [] then
 				enumerate_instr_sets !instr_set;			
 		with Instantiate.Error (sp, msg) ->
-			Irg.error (Printf.sprintf "%s in instruction %s" msg (get_user_id sp)));
+			Irg.error (Irg.asis (Printf.sprintf "%s in instruction %s" msg (get_user_id sp))));
 	
 	(* return result *)
 	!instr_set

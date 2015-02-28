@@ -20,12 +20,112 @@
  *)
 
 (** This module is in charge of semantics verification of IRG code.
+	Because of the structure of SimNML, type checking and symbol verification
+	is performed is two phases: at parsing time and at instantiation time.
+	Missing symbols or types in first phase can be ignored but leads to errors
+	in the second phase.
 	
-	From now on, error of this module must be issued using Irg.PreError.
-	This will let the caller (either the parser, or instanciation time checker)
-	to install the correct source file/line informatin for the error display.
+	In addition, this module provide facilities to perform constant expression
+	evaluation.
 	
-	Other exception are considered as deprecated. *)
+	{2 IRG Building}
+	
+	This functions are used to build IRG structures from parsing results. In addition,
+	they perform semantics analysis.
+	- {!build_canonical_expr}
+	- {!build_canonical_stat}
+	- {!get_add_sub}
+	- {!get_all_ref}
+	- {!get_bin}
+	- {!get_binop}
+	- {!get_compare}
+	- {!get_logic}
+	- {!get_mult_div_mod}
+	- {!get_shift}
+	- {!get_unop}
+	- {!make_access_loc}
+	- {!make_bitfield}
+	- {!make_coerce}
+	- {!make_concat_loc}
+	- {!make_if_expr}
+	- {!make_set}
+	- {!make_switch_expr}
+	- {!num_auto_coerce}
+	- {!to_bool}
+	- {!to_card}
+	- {!to_cond}
+	- {!true_const}
+	
+	It includes also useful constants:
+	- {!false_const}
+	
+	{2 Type Checking}
+	
+	Some functions are used perform type checking on different structures:
+	- {!build_format}
+	- {!check_alias}
+	- {!check_attr_inst}
+	- {!check_constant_type}
+	- {!check_expr_inst}
+	- {!check_if_expr}
+	- {!check_image}
+	- {!check_loc_inst}
+	- {!check_param_exists}
+	- {!check_params}
+	- {!check_set_stat}
+	- {!check_spec_inst}
+	- {!check_stat_inst}
+	- {!check_switch_expr}
+	- {!check_unop}
+	- {!get_expr_from_type} to get type expression from a type description (resolve symbolic type).
+	- {!get_field_type}
+	- {!get_length_from_expr}
+	- {!get_loc_ref_type}
+	- {!get_loc_type}
+	- {!get_type_expr}
+	- {!get_type_ident}
+	- {!get_type_length}
+	- {!interval_of}
+	- {!is_IEEE754_float}
+	- {!is_loc_mode}
+	- {!is_loc_spe}
+	- {!is_location}
+	- {!is_setspe}
+	- {!raise_type_error_two_operand}
+	- {!test_canonical}
+	- {!test_data}
+	- {!type_from_id}
+	- {!type_of_field}
+	
+	{2 Evaluation Functions}
+	This function allows to statically evaluates expressions:
+	- {!eval_binop}
+	- {!eval_binop_card}
+	- {!eval_binop_fixed}
+	- {!eval_binop_string}
+	- {!eval_coerce}
+	- {!eval_const}
+	- {!eval_unop}
+	- {!is_true}
+	- {!rotate_left}
+	- {!rotate_right}
+	- {!select}
+	- {!to_bool}
+	- {!to_int}
+	- {!to_int32}
+	- {!to_string}
+	
+	{2 Utility Functions}
+	
+	- {!attr_int} obtain an integer from an expression attribute.
+	
+	{2 Functions that should move}
+	- {!change_string_dependences} to iter module.
+	- {!get_data_expr_attr} to irg module
+	- {!image_escape_size} to iter module
+	- {!split_image} to irg module
+	- {!split_syntax} to irg module
+	*)
 
 open Irg
 open Printf
@@ -36,7 +136,7 @@ let false_const = CARD_CONST Int32.zero
 let true_const = CARD_CONST Int32.one
 
 (** Get the current line information. *)
-let current_line _ = Printf.sprintf "%s:%d" !(Lexer.file) !(Lexer.line)
+(*let current_line _ = Printf.sprintf "%s:%d" !(Lexer.file) !(Lexer.line)*)
 
 
 (** Convert from OCAML boolean to SimNML boolean.
@@ -605,7 +705,7 @@ let num_auto_coerce e1 e2 =
 	| FLOAT _, ENUM _ -> (e1, COERCE(t1, e2))
 
 	| _ ->
-		error_with_fun (output [PTEXT "no common coercition between types\n"; PTYPE t1; PTEXT "and "; PTYPE t2])
+		error (output [PTEXT "no common coercition between types\n"; PTYPE t1; PTEXT "and "; PTYPE t2])
 
 
 (** Create an add/sub with a correct type in function of its operands.
@@ -667,8 +767,7 @@ let rec get_concat e1 e2 =
 		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
 	with Failure "sem: length unknown" ->
-		Irg.error_with_fun
-			(Irg.output [Irg.PTEXT "unable to concatenate these operands:";
+		error (Irg.output [Irg.PTEXT "unable to concatenate these operands:";
 				Irg.PTEXT "\noperand 1:"; Irg.PEXPR e1; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e1);
 				Irg.PTEXT "\noperand 2:"; Irg.PEXPR e2; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e2)])
 
@@ -800,7 +899,7 @@ let rec get_binop e1 e2 bop =
 		| BIN_XOR -> get_bin bop e1 e2
 		| CONCAT-> get_concat e1 e2
 	with PreError f ->
-		error_with_fun (output
+		error (output
 			[PFUN f;
 			PEXPR e1; PTEXT ": "; PTYPE (get_type_expr e1);
 			PTEXT " "; PTEXT (string_of_binop bop); PTEXT " ";
@@ -867,9 +966,9 @@ let check_set_stat l e =
 	@param t1	Type of first operand.
 	@param t2	Type of second operand. *)
 let raise_type_error_two_operand t1 t2 =
-	error_with_fun (output [PTEXT "incompatible type of 'if' parts";
-		PTEXT "\nfirst operand: "; PTYPE t1;
-		PTEXT "\nsecond operand: "; PTYPE t2])
+	error (output [PTEXT "incompatible type of 'if' parts";
+			PTEXT "\nfirst operand: "; PTYPE t1;
+			PTEXT "\nsecond operand: "; PTYPE t2])
 
 
 (** Check if the possible expressions of the conditionnal branchs of an
@@ -1088,9 +1187,9 @@ let check_switch_expr test list_case default=
 	if not check_switch_cases then
 		pre_error "the cases of a functional switch must be consistent with the expression to test"
 	else if not check_switch_all_possibilities then
-		error_with_fun (output
-			[PTEXT "the cases of a functional switch must cover all possibilities or contain a default entry:\n";
-			PTEXT "switch type is "; PTYPE (get_type_expr test)])
+		error (output [
+				PTEXT "the cases of a functional switch must cover all possibilities or contain a default entry:\n";
+				PTEXT "switch type is "; PTYPE (get_type_expr test)])
 	else if (get_type_expr default != NO_TYPE)
 		then get_type_expr default
 		else get_type_expr (snd (List.hd list_case))
@@ -1253,37 +1352,10 @@ let build_format str exp_list=
 			then FORMAT (str, (List.rev exp_list))
 			else
 				let n = find false 1 test_list in
-				error_with_fun (output [
-					PTEXT (sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str);
-					PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n));
-					PTEXT " does not match format "; PTEXT (List.nth ref_list n)])
-
-
-(*
-
-let rec get_length id =
-	let sym=get_symbol id
-	in
-	match sym with
-	UNDEF->failwith "get_length : undefined symbol" (* a changer *)
-	|LET (_,const)->(match const with
-				 NULL->failwith "get_length : id refer to a NULL const" (* a changer *)
-				|CARD_CONST _->32	(* a changer *)
-				|CARD_CONST_64 _->64
-				|STRING_CONST _->let dsp= fun _->(Printf.printf "the id %s refer to a STRING const\n" id;())
-						 in
-						 raise (SemErrorWithFun ("",dsp))
-				|FIXED_CONST _ ->32	(* a changer *)
-			)
-	|MEM (_,i,_,_)->i
-	|REG (_,i,_,_)->i
-	|VAR (_,i,_)->i
-	|PARAM (s,_)->get_length s
-	|_->let dsp =fun _->(Printf.printf "the id %s do no refer to a location\n" id;())
-	    in
-	    raise (SemErrorWithFun ("",dsp))
-*)
-
+				error (output [
+						PTEXT (sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str);
+						PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n));
+						PTEXT " does not match format "; PTEXT (List.nth ref_list n)])
 
 
 (** This function check if the paramters of a canonical function are correct
@@ -1487,15 +1559,9 @@ let make_set loc expr =
 		Irg.SET (loc, Irg.CAST(ltype, expr))
 
 	| _ ->
-		Irg.print_location loc;
-		print_string " = ";
-		Irg.print_expr expr;
-		print_char '\n';
-		error_with_fun (output [
-			PTEXT "unsuppored assignment";
-			PTEXT "\nLHS type:"; PTYPE ltype;
-			PTEXT "\nRHS type:"; PTYPE etype;
-		])
+		error (output [ PTEXT "unsupported assignment";
+				PTEXT "\nLHS type:"; PTYPE ltype;
+				PTEXT "\nRHS type:"; PTYPE etype; ])
 
 
 (** This function is used to modify parameters of a format called into a specific attribute
