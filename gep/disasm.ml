@@ -101,7 +101,6 @@ let rec gen_disasm info inst expr =
 		| Irg.BINOP _
 		| Irg.CONST _
 		| Irg.COERCE _
-		| Irg.EINLINE _
 		| Irg.CAST _ ->
 			Toc.error_on_expr (Printf.sprintf "bad syntax expression in instruction %s" (Iter.get_user_id inst)) expr
 		| Irg.ELINE (file, line, e) ->
@@ -128,7 +127,6 @@ let rec gen_disasm info inst expr =
 		| Irg.SWITCH_EXPR (_, c, cs, d) -> check c; check d; List.iter (fun (_, e) -> check e) cs
 		| Irg.CONST _ -> ()
 		| Irg.ELINE (f, l, e) -> Toc.locate_error f l check e
-		| Irg.EINLINE _ -> ()
 		| Irg.CAST (_, e) -> check e in
 
 	(* !!DEBUG!! *)

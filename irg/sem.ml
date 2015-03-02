@@ -575,7 +575,6 @@ and get_type_expr exp =
 	| SWITCH_EXPR (t, _, _, _)			-> t
 	| CONST (t,_)						-> t
 	| ELINE (_, _, e) 					-> get_type_expr e
-	| EINLINE _ 						-> NO_TYPE
 	| CAST(t, _) 						-> t
 
 
@@ -1625,7 +1624,6 @@ let check_image id params =
 		match e with
 		| Irg.NONE
 		| Irg.CONST _
-		| Irg.EINLINE _
 			-> l
 		| Irg.COERCE (_, e)
 		| Irg.BITFIELD (_, e, _, _)
@@ -1836,8 +1834,7 @@ let rec check_expr_inst expr =
 	| NONE
 	| REF _
 	| FIELDOF _
-	| CONST _
-	| EINLINE _ ->
+	| CONST _ ->
 		expr
 	| COERCE (t, e) ->
 		let e' = check_expr_inst e in

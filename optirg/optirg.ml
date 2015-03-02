@@ -124,7 +124,6 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.SWITCH_EXPR (type_expr,_,_,_)-> type_expr
 	| 	Irg.CONST (type_expr,_)-> type_expr
 	| 	Irg.ELINE (_,_,e)-> type_of_expr e
-	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
 	|	Irg.CAST(type_expr, _) -> type_expr
 
 (**

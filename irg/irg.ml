@@ -306,22 +306,21 @@ type const =
 	| CANON of string			(** Canonical constant. *)
 
 type expr =
-	  NONE									(* null expression *)
-	| COERCE of type_expr * expr						(* explicit coercition *)
-	| FORMAT of string * expr list						(* format expression *)
-	| CANON_EXPR of type_expr * string * expr list				(* canonical expression *)
-	| REF of string								(* attribute / state item access *)
-	| FIELDOF of type_expr * string * string				(* attribute access *)
-	| ITEMOF of type_expr * string * expr					(* state item array access *)
-	| BITFIELD of type_expr * expr * expr * expr				(* bit field access *)
-	| UNOP of type_expr * unop * expr					(* unary operation (negation, not, etc) *)
-	| BINOP of type_expr * binop * expr * expr				(* binary operation (arithmetic, logic, shift, etc) *)
-	| IF_EXPR of type_expr * expr * expr * expr				(* if expression *)
-	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr		(* switch expression *)
-	| CONST of type_expr * const						(* constant value *)
-	| ELINE of string * int * expr						(* source/line information (file, line, expression) *)
-	| EINLINE of string							(** inline source in expression (for internal use only) *)
-	| CAST of type_expr * expr						(** binary cast (target type, expression *)
+	  NONE																(** null expression *)
+	| COERCE of type_expr * expr										(** explicit coercition *)
+	| FORMAT of string * expr list										(** format expression *)
+	| CANON_EXPR of type_expr * string * expr list						(** canonical expression *)
+	| REF of string														(** attribute / state item access *)
+	| FIELDOF of type_expr * string * string							(** attribute access *)
+	| ITEMOF of type_expr * string * expr								(** state item array access *)
+	| BITFIELD of type_expr * expr * expr * expr						(** bit field access *)
+	| UNOP of type_expr * unop * expr									(** unary operation (negation, not, etc) *)
+	| BINOP of type_expr * binop * expr * expr							(** binary operation (arithmetic, logic, shift, etc) *)
+	| IF_EXPR of type_expr * expr * expr * expr							(** if expression *)
+	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr		(** switch expression *)
+	| CONST of type_expr * const										(** constant value *)
+	| ELINE of string * int * expr										(** source/line information (file, line, expression) *)
+	| CAST of type_expr * expr											(** binary cast (target type, expression *)
 
 (** Statements *)
 type location =
@@ -924,8 +923,6 @@ let rec output_expr out e =
 			output_string out ", ");
 		output_const out c;
 		if !dump_type then output_string out ")"
-	| EINLINE s ->
-		Printf.fprintf out "inline(%s)" s
 	| CAST (typ, expr) ->
 		output_string out "cast<";
 		output_type_expr out typ;
@@ -1627,7 +1624,6 @@ let rec line_from_expr expr =
 	| REF _
 	| FIELDOF _
 	| CONST _
-	| EINLINE _
 		-> no_line
 	| COERCE (_, e)
 	| ITEMOF (_, _, e)

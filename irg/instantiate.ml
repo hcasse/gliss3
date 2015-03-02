@@ -282,8 +282,6 @@ let rec substitute_in_expr name op ex =
 		-> CONST(te, c)
 	| ELINE (file, line, e) ->
 		ELINE (file, line, substitute_in_expr name op e)
-	| EINLINE _ ->
-		ex
 	| CAST(size, expr) ->
 		CAST(size, substitute_in_expr name op expr)
 
@@ -334,8 +332,6 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		CONST(t_e, c)
 	| ELINE(file, line, e) ->
 		ELINE (file, line, change_name_of_var_in_expr e var_name new_name)
-	| EINLINE _ ->
-		ex
 	| CAST(size, expr) ->
 		CAST(size, change_name_of_var_in_expr expr var_name new_name)
 

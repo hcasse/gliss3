@@ -82,8 +82,6 @@ let rec string_of_expr (expr:Irg.expr) : string = match expr with
                 string_of_expr e
         | CONST (_,c) ->
                 "CONST"
-        | EINLINE s ->
-                "inline()"
 	| CAST(t, e) ->
 		"coerce("^
 		", "^ 
@@ -173,8 +171,6 @@ let rec name_of_expr (expr:Irg.expr) : string = match expr with
                 name_of_expr e
         | CONST (_,c) ->
                 "CONST"
-        | EINLINE s ->
-                "inline()"
         | CAST (t, e) ->
                 "coerce[CAST]("^ 
                 ", "^ 

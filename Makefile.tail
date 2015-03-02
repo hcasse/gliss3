@@ -93,10 +93,10 @@ OCAMLOPT_LDFLAGS += $(patsubst %,%.cmxa,$(OCAMLOPT_LIB) $(OCAML_LIB))
 	$(OCAMLOPT) $(OCAML_FLAGS) $(OCAMLOPT_CFLAGS) -o $@ -c $<
 
 $(DEP_DIR)/%.mli.d: %.mli $(DEP_DIR)
-	@$(OCAMLDEP) $< | sed -e 's/^\(.*\)\.cmx:\(.*\).cmx/\1.cmx:\2.cmi/g' > $@
+	@$(OCAMLDEP) $(patsubst %,-I %,$(OCAML_INC)) $< | sed -e 's/^\(.*\)\.cmx:\(.*\).cmx/\1.cmx:\2.cmi/g' > $@
 
 $(DEP_DIR)/%.d: %.ml $(DEP_DIR)
-	@$(OCAMLDEP) $< | sed -e 's/^\(.*\)\.cmx:\(.*\).cmx/\1.cmx:\2.cmi/g' > $@
+	@$(OCAMLDEP) $(patsubst %,-I %,$(OCAML_INC)) $< | sed -e 's/^\(.*\)\.cmx:\(.*\).cmx/\1.cmx:\2.cmi/g' > $@
 
 test:
 	@echo $(_DEPS)

@@ -237,7 +237,7 @@ let output_decoder_complex info inst idx sfx size is_risc out =
 		if (fst !inst_decode_arg) <> inst then
 			(let rec aux n =
 				if n < num_frmt_params then
-					(Irg.EINLINE (Decode.get_decode_for_format_param inst n))::(aux (n + 1))
+					(Irg.CONST (Irg.NO_TYPE, Irg.CANON (Decode.get_decode_for_format_param inst n)))::(aux (n + 1))
 				else
 					[]
 			in

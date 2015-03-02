@@ -826,9 +826,6 @@ and prepare_expr info stats expr =
 		let (stats, expr) = prepare_expr info stats expr in
 		(stats, Irg.ELINE (file, line, expr))
 
-	| Irg.EINLINE _ ->
-		(stats, expr)
-
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
 		(stats, Irg.CAST(size, expr))
@@ -1024,8 +1021,6 @@ Irg.print_expr expr; print_char '\n';*)
 			(fun com arg -> if com then out ", "; gen_expr info arg prfx; true)
 			false args);
 		out ")"
-	| Irg.EINLINE s ->
-		out s
 	| Irg.ELINE (file, line, expr) ->
 		(try gen_expr info expr prfx
 		with PreError f -> raise (LocError (file, line, f)))
@@ -1644,7 +1639,7 @@ let gen_pc_increment info =
 	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
 	let i_name = String.uppercase info.iname in
 	let real_name = if String.compare i_name "" == 0 then "UNKNOWN" else i_name in
-	let size = Irg.EINLINE (Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name) in
+	let size = Irg.CONST (Irg.NO_TYPE, Irg.CANON(Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name)) in
 	let ppc_stat =
 		if info.ppc_name = "" then
 			Irg.NOP

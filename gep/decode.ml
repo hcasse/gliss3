@@ -340,7 +340,6 @@ let get_param_format_arg_list sp n =
 		| Irg.CAST(te, e) -> contain_param e
 		| Irg.COERCE(te, e) -> contain_param e
 		| Irg.NONE -> false
-		| Irg.EINLINE(s) -> false
 		| Irg.CONST(te, c) -> false
 		| Irg.FORMAT(s, e_l) -> failwith "Decode: bad expr for a param, too complex to decode"
 		| Irg.FIELDOF(e, s1, s2) -> failwith "Decode: bad expr for a param, shouldn't see a fieldof here"

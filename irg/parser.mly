@@ -800,8 +800,8 @@ Expr:
 		{ handle_expr (fun _ -> Sem.make_switch_expr $3 (fst $6) (snd $6)) }
 |	SWITCH error
 		{ syntax_error "malformed switch expression" }
-|	AROBAS STRING_CONST
-		{ eline (Irg.EINLINE $2) }
+/*|	AROBAS STRING_CONST
+		{ eline (Irg.EINLINE $2) }*/
 |	Constant
 		{ eline (Irg.CONST (fst $1, snd $1)) }
 ;

@@ -89,7 +89,6 @@ let rec stateless expr =
 	| Irg.SWITCH_EXPR (_, c, cs, d) -> (stateless c) && (stateless d) && (List.for_all (fun (_, e) -> stateless e) cs)
 	| Irg.CONST _ -> true
 	| Irg.ELINE (_, _, e) -> stateless e
-	| Irg.EINLINE _ -> true
 	| Irg.CAST (_, e) -> stateless e
 and stateless_id id =
 	(match Irg.get_symbol id with
@@ -103,8 +102,7 @@ and stateless_id id =
 let rec stateless_expr expr =
 	match expr with
 	| Irg.NONE
-	| Irg.CONST _
-	| Irg.EINLINE _ -> true
+	| Irg.CONST _ -> true
 	| Irg.UNOP (_, _, e)
 	| Irg.ELINE (_, _, e)
 	| Irg.COERCE (_, e)
@@ -231,7 +229,6 @@ let collect info =
 			| Irg.SWITCH_EXPR (_, c, cs, d) -> collect_expr c (collect_expr d (List.fold_left (fun l (_, e) -> collect_expr e l line) lst cs) line) line
 			| Irg.CONST _ -> lst
 			| Irg.ELINE (f, l, e) -> collect_expr e lst (f, l)
-			| Irg.EINLINE _ -> lst
 			| Irg.CAST (_, e) -> collect_expr e lst line
 
 		and collect_loc loc lst (line: string * int) =
@@ -303,7 +300,7 @@ let extract_regs inst out =
 	let gen op (id: string) idx =
 		let name = reg_name proc id in
 			Irg.CANON_STAT(op, [
-				if idx = Irg.NONE then Irg.EINLINE name
+				if idx = Irg.NONE then Irg.CONST (Irg.NO_TYPE, Irg.CANON name)
 				else Irg.CANON_EXPR (Irg.NO_TYPE, name, [idx])]) in
 	let stats = Toc.seq
 		(Toc.seq_list (List.map (fun (id, idx) -> gen "add_read" id idx) rds))
@@ -345,7 +342,7 @@ let compile_regs inst stat out =
 		match r with
 		| Irg.REF id -> 
 			(match Irg.get_symbol id with
-			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.EINLINE (reg_name proc id)])
+			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CONST (Irg.NO_TYPE, Irg.CANON (reg_name proc id))])
 			| _ -> error ())
 		| Irg.ITEMOF (_, id, idx) ->
 			if not (stateless idx) then Irg.expr_error idx (Irg.asis "register index in 'used_regs' is not stateless") else
