@@ -1,3 +1,4 @@
 ====== TODO ======
 
-Port multi-charset to other decoders.
+[ ] Remove non-useful conversions (for operations with constant operand).
+[ ] Port multi-instr set to other decoders.
