@@ -164,7 +164,7 @@ let info _ =
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, Irg.STRING_CONST(id)) ->
+		| Irg.LET(_, _, Irg.STRING_CONST(id)) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -691,7 +691,7 @@ let unalias_expr name idx ub lb typ =
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
 	let rec concat l tt =
 		if l = 0 then
-			if i = Irg.NONE then Irg.REF r
+			if i = Irg.NONE then Irg.REF (t, r)
 			else Irg.ITEMOF (t, r, i)
 		else
 			Irg.BINOP(tt, Irg.CONCAT,
@@ -751,7 +751,7 @@ let rec unalias_ref info expr stats =
 		| _ ->
 			expr in
 	match expr with
-	| Irg.REF name ->
+	| Irg.REF (_, name) ->
 		(* if mem ref, leave it this way, it surely is a parameter for a canonical *)
 		(stats, unalias name Irg.NONE Irg.BOOL false)
 	| Irg.ITEMOF (typ, tab, idx) ->
@@ -769,7 +769,7 @@ and prepare_expr info stats expr =
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 	match expr with
-	| Irg.REF name -> unalias_ref info expr stats
+	| Irg.REF (_, name) -> unalias_ref info expr stats
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -803,7 +803,7 @@ and prepare_expr info stats expr =
 		let (estats, epart) = prepare_expr info Irg.NOP epart in
 		let tmp = new_temp info typ in
 		(seq stats (Irg.IF_STAT (cond, seq tstats (set typ tmp tpart), seq estats (set typ tmp epart))),
-		Irg.REF tmp)
+		Irg.REF (typ, tmp))
 
 	| Irg.SWITCH_EXPR (typ, cond, cases, def) ->
 		let tmp = new_temp info typ in
@@ -820,7 +820,7 @@ and prepare_expr info stats expr =
 				cond,
 				cases,
 				if def = Irg.NONE then Irg.NOP else (seq dstats (set typ tmp def)))),
-		Irg.REF tmp)
+		Irg.REF (typ, tmp))
 
 	| Irg.ELINE (file, line, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
@@ -887,7 +887,7 @@ let unalias_set info stats name idx ub lb expr =
 		if (il = 1 && ubp == Irg.NONE) || il > 1 then
 			if il = 1 then seq stats (set_item i expr) else
 			let name = new_temp info tt in
-			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF name)) 
+			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF (tt, name))) 
 		else
 			if il = 1 then seq stats (set_full i ubp lbp expr) else
 			let name = new_temp info tt in
@@ -927,7 +927,7 @@ let rec prepare_stat info stat =
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
-	let refto n = Irg.REF n in
+	let refto t n = Irg.REF (t, n) in
 	let rshift t v s = Irg.BINOP (t, Irg.RSHIFT, v, s) in
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 
@@ -946,8 +946,8 @@ let rec prepare_stat info stat =
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
 			let stats = prepare_set stats l1
-				(rshift t (refto tmp) (index (get_loc_size l2))) in
-			prepare_set stats l2 (refto tmp) in
+				(rshift t (refto t tmp) (index (get_loc_size l2))) in
+			prepare_set stats l2 (refto t tmp) in
 
 	match stat with
 	| Irg.NOP
@@ -1008,7 +1008,7 @@ Irg.print_expr expr; print_char '\n';*)
 	match expr with
 	| Irg.NONE -> ()
 	| Irg.CONST (typ, cst) -> gen_const info typ cst
-	| Irg.REF name -> gen_ref info name prfx
+	| Irg.REF (_, name) -> gen_ref info name prfx
 	| Irg.ITEMOF (typ, name, idx) -> gen_itemof info typ name idx prfx
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
 	| Irg.UNOP (t, op, e) -> gen_unop info t op e prfx
@@ -1100,7 +1100,7 @@ and gen_const info typ cst =
 	@param name		Name of the state item. *)
 and gen_ref info name prfx =
 	match Irg.get_symbol name with
-	| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) prfx
+	| Irg.LET (_, t, cst) -> gen_expr info (Irg.CONST (t, cst)) prfx
 	| Irg.VAR _ -> output_string info.out name
 	| Irg.REG _ -> output_string info.out (state_macro info name prfx)
 	| Irg.MEM _ -> output_string info.out (state_macro info name prfx)
@@ -1463,10 +1463,8 @@ let rec gen_stat info stat =
 				out ", ";
 				gen_expr info (set_field info typ id Irg.NONE lo up expr) true;
 				out ");"
-			| s ->
-				Printf.printf "==> %s\n" id;
-				Irg.print_spec s;
-				failwith "gen stat 1")
+			| _ ->
+				assert false)
 
 	| Irg.CANON_STAT (name, args) ->
 		line (fun _ ->
@@ -1540,7 +1538,7 @@ and set_field info typ id idx lo up expr =
 
 	let transform_expr sufx a b arg3 b_o =
 		let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o)) in
-		let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx) in
+		let e = if idx = Irg.NONE then Irg.REF (typ, id) else Irg.ITEMOF(typ, id, idx) in
 		let tl = if arg3 then [e_bo] else [] in
 		Irg.CANON_EXPR (
 			typ,
@@ -1646,7 +1644,7 @@ let gen_pc_increment info =
 		else
 			(* PPC = PC *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.pc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name))
 	in
 	let npc_stat =
 		if info.npc_name = "" then
@@ -1655,16 +1653,16 @@ let gen_pc_increment info =
 			(* NPC = NPC + (size of current instruction) *)
 			(* cannot retrieve the type easily, not needed for generation *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String .uppercase info.npc_name), size))
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name), size))
 	in
 	let pc_stat =
 		if info.npc_name = "" then
 			(* PC = PC + (size of current instruction) *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String.uppercase info.pc_name), size))
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name), size))
 		else
 			(* PC = NPC *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.npc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name))
 	in
 	Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
 

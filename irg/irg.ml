@@ -310,7 +310,7 @@ type expr =
 	| COERCE of type_expr * expr										(** explicit coercition *)
 	| FORMAT of string * expr list										(** format expression *)
 	| CANON_EXPR of type_expr * string * expr list						(** canonical expression *)
-	| REF of string														(** attribute / state item access *)
+	| REF of type_expr * string											(** attribute / state item access *)
 	| FIELDOF of type_expr * string * string							(** attribute access *)
 	| ITEMOF of type_expr * string * expr								(** state item array access *)
 	| BITFIELD of type_expr * expr * expr * expr						(** bit field access *)
@@ -364,7 +364,7 @@ type canon_type =
 (** Specification of an item *)
 type spec =
 	  UNDEF
-	| LET of string * const (* typed with construction *)
+	| LET of string * type_expr * const
 	| TYPE of string * type_expr
 	| MEM of string * int * type_expr * attr list
 	| REG of string * int * type_expr * attr list
@@ -390,7 +390,7 @@ type spec =
 let name_of spec =
 	match spec with
 	  UNDEF -> "<undef>"
-	| LET (name, _) -> name
+	| LET (name, _, _) -> name
 	| TYPE (name, _) -> name
 	| MEM (name, _, _, _) -> name
 	| REG (name, _, _, _) -> name
@@ -483,7 +483,7 @@ let get_symbol n =
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
-	| LET(_, STRING_CONST(name)) -> name
+	| LET(_, _, STRING_CONST(name)) -> name
 	| _                         ->
 		failwith ("Unable to find 'proc_name'."^
 				  "'proc' must be defined as a string let")
@@ -532,7 +532,7 @@ let add_symbol name sym =
 		let b_o =
 			match get_symbol "bit_order" with
 			UNDEF -> true
-			| LET(_, STRING_CONST(id)) ->
+			| LET(_, _, STRING_CONST(id)) ->
 				if (String.uppercase id) = "UPPERMOST" then true
 				else if (String.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
@@ -861,11 +861,13 @@ let rec output_expr out e =
 		output_string out e;
 		output_string out ".";
 		output_string out n
-	| REF id ->
-		output_string out id
+	| REF (t, id) ->
+		Printf.fprintf out "%s: " id;
+		output_type_expr out t
 	| ITEMOF (t, name, idx) ->
-		output_string out name;
-		output_string out "[";
+		Printf.fprintf out "%s: " name;
+		output_type_expr out t; 
+		output_string out " [";
 		output_expr out idx;
 		output_string out "]";
 	| BITFIELD (t, e, l, u) ->
@@ -889,16 +891,20 @@ let rec output_expr out e =
 		output_string out "(";
 		output_expr out e2;
 		output_string out ")"
-	| IF_EXPR (_,c, t, e) ->
-		output_string out "if ";
+	| IF_EXPR (tt,c, t, e) ->
+		output_string out "(:";
+		output_type_expr out tt;
+		output_string out ")if ";
 		output_expr out c;
 		output_string out " then ";
 		output_expr out t;
 		output_string out " else ";
 		output_expr out e;
 		output_string out " endif"
-	| SWITCH_EXPR (_,c, cases, def) ->
-		output_string out "switch(";
+	| SWITCH_EXPR (tt,c, cases, def) ->
+		output_string out "(:";
+		output_type_expr out tt;
+		output_string out ")switch(";
 		output_expr out c;
 		output_string out ")";
 		output_string out "{ ";
@@ -1121,7 +1127,7 @@ let output_spec out spec =
 	let print_newline _ = output_char out '\n' in
 	let print_string = output_string out in
 	match spec with
-	  LET (name, cst) ->
+	| LET (name, _, cst) ->
 	  	Printf.fprintf out "let %s = " name;
 		output_const out cst;
 		print_newline ()
@@ -1241,7 +1247,7 @@ let get_isize _ =
 	match get_symbol "gliss_isize" with
 	(* if gliss_isize not defined, we assume we have a cisc isa *)
 	| UNDEF -> []
-	| LET(st, cst) ->
+	| LET(st, _, cst) ->
 		(match cst with
 		STRING_CONST(nums) ->
 			List.map
@@ -1531,6 +1537,7 @@ type printable =
 	| PINT of int
 	| PINT32 of Int32.t
 	| PINT64 of Int64.t
+	| PLN
 
 
 (** Print a message made of IRG items.
@@ -1547,7 +1554,8 @@ let output lst out =
 		| PFUN f	-> f out
 		| PINT i	-> output_value out i
 		| PINT32 i	-> output_string out (Int32.to_string i)  
-		| PINT64 i	-> output_string out (Int64.to_string i) in
+		| PINT64 i	-> output_string out (Int64.to_string i)
+		| PLN 		-> output_char out '\n' in
 	List.iter output_item lst 
 
 

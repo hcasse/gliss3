@@ -220,7 +220,7 @@ MachineSpec :
 
 
 LetDef	:
-	LET LocatedID EQ LetExpr	{  Irg.add_pos ($2) !(Lexer.file) $1;($2, Irg.LET ($2, Sem.eval_const $4)) }
+	LET LocatedID EQ LetExpr	{  Irg.add_pos ($2) !(Lexer.file) $1;($2, Sem.make_let $2 $4) }
 ;
 
 ResourceSpec:
@@ -715,11 +715,7 @@ Expr:
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID
-		{
-			Sem.test_data $1 false;
-			let v = Sem.get_data_expr_attr $1 in
-			if v != Irg.NONE then eline (v) else eline (Irg.REF $1)
-		}
+		{ handle_expr (fun _ -> Sem.make_ref $1) }
 |	ID LPAREN
 		{ raise (Irg.SyntaxError "unreduced macro here") }
 |	ID LBRACK Expr RBRACK
@@ -835,7 +831,7 @@ Constant :
 
 Bit_Expr :
 	ID
-		{Sem.test_data $1 false; let v = Sem.get_data_expr_attr $1 in if v != Irg.NONE then eline (v) else eline (Irg.REF $1)  }
+		{ Sem.make_ref $1 }
 |	MINUS Bit_Expr
 		{ eline (Sem.get_unop $2 Irg.NEG) }
 |	PLUS Bit_Expr

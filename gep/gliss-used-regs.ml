@@ -79,7 +79,7 @@ let rec stateless expr =
 	| Irg.COERCE (_, e) -> stateless e
 	| Irg.FORMAT (_, args) -> List.for_all stateless args
 	| Irg.CANON_EXPR (_, _, args)  -> List.for_all stateless args
-	| Irg.REF id -> stateless_id id
+	| Irg.REF (_, id) -> stateless_id id
 	| Irg.FIELDOF _ -> assert false
 	| Irg.ITEMOF (_, id, idx) -> (stateless_id id) && (stateless idx)
 	| Irg.BITFIELD (_, e, _, _) -> stateless e
@@ -109,7 +109,7 @@ let rec stateless_expr expr =
 	| Irg.CAST (_, e) -> stateless_expr e
 	| Irg.CANON_EXPR (_, _, args)
 	| Irg.FORMAT (_, args) -> List.for_all stateless_expr args
-	| Irg.REF id -> true
+	| Irg.REF _ -> true
 	| Irg.ITEMOF (_, id, idx) -> if Irg.is_reg id then stateless idx else true 
 	| Irg.IF_EXPR (_, e1, e2, e3)
 	| Irg.BITFIELD (_, e1, e2, e3) -> (stateless_expr e1) && (stateless_expr e2) && (stateless_expr e3)
@@ -219,7 +219,7 @@ let collect info =
 			| Irg.COERCE (_, e) -> collect_expr e lst line
 			| Irg.FORMAT (_, args)
 			| Irg.CANON_EXPR (_, _, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
-			| Irg.REF id -> unalias id Irg.NONE lst line
+			| Irg.REF (_, id) -> unalias id Irg.NONE lst line
 			| Irg.FIELDOF (_, _, _) -> lst
 			| Irg.ITEMOF (_, id, idx) -> unalias id idx lst (*collect_expr idx lst line*) line
 			| Irg.BITFIELD (_, b, l, u) -> collect_expr b (collect_expr l (collect_expr u lst line) line) line
@@ -340,7 +340,7 @@ let compile_regs inst stat out =
 	let rec process canon r =
 		let error _ = Toc.error "argument should be a register !" in
 		match r with
-		| Irg.REF id -> 
+		| Irg.REF (_, id) -> 
 			(match Irg.get_symbol id with
 			| Irg.REG _ -> Irg.CANON_STAT (canon, [Irg.CONST (Irg.NO_TYPE, Irg.CANON (reg_name proc id))])
 			| _ -> error ())

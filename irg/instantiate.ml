@@ -254,13 +254,13 @@ let rec substitute_in_expr name op ex =
 		FORMAT(s, List.map (substitute_in_expr name op) e_l)
 	| CANON_EXPR(te, s, e_l) ->
 		CANON_EXPR(te, s, List.map (substitute_in_expr name op) e_l )
-	| REF(s) ->
+	| REF(t, s) ->
 		(* change if op is a AND_MODE and s refers to it *)
 		if (name=s)&&(is_and_mode op) then
 			get_mode_value op
 		else
 			(* ? change also if s refers to an ATTR_EXPR of the same spec, does it have this form ? *)
-			REF(s)
+			REF(t, s)
 	| FIELDOF(te, s1, s2) ->
 		if (String.compare s1 name) == 0 then
 			get_expr_from_attr_from_op_or_mode op s2
@@ -312,8 +312,8 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		FORMAT(s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
 	| CANON_EXPR(t_e, s, e_l) ->
 		CANON_EXPR(t_e, s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
-	| REF(s) ->
-		REF (get_name_param s)
+	| REF(t, s) ->
+		REF (t, get_name_param s)
 	| FIELDOF(t_e, e, s) ->
 		FIELDOF(t_e, (*change_name_of_var_in_expr*) get_name_param e (*var_name new_name*), s)
 	| ITEMOF(t_e, e1, e2) ->
@@ -391,7 +391,7 @@ let rec substitute_in_location name op loc =
 	| LOC_REF(t, s, i, l, u) ->
 		let rec subst_mode_value mv =
 			match mv with
-			REF(n) ->
+			| REF(_, n) ->
 				LOC_REF(t, n, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 			| ITEMOF(typ, n, idx) ->
 				(* can replace only if loc is "simple" (ie i = NONE), we can't express n[idx][i] *)
@@ -399,7 +399,7 @@ let rec substitute_in_location name op loc =
 					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (instantiate.ml::substitute_in_location)"
-			| BITFIELD(typ, REF(nn), lb, ub) when i = NONE && u = NONE && l = NONE
+			| BITFIELD(typ, REF(_, nn), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(typ, nn, NONE, lb, ub)
 			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(t, n, idx, lb, ub)

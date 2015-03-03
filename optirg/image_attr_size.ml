@@ -99,7 +99,7 @@ let rec sizeOfExpr
 	:int = 
 	begin
 	match e with 
-			FIELDOF(STRING, objName, _) | REF(objName)-> 
+			FIELDOF(STRING, objName, _) | REF(_, objName)-> 
 				(* Aller chercher dans liste param le nom du mode/op correspondant à n *)
 				let modop = match (List.assoc objName listeParam) with 
 					|	TYPE_ID(name) -> name

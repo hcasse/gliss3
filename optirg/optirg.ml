@@ -285,14 +285,14 @@ let attr_list_from_and_node
 			|Irg.ATTR_EXPR(name,e) when name="image"-> 
 				ATTR_EXPR(
 					name,
-					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF("code")])
+					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF(NO_TYPE, "code")])
 				)
 			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
 					SWITCH_EXPR(
 						(type_of_expr e), 
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
 						Irg.NONE
 					)
@@ -301,7 +301,7 @@ let attr_list_from_and_node
 				ATTR_STAT(
 					name,
 					SWITCH_STAT(
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						List.map (case_from_attr_stat size name) and_list, 
 						Irg.NOP
 					)
@@ -325,13 +325,13 @@ let fusion
 	((or_node,and_list):(opt_struct))
 	:Irg.spec =
 	let size = Image_attr_size.sizeOfSpec or_node in
-	let val_attr = ATTR_EXPR("__val",REF("code")) in 
+	let val_attr = ATTR_EXPR("__val",REF(NO_TYPE, "code")) in 
 	let new_attr_list = val_attr::(attr_list_from_and_node and_list size) in
 	match or_node with
 
 	(* Case in which we have a MODE *)
 	| Irg.OR_MODE(name,_) -> 
-		let val_expr = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_value_expr size) and_list), NONE) in
+		let val_expr = SWITCH_EXPR(STRING, REF(NO_TYPE, "code"), (List.map (case_from_value_expr size) and_list), NONE) in
 		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], val_expr, new_attr_list)
 
 	(* Case in which we have a MODE *)
@@ -422,7 +422,7 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 		the name of the referenced node.	
 *)
 let rec string_of_ref_expr ref_expr = match ref_expr with 
-		| REF(str) -> str
+		| REF(_, str) -> str
 		| ELINE(_,_,expr) -> string_of_ref_expr(expr)
 		| _-> failwith "optirg.ml: string_of_Ref_expr -> this argument is not a REF or a ELINE"
 

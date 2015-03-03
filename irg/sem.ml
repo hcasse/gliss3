@@ -405,9 +405,9 @@ and eval_const expr =
 		if is_true (eval_const c) then eval_const t else eval_const e
 	| SWITCH_EXPR (_,c, cases, def) ->
 		select c cases def
-	| REF id ->
+	| REF (_, id) ->
 		(match get_symbol id with
-		  LET (_, cst) -> cst
+		| LET (_, _, cst) -> cst
 		| ENUM_POSS (_,_,v,_) -> CARD_CONST v
 		| _ -> pre_error (id ^ " is not a constant symbol"))
 	| BITFIELD (t, e, u, l) -> pre_error "unsupported bitfield"
@@ -518,7 +518,8 @@ let rec get_type_ident id=
 	else
 
 	match symb with
-	| LET (_,c)-> (match c with
+	| LET (_, _, c)->
+			(match c with
 			| NULL				-> NO_TYPE
 			| CARD_CONST _		->CARD 32
 			| CARD_CONST_64 _	->CARD 64
@@ -564,7 +565,7 @@ and get_type_expr exp =
 	| COERCE(t, _)						-> t
 	| FORMAT (_, _)						-> STRING
 	| CANON_EXPR (t, _, _)				-> t
-	| REF id							-> get_type_ident id
+	| REF (t, _)						-> t
 	| FIELDOF (t, _, _)					-> t
 	| ITEMOF (t, _, _)					-> t
 	| BITFIELD (FLOAT(n, m), _, _, _) 	-> CARD(n + m)
@@ -668,16 +669,14 @@ let num_auto_coerce e1 e2 =
 	| BOOL, ENUM _ -> (COERCE(t2, e1), e2)
 
 	(* INT base *)
-	| INT _, BOOL -> (e1, COERCE(t1, e2))
-	| INT n1, INT n2 ->
-		if n1 > n2 then (e1, COERCE(t1, e2))
-		else (COERCE(t2, e1), e2)
-	| INT n1, CARD n2 ->
-		if n1 >= n2 then (e1, COERCE(t1, e2))
-		else (COERCE(INT(n2), e1), COERCE(INT(n2), e2))
-	| INT _, FLOAT _ -> (COERCE(t2, e1), e2)
-	| INT _, RANGE _ -> (e1, COERCE(t1, e2))
-	| INT _, ENUM _ -> (e1, COERCE(t1, e2))
+	| INT _, BOOL 					-> (e1, COERCE(t1, e2))
+	| INT n1, INT n2 when n1 > n2 	-> (e1, COERCE(t1, e2))
+	| INT n1, INT n2				-> (COERCE(t2, e1), e2)
+	| INT n1, CARD n2 when n1 >= n2	-> (e1, COERCE(t1, e2))
+	| INT n1, CARD n2				-> (COERCE(INT(n2), e1), COERCE(INT(n2), e2))
+	| INT _, FLOAT _				-> (COERCE(t2, e1), e2)
+	| INT _, RANGE _				-> (e1, COERCE(t1, e2))
+	| INT _, ENUM _					-> (e1, COERCE(t1, e2))
 
 	(* CARD base *)
 	| CARD _, BOOL -> (e1, COERCE(t1, e2))
@@ -764,9 +763,7 @@ let rec get_concat e1 e2 =
 		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
 	with Failure "sem: length unknown" ->
-		error (Irg.output [Irg.PTEXT "unable to concatenate these operands:";
-				Irg.PTEXT "\noperand 1:"; Irg.PEXPR e1; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e1);
-				Irg.PTEXT "\noperand 2:"; Irg.PEXPR e2; Irg.PTEXT ": "; Irg.PTYPE (get_type_expr e2)])
+		Irg.BINOP (ANY_TYPE, CONCAT, to_card e1, to_card e2)
 
 
 (** Check types in comparison.
@@ -1030,7 +1027,7 @@ let check_switch_expr test list_case default=
 	(* --- this part is a definition of many subfunctions used in the verification --- *)
 	let rec is_param_of_type_enum e =	(* check if an expression if a param of type eum *)
  		match e with
-		| REF i ->
+		| REF (_, i) ->
 			(match (get_symbol i) with
 			| PARAM (n,t)->	rm_symbol n;
 				let value =
@@ -1070,12 +1067,12 @@ let check_switch_expr test list_case default=
 				add_param (n,t); value)
 			|_->failwith "get_list_poss_from_enum_expr : expr is not an enum") in
 		match e with
-		| REF id -> temp id
+		| REF (_, id) -> temp id
 		|_ -> failwith "get_list_poss_from_enum_expr : expr is not an enum"
 
 	and is_enum_poss e =	(* check if the expression is an ENUM_POSS *)
 		match e with
-		| REF s->
+		| REF (_, s) ->
 			(match (get_symbol s) with
 			| ENUM_POSS _->true
 			| _ ->false)
@@ -1085,7 +1082,7 @@ let check_switch_expr test list_case default=
 	(* Return a couple composed of the enum that the expression refer to and of the value of the expression *)
 	and get_enum_poss_info e =
 		match e with
-		| REF s->
+		| REF (_, s) ->
 			(match (get_symbol s) with
 				| ENUM_POSS (_,r,t,_)->(r,t)
 				| _ -> failwith ("get_enum : expression is not an enum poss"))
@@ -1099,7 +1096,7 @@ let check_switch_expr test list_case default=
 	(* Get the id of the enum_poss refered by e*)
 	and get_enum_poss_id e=
 		match e with
-		| REF s->
+		| REF (_, s) ->
 			(match (get_symbol s) with
 			| ENUM_POSS (_,_,_,_)->s
 			|_->failwith ("get_enum_poss_id : expression is not an enum poss"))
@@ -1497,10 +1494,10 @@ let make_set loc expr =
 	if ltype = etype then Irg.SET (loc, expr) else
 	match ltype, etype with
 
-	(* HKC-SET *)
 	| _, NO_TYPE
-	| NO_TYPE, _ -> SET (loc, expr)
-	(* /HKC-SET *)
+	| NO_TYPE, _ -> assert false
+	| _, ANY_TYPE
+	| ANY_TYPE, _ -> SET (loc, expr)
 
 	| BOOL, INT _
 	| BOOL, CARD _
@@ -1530,11 +1527,6 @@ let make_set loc expr =
 			output_char stderr '\n';
 			res
 
-	| CARD _, ANY_TYPE
-	| INT _, ANY_TYPE ->
-		(* !!DEBUG!! Lexer.display_warning "unknown in right of set";*)
-		Irg.SET (loc, Irg.CAST(ltype, expr))
-
 	| _ ->
 		error (output [ PTEXT "unsupported assignment";
 				PTEXT "\nLHS type:"; PTYPE ltype;
@@ -1549,7 +1541,7 @@ let make_set loc expr =
 let change_string_dependences a e =
 
 	let rec process e = match e with
-		| REF name-> FIELDOF (STRING, name, a)
+		| REF (_, name) -> FIELDOF (STRING, name, a)
 		| ELINE (f, l, e) -> ELINE (f, l, process e)
 		| _ -> e in
 
@@ -1634,7 +1626,7 @@ let check_image id params =
 		| Irg.FORMAT (_, es)
 		| Irg.CANON_EXPR (_, _, es)
 			-> List.fold_left (fun l e -> check l e) l es
-		| Irg.REF n
+		| Irg.REF (_, n)
 		| Irg.FIELDOF (_, n, _)
 		| Irg.ITEMOF (_, n, _)
 			 -> remove n l
@@ -1826,72 +1818,144 @@ let make_switch_expr cond cases def =
 	SWITCH_EXPR (check_switch_expr cond cases def, cond, cases, def)
 
 
+(** Check existence of data and return its type and its size.
+	Return (type, false, expression) if the symbol is an attribute
+	or (type, _, NONE) if the symbol is a valid data item.
+	@param id		Date identifier.
+	@param idx		True for indexed resource, false else.
+	@return			(type, indexed, expression for attributes)
+	@raise PreError	If the symbol does not exist or is not data. *)
+let get_data_info id = 
+
+	let named_type pid id =
+		match get_symbol id with
+		| TYPE (_, t) 	-> t
+		| UNDEF _
+		| AND_MODE _
+		| OR_MODE _ 	-> ANY_TYPE
+		| AND_OP _
+		| OR_OP _		-> error (asis (sprintf "symbol '%s' is not a data item" pid))
+		| RES _
+		| EXN _
+		| CANON_DEF _
+		| LET _
+		| REG _
+		| VAR _
+		| MEM _
+		| PARAM _ 
+		| ATTR _ 
+		| ENUM_POSS _	-> error (asis (sprintf "invalid type for '%s'" pid)) in
+	
+	match get_symbol id with
+	| UNDEF							-> error (asis (sprintf "symbol '%s' is undefined" id))
+	| LET (_, t, _) 				-> (t, false, NONE)
+	| REG (_, n, t, _) 				-> (t, n > 1, NONE)
+	| VAR (_, n, t, _)			 	-> (t, n > 1, NONE)
+	| MEM (_, _, t, _)				-> (t, true, NONE)
+	| ENUM_POSS (_, et, _, _) 		-> (named_type id et, false, NONE)
+	| PARAM (_, TYPE_EXPR t) 		-> (t, false, NONE)
+	| PARAM (_, TYPE_ID tid) 		-> (named_type id tid, false, NONE)
+	| ATTR (ATTR_EXPR (_, e))		-> (get_type_expr e, false, e)
+	| ATTR _
+	| TYPE _
+	| AND_MODE _
+	| OR_MODE _
+	| AND_OP _
+	| OR_OP _
+	| RES _
+	| EXN _
+	| CANON_DEF _					-> error (asis (sprintf "symbol '%s' is not a data item" id))
+
+
+(** Build a reference and possibly reduce to the matching attribute..
+	@param id		Identifier of the reference.
+	@return			Built expression. *)
+let make_ref id =
+	let (t, i, e) = get_data_info id in
+	if e = NONE then REF (t, id) else e
+
+
+(** Build a let specification.
+	@param id			Let identifier.
+	@param expr			Expression of the constant.
+	@return				Built specification.
+	@raise PreError		If there is a typing error or something is not computable. *)
+let make_let id expr =
+	Irg.LET (id, get_type_expr expr, eval_const expr)
+
+
 (** Check type of expression after instruction instanciation.
 	@param expr	Expression to check type for.
 	@return		Fully typed expression (no more UNKNOWN_TYPE). *)
 let rec check_expr_inst expr =
-	match expr with
-	| NONE
-	| REF _
-	| FIELDOF _
-	| CONST _ ->
-		expr
-	| COERCE (t, e) ->
-		let e' = check_expr_inst e in
-		if e == e' then expr else make_coerce t e'
-	| FORMAT (fmt, args) ->
-		let args' = List.map check_expr_inst args in
-		if args = args' then expr else FORMAT(fmt, args')
-	| CANON_EXPR (t, id, args) ->
-		let args' = List.map check_expr_inst args in
-		if args = args' then expr else CANON_EXPR(t, id, args')
-	| ITEMOF (t, id, idx) ->
-		let idx' = check_expr_inst idx in
-		if idx == idx' then expr else ITEMOF (t, id, idx')
-	| BITFIELD (t, e1, e2, e3) ->
-		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
-		if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 == e3' then expr else make_bitfield e1' e2' e3'
-	| UNOP (t, op, e) ->
-		let e' = check_expr_inst e in
-		if t <> ANY_TYPE && e == e' then expr else get_unop e' op
-	| BINOP (t, op, e1, e2) ->
-		let e1', e2' = check_expr_inst e1, check_expr_inst e2 in
-		if t <> ANY_TYPE && e1 == e1' && e2 == e2' then expr else get_binop e1' e2' op
-	| IF_EXPR (t, cond, e1, e2) ->
-		let cond', e1', e2' = check_expr_inst cond, check_expr_inst e1, check_expr_inst e2 in
-		if t <> ANY_TYPE && cond == cond' && e1 == e1' && e2 == e2' then expr else make_if_expr cond e1 e2
-	| SWITCH_EXPR (t, cond, cases, def) ->
-		let cond', def' = check_expr_inst cond, check_expr_inst def in
-		let cases' = List.map (fun (c, e) -> (c, check_expr_inst e)) cases in
-		if t <> ANY_TYPE && cond == cond' && def == def' && cases = cases' then expr else make_switch_expr cond' cases' def'
-	| CAST (t, e) ->
-		let e' = check_expr_inst e in
-		if t <> ANY_TYPE && e == e' then expr else CAST(get_type_expr e', e')
-	| ELINE (file, line, e) ->
-		handle_error file line (fun _ ->
+	let r = 
+		match expr with
+		| NONE
+		| FIELDOF _
+		| CONST _ ->
+			expr
+		| REF (t, id) ->
+			if t <> ANY_TYPE then expr else (check_expr_inst (make_ref id))
+		| COERCE (t, e) ->
 			let e' = check_expr_inst e in
-			if e == e' then expr else ELINE (file, line, e')) 
+			if e == e' then expr else make_coerce t e'
+		| FORMAT (fmt, args) ->
+			let args' = List.map check_expr_inst args in
+			if args = args' then expr else FORMAT(fmt, args')
+		| CANON_EXPR (t, id, args) ->
+			let args' = List.map check_expr_inst args in
+			if args = args' then expr else CANON_EXPR(t, id, args')
+		| ITEMOF (t, id, idx) ->
+			let idx' = check_expr_inst idx in
+			if idx == idx' then expr else ITEMOF (t, id, idx')
+		| BITFIELD (t, e1, e2, e3) ->
+			let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
+			if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 == e3' then expr else make_bitfield e1' e2' e3'
+		| UNOP (t, op, e) ->
+			let e' = check_expr_inst e in
+			if t <> ANY_TYPE && e == e' then expr else get_unop e' op
+		| BINOP (t, op, e1, e2) ->
+			let e1', e2' = check_expr_inst e1, check_expr_inst e2 in
+			if t <> ANY_TYPE && e1 == e1' && e2 == e2' then expr else get_binop e1' e2' op
+		| IF_EXPR (t, cond, e1, e2) ->
+			let cond', e1', e2' = check_expr_inst cond, check_expr_inst e1, check_expr_inst e2 in
+			if t <> ANY_TYPE && cond == cond' && e1 == e1' && e2 == e2' then expr else make_if_expr cond' e1' e2'
+		| SWITCH_EXPR (t, cond, cases, def) ->
+			let cond', def' = check_expr_inst cond, check_expr_inst def in
+			let cases' = List.map (fun (c, e) -> (c, check_expr_inst e)) cases in
+			if t <> ANY_TYPE && cond == cond' && def == def' && cases = cases' then expr else make_switch_expr cond' cases' def'
+		| CAST (t, e) ->
+			let e' = check_expr_inst e in
+			if t <> ANY_TYPE && e == e' then expr else CAST(get_type_expr e', e')
+		| ELINE (file, line, e) ->
+			handle_error file line (fun _ ->
+				let e' = check_expr_inst e in
+				if e == e' then expr else ELINE (file, line, e')) in
+	assert ((get_type_expr r) <> ANY_TYPE);
+	r 
 		
 
 (** Check type of a location after instruction instanciation.
 	@param loc	Location to check type for.
 	@return		Fully typed location (no more UNKNOWN_TYPE). *)
 let rec check_loc_inst loc =
-	match loc with
-	| LOC_NONE -> loc
-	| LOC_REF(t, id, e1, e2, e3) ->
-		let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
-		if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 = e3' then loc else
-		make_access_loc id e1' e2' e3'
-	| LOC_CONCAT(t, l1, l2) ->
-		let l1', l2' = check_loc_inst l1, check_loc_inst l2 in
-		if t <> ANY_TYPE && l1 == l1' && l2 == l2' then loc else
-		make_concat_loc l1' l2'
+	let r = match loc with
+			| LOC_NONE -> loc
+			| LOC_REF(t, id, e1, e2, e3) ->
+				let e1', e2', e3' = check_expr_inst e1, check_expr_inst e2, check_expr_inst e3 in
+				if t <> ANY_TYPE && e1 == e1' && e2 == e2' && e3 = e3' then loc else
+				make_access_loc id e1' e2' e3'
+			| LOC_CONCAT(t, l1, l2) ->
+				let l1', l2' = check_loc_inst l1, check_loc_inst l2 in
+				if t <> ANY_TYPE && l1 == l1' && l2 == l2' then loc else
+				make_concat_loc l1' l2' in
+	assert ((get_loc_type r) <> ANY_TYPE);
+	r
 
 
 (** Check type of statements after instruction instanciation.
 	@param stat	Statement to check type for.
-	@return		Fully typed statement (no more UNKNOWN_TYPE). *)
+	@return		Fully typed statement (no more ANY_TYPE). *)
 let rec check_stat_inst stat =
 	match stat with
 	| NOP
@@ -1902,8 +1966,8 @@ let rec check_stat_inst stat =
 		let s1', s2' = check_stat_inst s1, check_stat_inst s2 in
 		if s1 == s1' && s2 == s2' then stat else SEQ(s1', s2')
 	| SET (loc, expr) ->
-		let expr' = check_expr_inst expr in
-		if expr == expr' then stat else make_set loc expr'
+		let loc', expr' = check_loc_inst loc, check_expr_inst expr in
+		if expr == expr' && loc == loc' then stat else make_set loc' expr'
 	| CANON_STAT (id, args) ->
 		let args' = List.map check_expr_inst args in
 		if args = args' then stat else CANON_STAT (id, args')
@@ -1916,7 +1980,7 @@ let rec check_stat_inst stat =
 		if cond == cond' && def == def' && cases = cases' then stat else SWITCH_STAT (cond', cases', def')
 	| LINE (file, line, stat) ->
 		let stat' = check_stat_inst stat in
-		if stat == stat' then stat else LINE (file, line, stat)
+		if stat == stat' then stat else LINE (file, line, stat')
 
 
 (** Check type of attribute after instruction instanciation.

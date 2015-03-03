@@ -618,7 +618,7 @@ let remove_ranges iset =
 		| (Str.Delim s)::ifmt	->
 			let iarg :: iargs = iargs in
 			(match Irg.escape_eline iarg with
-			| Irg.REF id ->
+			| Irg.REF (_, id) ->
 				(match Sem.get_type_ident id with
 				| Irg.RANGE (l, u)
 								-> scan spec ifmt iargs (mult fmts (f l u (Sem.image_escape_size s))) args f

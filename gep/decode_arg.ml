@@ -129,7 +129,7 @@ let rec scan_decode_argument e m y =
 
 	| Irg.CONST _ -> []
 
-	| Irg.REF x ->
+	| Irg.REF (_, x) ->
 		(match Irg.get_symbol x with
 		| Irg.PARAM _ -> [(x, m, y)]
 		| _ -> raise (Toc.PreError (fun c -> Printf.fprintf c "unsupported symbol in image: %s" x)))

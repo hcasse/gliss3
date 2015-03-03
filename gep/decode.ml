@@ -135,7 +135,7 @@ let get_mask_for_param sp n =
 	let rec get_name_of_param e =
 		match e with
 		| Irg.FIELDOF(_, ee, _) -> ee
-		| Irg.REF(name) -> name
+		| Irg.REF(_, name) -> name
 		| Irg.ELINE (_, _, ee) -> get_name_of_param ee
 		| _ -> failwith "(Decode) parameter in image format is too complex to process" in
 
@@ -330,7 +330,7 @@ let get_param_format_arg_list sp n =
 	let rec contain_param p =
 		match p with
 		| Irg.CANON_EXPR(te, s, e_l) -> List.fold_left (fun b x -> if b then true else contain_param x) false e_l
-		| Irg.REF(s) -> if (String.compare s param_name) == 0 then true else false
+		| Irg.REF(_, s) -> if (String.compare s param_name) == 0 then true else false
 		| Irg.BITFIELD(te, e1, e2, e3) -> (contain_param e1) || (contain_param e2) || (contain_param e3)
 		| Irg.UNOP(te, u, e) -> contain_param e
 		| Irg.BINOP(te, b, e1, e2) -> (contain_param e1) || (contain_param e2)
@@ -352,19 +352,19 @@ let get_param_format_arg_list sp n =
  * ie, if it only occurs once in the image and only as a ref (no complex expr)
  *)
 let is_complex_param sp n =
-	let rec get_frmt_params e =
+	(*let rec get_frmt_params e =
 		match e with
 		| Irg.FORMAT(_, params) -> params
 		| Irg.ELINE(_, _, e) -> get_frmt_params e
 		| _ -> failwith "(Decode) can't find the params of a given (supposed) format expr"
-	in
+	in*)
 	let spec_params = Iter.get_params sp in
 	let param = List.nth spec_params n in
 	let param_name = fst param in
 	let param_occurrences = get_param_format_arg_list sp n in
 	let rec is_complex p =
 		match p with
-		| Irg.REF(s) -> if (String.compare s param_name) == 0 then false else true (*does the else case really happens???*)
+		| Irg.REF(_, s) -> if (String.compare s param_name) == 0 then false else true (*does the else case really happens???*)
 		| Irg.CAST(_, e) -> is_complex e
 		| Irg.COERCE(_, e) -> is_complex e
 		| Irg.ELINE(_, _, e) -> is_complex e

@@ -426,7 +426,7 @@ let make_env info =
 	let print_name n out info =
 		let o = info.Toc.out in
 		info.Toc.out <- out;
-		Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP (Irg.REF n))) false;
+		Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP (Irg.REF (Irg.NO_TYPE, n)))) false;
 		info.Toc.out <- o
 	in
 	let maker = App.maker() in

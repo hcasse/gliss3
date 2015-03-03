@@ -52,7 +52,7 @@ let rec gen_disasm info inst expr =
 		else
     		let fmt = String.sub fmt s (i - s) in
     		if fmt <> "" then 
-        		Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args)
+        		Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF (Irg.NO_TYPE, "__buffer"))::(str fmt)::args)
       		else Irg.NOP in
 
 	let change_l fmt i =
@@ -82,7 +82,7 @@ let rec gen_disasm info inst expr =
 			scan fmt args 0 [] 0
 		| Irg.CONST (_, Irg.STRING_CONST(s)) ->
     		if s <> ""
-    		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
+    		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF (Irg.NO_TYPE, "__buffer"); str s])
       		else Irg.NOP 
 		| Irg.IF_EXPR (_, c, t, e) ->
 			Irg.IF_STAT(c, process t, process e)
@@ -117,7 +117,7 @@ let rec gen_disasm info inst expr =
 		| Irg.COERCE (_, expr) -> check expr
 		| Irg.FORMAT (_, args)
 		| Irg.CANON_EXPR (_, _, args) -> List.iter check args
-		| Irg.REF id -> check_symbol id
+		| Irg.REF (_, id) -> check_symbol id
 		| Irg.FIELDOF (_, id, _) -> check_symbol id
 		| Irg.ITEMOF (_, id, expr) -> check_symbol id; check expr
 		| Irg.BITFIELD (_, b, l, u) -> check b; check l; check u

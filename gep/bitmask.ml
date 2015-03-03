@@ -549,7 +549,7 @@ this happens with the tricore processor for example.
 let get_bit_image_order _ =
 	match Irg.get_symbol "bit_image_order" with
 	| Irg.UNDEF -> false
-	| Irg.LET(_, c) ->
+	| Irg.LET(_, _, c) ->
 		(match c with
 		| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
 		| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")

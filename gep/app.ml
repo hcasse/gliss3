@@ -400,7 +400,7 @@ let gen_reg_getter name size typ attrs out =
 	gen_reg_access name size typ attrs out "get"
 		(fun v -> Irg.CANON_STAT(
 			Printf.sprintf "GLISS_GET_%s" v,
-			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
+			[ if size == 1 then Irg.REF (typ, name) else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
 
 
 (** Get the label of a register bank.

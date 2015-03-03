@@ -155,14 +155,14 @@ let attr_list_from_and_node
 			|Irg.ATTR_EXPR(name,e) when name="image"-> 
 				ATTR_EXPR(
 					name,
-					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF("code")])
+					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF(Irg.NO_TYPE, "code")])
 				)
 			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
 					SWITCH_EXPR(
 						(type_of_expr e), 
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
 						Irg.NONE
 					)
@@ -171,7 +171,7 @@ let attr_list_from_and_node
 				ATTR_STAT(
 					name,
 					SWITCH_STAT(
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						List.map (case_from_attr_stat size name) and_list, 
 						Irg.NOP
 					)
