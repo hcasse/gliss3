@@ -340,7 +340,12 @@ let get_insts _ =
 	
 	(* return result *)
 	!instr_set
-  
+
+
+(** Reset instanciation of instructions. *)
+let clear_insts _ =
+	instr_set := [Irg.UNDEF]
+
 
 (** Iteration over actual instruction using profiling order.
 	@param fun_to_iterate	function to apply to each instr with an accumulator as 1st param

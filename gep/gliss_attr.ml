@@ -121,6 +121,8 @@ let _ =
 
 				(* download the extensions *)
 				List.iter IrgUtil.load !extends;
+				Iter.clear_insts ();
+				Iter.get_insts ();
 
 				(* perform generation *)
 				if !template = "" then raise (CommandError "a template must specified with '-t'") else
