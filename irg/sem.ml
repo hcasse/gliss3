@@ -652,56 +652,71 @@ let get_unop e uop =
 
 
 (** Perform automatic-coercition between numeric types, coercing to bigger type.
+	If coercition is not possible, result type is NO_TYPE.
 	@param e1	First expression.
 	@param e2	Second expression.
-	@return		(coerced first expression, coerced second expression) *)
+	@return		(result type, coerced first expression, coerced second expression) *)
 let num_auto_coerce e1 e2 =
 	let t1 = get_type_expr e1 in
 	let t2 = get_type_expr e2 in
-	if t1 = t2 then (e1, e2) else
+	if t1 = t2 then (t1, e1, e2) else
 	match t1, t2 with
+
+	(* any type support *)
+	| ANY_TYPE, _
+	| _, ANY_TYPE					-> (ANY_TYPE, e1, e2)			
 
 	(* BOOL base *)
 	| BOOL, INT _
 	| BOOL, CARD _
 	| BOOL, FLOAT _
 	| BOOL, RANGE _
-	| BOOL, ENUM _ -> (COERCE(t2, e1), e2)
+	| BOOL, ENUM _					-> (t2, COERCE(t2, e1), e2)
 
 	(* INT base *)
-	| INT _, BOOL 					-> (e1, COERCE(t1, e2))
-	| INT n1, INT n2 when n1 > n2 	-> (e1, COERCE(t1, e2))
-	| INT n1, INT n2				-> (COERCE(t2, e1), e2)
-	| INT n1, CARD n2 when n1 >= n2	-> (e1, COERCE(t1, e2))
-	| INT n1, CARD n2				-> (COERCE(INT(n2), e1), COERCE(INT(n2), e2))
-	| INT _, FLOAT _				-> (COERCE(t2, e1), e2)
-	| INT _, RANGE _				-> (e1, COERCE(t1, e2))
-	| INT _, ENUM _					-> (e1, COERCE(t1, e2))
+	| INT _, BOOL 					-> (t1, e1, COERCE(t1, e2))
+	| INT n1, INT n2 when n1 > n2 	-> (t1, e1, COERCE(t1, e2))
+	| INT n1, INT n2				-> (t2, COERCE(t2, e1), e2)
+	| INT n1, CARD n2 when n1 >= n2	-> (t1, e1, COERCE(t1, e2))
+	| INT n1, CARD n2				-> (INT(n2), COERCE(INT(n2), e1), COERCE(INT(n2), e2))
+	| INT _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
+	| INT _, RANGE _				-> (t1, e1, COERCE(t1, e2))
+	| INT _, ENUM _					-> (t1, e1, COERCE(t1, e2))
 
 	(* CARD base *)
-	| CARD _, BOOL -> (e1, COERCE(t1, e2))
-	| CARD n1, INT n2 ->
-		if n1 <= n2 then (COERCE(t2, e1), e2)
-		else (COERCE(INT(n1), e1), COERCE(INT(n1), e2))
-	| CARD n1, CARD n2 ->
-		if n1 < n2 then (COERCE(t2, e1), e2)
-		else (e1, COERCE(t1, e2))
-	| CARD _, FLOAT _ -> (COERCE(t2, e1), e2)
-	| CARD _, RANGE _ -> (e1, COERCE(t1, e2))
-	| CARD _, ENUM _ -> (e1, COERCE(t1, e2))
+	| CARD _, BOOL 					-> (t1, e1, COERCE(t1, e2))
+	| CARD n1, INT n2 when n1 <= n2 -> (t2, COERCE(t2, e1), e2)
+	| CARD n1, INT n2			 	-> (INT(n1), COERCE(INT(n1), e1), COERCE(INT(n1), e2))
+	| CARD n1, CARD n2 when n1 < n2 -> (t2, COERCE(t2, e1), e2)
+	| CARD n1, CARD n2				-> (t1, e1, COERCE(t1, e2))
+	| CARD _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
+	| CARD _, RANGE _				-> (t1, e1, COERCE(t1, e2))
+	| CARD _, ENUM _				-> (t1, e1, COERCE(t1, e2))
 
 	(* FLOAT base *)
 	| FLOAT _, BOOL
 	| FLOAT _, INT _
-	| FLOAT _, CARD _ -> (e1, COERCE(t1, e2))
-	| FLOAT (n1, m1), FLOAT (n2, m2) ->
-		if n1 + m1 > n2 + m2 then (e1, COERCE(t1, e2))
-		else (COERCE(t2, e1), e2)
+	| FLOAT _, CARD _				-> (t1, e1, COERCE(t1, e2))
+	| FLOAT (n1, m1), FLOAT (n2, m2)
+		when n1 + m1 > n2 + m2 		-> (t1, e1, COERCE(t1, e2))
+	| FLOAT (n1, m1), FLOAT (n2, m2)
+	 								-> (t2, COERCE(t2, e1), e2)
 	| FLOAT _, RANGE _
-	| FLOAT _, ENUM _ -> (e1, COERCE(t1, e2))
+	| FLOAT _, ENUM _				-> (t1, e1, COERCE(t1, e2))
 
-	| _ ->
-		error (output [PTEXT "no common coercition between types\n"; PTYPE t1; PTEXT "and "; PTYPE t2])
+	(* incompatible case *)
+	| _								-> (NO_TYPE, NONE, NONE)		
+
+
+(** Display type error for two-operand operation.
+	@param op	Operand display.
+	@parma e1	First expression.
+	@param e2	Second expression. *)
+let error_two_operands op e1 e2 =
+	error (output [
+		PTEXT "cannot coerce operands for '"; PTEXT op; PTEXT "' with";
+		PTEXT "\noperand 1 type:"; PTYPE (get_type_expr e1);
+		PTEXT "'\noperand 2 type:"; PTYPE (get_type_expr e2); PLN])
 
 
 (** Create an add/sub with a correct type in function of its operands.
@@ -712,13 +727,9 @@ let num_auto_coerce e1 e2 =
 	@return	An ADD/SUB expression
 	@raise Failure	Raised when the type of the operands are not compatible with the operation *)
 let get_add_sub e1 e2 bop =
-	match (get_type_expr e1, get_type_expr e2) with
-	| ANY_TYPE, _
-	| _, ANY_TYPE ->
-		BINOP (ANY_TYPE, bop, e1, e2)
-	| _, _ ->
-		let (e1, e2) = num_auto_coerce e1 e2 in
-		BINOP (get_type_expr e1, bop, e1, e2)
+	let (t, e1, e2) = num_auto_coerce e1 e2 in
+	if t <> NO_TYPE then BINOP (t, bop, e1, e2) else
+	error_two_operands (string_of_binop bop) e1 e2
 
 
 (** Create a mult/div/mod with a correct type in function of its operands.
@@ -729,16 +740,10 @@ let get_add_sub e1 e2 bop =
 	@return	A MUL/DIV/MOD expression
 	@raise Failure	Raised when the type of the operands are not compatible with the operation
 *)
-let get_mult_div_mod e1 e2 bop=
-	let t1 = get_type_expr e1
-	and t2 = get_type_expr e2 in
-	match (t1,t2) with
-	| ANY_TYPE, _
-	| _, ANY_TYPE ->
-		BINOP (ANY_TYPE, bop, e1, e2)
-	| _, _ ->
-		let (e1, e2) = num_auto_coerce e1 e2 in
-		BINOP (get_type_expr e1, bop, e1, e2)
+let get_mult_div_mod e1 e2 bop =
+	let (t, e1, e2) = num_auto_coerce e1 e2 in
+	if t <> NO_TYPE then BINOP (t, bop, e1, e2) else
+	error_two_operands (string_of_binop bop) e1 e2
 
 
 (** Convert given type to raw card.
@@ -772,15 +777,9 @@ let rec get_concat e1 e2 =
 	@param e2	Second operand.
 	@return		Checked expression. *)
 let get_compare bop e1 e2 =
-	let t1 = get_type_expr e1
-	and t2 = get_type_expr e2 in
-	match (t1,t2) with
-	| ANY_TYPE, _
-	| _, ANY_TYPE ->
-		BINOP (ANY_TYPE, bop, e1, e2)
-	| _, _ ->
-		let (e1, e2) = num_auto_coerce e1 e2 in
-		BINOP (BOOL, bop, e1, e2)
+	let (t, e1, e2) = num_auto_coerce e1 e2 in
+	if t <> NO_TYPE then BINOP (BOOL, bop, e1, e2) else
+	error_two_operands (string_of_binop bop) e1 e2
 
 
 (** Convert an expression to boolean.
@@ -954,47 +953,6 @@ let check_set_stat l e =
 				)
 			| _ ->
 				e
-
-
-(** Raise a type error message for two operands.
-	@param t1	Type of first operand.
-	@param t2	Type of second operand. *)
-let raise_type_error_two_operand t1 t2 =
-	error (output [PTEXT "incompatible type of 'if' parts";
-			PTEXT "\nfirst operand: "; PTYPE t1;
-			PTEXT "\nsecond operand: "; PTYPE t2])
-
-
-(** Check if the possible expressions of the conditionnal branchs of an
-	if-then-else expression give a valid if-then-else expression.
-	It check if the types of the differents possibility are compatible
-	(for this, it use the same compatibility rule than the addition).
-	@param e1	the then-expression
-	@param e2	the else-expression
-	@return		Type of the result, raise an exception else.
-*)
-let check_if_expr e1 e2=
-	let t1 = get_type_expr e1 in
-	let t2 = get_type_expr e2 in
-	match (t1, t2) with
-	| (CARD _,CARD _)
-	| (INT _,INT _)
-	| (INT _, CARD _)
-	| (CARD _,INT _)
-	| (FLOAT _,FLOAT _)
-	| (FIX _,FIX _)
-	| (STRING, STRING)
-	(* added to debug x86,a lot of unknown types (mode values) are encountered *)
-	| (ANY_TYPE, ANY_TYPE)
-		-> t1
-	| (ANY_TYPE, STRING)
-	| (STRING, ANY_TYPE)
-		-> STRING
-	| _ ->
-	(* !!DEBUG!! *)
-	(*print_string "e1="; Irg.print_expr e1; print_string "#e2="; Irg.print_expr e2; print_string "#\n";*)
-
-	raise_type_error_two_operand t1 t2
 
 
 (** Get the interval value of an integer type.
@@ -1806,7 +1764,13 @@ let make_bitfield base up lo =
 	@return					Built expression.
 	@raise Irg.PreError		If an error is found. *)
 let make_if_expr cond e1 e2 =
-	IF_EXPR (check_if_expr e1 e2, cond, e1, e2)
+	let t1 = get_type_expr e1 in
+	let t2 = get_type_expr e2 in
+	if t1 = ANY_TYPE || t2 = ANY_TYPE then IF_EXPR (ANY_TYPE, cond, e1, e2) else
+	if t1 = t2 then IF_EXPR (t1, cond, e1, e2) else
+	let (t, e1, e2) = num_auto_coerce e1 e2 in
+	if t <> NO_TYPE then IF_EXPR (t, cond, e1, e2) else
+	error_two_operands "if" e1 e2 
 
 
 (** Build a switch expression.

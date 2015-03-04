@@ -333,6 +333,7 @@ let get_insts _ =
 			instr_set := List.map check_coerce (Instantiate.instantiate_instructions root_inst);
 			instr_set := List.map build_name !instr_set;
 			instr_set := List.map Sem.check_spec_inst !instr_set;
+			output_string stderr "DEBUG: instanciation-phase checking!\n";
 			if !multi_set = [] then
 				enumerate_instr_sets !instr_set;			
 		with Instantiate.Error (sp, msg) ->
@@ -344,6 +345,7 @@ let get_insts _ =
 
 (** Reset instanciation of instructions. *)
 let clear_insts _ =
+	NameTable.clear ();
 	instr_set := [Irg.UNDEF]
 
 
