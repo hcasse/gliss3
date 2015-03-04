@@ -600,6 +600,8 @@ let process file f opti =
 		let info = Toc.info () in
 		f info
 	with
+	| Irg.Error f ->
+		(Irg.join_all [Irg.asis "ERROR: "; f; Irg.asis "\n"]) stderr; exit 5
 	| Toc.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
 	| Toc.LocError (file, line, f) ->

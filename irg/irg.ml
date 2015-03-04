@@ -227,7 +227,14 @@ let asis text out =
 let join f1 f2 out =
 	f1 out; f2 out
 
-	
+
+(** Join several error functions.
+	@param lst	List of output functions.
+	@param out	Output stream (usually left open). *)
+let join_all lst out =
+	List.iter (fun f -> f out) lst
+
+
 (** Find index of an item in a list.
 	@param item		Looked item.
 	@param list		List to look in.
