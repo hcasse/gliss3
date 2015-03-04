@@ -120,7 +120,7 @@ let _ =
 			(fun info ->
 
 				(* download the extensions *)
-				List.iter IrgUtil.load !extends;
+				List.iter IrgUtil.load_with_error_support !extends;
 				Iter.clear_insts ();
 				Iter.get_insts ();
 
