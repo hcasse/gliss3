@@ -131,8 +131,14 @@ open Printf
 
 (** False value. *)
 let false_const = CARD_CONST Int32.zero
+
 (** True value. *)
 let true_const = CARD_CONST Int32.one
+
+(** Set to true to activate compatibility GLISS1. It includes mainly:
+	- Parameter are assignable. *)
+let gliss1_compat = ref true
+
 
 (** Get the current line information. *)
 (*let current_line _ = Printf.sprintf "%s:%d" !(Lexer.file) !(Lexer.line)*)
@@ -1175,7 +1181,7 @@ let rec is_location id =
 	| EXN _
 	| ATTR _
 	| ENUM_POSS _
-	| CANON_DEF _ ->false
+	| CANON_DEF _ -> false
 
 
 (** Check is the given id refer to a MODE.
@@ -1209,7 +1215,8 @@ let rec is_loc_mode id =
 	@param id	the id to check
 	@return True if the id refer to a parameter false otherwise
 *)
-let rec is_loc_spe id=
+let rec is_loc_spe id =
+	if not !gliss1_compat then false else
 	let sym=Irg.get_symbol id
 	and is_location_param id=
 		let sym=Irg.get_symbol id
@@ -1352,13 +1359,19 @@ let get_loc_type loc =
 	@raise SemError		Raised when the reference does not exist,
 						or is not a location. *)
 let get_loc_ref_type name =
+	
+	let look t =
+		match t with
+		| TYPE_ID _		-> ANY_TYPE
+		| TYPE_EXPR e	-> e in
+	
 	match Irg.get_symbol name with
 	| UNDEF -> pre_error (name ^ " is undefined")
-	| MEM (_, _, t, _) -> t
-	| REG (_, _, t, _) -> t
-	| VAR (_, _, t, _) -> t
-	| PARAM _ -> ANY_TYPE
-	| _ -> pre_error (name ^ " is not a location")
+	| MEM (_, _, t, _) 	-> t
+	| REG (_, _, t, _) 	-> t
+	| VAR (_, _, t, _) 	-> t
+	| PARAM (_, t)		-> if not !gliss1_compat then ANY_TYPE else look t
+	| _					-> pre_error (name ^ " is not a location")
 
 
 (** Check if the alias atribute matches the current entity.
@@ -1718,12 +1731,6 @@ let make_concat_loc l1 l2 =
 	@param lo	Lower bit.
 	@return 	Built location . *)
 let make_access_loc id idx up lo =
-	(* TODO
-		* check id is existing,
-		* either idx is None and size(id) = 1, or idx must be card or int,
-		* if up is not None, it must be int or card,
-		* if lo is not None, it must be int or card.
-	*)
 	if (is_location id) || (is_loc_spe id)
 	then LOC_REF (get_loc_ref_type id, id, idx, up, lo)
 	else pre_error (Printf.sprintf "'%s' is not a valid location" id) 
@@ -1913,7 +1920,12 @@ let rec check_loc_inst loc =
 				let l1', l2' = check_loc_inst l1, check_loc_inst l2 in
 				if t <> ANY_TYPE && l1 == l1' && l2 == l2' then loc else
 				make_concat_loc l1' l2' in
-	assert ((get_loc_type r) <> ANY_TYPE);
+	(*assert ((get_loc_type r) <> ANY_TYPE);*)
+	if (get_loc_type r) = ANY_TYPE then
+	begin
+		println [PTEXT "DEBUG: loc = "; PLOC loc];
+		assert false
+	end;
 	r
 
 

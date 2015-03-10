@@ -322,11 +322,16 @@ let get_instruction_set maker f dict i_set =
 		dict))
 
 
+(** Check if the attributes contains "pc" or "is_pc" attribute.
+	Notice that "pc" is now deprecated.
+	@param attrs	Attributes to look in.
+	@return			True if one of these attributes is defined, false else. *)
 let rec is_pc attrs =
 	match attrs with
 	| [] -> false
-	| Irg.ATTR_EXPR ("pc", _) :: _ -> true
-	| _ :: tl -> is_pc tl
+	| Irg.ATTR_EXPR ("pc", _) :: _
+	| Irg.ATTR_EXPR ("is_pc", _) :: _	-> true
+	| _ :: tl							-> is_pc tl
 
 let is_float t =
 	match t with
@@ -343,7 +348,6 @@ let rec reg_format id size attrs =
 
 
 (** Generate the code for accessing a register.
-let gen_reg_access name size type attrs out make attr =
 	@param name		Name of the register.
 	@param size		Size of the register bank.
 	@param typ		Type of the register.

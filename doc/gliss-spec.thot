@@ -15,9 +15,11 @@ access to the state attribute definitions and this attributes may be used for an
 In @(GLISS) V2, the following attributes are used:
 
 ^ Attribute ^ Item | Description ^
-| ''pc'' = 1 | register | designs the program counter (address of  executed instruction) |
+| ''is_pc'' = 1 | register | designs the program counter (address of  executed instruction) |
 | ''fmt'' = STRING | register | defines a string format to display the register name |
-|  | (if register is multiple, the string must contains a ''%d'') |
+
+Notice that ''is_pc'' replaces old ''pc'' that is currently deprecated but accepted
+for compatibility purpose.
 
 
 ===== Specific Symbols =====

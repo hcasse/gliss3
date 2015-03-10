@@ -193,8 +193,12 @@ let info _ =
 
 	let pc =
 		match get_attr_regs "pc" is_true with
-		| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )")
-		| Some n -> n in
+		| Some n -> n
+		| None ->
+			match get_attr_regs "is_pc" is_true with
+			| Some n -> n
+			| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )") in
+
 	let path = Sys.getcwd () in {
 		out = stdout;
 		proc = p;
@@ -668,7 +672,8 @@ let resolve_alias name idx ub lb =
 			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
 			| _ -> failwith "OUPS!\n")
 		| s ->
-			Irg.print_spec (Irg.get_symbol r);
+			(*Irg.print_spec (Irg.get_symbol r);*)
+			Irg.println [Irg.PTEXT "DEBUG: "; Irg.PTEXT r; Irg.PTEXT "["; Irg.PEXPR i; Irg.PTEXT "]"];
 			failwith ("toc: bad alias: " ^ r) in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	res
