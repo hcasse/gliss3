@@ -8,4 +8,4 @@ all: NMP.html gliss.html
 gliss.html: $(wildcard gliss-*.thot)
 
 clean:
-	rm -rf gliss*.html
+	rm -rf gliss*.html NMP*.html
