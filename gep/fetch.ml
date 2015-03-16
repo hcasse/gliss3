@@ -571,7 +571,7 @@ let output_struct_decl out fetch_size idx =
 
 
 
-(** Provide support for range parameter by instruction duplication.
+(** Provide support for range and enum parameter by instruction duplication.
 		Return list of instructions without any range parameter.
 		@param iset Instruction set.
 		@return Instruction set without range parameter. *)
@@ -579,7 +579,8 @@ let remove_ranges iset =
 	
 	let count_range (_, t) =
 		match Sem.get_expr_from_type t with
-		| Irg.RANGE (l, u)	-> (true, Int32.add Int32.one (Int32.sub u l)) 
+		| Irg.RANGE (l, u)	-> (true, Int32.add Int32.one (Int32.sub u l))
+		| Irg.ENUM l		-> (true, Int32.of_int (List.length l)) 
 		| _					-> (false, Int32.one) in
 
 	let rec count_ranges r c pars =
@@ -628,7 +629,8 @@ let remove_ranges iset =
 				(match Sem.get_type_ident id with
 				| Irg.ANY_TYPE	-> assert false
 				| Irg.RANGE (l, u)
-								-> scan spec ifmt iargs (mult fmts (f l u (Sem.image_escape_size s))) args f
+								-> scan spec ifmt iargs (mult fmts ((fst f) l u (Sem.image_escape_size s))) args f
+				| Irg.ENUM l	-> scan spec ifmt iargs (mult fmts ((snd f) l (Sem.image_escape_size s))) args f
 				| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
 			| e 				-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f) in
 
@@ -645,7 +647,10 @@ let remove_ranges iset =
 			| Irg.FORMAT(fmt, args) ->
 			let (r, c) = count_ranges false Int32.one params in
 				if not r then inst::res else
-				let f = if (Int32.compare c pqmc_threshold) >= 0 then min_range else (enum_range []) in
+				let f =
+					if (Int32.compare c pqmc_threshold) >= 0
+					then (min_range, fun l n -> Pqmc.compute_primes (List.map (fun v -> to_bin v n) l))
+					else (enum_range [], fun l n -> List.map (fun v -> to_bin v n) l) in
 				let r = transform id params attrs fmt args f in
 				r @ res
 			| e -> inst :: res)

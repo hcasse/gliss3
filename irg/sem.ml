@@ -414,7 +414,6 @@ and eval_const expr =
 	| REF (_, id) ->
 		(match get_symbol id with
 		| LET (_, _, cst) -> cst
-		| ENUM_POSS (_,_,v,_) -> CARD_CONST v
 		| _ -> pre_error (id ^ " is not a constant symbol"))
 	| BITFIELD (t, e, u, l) -> pre_error "unsupported bitfield"
 	| ELINE (_, _, e) -> eval_const e
@@ -557,7 +556,6 @@ let rec get_type_ident id=
 			in
 			add_param (n,t);
 			type_res)
-	| ENUM_POSS (_,i,_,_)->get_type_ident i
 	| ATTR (ATTR_EXPR (_, expr)) -> get_type_expr expr
 	| ATTR _ -> NO_TYPE
 	| _ ->NO_TYPE
@@ -1014,90 +1012,6 @@ let interval_of t =
 *)
 let check_switch_expr test list_case default=
 
-
-	(* --- this part is a definition of many subfunctions used in the verification --- *)
-	let rec is_param_of_type_enum e =	(* check if an expression if a param of type eum *)
- 		match e with
-		| REF (_, i) ->
-			(match (get_symbol i) with
-			| PARAM (n,t)->	rm_symbol n;
-				let value =
-					(match t with
-					| TYPE_ID ti->
-						(match (get_symbol ti) with
-						| TYPE (_,t)->
-							(match t with
-							| ENUM _-> true
-							| _ ->false)
-						|_->false)
-					| TYPE_EXPR te->
-						(match te with
-						| ENUM _->true	(*Possible ?*)
-						| _ -> false)) in
-				add_param (n,t); value
-			|_->false)
-		| ELINE (_, _, e) -> is_param_of_type_enum e
-		| _ -> false
-
-	and get_list_poss_from_enum_expr e = (* Get a list of all possibility of the enum which is the type of the expression *)
-		let rec temp id =
-			(match get_symbol id with
-			| TYPE (_,t)->
-				(match t with
-				| ENUM l->l
-				| _ -> failwith "get_list_poss_from_enum_expr : expr is not an enum")
-			| PARAM (n,t) ->
-				(rm_symbol n;
-				let value =
-					(match t with
-					| TYPE_ID s->temp s
-					| TYPE_EXPR tb->
-						(match tb with
-						| ENUM l->l
-						|_-> failwith "get_list_poss_from_enum_expr : expr is not an enum")) in
-				add_param (n,t); value)
-			|_->failwith "get_list_poss_from_enum_expr : expr is not an enum") in
-		match e with
-		| REF (_, id) -> temp id
-		|_ -> failwith "get_list_poss_from_enum_expr : expr is not an enum"
-
-	and is_enum_poss e =	(* check if the expression is an ENUM_POSS *)
-		match e with
-		| REF (_, s) ->
-			(match (get_symbol s) with
-			| ENUM_POSS _->true
-			| _ ->false)
-		| ELINE(_, _, e) -> is_enum_poss e
-		| _ -> false
-
-	(* Return a couple composed of the enum that the expression refer to and of the value of the expression *)
-	and get_enum_poss_info e =
-		match e with
-		| REF (_, s) ->
-			(match (get_symbol s) with
-				| ENUM_POSS (_,r,t,_)->(r,t)
-				| _ -> failwith ("get_enum : expression is not an enum poss"))
-		| ELINE (_, _, e) -> get_enum_poss_info e
-		| _ ->failwith "get_enum : expression is not an enum poss" in
-
-	(* Return the enum that the expression refer to *)
-	let rec get_enum_poss_type e =
-		get_type_ident (fst (get_enum_poss_info e))
-
-	(* Get the id of the enum_poss refered by e*)
-	and get_enum_poss_id e=
-		match e with
-		| REF (_, s) ->
-			(match (get_symbol s) with
-			| ENUM_POSS (_,_,_,_)->s
-			|_->failwith ("get_enum_poss_id : expression is not an enum poss"))
-		| ELINE (_, _, e) -> get_enum_poss_id e
-		| _ -> failwith "get_enum_poss_id : expression is not an enum poss" in
-
-	(* --- end of definition of the "little" subfunction.
-			Now we can start the declaration of the three "big" subfonctions who will each check one condition to validate the switch ---*)
-
-
 	(* This part check if all the cases of a switch are of the type of the expression to be tested*)
 	let check_switch_cases =
 		let t = get_type_expr test in
@@ -1106,10 +1020,7 @@ let check_switch_expr test list_case default=
 		let rec sub_fun list_c =
 			match list_c with
 			| [] -> true
-			| (c,_)::l->
-				if(is_enum_poss c)
-				then (get_enum_poss_type c = t) && (sub_fun l)
-				else (get_type_expr c = t) && (sub_fun l) in
+			| (c,_)::l-> (get_type_expr c = t) && (sub_fun l) in
 		let rec is_int lst =
 			match lst with
 			| [] -> true
@@ -1141,13 +1052,6 @@ let check_switch_expr test list_case default=
 	and check_switch_all_possibilities =
 		(* a default is needed to be sure that all possibilities are covered, except for ENUM where you can enumerate all the possibilities*)
 		if (not (default = NONE)) then true
-		else if is_param_of_type_enum test  then
-			(* l is the id list of the enum type used *)
-			let l = get_list_poss_from_enum_expr test	in
-			(* cond_list is the list of id of the enum type who are presents in the swith *)
-			let cond_list = List.map get_enum_poss_id (List.map fst list_case) in
-			(* check that all element of l are contained in cond_list *)
-			List.for_all (fun e->List.exists (fun a->a=e) cond_list) l
 		else
 			let min, max = interval_of (get_type_expr test) in
 			if (min, max) = (0, 0) then
@@ -1207,7 +1111,6 @@ let rec is_location id =
 	| RES _
 	| EXN _
 	| ATTR _
-	| ENUM_POSS _
 	| CANON_DEF _ -> false
 
 
@@ -1455,10 +1358,6 @@ let test_data name indexed =
 	| Irg.LET _
 	| Irg.PARAM _
 	| Irg.ATTR _
-	| Irg.ENUM_POSS _ ->
-		if indexed
-		then pre_error (sprintf "data \"%s\" can not be indexed" name)
-		else ()
 
 	(* may be indexed *)
 	| Irg.MEM _				(* for compatibility with GLISS v1 *)
@@ -1841,8 +1740,7 @@ let get_data_info id =
 		| VAR _
 		| MEM _
 		| PARAM _ 
-		| ATTR _ 
-		| ENUM_POSS _	-> error (asis (sprintf "invalid type for '%s'" pid)) in
+		| ATTR _ 		-> error (asis (sprintf "invalid type for '%s'" pid)) in
 	
 	match get_symbol id with
 	| UNDEF							-> error (asis (sprintf "symbol '%s' is undefined" id))
@@ -1850,7 +1748,6 @@ let get_data_info id =
 	| REG (_, n, t, _) 				-> (t, n > 1, NONE)
 	| VAR (_, n, t, _)			 	-> (t, n > 1, NONE)
 	| MEM (_, _, t, _)				-> (t, true, NONE)
-	| ENUM_POSS (_, et, _, _) 		-> (named_type id et, false, NONE)
 	| PARAM (_, TYPE_EXPR t) 		-> (t, false, NONE)
 	| PARAM (_, TYPE_ID tid) 		-> (named_type id tid, false, NONE)
 	| ATTR (ATTR_EXPR (_, e))		-> (get_type_expr e, false, e)
@@ -2016,3 +1913,30 @@ let check_spec_inst spec =
 		Irg.param_unstack params;
 		AND_OP(id, params, nattrs)
 	| _ -> failwith "Sem.check_spec_inst: bad specification"
+
+
+(** Enumerate the different values between low and up bounds (inclusive).
+	@param l	Lower bound.
+	@param u	Upper bound.
+	@return		List of values between l and u. *)
+let enum_values l u =
+	let rec make i u =
+		if i = u then [i] else
+		i :: (make (Int32.add i Int32.one) u) in
+	
+	if (Int32.compare l u) > 0
+	then error (fun out -> Printf.fprintf out  "in enum range %ld '..' %ld, lower value must precede upper value" l u)
+	else make l u
+
+
+(** In a sorted list, ensures that each value is unique.
+	@param l	List to process.
+	@return		Result list. *)
+let rec uniq l =
+	match l with
+	| []
+	| [_]					-> l
+	| a::b::t when a = b	-> uniq (b::t)
+	| h::t					-> h::(uniq t) 
+	
+	

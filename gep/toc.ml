@@ -1110,7 +1110,6 @@ and gen_ref info name prfx =
 	| Irg.REG _ -> output_string info.out (state_macro info name prfx)
 	| Irg.MEM _ -> output_string info.out (state_macro info name prfx)
 	| Irg.PARAM _ -> output_string info.out (param_macro info name)
-	| Irg.ENUM_POSS (_, _, v, _) -> output_string info.out (Int32.to_string v)
 	| s -> output_string info.out name (*failwith "expression form must have been removed")*)
 
 

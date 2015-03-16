@@ -275,11 +275,8 @@ IdentifierList:
 ;
 
 TypeSpec:
-	TYPE LocatedID EQ TypeExpr	{
-					Irg.add_pos $2 !(Lexer.file) $1;
-					Irg.complete_incomplete_enum_poss $2;	(* needed for enums *)
-					($2, Irg.TYPE ($2, $4))
-				}
+	TYPE LocatedID EQ TypeExpr
+		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Irg.TYPE ($2, $4)) }
 ;
 
 TypeExpr:
@@ -310,20 +307,16 @@ TypeExpr:
 					Irg.PTEXT (Printf.sprintf "Value of the first operand : %d\n Value of the second operand : %d"
 						(Int32.to_int v1) (Int32.to_int v2))])
 		 }
-|	ENUM LPAREN IdentifierList RPAREN
-		{
-			(*let i = List.fold_right (fun id i -> Irg.add_symbol id
-				(Irg.ENUM_POSS (id," ",(Int32.of_int i),false) ); i + 1)
-				$3 0 in
-			Irg.CARD (int_of_float (ceil ((log (float i)) /. (log 2.))))*)
+|	ENUM LPAREN ValueList RPAREN
+		{ Irg.ENUM (Sem.uniq (List.sort Int32.compare $3)) }
+;
 
-			let rec temp l i= match l with
-				[]->()
-				|e::l-> Irg.add_symbol e (Irg.ENUM_POSS (e," ",(Int32.of_int i),false)); temp l (i+1)
-			in
-			temp $3 0;
-			Irg.ENUM $3
-		}
+ValueList:	Value						{ $1 }
+|			ValueList COMMA Value		{ $1 @ $3 }
+;
+
+Value:		LetExpr						{ [Sem.to_int32 (Sem.eval_const $1)] }
+|			LetExpr DOUBLE_DOT LetExpr	{ Sem.enum_values (Sem.to_int32 (Sem.eval_const $1)) (Sem.to_int32 (Sem.eval_const $3)) } 
 ;
 
 LetExpr:

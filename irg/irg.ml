@@ -263,7 +263,7 @@ type type_expr =
 	| FLOAT of int * int		(** (exponent bits number, mantissa bits number) floating-point type *)
 	| RANGE of int32 * int32	(** (low, up) integer range *)
 	| STRING					(** string uniquely used for disassembly *)
-	| ENUM of string list		(** (list of value identifier) enumerated type *)
+	| ENUM of int32 list		(** (list of values) enumerated type *)
 	| ANY_TYPE					(** used to represent a variable type (usually induced by OR-mode or operations *)
 
 
@@ -384,11 +384,6 @@ type spec =
 	| EXN of string
 	| PARAM of string * typ
 	| ATTR of attr
-	| ENUM_POSS of string*string*Int32.t*bool	(*	Fields of ENUM_POSS :
-								the first parameter is the symbol of the enum_poss,
-								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
-								the third is the value of this ENUM_POSS,
-								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
 	| CANON_DEF of string * canon_type * type_expr * type_expr list	(** declaration of a canonical: name of canonical, type (fun or const name), return type, args type *)
 
 (** Get the name from a specification.
@@ -409,7 +404,6 @@ let name_of spec =
 	| RES (name) -> name
 	| EXN (name) -> name
 	| PARAM (name, _) -> name
-	| ENUM_POSS (name, _, _, _) -> name
 	| ATTR(a) ->
 		(match a with
 		| ATTR_EXPR(name, _) -> name
@@ -637,21 +631,6 @@ let attr_stack l= List.iter add_attr l
 		@param l	The list of attributes to remove.	*)
 let attr_unstack l= List.iter (StringHashtbl.remove syms) (List.map (fun x -> name_of (ATTR(x))) l)
 
-(**	This function is used to make the link between an ENUM_POSS and the corresponding ENUM.
-		It must be used because when the parser encounter an ENUM_POSS, it doesn't have reduce	(* a changer : stderr ? *)d the ENUM already.
-		The ENUM can be reduced only when all the ENUM_POSS have been.
-		So when reduced, the ENUM_POSS have an boolean attribute "completed" set at false and their enum attribute is empty.
-		When the ENUM is reduced, we fill the enum attribute to make the link, and set the "completed" to true
-
-		@param id	The id of the enum
-*)
-let complete_incomplete_enum_poss id =
-	StringHashtbl.fold (fun e v d-> match v with
-				ENUM_POSS (n,_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (n,id,t,true))
-				|_->d
-			) syms ()
-
-
 
 (* --- canonical functions --- *)
 
@@ -787,8 +766,8 @@ let output_type_expr out t =
 		output_string out "string"
 	| ENUM l->
 		output_string out "enum (";
-		Printf.fprintf out "%s" (List.hd (List.rev l));
-		List.iter (fun i->(Printf.fprintf out ",%s" i)) (List.tl (List.rev l));
+		Printf.fprintf out "%ld" (List.hd (List.rev l));
+		List.iter (fun i->(Printf.fprintf out ", %ld" i)) (List.tl (List.rev l));
 		output_string out ")"
 	| ANY_TYPE -> output_string out "any_type"
 
@@ -1216,9 +1195,6 @@ let output_spec out spec =
 
 	| ATTR (a) -> print_attr a;
 		()
-
-	| ENUM_POSS (name,s,_,_)->
-		Printf.fprintf out "possibility %s of enum %s\n" name s;
 
 	| CANON_DEF(name, kind, type_res, type_prms_list) ->
 		Printf.fprintf out "canon ";

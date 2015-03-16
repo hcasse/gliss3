@@ -180,14 +180,18 @@ TypeExpression ::=
 </code>
 
 In the following syntax definitions, ''IntegerExpression'' represents
-any SimNML expression statically evaluated to an integer value,
+any SimNML expression statically evaluated to an integer value and
 supporting only constants identifiers.
 
+==== Boolean Type ====
 
 <code>
 BoolType ::= 'bool'
 </code>
 ''BoolType'' is a simple boolean value with a bit value, 0 or 1.
+
+
+==== Integer Type ====
 
 The ''IntType'' represents a signed integer on N bits, represent in
 2's complement, ranging from -2<sup>N - 1</sup> to 2<sup>N - 1</sup> - 1.
@@ -195,17 +199,24 @@ The ''IntType'' represents a signed integer on N bits, represent in
 IntType ::= 'int' '(' N: IntegerExpression ')'
 </code>
 
+==== Cardinal Type ====
+
 The ''CardType'' represents an unsigned integer on N bits, ranging
 from 0 to 2<sup>N</sup> - 1.
 <code>
 CardType ::= 'card' '(' N: IntegerExpression ')'
 </code>
 
+==== Fixed Point Number Type ====
+
 The ''FixType'' represents real values with fixed point, composed
 of an integer part of I bits and a fractional part of F bits.
 <code>
 FixType ::= 'fix' '(' I: IntegerExpression ',' F: IntegerExpression ')'
 </code>
+
+
+==== Floating Point Number Type ====
 
 ''FloatType'' allows to represents real value code with floating points.
 The mantissa expends on M bits and the exponent on E bits (2's complement
@@ -217,17 +228,22 @@ FloatType ::= 'float' '(' M: IntegerExpression ',' E: IntegerExpression ')'
 IEEE-754 float and double types are represented, respectively, by
 ''float(23, 9)'' and ''float(52, 12)''.
 
+==== Range Type ====
+
 ''RangeType'' allows to define an integer value ranging from a lower
 bound L to an upper bound U (bounds included in the range).
 <code>
 RangeType ::= '[' L: IntegerExpression '..' U: IntegerExpression ']'
 </code>
 
-''EnumType'' is a type composed of a set of identifiers. First receives
-code 0 and each following identifiers receive following codes incremented
-by one.
+==== Enumerated Type ====
+
+''EnumType'' allows to describe sparse numeric domain by enumerating
+allowed values. ''enum'' list of value accepts simple constants
+or ranges of values separated by ''..'':
 <code>
-EnumType ::= 'enum' '(' Identifier (',' Identifier)* ')'
+EnumType ::= 'enum' '(' Value (',' Value)* ')'
+Value    ::= IntegerExpression | IntegerExpression '..' IntegerExpression
 </code>
 
 A ''NamedType'' refers to a previous definition of a type. The type
@@ -618,214 +634,18 @@ See chapter ''Statements'' for more details.
 
 ====== Expressions ======
 
-Expressions are used to compute new values from constants and machine state. They are used in different
-places of the languages and especially in the condition evaluation and in assignment instructions.
-The expression syntax follows.
-
-===== Syntax ===== 
-
-<code>
-Expression ::=
-	|	Reference
-	|	DottedReference
-	|	IndexedExpression
-	|	BitFieldExpression
-	|	UnaryExpression
-	|	BinaryExpression
-	|	CoerceExpression
-	|	CanonicalExpression
-	|	CoerceExpression
-	|	ParenthesisExpression
-	|	IfExpression
-	|	SwitchExpression
-</code>
-
-
-===== Reference =====
-
-<code>
-Reference ::= id: ID
-</code>
-
-This expression evaluates to the value of the matching attribute, constant, single-size register, variable
-or parameter. The type of this expression is the type of the accessed resource.
-
-
-===== Dotted Reference =====
-
-<code>
-DottedReference ::= pid: ID '.' cid: ID
-</code>
-
-The dotted form allows to access an attribute named //cid// from a mode or an operation designed by the parameter
-named //pid//. The result type is the type of the accessed resource.
-
-
-===== Indexed Expression =====
-
-<code>
-IndexedExpression ::= id: ID '[' index: Expression ']'
-</code>
-
-The bracked expression, between ''['' and '']'', provide access to the value contained in a register or a memory
-matching the given //index// expression. The //index// expression must be of type //int//, //card// or //range//.
-The result type is the type of the accessed resource.
-
-===== Bit Field Expression =====
-
-<code>
-BitFieldExpression ::= arg: Expression '<' up: Expression '..' lo: Expression '>'
-</code>
-
-The bit field access expression, between ''<'' and ''>'' symbols, provide access to the bit field whose
-lower index is //lo// and upper index (inclusive) is //up//. Both expression //lo// and //up// must be of type
-//int//, //card// or range. If //lo// is greater than //up//, the bit field is reversed. The default order
-for bit indexes is upper bit then lower bit but this convention may be revered using the ''bit_order'' constant.
-
-The result is of type //card// whose size is the difference between //up// and //lo// plus one.
-When the //up// or //lo// are not constants, the size is the size of //arg//.
-
-
-===== Unary Expression =====
-
-<code>
-UnaryExpression ::= op: UnaryOperator arg: Expression
-
-UnaryOperator ::= '!' | '~' | '-' | '+'
-</code>
-
-Unary expressions applies to the following expression argument:
-  * ''!'' -- logical NOT,
-  * ''~'' -- bit inversion,
-  * ''-'' -- integer negation,
-  * ''+'' -- identity.
-
-
-===== Binary Expression =====
-
-<code>
-BinaryExpression ::= arg1: Expression BinaryOperator arg2: Expression
-
-BinaryOperator ::=
-	| '+' | '-' | '*' | '/' | '%' | '**'
-	| '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '::'
-	| '&&' | '||'
-	| '==' | '!=' | '<' | '<=' | '>' | '>='
-</code>
-
-Binary operations applies to both preceeding and following expression arguments:
-  * ''+'' -- addition,
-  * ''-'' -- subtractions,
-  * ''*'' -- multiplication,
-  * ''/'' -- division,
-  * ''%'' -- modulo,
-  * ''**'' -- exponentiation,
-  * ''&'' -- bit-to-bit AND,
-  * ''|'' -- bit-to-bit inclusive OR,
-  * ''^'' -- bit-to-bit exclusive OR,
-  * ''<<'' -- left shift,
-  * ''>>'' -- right shift (signed or not depending on the first argument type),
-  * ''<<<'' -- left rotation,
-  * ''>>>'' -- right rotation,
-  * ''::'' -- bit concatenation (all arguments are automatically converted to //card//),
-  * ''&&'' -- logical AND with shortcut evaluation (second argument is not evaluated if the first is false),
-  * ''||'' -- logical OR with shortcut evaluation (second argument is not evaluated if the first is true),
-  * ''=='' -- equality test (returns 0 or 1),
-  * ''!='' -- inequality test (returns 0 or 1),
-  * ''<'' -- lesser-than test (returns 0 or 1),
-  * ''<='' -- lesser-or-equal test (returns 0 or 1),
-  * ''>'' -- greater-than test (returns 0 or 1),
-  * ''>='' -- greater-or-equal test (returns 0 or 1),
-
-
-===== Canonical Expression =====
-
-<code>
-CanonicalExpression ::= id: STRING '(' (Expression (',' Expression)*)? ')'
-</code>
-
-===== Coerce Expression =====
-
-<code>
-CoerceExpression ::= 'coerce' '(' Type ',' arg: Expression ')' 
-</code>
-
-The ''coerce'' function perform a type conversion of the //arg// expression into //type//.
-Depending on the type of //arg// and of //type// several operations may be applied
-trying to produce a value as close as possible in the converted type:
-  * float/fix to integer,
-  * integer to float/fix,
-  * sign extension,
-  * signed/unsigned to unsigned/signed,
-  * equality to 0 for boolean conversion.
-
-
-===== Parenthesis Expression =====
-
-<code>
-ParenthesisExpression ::= '(' Expression ')'
-</code>
-
-Parenthesis expressions allows only to manage priorities between operators.
-
-
-===== If Expression =====
-
-<code>
-IfExpression ::= 'if' cond: Expression 'then' arg1: Expression 'else' arg2: Expression 'endif'
-</code>
-
-Conditional ''if'' expression evaluates one of its two argument according to the evaluation
-of the condition //cond//. If //cond// produces a non-zero value, the ''then'' //arg1// expression
-is evaluated and its value returned. If //cond// produces a zero value, the ''else'' //arg2// expression
-is evaluated and provides the result value. Types of //arg1// and //arg2// must be of the same type.
-Else, the argument of smaller type is converted to the bigger type.
-
-
-===== Switch Expression =====
-
-<code>
-SwitchExpression ::= 'switch' '(' c: Expression ')' '{' ('case' Expression ':' Expression)* ('default' ':' Expression)? '}'
-</code>
-
-Conditional ''switch'' expression is even more complex. The condition //cond// is evaluated to an integer
-value and if a ''case'' first expression matches the condition values, the second expression is evaluared
-and returned as a result. If no case expression matches, the ''default'' expression, if available, is
-evaluated and returned. If no ''default'' expression is provided, the ''case'' first expressions must cover
-the whole range of values of //cond//. //cond// and first ''case'' expression must be integer types like
-//int//, //card//, //range// or //enumeration//. The second expression of cases and the default expression
-must be of same type or smaller types value will be converted in the bigger type.
-
-
-===== Priorities and Associativities =====
-
-The table below lists the operators and their associativity. In addition, the priority depends
-on the row order: operators with less priority first.
-
-^ Associativity ^ Operators ^
-| left |:: |
-| left |%%||%% |
-| left |&&	|
-| left |%%|%% |
-| left |%%^%% |
-| left |& |
-| left |==, != |
-| left |<, %%<=%%, >, >= |
-| left |<<, >>, <<<, >>> |
-| left |+, - |
-| left |*, /, % |
-| right	|%%**%% |
-| left |< .. > |
-
-
 SimNML expressions looks like, more or less, C expressions with
-some extensions to support easier handling of bit fields. Expression
-syntax is given below and detailed in the following paragraphs.
+some extensions to support easier handling of bit fields. They are used
+for value computation in assignment and format expression and as conditions
+in ''if'' and ''switch'' statementss and expression.
+
+Expression syntax is given below and detailed in the following paragraphs.
 
 <code>
 Expression ::=
 	| ConstantExpression
-	| IdentifierExpression
+	| ReferenceExpression
+	| DottedExpression
 	| UnaryExpression
 	| BinaryExpression
 	| BitFieldExpression
@@ -840,14 +660,14 @@ As usual, parentheses allows to cope with operator priority.
 //ConstantExpression// follows the same syntax as in the specification
 of constants.
 
-===== Identifier Expression =====
+===== Reference Expression =====
 
 An identifier expression allows to get value of a constant,
 a register, a memory or a variable. According to the type of the identified entity,
 it may be indexed or not.
 
 <code>
-IdentifierExpression ::=
+ReferenceExpression ::=
 	| Identifier
 	| Identifier '[' i: Expression ']'
 </code>
@@ -856,8 +676,20 @@ The indexing expression, //i//, must be of type integer between
 0 and the size of the register / memory / variable minus 1.
 Named constants does not support indexation.
 
+The result type is the type of the accessed resource.
 
-===== UnaryExpression =====
+
+===== Dotted Expression =====
+
+<code>
+DottedReference ::= pid: ID '.' cid: ID
+</code>
+
+The dotted form allows to access an attribute named //cid// from a mode or an operation designed by the parameter
+named //pid//. The result type is the type of the accessed resource.
+
+
+===== Unary Expression =====
 
 NML expressions support only four unary operations: identity ''+'',
 negation ''-'', bit inversion ''~'' and logical //NOT// ''!''.
@@ -881,7 +713,7 @@ type, it is automatically converted to boolean: //false// if it is equal
 to 0, //true// else.
 
 
-===== BinaryExpression =====
+===== Binary Expression =====
 
 There is a lot of binary operators. Whatever the operator, before
 the operation takes place, it may be an implicit converision of one
@@ -1081,7 +913,7 @@ One of //r// expressions is returned by the switch and, therefore,
 must be of the same type or, as needed, smaller type expressions
 are automatically converted to the bigger one.
 
-//c// expression must be numeric but no a float value.
+//c// expression must be numeric but not a float value.
 The //v// values must be integer and must evaluate as a constant.
 Either the set of //v// values must be equal to the set of values of //c//
 (and not default part is allowed), or a default part is required.
@@ -1090,8 +922,29 @@ Only the //r// expression whose //v// expression matches the //c// value
 is executed and its value returned. If there is a default part and no
 case //v// value matches //c//, this //r// is evaluated and returned.
 
+Notice that all //r// expressions must be of the same type.
 
 
+
+===== Priorities and Associativities =====
+
+The table below lists the operators and their associativity. In addition, the priority depends
+on the row order: operators with less priority first.
+
+^ Associativity ^ Operators ^
+| left |:: |
+| left |%%||%% |
+| left |&&	|
+| left |%%|%% |
+| left |%%^%% |
+| left |& |
+| left |==, != |
+| left |<, %%<=%%, >, >= |
+| left |%%<<%%, %%>>%%, %%<<<%%, %%>>>%% |
+| left |+, - |
+| left |*, /, % |
+| right	|%%**%% |
+| left |< .. > |
 
 
 ====== Statements ======
@@ -1145,10 +998,10 @@ AssignmentStatement ::=
 	Location '=' Expression ';'
 
 Location ::=
-	| Identifier										// f1
-	| Identifier '[' Expression ']'						// f2
-	| Location '<' Expression '..' Expression '>'		// f3
-	| Location '::' Location							// f4
+	| Identifier							// f1
+	| Identifier '[' Expression ']'					// f2
+	| Location '<' Expression '..' Expression '>'			// f3
+	| Location '::' Location					// f4
 </code>
  
 The expression is evaluated. Whatever the type of the location of the

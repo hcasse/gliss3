@@ -14,7 +14,7 @@ type R_NO_PC = [0 .. 14]
 op init()
 	action = { }
 
-op instruction = gen | single | multii | alone
+op instruction = gen | single | multii | alone | enum_in | enum_out
 
 op gen(r: R_NO_PC)
 	syntax = "gen"
@@ -38,3 +38,12 @@ op alone()
 	image = "0001 1100 1100 XXXX  XXXXXXXX XXXXXXXX"
 	action = { }
 
+op enum_in(r: enum(1, 3, 5))
+	syntax = "enum_in"
+	image = format("0010 %4b XXXXXXXX XXXXXXXX XXXXXXXX", r)
+	action = { }
+
+op enum_out()
+	syntax = "enum_out"
+	image = "0010 0010 XXXXXXXX XXXXXXXX XXXXXXXX"
+	action = { }
