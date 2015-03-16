@@ -676,6 +676,14 @@ let extend_range l u =
 	else CARD (get_type_length (RANGE (l, u)))
 
 
+(** Build an extended type, either card, or int
+	containing the given enumerated values.
+	@param l	List of enumerated values.
+	@return		Extended int or card type. *)
+let extend_enum l =
+	extend_range (List.nth l 0) (List.nth l ((List.length l) - 1))
+
+
 (** Perform automatic-coercition between numeric types, coercing to bigger type.
 	If coercition is not possible, result type is NO_TYPE.
 	@param e1	First expression.
@@ -684,7 +692,6 @@ let extend_range l u =
 let rec num_auto_coerce e1 e2 =
 	let t1 = get_type_expr e1 in
 	let t2 = get_type_expr e2 in
-	if t1 = t2 then (t1, e1, e2) else
 
 	match t1, t2 with
 	(* any type support *)
@@ -695,8 +702,7 @@ let rec num_auto_coerce e1 e2 =
 	| BOOL, INT _
 	| BOOL, CARD _
 	| BOOL, FLOAT _
-	| BOOL, RANGE _
-	| BOOL, ENUM _					-> (t2, COERCE(t2, e1), e2)
+	| BOOL, RANGE _					-> (t2, COERCE(t2, e1), e2)
 
 	(* INT base *)
 	| INT _, BOOL 					-> (t1, e1, COERCE(t1, e2))
@@ -706,7 +712,6 @@ let rec num_auto_coerce e1 e2 =
 	| INT n1, CARD n2				-> (INT(n2), COERCE(INT(n2), e1), COERCE(INT(n2), e2))
 	| INT _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
 	| INT _, RANGE (l, u)			-> num_auto_coerce e1 (COERCE(extend_range l u, e2))
-	| INT _, ENUM _					-> (t1, e1, COERCE(t1, e2))
 
 	(* CARD base *)
 	| CARD _, BOOL 					-> (t1, e1, COERCE(t1, e2))
@@ -716,7 +721,6 @@ let rec num_auto_coerce e1 e2 =
 	| CARD n1, CARD n2				-> (t1, e1, COERCE(t1, e2))
 	| CARD _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
 	| CARD _, RANGE (l, u)			-> num_auto_coerce e1 (COERCE(extend_range l u, e2))
-	| CARD _, ENUM _				-> (t1, e1, COERCE(t1, e2))
 
 	(* FLOAT base *)
 	| FLOAT _, BOOL
@@ -726,17 +730,20 @@ let rec num_auto_coerce e1 e2 =
 		when n1 + m1 > n2 + m2 		-> (t1, e1, COERCE(t1, e2))
 	| FLOAT (n1, m1), FLOAT (n2, m2)
 	 								-> (t2, COERCE(t2, e1), e2)
-	| FLOAT _, RANGE _
-	| FLOAT _, ENUM _				-> (t1, e1, COERCE(t1, e2))
+	| FLOAT _, RANGE _				-> (t1, e1, COERCE(t1, e2))
 
 	(* range base type *)
 	| RANGE(l, u), INT _
 	| RANGE(l, u), CARD _
 	| RANGE(l, u), FLOAT _			-> num_auto_coerce (COERCE(extend_range l u, e1)) e2
-	| RANGE(l, u), RANGE(l', u')	-> num_auto_coerce (COERCE(extend_range l u, e1)) (COERCE(extend_range l' u', e2))   
+	| RANGE(l, u), RANGE(l', u')	-> num_auto_coerce (COERCE(extend_range l u, e1)) (COERCE(extend_range l' u', e2))
+	
+	(* enum type *)
+	| ENUM l1, _					-> num_auto_coerce (COERCE (extend_enum l1, e1)) e2  
+	| _, ENUM l2					-> num_auto_coerce e1 (COERCE (extend_enum l2, e2))  
 
 	(* incompatible case *)
-	| _								-> (NO_TYPE, NONE, NONE)
+	| _								-> 	if t1 = t2 then (t1, e1, e2) else (NO_TYPE, NONE, NONE)
 
 
 (** Display type error for two-operand operation.
