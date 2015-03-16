@@ -585,13 +585,19 @@ and get_type_expr exp =
 	| CAST(t, _) 						-> t
 
 
+(** Return the minimum number of bits to represent value n.
+	@param n	Considered value (n must be positive).
+	@return		Number of required value. *)
+let bits_for n =
+	int_of_float (ceil ((log (float (Int32.to_int n))) /. (log 2.)))
+
+
 (** Give the bit length of a type expression
 	@param t		the type expression of which we want the size
 	@return 		the bit-length of the expression (as an iteger)
 	@raise Failure	this exception is raised when it is not possible
 					to determine the length (for expressions of type NO_TYPE,
-					STRING or UNKNOW_TYPE)
-*)
+					STRING or UNKNOW_TYPE) *)
 let get_type_length t =
 	match t with
 	| BOOL -> 1
@@ -602,8 +608,12 @@ let get_type_length t =
 	| ENUM l ->
 		let i = List.length l in
 		int_of_float (ceil ((log (float i)) /. (log 2.)))
-	| RANGE (_, m) ->
-		int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
+	| RANGE (l, u) ->
+		if (Int32.compare l Int32.zero) >= 0 then bits_for u else
+		let l = Int32.abs l in
+		if (Int32.compare l u) < 0 then (bits_for u) + 1 else
+		let s = bits_for l in
+		if l = (Int32.shift_left Int32.one (s - 1)) then s else s + 1
 	| NO_TYPE
 	| STRING
 	| ANY_TYPE ->
@@ -657,17 +667,28 @@ let get_unop e uop =
 	UNOP (t, uop, e)
 
 
+(** Build an extended type, either card, or int
+	containing the given range.
+	@param l	Low value of range.
+	@param u	Upper value of range.
+	@return		Matching int or card type. *)
+let extend_range l u =
+	if (Int32.compare l Int32.zero) < 0
+	then INT (get_type_length (RANGE (l, u)))
+	else CARD (get_type_length (RANGE (l, u)))
+
+
 (** Perform automatic-coercition between numeric types, coercing to bigger type.
 	If coercition is not possible, result type is NO_TYPE.
 	@param e1	First expression.
 	@param e2	Second expression.
 	@return		(result type, coerced first expression, coerced second expression) *)
-let num_auto_coerce e1 e2 =
+let rec num_auto_coerce e1 e2 =
 	let t1 = get_type_expr e1 in
 	let t2 = get_type_expr e2 in
 	if t1 = t2 then (t1, e1, e2) else
-	match t1, t2 with
 
+	match t1, t2 with
 	(* any type support *)
 	| ANY_TYPE, _
 	| _, ANY_TYPE					-> (ANY_TYPE, e1, e2)			
@@ -686,7 +707,7 @@ let num_auto_coerce e1 e2 =
 	| INT n1, CARD n2 when n1 >= n2	-> (t1, e1, COERCE(t1, e2))
 	| INT n1, CARD n2				-> (INT(n2), COERCE(INT(n2), e1), COERCE(INT(n2), e2))
 	| INT _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
-	| INT _, RANGE _				-> (t1, e1, COERCE(t1, e2))
+	| INT _, RANGE (l, u)			-> num_auto_coerce e1 (COERCE(extend_range l u, e2))
 	| INT _, ENUM _					-> (t1, e1, COERCE(t1, e2))
 
 	(* CARD base *)
@@ -696,7 +717,7 @@ let num_auto_coerce e1 e2 =
 	| CARD n1, CARD n2 when n1 < n2 -> (t2, COERCE(t2, e1), e2)
 	| CARD n1, CARD n2				-> (t1, e1, COERCE(t1, e2))
 	| CARD _, FLOAT _				-> (t2, COERCE(t2, e1), e2)
-	| CARD _, RANGE _				-> (t1, e1, COERCE(t1, e2))
+	| CARD _, RANGE (l, u)			-> num_auto_coerce e1 (COERCE(extend_range l u, e2))
 	| CARD _, ENUM _				-> (t1, e1, COERCE(t1, e2))
 
 	(* FLOAT base *)
@@ -710,8 +731,14 @@ let num_auto_coerce e1 e2 =
 	| FLOAT _, RANGE _
 	| FLOAT _, ENUM _				-> (t1, e1, COERCE(t1, e2))
 
+	(* range base type *)
+	| RANGE(l, u), INT _
+	| RANGE(l, u), CARD _
+	| RANGE(l, u), FLOAT _			-> num_auto_coerce (COERCE(extend_range l u, e1)) e2
+	| RANGE(l, u), RANGE(l', u')	-> num_auto_coerce (COERCE(extend_range l u, e1)) (COERCE(extend_range l' u', e2))   
+
 	(* incompatible case *)
-	| _								-> (NO_TYPE, NONE, NONE)		
+	| _								-> (NO_TYPE, NONE, NONE)
 
 
 (** Display type error for two-operand operation.
@@ -1801,7 +1828,7 @@ let get_data_info id =
 	let named_type pid id =
 		match get_symbol id with
 		| TYPE (_, t) 	-> t
-		| UNDEF _
+		| UNDEF
 		| AND_MODE _
 		| OR_MODE _ 	-> ANY_TYPE
 		| AND_OP _

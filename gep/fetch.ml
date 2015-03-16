@@ -579,8 +579,15 @@ let remove_ranges iset =
 	
 	let count_range (_, t) =
 		match Sem.get_expr_from_type t with
-		| Irg.RANGE (l, u) -> Int32.add Int32.one (Int32.sub u l) 
-		| _ -> Int32.one in
+		| Irg.RANGE (l, u)	-> (true, Int32.add Int32.one (Int32.sub u l)) 
+		| _					-> (false, Int32.one) in
+
+	let rec count_ranges r c pars =
+		match pars with
+		| [] -> (r, c)
+		| h::t ->
+			let (r', c') = count_range h in
+			count_ranges (r || r') (Int32.mul c c') t in 
 
 	let to_bin v l =
 		let rec compute v l r =
@@ -597,9 +604,8 @@ let remove_ranges iset =
 		Pqmc.compute_primes (enum_range [] l u n) in
 	
 	let finalize (id, params, attrs) fmts args =
-		List.map 
-			(fun f -> Irg.AND_OP (id, params, Irg.set_attr
-				(Irg.ATTR_EXPR ("image", Irg.FORMAT(f, (List.rev args)))) attrs))
+		List.map (fun f -> Irg.AND_OP (id, params,
+							Irg.set_attr (Irg.ATTR_EXPR ("image", Irg.FORMAT(f, (List.rev args)))) attrs))
 			fmts  in
 
 	let concat strs str =
@@ -620,6 +626,7 @@ let remove_ranges iset =
 			(match Irg.escape_eline iarg with
 			| Irg.REF (_, id) ->
 				(match Sem.get_type_ident id with
+				| Irg.ANY_TYPE	-> assert false
 				| Irg.RANGE (l, u)
 								-> scan spec ifmt iargs (mult fmts (f l u (Sem.image_escape_size s))) args f
 				| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
@@ -634,14 +641,14 @@ let remove_ranges iset =
 	let look res inst =
 		match inst with
 		| Irg.AND_OP (id, params, attrs) ->
-			(match (Irg.attr_expr "image" attrs Irg.NONE) with
+			(match (Irg.escape_eline (Irg.attr_expr "image" attrs Irg.NONE)) with
 			| Irg.FORMAT(fmt, args) ->
-				let c = List.fold_left (fun c p -> Int32.mul c (count_range p)) Int32.one params in
-				if Int32.one = c then inst::res else
+			let (r, c) = count_ranges false Int32.one params in
+				if not r then inst::res else
 				let f = if (Int32.compare c pqmc_threshold) >= 0 then min_range else (enum_range []) in
 				let r = transform id params attrs fmt args f in
 				r @ res
-			| _ -> inst :: res)
+			| e -> inst :: res)
 		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in  
 			
 	let rec process res lst =
@@ -649,11 +656,7 @@ let remove_ranges iset =
 		| [] -> res
 		| h::t -> process (look res h) t in
 	
-	(*Printf.printf "start range\n"; flush stdout;*)
-	let r = process [] iset in
-	(*Printf.printf "end range\n"; flush stdout;*)
-	(*List.iter Irg.print_spec r;*)
-	r
+	process [] iset
 
 
 (** output a table C decl, if idx >= 0 table name will be suffixed
