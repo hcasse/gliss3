@@ -113,5 +113,22 @@ div.toc tt {
 	padding: 0;
 }
 
-
+/* table */
+table {
+	border: 1px solid #33CCCC;
+	border-spacing: 0px;
+	border-collapse: collapse;
+	margin-bottom: 1em;
+	margin-left: auto;
+  	margin-right: auto;
+}
+th, td {
+	padding: 2px;
+	border: 1px solid #33CCCC;
+	border-spacing: 0px;
+	border-collapse: collapse;
+}
+th {
+	background-color: #3BEEEE;
+}
 

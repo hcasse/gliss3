@@ -209,6 +209,21 @@ op THUMB_instr = ... // (tree of ARM instructions)
 </code>
 
 
+===== Branch Instruction Optimizations =====
+
+The branch attribute is not mandatory but will allow GEP to optimize generated code.
+When adding to an instruction statement:
+<code>
+set_attr_branch = 1 
+</code>
+
+This attribute tells to the simulator generator that the instruction describde a branch instruction
+(wether it is a conditionnal jump or not). Be carreful to not forget a branch instruction because
+GEP won't be able to see it. However, as long as you are not using GEP option '-gen-with-trace'
+such error will have no effect. To learn more about optimizing output code and the option '-gen-with-trace',
+see section "Optimisations".
+
+
 
 ===== Debugger Support =====
 

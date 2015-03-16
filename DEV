@@ -1,0 +1,132 @@
+====== GLISS2 Development Notes ======
+
+===== Unsupported Syntax =====
+
+From "The nML Machine Description Formalism", M. Freericks, 1993.
+
+  * ''**'' -- power,
+  * ''^^'' -- logical exclusive OR,
+  * ''sign()'' -- function (0 positive, 1 negative)
+  * ''switch'' ... ''case'' ... ''default'' ... ''end''
+  * ''if'' ... ''then'' ... ''else'' ... ''end''
+  * type ''('' expr '')'' -- coerce like syntax,
+  * ''undefined(type)'' -- undefined value?
+  * ''mant'', ''expr'', ''mkfloat'' -- for floating-point
+  * ''canonical''("name", arguments)
+  * ''div'', ''mod''
+  * ''mem'' with not-power of two size!
+  * same keyword for memory and registers?
+  * execs -- mem v[1, exec] init = { }, supports assignment and ''exec'' execution
+    (What's about dependency on instructions parameters? -> function closure)
+    -> optional features?
+  * ''not''
+  * ''cast''(type, value) -- bit-to-bit conversion,
+  * ''bits''(value) -- size in bits,
+  * ''error'' -- unspecified state machine,
+  * ''undefined'' -- undefined value.
+  * canonical with multiple return values (tuples ?)
+  * on memory ''alignment''=size or ''alignment''=true, error on on-aligned
+  * let byte_order = "3412"
+  * ''program_memory'' attribute on memories
+  
+
+===== SimNML Abstract Syntax =====
+
+ISA:	(ID x Spec)*
+
+Spec:
+	|	and_mode(Expr, (ID x Type x Param)*, (ID x Attr)*)
+	|	or_mode(ID*)
+	|	and_op((ID x Type x Param)*, (ID x Attr)*)
+	|	or_op(ID*)
+	|	let(Expr)
+	|	type(Type)
+	|	canon(Type, Type*)
+	|	value(Type, N)
+
+Type:
+	|	no_type
+	|	bool
+	|	card(N)
+	|	int(N)
+	|	float(N, N)
+	|	fixed(N, N)
+	|	ref(ID)
+	|	range(N, N)
+	|	enum(ID*)
+	|	any_type
+
+Expr:
+	|	nothing
+	|	const(Type, N U R)
+	|	ref(Type, ID)
+	|	unop(Type, Unop, Expr)
+	|	binop(Type, Binop, Expr)
+	|	indexed(Type, ID, Expr)
+	|	item(ID, ID)
+	|	field(Type, Expr, Expr, Expr)
+	|	concat(Type, Expr, Expr)
+	|	coerce(Type, Expr)
+	|	format(STRING, Expr*)
+	|	ife(Expr, Expr, Expr)
+	|	switche(Expr, (Expr x Expr)*, Expr)
+
+Stmt:
+	|	nop
+	|	set(Loc, Expr)
+	|	seq(Stmt, Stmt)
+	|	if(Expr, Stmt, Stmt)
+	|	switch(Expr, (Expr x Stmt)*, Stmt)
+
+Loc:
+	|	refl(Type, ID)
+	|	fieldl(Type, Loc, Expr, Expr)
+	|	concatl(Type, Loc, Loc)
+
+Attr:	Expr U Stmt U Loc
+
+
+===== Generation Process =====
+
+  - parsing (PF) -- produces an IRG representation (mostly bijective with the sources), instruction stays in their source original form;
+  - instantiation (IF) -- the actual whole set of instructions (WSI) is generated, mode and operation parameters are developed to the leaf actual parameters;
+  - generation (GF) -- GEP works mainly as a templater system taking as input the IRG and the WSI to generate files for the simulator.
+
+The generation phase involves lot of transformation and analysis of the IRG and WSI:
+  * building the fetch tree (to find back quickly the instruction identifier),
+  * building the decoding functions (that extracts parameters from the instruction in binary form) and may involve complex parameter decoding,
+  * simulation code generation that translate SimNML action to C code requiring support of bit operations, functional expressions, aliasing support, type equivalence, type operation translation, etc.
+ 
+
+===== Typing System =====
+
+Typing must be checked as soon as possible in the compilation process to maintain the error flow
+synchronized with the source (for the human user understanding). Yet, SimNML may prevent this
+as symbols like modes or operations may not be declared before being used, especially for OR modes
+or operations whose references are usually put after.
+
+Therefore, two typing phases would be valuable:
+  * during front-end, but partial as some types are not available at this time (creation of any_type typing),
+  * after front-end, once all types are defined.
+
+The second phase is not very well supported by the current GLISS version and should be applied
+after the building of all instructions (instantiation of parameters).
+  
+
+===== Identification Generation Process =====
+
+Identifier is derived from "syntax" attribute taking
+the format or the string and performing transformations below
+to get a valid C identifier:
+
+^ Input ^ Output ^
+| ' ' | "_" |
+| '\t' | "_" |
+| '#' | "_I" |
+| ',' | "_" |
+| '{' | "_LB_" |
+| '}' | "_RB_" |
+...
+
+
+
