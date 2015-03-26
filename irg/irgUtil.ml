@@ -200,7 +200,7 @@ let load_with_error_support path =
 		output_char stderr '\n';
 		exit 2
 	| Irg.PreError f ->
-		Printf.fprintf stderr "%s: " (Lexer.current_loc ());
+		Printf.fprintf stderr "ERROR:%s: " (Lexer.current_loc ());
 		f stderr;
 		output_char stderr '\n';
 		exit 2		

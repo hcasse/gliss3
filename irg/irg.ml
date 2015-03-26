@@ -170,6 +170,13 @@
 	where they are declared. The following functions may be used:
 	- {!error_symbol} name f - raise an error that displays source information of named symbol and message from f.
 	- {!error_spec} spec f - raise an error that displays source information of the given specification and message from f.
+	
+	{2 Useful constants}
+	
+	This constants provides useful intermediate representations construction.
+	- {!ieee754_32} IEEE-754 binary32 type
+	- {!ieee754_64} IEEE-754 binary64 type
+	- {!ieee754_128} IEEE-754 binary128 type
 *)
 
 
@@ -265,6 +272,16 @@ type type_expr =
 	| STRING					(** string uniquely used for disassembly *)
 	| ENUM of int32 list		(** (list of values) enumerated type *)
 	| ANY_TYPE					(** used to represent a variable type (usually induced by OR-mode or operations *)
+
+
+(** Float type for IEEE-754 binary32 *)
+let ieee754_32 = FLOAT (8, 23)
+
+(** Float type for IEEE-754 binary64 *)
+let ieee754_64 = FLOAT (11, 52)
+
+(** Float type for IEEE-754 binary128 *)
+let ieee754_64 = FLOAT (15, 112)
 
 
 (** Use of a type *)

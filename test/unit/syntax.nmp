@@ -1,15 +1,17 @@
 
 let proc="mine"
 
-reg pc[1, card(32)] __attr(pc)
+reg pc[1, card(32)] is_pc = 1
 
 op instruction(i: ops)
 	syntax = i.syntax
 
-op ops = op1 | op2
+op ops = op1 | op2 | op3 | op4
 
 op op1(p: card(1))
 	syntax = if p then "push" else "pop" endif
+	image = format("0001 000%1b", p)
+	action = { }
 
 op op2(c: card(2))
 	syntax = switch(c) {
@@ -18,3 +20,20 @@ op op2(c: card(2))
 		case 2: "2"
 		case 3: "3"
 		}
+	image = format("0010 00%2b", c)
+	action = { }
+
+op op3(p: [2..5])
+	syntax = format("op3 %d", p)
+	image = format("0011 0%3b", p)
+	action = { }
+
+mode m(a: card(2)) = a
+	syntax = format("%d", a)
+	image = format("%2b", a)
+
+op op4(p: m)
+	syntax = format("op4 %s", p)
+	image = format("0100 %s", p)
+	action = { }
+

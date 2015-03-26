@@ -77,6 +77,9 @@
 	- {!check_stat_inst}
 	- {!check_switch_expr}
 	- {!check_unop}
+	- {!coerce_to_float} ensure coercion of expression to float
+	- {!coerce_to_int} ensure coercion of expression to integer
+	- {!coerce_to_string} ensure coercion of expression to string
 	- {!get_expr_from_type} to get type expression from a type description (resolve symbolic type).
 	- {!get_field_type}
 	- {!get_length_from_expr}
@@ -117,6 +120,7 @@
 	{2 Utility Functions}
 	
 	- {!attr_int} obtain an integer from an expression attribute.
+	- {!warn} display a warning.
 	
 	{2 Functions that should move}
 	- {!change_string_dependences} to iter module.
@@ -128,6 +132,13 @@
 
 open Irg
 open Printf
+
+(** Display a warning at the current source line.
+	@param f	Function to display warning. *)
+let warn f =
+	Printf.fprintf stderr "WARNING:%s:%d: " !(Lexer.file) !(Lexer.line);
+	f stderr
+	
 
 (** False value. *)
 let false_const = CARD_CONST Int32.zero
@@ -684,6 +695,59 @@ let extend_enum l =
 	extend_range (List.nth l 0) (List.nth l ((List.length l) - 1))
 
 
+(** Ensure that the given expression is coerced to int (if it could be).
+	@param e		Expression to coerce to.
+	@param t		Preferred type for coercition.
+	@return			(natural coercition, coerced expression to int or NONE (if coercition is impossible)). *)
+let coerce_to_int e t =
+	match get_type_expr e with
+	| NO_TYPE
+	| STRING		-> (false, NONE)		
+	| BOOL
+	| FIX _		
+	| FLOAT _		-> (false, COERCE(t, e))
+	| CARD _
+	| INT _
+	| ANY_TYPE		-> (true, e)
+	| RANGE (l, u)	-> (true, COERCE(extend_range l u, e))
+	| ENUM l		-> (true, COERCE(extend_enum l, e))
+
+
+(** Ensure that the given expression is coerced to float (if it could be).
+	@param e		Expression to coerce to.
+	@param t		Preferred type for coercition.
+	@return			(natural coercition, coerced expression to int or NONE (if coercition is impossible)). *)
+let coerce_to_float e t =
+	match get_type_expr e with
+	| NO_TYPE
+	| STRING		-> (false, NONE)
+	| BOOL
+	| INT _
+	| CARD _
+	| ENUM _
+	| RANGE _		-> (false, COERCE(t, e))
+	| FLOAT _
+	| FIX _
+	| ANY_TYPE		-> (true, e)
+
+
+(** Ensure that the given expression is coerced to string (if it could be).
+	@param e		Expression to coerce to.
+	@return			(natural coercition, coerced expression to int or NONE (if coercition is impossible)). *)
+let coerce_to_string e =
+	match get_type_expr e with
+	| NO_TYPE		-> (false, NONE)
+	| STRING
+	| ANY_TYPE		-> (true, e)
+	| BOOL
+	| INT _
+	| CARD _
+	| ENUM _
+	| RANGE _
+	| FLOAT _
+	| FIX _			-> (false, NONE)
+
+	
 (** Perform automatic-coercition between numeric types, coercing to bigger type.
 	If coercition is not possible, result type is NO_TYPE.
 	@param e1	First expression.
@@ -1194,44 +1258,45 @@ let get_all_ref str =
 
 
 (** Create a FORMAT operation and check if it is well written
-	@param str	The string to print
-	@param exp_list	The list of parameters to be used as variables in str
-	@return A FORMAT expression
+	@param fmt			The string to print
+	@param exp_list		The list of parameters to be used as variables in str (reversed order).
+	@return				Format expression.
 	@raise SemError 	Raised when the parameters are incorrect
 *)
-let build_format str exp_list=
+let build_format fmt exp_list =
 
-	let ref_list = get_all_ref str in
+	let rec check_arg n fmt arg =
+		let (nat, arg) =
+			match Str.last_chars fmt 1 with
+			| "d" 	-> coerce_to_int arg (INT(32))
+			| "u" 	-> coerce_to_int arg (CARD(32))
+			| "s"	-> coerce_to_string arg
+			| "b" 	-> (true, arg)
+			| "x" 	-> coerce_to_int arg (CARD(32))
+			| "f" 	-> coerce_to_float arg ieee754_64
+			| "l"	(* deprecated *)
+			| "@"	-> coerce_to_int arg (INT(32))
+			| _		-> failwith "internal error : build_format" in
+		if arg == NONE then 
+			error (output [
+					PTEXT (sprintf "incorrect type at argument %d in format \"%s\".\n" n fmt);
+					PTEXT "\tArgument "; PEXPR arg; PTEXT " of type "; PTYPE (get_type_expr arg);
+					PTEXT " does not match format "; PTEXT fmt])
+		else begin
+			(if not nat then
+				warn (output [PTEXT "possible inconsistency between format '"; PTEXT fmt; PTEXT "' and argument "; PEXPR arg]));
+			arg
+		end in
 
-	if (not (List.length ref_list = List.length exp_list)) || List.length exp_list = 0	(* it is not allowed to use format for printing a string without at least one variable *)
-		then
-			pre_error "incorrect number of parameters in format"
-		else
-			let test_list = List.map2 (fun e_s e_i ->	(* here we check if all variables are given a parameter of the good type *)
-					if (get_type_expr e_i=ANY_TYPE) then true else
-					match Str.last_chars e_s 1 with
-					| "d" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
-					| "u" -> (match (get_type_expr e_i) with (CARD _|INT _) -> true | _ -> false)
-					| "b" -> true
-					| "x" -> (match (get_type_expr e_i) with (CARD _|INT _)->true | _ -> false)
-					| "s" -> true
-					| "f" -> (match (get_type_expr e_i) with (FLOAT _) -> true | _ -> false)
-					| "l" -> (match (get_type_expr e_i) with INT _ | CARD _ -> true | _ -> false)
-					| _ -> failwith "internal error : build_format"
-				) ref_list exp_list in
-			let rec find x n l =
-				match l with
-				| [] -> -1
-				| h::t when h = x -> n
-				| _::t -> find x (n + 1) t in
-			if List.for_all (fun e -> e) test_list
-			then FORMAT (str, (List.rev exp_list))
-			else
-				let n = find false 1 test_list in
-				error (output [
-						PTEXT (sprintf "incorrect type at argument %d in format \"%s\"" ((List.length test_list) - n) str);
-						PTEXT "Argument "; PEXPR (List.nth exp_list n); PTEXT " of type "; PTYPE (get_type_expr (List.nth exp_list n));
-						PTEXT " does not match format "; PTEXT (List.nth ref_list n)])
+	let rec check_args n escs args =
+		match (escs, args) with
+		| [], []		-> []
+		| [], _ 		-> pre_error "too many arguments in format"
+		| _, []			-> pre_error "not enought arguments in format"
+		| e::et, a::at	-> (check_arg n e a) :: (check_args (n + 1) et at) in
+
+	let ref_list = get_all_ref fmt in
+	FORMAT (fmt, List.rev (check_args 1 ref_list exp_list))
 
 
 (** This function check if the paramters of a canonical function are correct

@@ -68,7 +68,8 @@ let rec gen_disasm info inst expr =
 			(match fmt.[i + 1] with
 			| 's' ->
 				Irg.SEQ (format fmt (List.rev used) s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
-			| 'l' ->
+			| '@'
+			| 'l' ->	(* Deprecated *)
 				scan (change_l fmt (i + 1)) tl s ((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [hd]))::used) (i + 2)
 			| '%' ->
 				scan fmt args s used (i + 2)
