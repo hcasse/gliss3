@@ -67,7 +67,7 @@ let rec gen_disasm info inst expr =
 			if i + 1 >= String.length fmt then format fmt used s i else
 			(match fmt.[i + 1] with
 			| 's' ->
-				Irg.SEQ (format fmt used s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
+				Irg.SEQ (format fmt (List.rev used) s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
 			| 'l' ->
 				scan (change_l fmt (i + 1)) tl s ((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [hd]))::used) (i + 2)
 			| '%' ->
