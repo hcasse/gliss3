@@ -9,7 +9,7 @@
 extern char **environ;
 
 /*** GLISS2 simulator ***/
-ppc_sim_t *sim = 0;
+ppc_sim_t *iss = 0;
 ppc_state_t *state = 0, *save_state = 0;
 ppc_platform_t *platform = 0;
 ppc_loader_t *loader = 0;
@@ -102,8 +102,8 @@ int gliss2_prepare(int argc, char **argv) {
 	}
 
 	/* make the simulator */
-	sim = ppc_new_sim(state, addr_start, addr_exit);
-	if (sim == NULL) {
+	iss = ppc_new_sim(state, addr_start, addr_exit);
+	if (iss == NULL) {
 		fprintf(stderr, "ERROR: no more resources\n");
 		return 2;
 	}
@@ -128,7 +128,7 @@ int gliss2_prepare(int argc, char **argv) {
 }
 
 void gliss2_cleanup(void) {
-	ppc_delete_sim(sim);
+	ppc_delete_sim(iss);
 }
 
 void gliss2_step(void) {
@@ -140,11 +140,11 @@ void gliss2_step(void) {
 	save_state = ppc_copy_state(state);
 
 	/* simulate */
-	ppc_step(sim);
+	ppc_step(iss);
 }
 
 int gliss2_ended(void) {
-	return ppc_is_sim_ended(sim);
+	return ppc_is_sim_ended(iss);
 }
 
 

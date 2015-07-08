@@ -30,7 +30,7 @@ int display_full_dumps;
 PROC(_state_t) * real_state;
 PROC(_inst_t) *curinstr;
 PROC(_platform_t) *platform;
-PROC(_sim_t) *sim;
+PROC(_sim_t) *iss;
 
 
 pid_t drive_gdb_pid;
@@ -164,7 +164,7 @@ void disasm_error_report(char * drive_gdb_reply_buffer, PROC(_state_t) * state, 
 		int n = 0;
 		while (n < cpt)
 		{
-			PROC(_inst_t) *inst = PROC(_decode)(sim->decoder, gliss_pc + (n<<2) /* for RISC 32 bit ISA */);
+			PROC(_inst_t) *inst = PROC(_decode)(iss->decoder, gliss_pc + (n<<2) /* for RISC 32 bit ISA */);
 			PROC(_disasm)(dis, inst);
 			printf("%08X  \"%s\"\n", gliss_pc + (n<<2), dis);
 			PROC(_free_inst)(inst);
@@ -198,8 +198,8 @@ int init_gliss(char * drive_gdb_reply_buffer)
 	}
 
 	/* make the simulator */
-	sim = PROC(_new_sim)(real_state, 0, 0);
-	if (sim == NULL) {
+	iss = PROC(_new_sim)(real_state, 0, 0);
+	if (iss == NULL) {
 		fprintf(stderr, "ERROR: no more resources\n");
 		exit(2);
 	}
@@ -318,7 +318,7 @@ int main(int argc, char ** argv)
 	init_gdb_regs(drive_gdb_reply_buffer);
 
 	instr_count = 0;
-	curinstr = PROC(_decode)(sim->decoder, real_state->PC);
+	curinstr = PROC(_decode)(iss->decoder, real_state->PC);
 	read_vars_this_instruction(drive_gdb_reply_buffer);
 	compare_regs_this_instruction(drive_gdb_reply_buffer, real_state, curinstr, instr_count);
 	PROC(_free_inst)(curinstr);
@@ -387,8 +387,8 @@ int main(int argc, char ** argv)
 			exit(1);
 		}
 
-		curinstr = PROC(_decode)(sim->decoder, real_state->PC);
-		PROC(_step)(sim);
+		curinstr = PROC(_decode)(iss->decoder, real_state->PC);
+		PROC(_step)(iss);
 		
 		read_vars_this_instruction(drive_gdb_reply_buffer);
 		if (! stall_gdb)

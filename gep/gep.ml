@@ -91,11 +91,11 @@ let options = [
 	("-a",   Arg.String (fun a -> sources := a::!sources), "add a source file to the library compilation");
 	("-S",   Arg.Set     sim, "generate the simulator application");
 	("-D",   Arg.Set     decode_arg, "activate complex arguments decoding");
-	("-gen-with-trace", Arg.Set gen_with_trace, 
+	("-gen-with-trace", Arg.Set gen_with_trace,
         "Generate simulator with decoding of dynamic traces of instructions (faster). module decode_dtrace must be used with this option" );
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
 		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
-	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)), 
+	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)),
 		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
 	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch");
@@ -125,9 +125,9 @@ let get_source f dict source =
 	f (("path", App.out (fun _ -> source)) :: dict)
 
 
-(** find the first least significant bit set to one 
-    @param mask      the mask to parse 
-    @return the indice of the first least significant bit 
+(** find the first least significant bit set to one
+    @param mask      the mask to parse
+    @return the indice of the first least significant bit
 *)
 let find_first_bit mask =
   let rec aux index shifted_mask =
@@ -185,7 +185,7 @@ let decoder_CISC info inst idx sfx out =
 		Printf.fprintf out "__EXTS%s(&mask%d, code_inst%s, %d)" suffix idx suffix_code n in
 	match Sem.get_type_ident (fst (List.nth (Iter.get_params inst) idx)) with
 	| Irg.INT n when n <> 8 && n <> 16 && n <> 32 -> exts n
-	| _ -> extract () 
+	| _ -> extract ()
 
 
 (** Decoder for complex parameters.
@@ -226,13 +226,13 @@ let output_decoder_complex info inst idx sfx size is_risc out =
 			Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP e)) false;
 			info.Toc.out <- o
 		in
-		let rec get_str e =
+		(*let rec get_str e =
 			match e with
 			| Irg.FORMAT(str, _) -> str
 			| Irg.CONST(Irg.STRING, Irg.STRING_CONST(str)) -> str
 			| Irg.ELINE(_, _, e) -> get_str e
 			| _ -> ""
-		in
+		in*)
 		(* decode every format param once in one pass for each instr *)
 		if (fst !inst_decode_arg) <> inst then
 			(let rec aux n =
@@ -309,7 +309,7 @@ let make_env info =
 			(fun min inst ->
 				let size = Iter.get_instruction_length inst
 				in if size < min then size else min)
-			1024 
+			1024
 	in
 	let max_size =
 		Iter.iter
@@ -416,7 +416,7 @@ let make_env info =
 			if size = 0 then
 				raise (Sys_error "template $(C_size) in $(instr_sets_sizes) collection should be used only with RISC ISA")
 			else Printf.fprintf out "%d" size)) ::
-		("msb_size_mask", Templater.TEXT(fun out -> 
+		("msb_size_mask", Templater.TEXT(fun out ->
 			if size = 0 then
 				raise (Sys_error "template $(msb_size_mask) in $(instr_sets_sizes) collection should be used only with RISC ISA")
 			else output_string out (get_msb_mask size))) ::
@@ -606,10 +606,10 @@ let _ =
 				let _ = Iter.get_insts () in
 				()
 			else
-			
+
 				(* optimisations *)
 				Stot.transform ();
-			
+
 				(* prepare environment *)
 				let dict = make_env info in
 				let dict = List.fold_left (fun d (n, v) -> App.add_switch n v d) dict !switches in
@@ -638,14 +638,14 @@ let _ =
 				App.make_template "fetch_table.h" "src/fetch_table.h" dict;
 				App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;
 				App.make_template "fetch.c" "src/fetch.c" dict;
-				(if not !gen_with_trace 
+				(if not !gen_with_trace
 				 then
 					(App.make_template "decode_table.h" "src/decode_table.h" dict;
 					App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
 					App.make_template "decode.c" "src/decode.c" dict)
-				 else 
+				 else
 					(* now decode files are in templates directory (unlike a module) *)
-					(* !!TODO!! outut the correct decoder, not only decode_dtrace 
+					(* !!TODO!! outut the correct decoder, not only decode_dtrace
 					 * design a fun : name_module instance -> output correct module
 					 * whereever the files are (lib or templates) *)
 					if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)

@@ -27,7 +27,7 @@
 
   #directory "../irg";;
   #directory "../gep";;
-  
+
   #load "unix.cma";;
   #load "str.cma";;
   #load "config.cmo";;
@@ -155,7 +155,7 @@ let create_son_list_of_dec_node dt =
 			Irg.print_expr (get_image a);
 			print_char '\n')
 			s_l;*)
-		
+
 		aux msk s_l
 
 
@@ -191,7 +191,7 @@ let sort_son_list vl =
 	we just have to calculate the local masks to do this we need the father's masks,
 	we also need the father's vals on mask to add the new one,
 	by default all trees will be created with no link between them (no tree structure)
-	
+
 	@param vl	List of children (mask, specification list).
 	@param msk	Parent mask.
 	@param gm	Global mask.
@@ -252,14 +252,14 @@ let build_dec_nodes sp_l =
 			DecTree(int_l, [], msk, gm, dt_l) :: (build_sons_of_tree x)
 		else
 			[x] in
-				
+
 	let rec make_tree dl =
 		if stop_cond dl then dl
 		else make_tree (List.flatten (List.map get_sons dl)) in
 
 	let specs = sp_l in
 	let mask = spec_list_mask specs in
-	
+
 	(* common case *)
 	if (List.length specs) > 1
 	then make_tree [DecTree([], specs, mask, mask, [])]
@@ -497,7 +497,7 @@ let sort_dectree_list d_l =
 
 (** Compute list of fetch sizes.
 	@param spec_list	List of instructions.
-	@return				Lits of existing sizes. *)	
+	@return				Lits of existing sizes. *)
 let find_fetch_size spec_list =
 	let isize = Irg.get_isize () in
 	let is_isize = isize != [] in
@@ -548,7 +548,7 @@ let find_fetch_size spec_list =
 			(* variable size or diff *)
 			fetch_generic
 	in
-	
+
 	let choose_fetch_size sp_l =
 		let sizes = get_sizes sp_l in
 		let min_max = get_min_max_from_list sizes in
@@ -576,11 +576,11 @@ let output_struct_decl out fetch_size idx =
 		@param iset Instruction set.
 		@return Instruction set without range parameter. *)
 let remove_ranges iset =
-	
+
 	let count_range (_, t) =
 		match Sem.get_expr_from_type t with
 		| Irg.RANGE (l, u)	-> (true, Int32.add Int32.one (Int32.sub u l))
-		| Irg.ENUM l		-> (true, Int32.of_int (List.length l)) 
+		| Irg.ENUM l		-> (true, Int32.of_int (List.length l))
 		| _					-> (false, Int32.one) in
 
 	let rec count_ranges r c pars =
@@ -588,7 +588,7 @@ let remove_ranges iset =
 		| [] -> (r, c)
 		| h::t ->
 			let (r', c') = count_range h in
-			count_ranges (r || r') (Int32.mul c c') t in 
+			count_ranges (r || r') (Int32.mul c c') t in
 
 	let to_bin v l =
 		let rec compute v l r =
@@ -596,14 +596,14 @@ let remove_ranges iset =
 			let d = if (Int32.logand v Int32.one) = Int32.zero then "0" else "1" in
 			compute (Int32.shift_right v 1) (l - 1) (d ^ r) in
 		compute v l "" in
-	
+
 	let rec enum_range r l u n =
 		if (Int32.compare l u) > 0 then r
 		else enum_range ((to_bin l n)::r) (Int32.succ l) u n in
-	
+
 	let min_range l u n =
 		Pqmc.compute_primes (enum_range [] l u n) in
-	
+
 	let finalize (id, params, attrs) fmts args =
 		List.map (fun f -> Irg.AND_OP (id, params,
 							Irg.set_attr (Irg.ATTR_EXPR ("image", Irg.FORMAT(f, (List.rev args)))) attrs))
@@ -611,13 +611,13 @@ let remove_ranges iset =
 
 	let concat strs str =
 		List.map (fun p -> p ^ str) strs in
-	
+
 	let mult l1 l2 =
 		List.flatten
 			(List.map
 				(fun s1 -> List.map (fun s2 -> s1 ^ s2) l2)
 				l1) in
-	
+
 	let rec scan spec ifmt iargs fmts args f =
 		match ifmt with
 		| [] 					-> finalize spec fmts args
@@ -645,7 +645,7 @@ let remove_ranges iset =
 		| Irg.AND_OP (id, params, attrs) ->
 			(match (Irg.escape_eline (Irg.attr_expr "image" attrs Irg.NONE)) with
 			| Irg.FORMAT(fmt, args) ->
-			let (r, c) = count_ranges false Int32.one params in
+				let (r, c) = count_ranges false Int32.one params in
 				if not r then inst::res else
 				let f =
 					if (Int32.compare c pqmc_threshold) >= 0
@@ -654,13 +654,13 @@ let remove_ranges iset =
 				let r = transform id params attrs fmt args f in
 				r @ res
 			| e -> inst :: res)
-		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in  
-			
+		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in
+
 	let rec process res lst =
 		match lst with
 		| [] -> res
 		| h::t -> process (look res h) t in
-	
+
 	process [] iset
 
 
@@ -820,7 +820,7 @@ let print_dot_edges edge =
 	| _ ->
 		()
 
-		
+
 let print_dot_dec_tree_list tl =
 	begin
 	print_string "digraph DEC {\n";

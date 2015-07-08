@@ -74,23 +74,25 @@ let check sw =
 	match sw with
 	| Irg.SWITCH_EXPR (t, c, cs, def) ->
 		(try
-		
+			(*print [PTEXT "DEBUG: SWITCH\n"];*)
+
 			(* try to get a constant table *)
 			let s = 1 lsl (Sem.get_type_length (Sem.get_type_expr c)) in
 			if s > !max then -1 else
-			let items = List.map (fun (c, v) -> (
-					Sem.eval_const c,
-					Sem.eval_const v
-				)) cs in
+			let items = List.map (fun (c, v) ->
+				(*print [PTEXT "DEBUG:"; PEXPR c; PLN];*)
+				(Sem.eval_const c, Sem.eval_const v )) cs in
+			(*List.iter (fun (c, v) -> print [PTEXT "DEBUG: "; PCONST c; PTEXT " -> "; PCONST v; PTEXT "\n"]) items;*)
 			let def = Sem.eval_const def in
-			
+
 			(* build the table *)
 			let n = !num in
 			let a = Array.make s def in
 			List.iter (fun (i, v) ->
+				(*Printf.printf "DEBUG: array[%d]\n" (Sem.to_int i);*)
 				Array.set a (Sem.to_int i) v) items;
 			let k = (t, a) in
-			
+
 			(* declare it *)
 			(try TabHashtbl.find tab k
 			with Not_found ->
@@ -98,24 +100,22 @@ let check sw =
 				(if not (TabHashtbl.mem tab k) then TabHashtbl.add tab k n);
 				incr num;
 				n)
-			
+
 		with Irg.Error _ | Irg.PreError _ -> -1)
 	| _ -> raise Not_found
 
 
 (** Declare the array with the given ToC information.
 	@param info		ToC information. *)
-let declare info =	
+let declare info =
 	TabHashtbl.iter
 		(fun (t, a) n ->
 			let tn = Toc.type_to_string (Toc.convert_type t) in
-			Printf.fprintf info.Toc.out "static %s __gswitch_t%d[%d] = {\n\t"
-				tn n (Array.length a);
+			Printf.fprintf info.Toc.out "static %s __gswitch_t%d[%d] = {\n\t" tn n (Array.length a);
 			let _ = Array.fold_left (fun f i ->
 						if not f then output_string info.Toc.out ",\n\t";
 						Toc.gen_const info t i; false) true a in
-			Printf.fprintf info.Toc.out "\n};\n\n#define %s(i) __gswitch_t%d[i]"
-				(gen_get n) n
+			Printf.fprintf info.Toc.out "\n};\n\n#define %s(i) __gswitch_t%d[i]" (gen_get n) n
 		)
 		tab
 
@@ -135,7 +135,7 @@ let transform_aux attr =
 		match al with
 		| [] -> failwith "stot: lost attribute ?"
 		| Irg.ATTR_STAT (m, _)::t when n = m -> (Irg.ATTR_STAT (n, s))::t
-		| h::t -> h::(set_attr t n s) in	
+		| h::t -> h::(set_attr t n s) in
 
 	let rec process_attr name (pl, al, st) =
 		(*List.iter Irg.print_attr al;*)
@@ -144,8 +144,8 @@ let transform_aux attr =
 		let sp, (pl, al, _) = process_stat s (pl, al, name::st) in
 		(*List.iter Irg.print_attr al;*)
 		(pl, set_attr al name sp, st)
-	
-	and process_stat s info = 
+
+	and process_stat s info =
 		match s with
 		| SEQ (s1, s2) ->
 			let (s1, info) = process_stat s1 info in
@@ -179,7 +179,7 @@ let transform_aux attr =
 			LOC_REF (t, n, process_expr i, process_expr u, process_expr l)
 		| LOC_CONCAT (t, l1, l2) ->
 			LOC_CONCAT (t, process_loc l1, process_loc l2)
-		
+
 	and process_expr e =
 		match e with
 		| COERCE (t, e) -> COERCE(t, process_expr e)
