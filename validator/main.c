@@ -149,8 +149,8 @@ int init_gliss(char * drive_gdb_reply_buffer)
 	}
 	
 	/* make the simulator */
-	sim = PROC(_new_sim)(real_state, 0, 0);
-	if (sim == NULL) {
+	iss = PROC(_new_sim)(real_state, 0, 0);
+	if (iss == NULL) {
 		fprintf(stderr, "ERROR: no more resources\n");
 		exit(2);
 	}
@@ -193,11 +193,11 @@ int init_gliss(char * drive_gdb_reply_buffer)
 	send_gdb_cmd("-data-evaluate-expression $sp\n", drive_gdb_reply_buffer, display_replies);
 	int *sp;
 	read_gdb_output_pc(drive_gdb_reply_buffer, &sp);
-//	read_gdb_output_pc(drive_gdb_reply_buffer, &loader_list[6]); //on demande à gliss de charger la pile au même endroit que GDB
+//	read_gdb_output_pc(drive_gdb_reply_buffer, &loader_list[6]); //on demande ï¿½ gliss de charger la pile au mï¿½me endroit que GDB
 	
 //	real_state=iss_init(mem_list,loader_list,system_list,NULL,NULL);
 
-	//gliss est stoppé au tout début (_start), gdb est quelques instructions plus loin, donc il faut avancer gliss
+	//gliss est stoppï¿½ au tout dï¿½but (_start), gdb est quelques instructions plus loin, donc il faut avancer gliss
 	send_gdb_cmd("-data-evaluate-expression $pc\n", drive_gdb_reply_buffer, display_replies);
 	read_gdb_output_pc(drive_gdb_reply_buffer, &gdb_pc);
 	/* here we assume the next instruction PC is always called NIA */
@@ -215,13 +215,13 @@ int init_gliss(char * drive_gdb_reply_buffer)
                 iss_complete(curinstr,real_state);
                 iss_free(curinstr);
 		gliss_pc = NIA(real_state);*/
-		PROC(_step)(sim);
+		PROC(_step)(iss);
 		gliss_pc = real_state->NIA;
 		a++;
 		}
 	printf("%d steps done\n", a);
 		
-	//maintenant il faut écraser les registres de GDB avec ceux de GLISS
+	//maintenant il faut ï¿½craser les registres de GDB avec ceux de GLISS
 	if ( init_registers ) init_gdb_regs(drive_gdb_reply_buffer);
 		
 	return 0;
@@ -274,7 +274,7 @@ int init_gdb(char * drive_gdb_reply_buffer, char * target)
 		match_gdb_output(drive_gdb_reply_buffer, "*stopped,reason=\"breakpoint-hit\"", IS_FATAL, "When waiting for breakpoint, ");
 		}
 	
-	create_gdb_vars(drive_gdb_reply_buffer); //généré par le script python		
+	create_gdb_vars(drive_gdb_reply_buffer); //gï¿½nï¿½rï¿½ par le script python		
 		
 	return 0;	
 	}
@@ -341,7 +341,7 @@ int main(int argc, char ** argv)
 		
 	/*iss_fetch(NIA(real_state),buff_instr);
 	curinstr=iss_decode(real_state,NIA(real_state),buff_instr);*/
-	curinstr = PROC(_decode)(sim->decoder, real_state->NIA);
+	curinstr = PROC(_decode)(iss->decoder, real_state->NIA);
 		
 	read_vars_this_instruction(drive_gdb_reply_buffer);
 	compare_regs_this_instruction(drive_gdb_reply_buffer, real_state, curinstr, instr_count);
@@ -384,8 +384,8 @@ int main(int argc, char ** argv)
 		/*iss_fetch(NIA(real_state),buff_instr);
                 curinstr=iss_decode(real_state,NIA(real_state),buff_instr);
                 iss_complete(curinstr,real_state);*/
-		curinstr = PROC(_decode)(sim->decoder, real_state->NIA);
-		PROC(_step)(sim);
+		curinstr = PROC(_decode)(iss->decoder, real_state->NIA);
+		PROC(_step)(iss);
 		
 		read_vars_this_instruction(drive_gdb_reply_buffer);
 		compare_regs_this_instruction(drive_gdb_reply_buffer, real_state, curinstr, instr_count);

@@ -1023,6 +1023,6 @@ void gliss_set_range_callback_ex(gliss_memory_t *mem, gliss_address_t start, gli
  * @param f		callback function bypassing the usual behavior
  * @ingroup memory
  */
-void gliss_set_range_callback_ex(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end, gliss_callback_fun_t f, void* data){
-	gliss_set_range_callback(mem, start, end, f, data, 0);
+void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end, gliss_callback_fun_t f, void* data){
+	gliss_set_range_callback_ex(mem, start, end, f, data, 0);
 }
