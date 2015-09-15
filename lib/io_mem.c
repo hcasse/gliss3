@@ -163,8 +163,21 @@ struct gliss_memory_t {
     secondary_memory_hash_table_t *primary_hash_table[PRIMARYMEMORY_HASH_TABLE_SIZE];
     /* infos about callback functions */
     gliss_callback_info_table_t callback_infos;
+#ifdef GLISS_MEM_SPY
+	gliss_mem_spy_t spy_fun;	/** spy function */
+	void *spy_data;				/** spy data */
+#endif
 };
 typedef struct gliss_memory_t memory_64_t;
+
+
+#ifdef GLISS_MEM_SPY
+/**
+ * Default spy function: do nothing.
+ */
+static void gliss_mem_default_spy(gliss_memory_t *mem, gliss_address_t addr, gliss_size_t size, gliss_access_t access, void *data) {
+}
+#endif
 
 
 /**
@@ -201,8 +214,37 @@ gliss_memory_t *gliss_mem_new(void) {
 	mem->callback_infos.ptr = 0;
 	mem->callback_infos.is_changed = 0;
     }
-    return (gliss_memory_t *)mem;
+
+	/* initialize spy */
+#	ifdef GLISS_MEM_SPY
+		mem->spy_fun = gliss_mem_default_spy;
+		mem->spy_data = 0;
+#	endif
+
+	return (gliss_memory_t *)mem;
 }
+
+
+#ifdef GLISS_MEM_SPY
+/**
+ * Set the spy function on the given memory. This function will be called
+ * at each memory access with the details of the memory transaction.
+ * @param mem	Current memory.
+ * @param fun	Function called at each memory access.
+ * @param data	Data passed as the last argument when function fun is called.
+ */
+void gliss_mem_set_spy(gliss_memory_t *mem, gliss_mem_spy_t fun, void *data) {
+	assert(mem);
+	if(!fun) {
+		mem->spy_fun = gliss_mem_default_spy;
+		mem->spy_data = 0;
+	}
+	else {
+		mem->spy_fun = fun;
+		mem->spy_data = data;
+	}
+}
+#endif
 
 
 /**
@@ -435,6 +477,10 @@ void gliss_mem_write(gliss_memory_t *memory, gliss_address_t address, void *buff
 		else
 			memcpy(pte->storage + offset, buffer, size);
     }
+
+#	ifdef GLISS_MEM_SPY
+    	memory->spy_fun(memory, address, size, gliss_access_write, memory->spy_data);
+#	endif
 }
 
 
@@ -474,6 +520,10 @@ void gliss_mem_read(gliss_memory_t *memory, gliss_address_t address, void *buffe
 		else
 			memcpy(buffer, pte->storage + offset, size);
     }
+
+#	ifdef GLISS_MEM_SPY
+    	memory->spy_fun(memory, address, size, gliss_access_read, memory->spy_data);
+#	endif
 }
 
 
@@ -488,14 +538,16 @@ uint8_t gliss_mem_read8(gliss_memory_t *memory, gliss_address_t address) {
 	memory_64_t *mem = (memory_64_t *)memory;
 	gliss_address_t offset = address % MEMORY_PAGE_SIZE;
 	memory_page_table_entry_t *pte = mem_get_page(mem, address);
+	uint8_t res;
 	if (pte->callback)
-	{
-		uint8_t res;
 		pte->callback(address, 1, &res, GLISS_MEM_READ, pte->callback_data);
-		return res;
-	}
 	else
-		return pte->storage[offset];
+		res = pte->storage[offset];
+
+#	ifdef GLISS_MEM_SPY
+    	memory->spy_fun(memory, address, sizeof(res), gliss_access_read, memory->spy_data);
+#	endif
+    return res;
 }
 
 
@@ -518,41 +570,39 @@ uint16_t gliss_mem_read16(gliss_memory_t *memory, gliss_address_t address) {
 	gliss_address_t offset = address % MEMORY_PAGE_SIZE;
 	memory_page_table_entry_t *pte=mem_get_page(mem, address);
 
+	uint16_t res;
 	uint8_t *p;
 	if (pte->callback)
-	{
-		uint16_t res;
 		pte->callback(address, 2, &res, GLISS_MEM_READ, pte->callback_data);
 		/* we suppose callback function returns data with same endianess as host */
-		return res;
-	}
-	else
-	{
+	else {
 		p = pte->storage + offset;
+
+		/* same endianness */
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
+			if((address & 0x00000001) == 0)
+				res = *(uint16_t *)p;		// aligned
+			else {
+				memcpy(val.bytes, p, 2);	// not aligned
+				res = val.half;
+			}
+
+#		else
+			if((address & 0x00000001) == 0)
+				val.half = *(uint16_t *)p;	// aligned
+			else
+				memcpy(val.bytes, p, 2);	// not aligned
+			a = val.bytes[0];
+			val.bytes[0] = val.bytes[1];
+			val.bytes[1] = a;
+			res = val.half;
+#		endif
 	}
 
-
-	/* aligned ? */
-	if((address & 0x00000001) == 0)
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			return *(uint16_t *)p;
-#		else
-			val.half = *(uint16_t *)p;
-#		endif
-
-	/* unaligned ! */
-	else
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			{ memcpy(val.bytes, p, 2); return val.half; }
-#		else
-			memcpy(val.bytes, p, 2);
-#		endif
-
-	/* invert */
-	a = val.bytes[0];
-	val.bytes[0] = val.bytes[1];
-	val.bytes[1] = a;
-	return val.half;
+#	ifdef GLISS_MEM_SPY
+    	memory->spy_fun(memory, address, sizeof(res), gliss_access_read, memory->spy_data);
+#	endif
+    return res;
 }
 
 
@@ -574,44 +624,44 @@ uint32_t gliss_mem_read32(gliss_memory_t *memory, gliss_address_t address) {
 	/* get page */
 	gliss_address_t offset = address % MEMORY_PAGE_SIZE;
 	memory_page_table_entry_t *pte=mem_get_page(mem, address);
-	
+
+	uint32_t res;
 	uint8_t *p;
 	if (pte->callback)
-	{
-		uint32_t res;
 		pte->callback(address, 4, &res, GLISS_MEM_READ, pte->callback_data);
-		/* we suppose callback function returns data with same endianess as host */
-		return res;
-	}
 	else
 	{
 		p = pte->storage + offset;
+
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
+			if((address & 0x00000003) == 0)
+				res = *(uint32_t *)p;			// aligned
+			else {
+				memcpy(val.bytes, p, 4);		// not aligned
+				res = val.word;
+			}
+
+#		else
+			if((address & 0x00000003) == 0)
+				val.word = *(uint32_t *)p;		// aligned
+			else
+				memcpy(val.bytes, p, 4);		// not aligned
+
+			a = val.bytes[0];
+			val.bytes[0] = val.bytes[3];
+			val.bytes[3] = a;
+			a = val.bytes[1];
+			val.bytes[1] = val.bytes[2];
+			val.bytes[2] = a;
+			res = val.word;
+
+#		endif
 	}
 
-	/* aligned ? */
-	if((address & 0x00000003) == 0)
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			return *(uint32_t *)p;
-#		else
-			val.word = *(uint32_t *)p;
-#		endif
-
-	/* unaligned ! */
-	else
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			{ memcpy(val.bytes, p, 4); return val.word; }
-#		else
-			memcpy(val.bytes, p, 4);
-#		endif
-
-	/* invert */
-	a = val.bytes[0];
-	val.bytes[0] = val.bytes[3];
-	val.bytes[3] = a;
-	a = val.bytes[1];
-	val.bytes[1] = val.bytes[2];
-	val.bytes[2] = a;
-	return val.word;
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(res), gliss_access_read, mem->spy_data);
+#	endif
+    return res;
 }
 
 
@@ -633,50 +683,51 @@ uint64_t gliss_mem_read64(gliss_memory_t *memory, gliss_address_t address) {
 	/* get page */
 	gliss_address_t offset = address % MEMORY_PAGE_SIZE;
 	memory_page_table_entry_t *pte=mem_get_page(mem, address);
-	
+
+	uint64_t res;
 	uint8_t *p;
+
 	if (pte->callback)
-	{
-		uint64_t res;
 		pte->callback(address, 8, &res, GLISS_MEM_READ, pte->callback_data);
-		/* we suppose callback function returns data with same endianess as host */
-		return res;
-	}
-	else
-	{
+
+	else {
 		p = pte->storage + offset;
+#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
+			if((address & 0x00000007) == 0)
+				res = *(uint64_t *)p;		// aligned
+			else {
+				memcpy(val.bytes, p, 8);	// not aligned
+				res = val.dword;
+			}
+
+#		else
+			if((address & 0x00000007) == 0)
+				val.dword = *(uint64_t *)p;
+			else
+				memcpy(val.bytes, p, 8);
+
+			/* invert */
+			a = val.bytes[0];
+			val.bytes[0] = val.bytes[7];
+			val.bytes[7] = a;
+			a = val.bytes[1];
+			val.bytes[1] = val.bytes[6];
+			val.bytes[6] = a;
+			a = val.bytes[2];
+			val.bytes[2] = val.bytes[5];
+			val.bytes[5] = a;
+			a = val.bytes[3];
+			val.bytes[3] = val.bytes[4];
+			val.bytes[4] = a;
+			res = val.dword;
+
+#		endif
 	}
 
-	/* aligned ? */
-	if((address & 0x00000007) == 0)
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			return *(uint64_t *)p;
-#		else
-			val.dword = *(uint64_t *)p;
-#		endif
-
-	/* unaligned ! */
-	else
-#		if HOST_ENDIANNESS == TARGET_ENDIANNESS
-			{ memcpy(val.bytes, p, 8); return val.dword; }
-#		else
-			memcpy(val.bytes, p, 8);
-#		endif
-
-	/* invert */
-	a = val.bytes[0];
-	val.bytes[0] = val.bytes[7];
-	val.bytes[7] = a;
-	a = val.bytes[1];
-	val.bytes[1] = val.bytes[6];
-	val.bytes[6] = a;
-	a = val.bytes[2];
-	val.bytes[2] = val.bytes[5];
-	val.bytes[5] = a;
-	a = val.bytes[3];
-	val.bytes[3] = val.bytes[4];
-	val.bytes[4] = a;
-	return val.dword;
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(res), gliss_access_read, mem->spy_data);
+#	endif
+    return res;
 }
 
 
@@ -747,6 +798,9 @@ void gliss_mem_write8(gliss_memory_t *memory, gliss_address_t address, uint8_t v
 		uint8_t res = val;
 		pte->callback(address, 1, &val, GLISS_MEM_WRITE, pte->callback_data);
 	}
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
 
 
@@ -789,6 +843,9 @@ void gliss_mem_write16(gliss_memory_t *memory, gliss_address_t address, uint16_t
 
 	if (pte->callback)
 		pte->callback(address, 2, q, GLISS_MEM_WRITE, pte->callback_data);
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
 
 
@@ -834,6 +891,9 @@ void gliss_mem_write32(gliss_memory_t *memory, gliss_address_t address, uint32_t
 
 	if (pte->callback)
 		pte->callback(address, 4, q, GLISS_MEM_WRITE, pte->callback_data);
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
 
 
@@ -885,6 +945,9 @@ void gliss_mem_write64(gliss_memory_t *memory, gliss_address_t address, uint64_t
 
 	if (pte->callback)
 		pte->callback(address, 8, q, GLISS_MEM_WRITE, pte->callback_data);
+#	ifdef GLISS_MEM_SPY
+    	mem->spy_fun(mem, address, sizeof(val), gliss_access_write, mem->spy_data);
+#	endif
 }
 
 
@@ -964,7 +1027,7 @@ static void* get_callback_data(gliss_callback_info_table_t *infos, gliss_address
 static void update_callback_infos(gliss_memory_t *mem)
 {
 	int i, j;
-	
+
 	/* go through pages */
 	for (i = 0 ; i < PRIMARYMEMORY_HASH_TABLE_SIZE ; i++) {
 		secondary_memory_hash_table_t *secondary_hash_table = mem->primary_hash_table[i];
@@ -1008,7 +1071,7 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 	/* insert at beginning of the current list */
 	new_info->next = mem->callback_infos.ptr;
 	mem->callback_infos.ptr = new_info;
-	
+
 	/* signal we have to update already created pages */
 	mem->callback_infos.is_changed = 1;
 }
