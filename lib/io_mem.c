@@ -1002,19 +1002,21 @@ void gliss_mem_writeld(gliss_memory_t *memory, gliss_address_t address, long dou
 static gliss_callback_fun_t get_callback_info(gliss_callback_info_table_t *infos, gliss_address_t addr)
 {
 	gliss_callback_info_t *ptr = infos->ptr;
-	while (ptr)
-	{
-		if ((ptr->start <= addr) && (addr <= ptr->end))
+	while(ptr) {
+		if( ((ptr->start <= addr) && (addr <= ptr->end))
+		||  ((ptr->start <= (addr+MEMORY_PAGE_SIZE-1)) && ((addr+MEMORY_PAGE_SIZE-1) <= ptr->end)))
 			return ptr->callback_fun;
 		ptr = ptr->next;
 	}
 	return 0;
 }
 
+
 static void* get_callback_data(gliss_callback_info_table_t *infos, gliss_address_t addr) {
 	gliss_callback_info_t *ptr = infos->ptr;
 	while (ptr) {
-		if ((ptr->start <= addr) && (addr <= ptr->end))
+		if(	((ptr->start <= addr) && (addr <= ptr->end))
+		||	((ptr->start <= (addr+MEMORY_PAGE_SIZE-1)) && ((addr+MEMORY_PAGE_SIZE-1) <= ptr->end)))
 			return ptr->callback_data;
 		ptr = ptr->next;
 	}
@@ -1061,6 +1063,7 @@ static void update_callback_infos(gliss_memory_t *mem)
  */
 void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end, gliss_callback_fun_t f, void* data){
 	/* store the infos in callback infos table */
+
 	/* create new entry */
 	gliss_callback_info_t *new_info = malloc(sizeof(gliss_callback_info_t));
 	assertp(new_info, "malloc error for gliss_callback_info_t");
@@ -1068,6 +1071,7 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 	new_info->end = end;
 	new_info->callback_fun = f;
 	new_info->callback_data = data ;
+
 	/* insert at beginning of the current list */
 	new_info->next = mem->callback_infos.ptr;
 	mem->callback_infos.ptr = new_info;
@@ -1077,6 +1081,12 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 }
 
 
-void gliss_unset_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end)
-{
+/**
+ * Remove callback from a memory range.
+ * @param mem	Memory to work on.
+ * @param start	Start address of memory range.
+ * @param end	Last address of memory range.
+ */
+void gliss_unset_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end) {
+	// TODO
 }
