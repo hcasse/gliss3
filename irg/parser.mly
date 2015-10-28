@@ -612,7 +612,7 @@ Statement:
 |	ConditionalStatement
 		{ $1 }
 |	STRING_CONST LPAREN ArgList RPAREN
-		{ Sem.build_canonical_stat $1 (List.rev $3) }
+		{ Sem.test_canonical $1; Sem.build_canonical_stat $1 (List.rev $3) }
 |	ERROR LPAREN STRING_CONST RPAREN
 		{ handle_stat (fun _ -> Irg.ERROR $3) }
 ;

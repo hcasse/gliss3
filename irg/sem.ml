@@ -1309,32 +1309,42 @@ let build_format fmt exp_list =
 
 (** This function check if the paramters of a canonical function are correct
 	@param name	The name of the canonical function
-	@param list_param	The list of parameters given to the canonical function
-	@return 			Fixed list of parameters (possibly with casting).
+	@param	params	The list of parameters given to the canonical function
+	@return 		Fixed list of parameters (possibly with casting).
 *)
-let check_params name list_param =
+let check_canon_params name params =
 
 	let check_type p t =
 		let pt = get_type_expr p in
-		if t = pt then p else Irg.COERCE(t, p) in
+		if t = pt then p else
+		match (t, pt) with
+		| _, NO_TYPE
+		| STRING, _ 
+		| _, STRING -> pre_error "bad argument type"
+		| _, ANY_TYPE -> p
+		| _, _ -> Irg.COERCE(t, p) in
+
+	let check_no_type p =
+		if (get_type_expr p) = NO_TYPE
+		then pre_error "bad argument type" in
 
 	let canon = get_canon name in
-	if canon.name = UNKNOW then list_param else
+	if canon.name = UNKNOW then (List.iter check_no_type params; params) else
 	try
-		List.map2 check_type list_param canon.type_param
+		List.map2 check_type params canon.type_param
 	with Invalid_argument _ ->
 		pre_error "bad number of arguments"
 
 
 (** This function build a canonical expression, after checked if the parameters are corrects.
-	@param name	The name of the canonical function
-	@param list_param	The list of parameters given to the canonical function
-	@return a CANON_EXPR expression
-	@raise SemError 	Raised when the parameters are incorrects
+	@param name		The name of the canonical function
+	@param params	The list of parameters given to the canonical function
+	@return 		A CANON_EXPR expression
+	@raise SemError Raised when the parameters are incorrects
 *)
-let build_canonical_expr name param =
+let build_canonical_expr name params =
 	let e = get_canon name in
-	CANON_EXPR (e.type_res, name , check_params name param)
+	CANON_EXPR(e.type_res, name, check_canon_params name params)
 
 
 (** This function build a canonical statement, after checked if the parameters are corrects.
@@ -1347,9 +1357,9 @@ let build_canonical_expr name param =
 *)
 let build_canonical_stat name param =
 	let e = get_canon name in
-	if not (e.type_res = NO_TYPE || e.type_res = ANY_TYPE) then
+	if e.type_res <> NO_TYPE && e.type_res <> ANY_TYPE then
 		Lexer.display_warning (Printf.sprintf "the result of the canonical function %s is not used" name);
-	CANON_STAT (name , check_params name param)
+	CANON_STAT (name , check_canon_params name param)
 
 
 (** Get type of a location.
@@ -1866,6 +1876,13 @@ let make_let id expr =
 	@param expr	Expression to check type for.
 	@return		Fully typed expression (no more UNKNOWN_TYPE). *)
 let rec check_expr_inst expr =
+
+	let rec is_canon e =
+		match e with
+		| CANON_EXPR _ -> true
+		| ELINE (_, _, e) -> is_canon e
+		| _ -> false in
+
 	let r =
 		match expr with
 		| NONE
@@ -1909,7 +1926,8 @@ let rec check_expr_inst expr =
 			handle_error file line (fun _ ->
 				let e' = check_expr_inst e in
 				if e == e' then expr else ELINE (file, line, e')) in
-	assert ((get_type_expr r) <> ANY_TYPE);
+
+	assert ((get_type_expr r) <> ANY_TYPE || is_canon r);
 	r
 
 

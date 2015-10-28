@@ -47,13 +47,12 @@ Spec:
 Type:
 	|	no_type
 	|	bool
-	|	card(N)
-	|	int(N)
-	|	float(N, N)
-	|	fixed(N, N)
+	|	card(IN)
+	|	int(IN)
+	|	float(IN, IN)
+	|	fixed(IN, IN)
 	|	ref(ID)
-	|	range(N, N)
-	|	enum(ID*)
+	|	enum((IN, IN)*)
 	|	any_type
 
 Expr:
@@ -85,6 +84,10 @@ Loc:
 
 Attr:	Expr U Stmt U Loc
 
+Unop:	NEG | INV | NOT
+BinOp:	  ADD | SUB | MUL | DIV | MOD | SHL | SHR | BAND | BOR | XOR
+		| LAND | LOR | EQ | NE | GT | GE | LT | LE
+
 
 ===== Generation Process =====
 
@@ -111,6 +114,38 @@ Therefore, two typing phases would be valuable:
 
 The second phase is not very well supported by the current GLISS version and should be applied
 after the building on all instructions (instantiation of parameters).
+
+Below are the applied typing rules:
+
+C |- nothing => nothing: no_type
+C |- const(t, c) => const(t, c)
+C |- ref(_, i) => ref(C[i], i)
+
+c |- unop(_, _, no_type) => error
+C |- unop(_, _, e: STRING) => error
+C |- unop(_, NEG, e: enum(r)) => unop(t, NEG, coerce(t, e)) /\ t = card(log2(max(r) + 1)
+C |- unop(_, NEG, e: t) => unop(t, NEG, e: t)
+C |- unop(_, INV, e: float(_)) => error
+C |- unop(_, INV, e: fixed(_)) => error
+C |- unop(_, INV, e: enum(r)) => unop(t, INV, coerce(t, e)) /\ t = card(log2(max(r) + 1)
+C |- unop(_, INV, e: t) => unop(t, INV, e: t)
+C |- unop(_, NOT, e: bool) => unop(bool, NOT, e)
+C |- unop(_, NOT, e: t) => unop(bool, NOT, binop(t, EQ, const(t, 0)))
+
+
+
+Used function includes:
+max(r) = maximum value ranges.
+
+	|	binop(Type, Binop, Expr)
+	|	indexed(Type, ID, Expr)
+	|	item(ID, ID)
+	|	field(Type, Expr, Expr, Expr)
+	|	concat(Type, Expr, Expr)
+	|	coerce(Type, Expr)
+	|	format(STRING, Expr*)
+	|	ife(Expr, Expr, Expr)
+	|	switche(Expr, (Expr x Expr)*, Expr)
 
 
 ===== Identification Generation Process =====

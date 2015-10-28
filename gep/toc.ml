@@ -672,8 +672,7 @@ let resolve_alias name idx ub lb =
 			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
 			| _ -> failwith "OUPS!\n")
 		| s ->
-			(*Irg.print_spec (Irg.get_symbol r);*)
-			Irg.println [Irg.PTEXT "DEBUG: "; Irg.PTEXT r; Irg.PTEXT "["; Irg.PEXPR i; Irg.PTEXT "]"];
+			Irg.print_spec (Irg.get_symbol r);
 			failwith ("toc: bad alias: " ^ r) in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	res

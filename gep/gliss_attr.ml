@@ -49,13 +49,128 @@ let options = [
 ]
 
 
+(** Test if the statement is stateless.
+	@param cc	Call context.
+	@param s	Statement to test.
+	@return		True if stateless, false else. *)
+let rec stmt_stateless cc s =
+	match s with
+	| Irg.EVAL ("", id)
+		-> sym_stateless cc id
+	| Irg.NOP
+	| Irg.EVAL _
+	| Irg.ERROR _
+		-> true
+	| Irg.SEQ (s1, s2)
+		-> (stmt_stateless cc s1) && (stmt_stateless cc s2)
+	| Irg.SET (l, e)
+		-> (loc_stateless cc l) && (expr_stateless cc e)
+	| Irg.CANON_STAT (_, args)
+		-> List.for_all (expr_stateless cc) args
+	| Irg.IF_STAT (e, s1, s2)
+		-> (expr_stateless cc e) && (stmt_stateless cc s1) && (stmt_stateless cc s2)
+	| Irg.SWITCH_STAT (e, cs, d)
+		-> (expr_stateless cc e) && (stmt_stateless cc d) && List.for_all (stmt_stateless cc) (snd (List.split cs))
+	| Irg.LINE (_, _, s)
+		-> stmt_stateless cc s
+
+
+(** Test if the expression is stateless.
+	@param cc	Call context.
+	@param e	Expression to test.
+	@return		True if stateless, false else. *)
+and expr_stateless cc e =
+	match e with
+	| Irg.NONE
+	| Irg.CONST _
+	| Irg.FIELDOF _
+		-> true
+	| Irg.COERCE (_, e)
+	| Irg.UNOP (_, _, e)
+	| Irg.ELINE (_, _, e)
+	| Irg.CAST (_, e)
+		-> expr_stateless cc e
+	| Irg.ITEMOF (_, id, e)
+		-> (sym_stateless cc id) && (expr_stateless cc e)
+	| Irg.FORMAT (_, es)
+	| Irg.CANON_EXPR (_, _, es)
+		-> List.for_all (expr_stateless cc) es
+	| Irg.BITFIELD (_, e1, e2, e3)
+	| Irg.IF_EXPR (_, e1, e2, e3)
+		-> List.for_all (expr_stateless cc) [e1; e2; e3]
+	| Irg.BINOP(t, _, e1, e2)
+		-> (expr_stateless cc e1) && (expr_stateless cc e2)
+	| Irg.SWITCH_EXPR (_, e, cs, d)
+		-> List.for_all (expr_stateless cc) (e::d::(snd (List.split cs)))
+	| Irg.REF (_, id)
+		-> sym_stateless cc id
+
+
+(** Test if a symbol is stateless.
+	For soundness purpose, UNDEF symbol is considered not stateless.
+	@param cc	Call context.
+	@param id	Symbol identifier.
+	@return		True if symbol is stateless, false else. *)
+and sym_stateless cc id =
+	if List.mem id cc then true else
+	let cc = id::cc in
+	match Irg.get_symbol id with
+	| Irg.UNDEF
+	| Irg.MEM _
+	| Irg.REG _
+		-> false
+	| Irg.LET _
+	| Irg.VAR _
+	| Irg.PARAM (_, Irg.TYPE_EXPR _)
+		-> true
+	| Irg.PARAM (_, Irg.TYPE_ID id)
+		-> sym_stateless cc id
+	| Irg.TYPE _
+		-> true
+	| Irg.AND_MODE _
+	| Irg.OR_MODE _
+	| Irg.AND_OP _
+	| Irg.OR_OP _
+	| Irg.RES _
+	| Irg.EXN _
+	| Irg.CANON_DEF _
+	| Irg.ATTR (Irg.ATTR_USES)
+		-> failwith "meaningless with such symbol"
+	| Irg.ATTR (Irg.ATTR_EXPR (_, e))
+		-> expr_stateless cc e
+	| Irg.ATTR (Irg.ATTR_STAT (_, s))
+		-> stmt_stateless cc s
+	| Irg.ATTR (Irg.ATTR_LOC (_, l))
+		-> loc_stateless cc l
+
+(** Test if a location is stateless.
+	@param cc	Call context.
+	@param l	Location to test.
+	@return		True if stateless, false else. *)
+and loc_stateless cc l =
+	match l with
+	| Irg.LOC_NONE
+		-> true
+	| Irg.LOC_REF (_, id, e1, e2, e3)
+		-> (sym_stateless cc id) && (List.for_all (expr_stateless cc) [e1; e2; e3])
+	| Irg.LOC_CONCAT (_, l1, l2)
+		-> (loc_stateless cc l1) && (loc_stateless cc l2)
+
+
 (** Perform the attribute generation of the given instruction.
-	@param inst		Instruction to get syntax from.
-	@param out		Output to use.
-	@param info		Information about generation. *)
-let process inst out info =
+	@param inst			Instruction to get syntax from.
+	@param out			Output to use.
+	@param info			Information about generation.
+	@param stateless	True if the generation is stateless, false else.*)
+let process inst out info stateless =
 	info.Toc.out <- out;
 	Toc.set_inst info inst;
+
+	let error m =
+		raise (Toc.Error (Printf.sprintf "attribute %s in %s %s" !attr info.Toc.iname m)) in
+
+	let errorl m (s, l) =
+		error (Printf.sprintf "at %s:%d %s" s l m) in
 
 	let process e =
 
@@ -84,32 +199,40 @@ let process inst out info =
 			process_copy e
 		| Irg.CONST(_, Irg.STRING_CONST(v)) ->
 			output_string info.Toc.out v
-		| _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be an action !" !attr)) in
+		| _ -> error "must be an action!" in
 	
 	try
 		(* process a procedure *)
 		if !do_proc then
-			match Iter.get_attr inst !attr with
-			| Iter.EXPR _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be an action !" !attr))
-			| Iter.STAT s -> Toc.gen_action info !attr
+			(match Iter.get_attr inst !attr with
+			| Iter.EXPR _ -> error "must be an action!"
+			| Iter.STAT s ->
+				if stateless && not (stmt_stateless [] s)
+				then errorl "is not stateless as it should be!"  (Irg.line_from_stat s)
+				else Toc.gen_action info !attr)
 
 		(* just copy *)
 		else if !do_copy then
-			match Iter.get_attr inst !attr with
-			| Iter.EXPR e -> process_copy e
-			| _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be a string constant !" !attr))
+			(match Iter.get_attr inst !attr with
+			| Iter.EXPR e ->
+				if stateless && not (expr_stateless [] e)
+				then errorl "is not stateless as it should be!"  (Irg.line_from_expr e)
+				else process_copy e
+			| _ -> error "must be a string constant!")
 
 		(* process a function *)
 		else
-			match Iter.get_attr inst !attr with
-			| Iter.EXPR e -> process e
-			| Iter.STAT _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be an expression !" !attr))
+			(match Iter.get_attr inst !attr with
+			| Iter.EXPR e ->
+				if stateless && not (expr_stateless [] e)
+				then errorl "is not stateless as it should be!" (Irg.line_from_expr e)
+				else  process e
+			| Iter.STAT _ -> error "must be an expression!")
 		
 	with Not_found ->
 		output_string info.Toc.out !def
 	| Irg.Error f | Irg.PreError f ->
 		Irg.error (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
-
 
 
 let _ =
@@ -122,14 +245,16 @@ let _ =
 				(* download the extensions *)
 				List.iter IrgUtil.load_with_error_support !extends;
 				Iter.clear_insts ();
-				Iter.get_insts ();
+				ignore (Iter.get_insts ());
 
 				(* perform generation *)
 				if !template = "" then raise (CommandError "a template must specified with '-t'") else
 				if !attr = "" then raise (CommandError "an attribute name must specified with '-a'") else
 				let maker = App.maker () in
-				maker.App.get_instruction <-
-					(fun inst dict -> (!attr, Templater.TEXT (fun out -> process inst out info)):: dict);
+				maker.App.get_instruction <- (fun inst dict ->
+					   (!attr, Templater.TEXT (fun out -> process inst out info false))
+					:: (!attr ^ "!", Templater.TEXT (fun out -> process inst out info true))
+					:: dict);
 				let dict = App.make_env info maker in
 				if not !App.quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
 				Templater.generate_path dict !template !out;
