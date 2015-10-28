@@ -19,16 +19,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(*
-  Here is the module in charge of the generation of the fetch_table.h
-*)
+(** Here is the module in charge of the generation of fetch_table.h *)
+
 (*
   Useful list of dependencies in order to work with the interactive Ocaml toplevel :
   (Do not forget to do make to have the latest version of the cmo binaries)
 
   #directory "../irg";;
   #directory "../gep";;
-  
+
   #load "unix.cma";;
   #load "str.cma";;
   #load "config.cmo";;
@@ -41,9 +40,12 @@
   #load "toc.cmo";;
 *)
 
-(* flag: output or not fetch tables stats *)
+(** Flag to output or not fetch tables stats *)
 let output_fetch_stat    = ref false
 
+(** Threshold for number of duplications of entries of an instruction opcode
+	before the PQMC support (PQMC allows grouping opcodes using X and reduce number of opcodes). *)
+let pqmc_threshold = Int32.of_int 64
 
 
 (*********************************************************************
@@ -153,7 +155,7 @@ let create_son_list_of_dec_node dt =
 			Irg.print_expr (get_image a);
 			print_char '\n')
 			s_l;*)
-		
+
 		aux msk s_l
 
 
@@ -189,7 +191,7 @@ let sort_son_list vl =
 	we just have to calculate the local masks to do this we need the father's masks,
 	we also need the father's vals on mask to add the new one,
 	by default all trees will be created with no link between them (no tree structure)
-	
+
 	@param vl	List of children (mask, specification list).
 	@param msk	Parent mask.
 	@param gm	Global mask.
@@ -250,14 +252,14 @@ let build_dec_nodes sp_l =
 			DecTree(int_l, [], msk, gm, dt_l) :: (build_sons_of_tree x)
 		else
 			[x] in
-				
+
 	let rec make_tree dl =
 		if stop_cond dl then dl
 		else make_tree (List.flatten (List.map get_sons dl)) in
 
 	let specs = sp_l in
 	let mask = spec_list_mask specs in
-	
+
 	(* common case *)
 	if (List.length specs) > 1
 	then make_tree [DecTree([], specs, mask, mask, [])]
@@ -416,7 +418,7 @@ let rec output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (suffix ^ (name_of (get_i_th_son i sons)));
 				0)
 		else
-			(Printf.fprintf out "{INSTRUCTION, %s_UNKNOWN}" (String.uppercase info.Toc.proc);
+			(Printf.fprintf out "{INSTRUCTION, (void *)%s_UNKNOWN}" (String.uppercase info.Toc.proc);
 			0) in
 
 	let rec produce_decode_ent i nb_nodes =
@@ -495,7 +497,7 @@ let sort_dectree_list d_l =
 
 (** Compute list of fetch sizes.
 	@param spec_list	List of instructions.
-	@return				Lits of existing sizes. *)	
+	@return				Lits of existing sizes. *)
 let find_fetch_size spec_list =
 	let isize = Irg.get_isize () in
 	let is_isize = isize != [] in
@@ -546,7 +548,7 @@ let find_fetch_size spec_list =
 			(* variable size or diff *)
 			fetch_generic
 	in
-	
+
 	let choose_fetch_size sp_l =
 		let sizes = get_sizes sp_l in
 		let min_max = get_min_max_from_list sizes in
@@ -567,6 +569,101 @@ let output_struct_decl out fetch_size idx =
 		output_string out ("\tDecode_Ent\t*table;\n} Table_Decodage" ^ suffix ^ ";\n\n"))
 
 
+
+
+(** Provide support for range and enum parameter by instruction duplication.
+		Return list of instructions without any range parameter.
+		@param iset Instruction set.
+		@return Instruction set without range parameter. *)
+let remove_ranges iset =
+
+	let count_range (_, t) =
+		match Sem.get_expr_from_type t with
+		| Irg.RANGE (l, u)	-> (true, Int32.add Int32.one (Int32.sub u l))
+		| Irg.ENUM l		-> (true, Int32.of_int (List.length l))
+		| _					-> (false, Int32.one) in
+
+	let rec count_ranges r c pars =
+		match pars with
+		| [] -> (r, c)
+		| h::t ->
+			let (r', c') = count_range h in
+			count_ranges (r || r') (Int32.mul c c') t in
+
+	let to_bin v l =
+		let rec compute v l r =
+			if l = 0 then r else
+			let d = if (Int32.logand v Int32.one) = Int32.zero then "0" else "1" in
+			compute (Int32.shift_right v 1) (l - 1) (d ^ r) in
+		compute v l "" in
+
+	let rec enum_range r l u n =
+		if (Int32.compare l u) > 0 then r
+		else enum_range ((to_bin l n)::r) (Int32.succ l) u n in
+
+	let min_range l u n =
+		Pqmc.compute_primes (enum_range [] l u n) in
+
+	let finalize (id, params, attrs) fmts args =
+		List.map (fun f -> Irg.AND_OP (id, params,
+							Irg.set_attr (Irg.ATTR_EXPR ("image", Irg.FORMAT(f, (List.rev args)))) attrs))
+			fmts  in
+
+	let concat strs str =
+		List.map (fun p -> p ^ str) strs in
+
+	let mult l1 l2 =
+		List.flatten
+			(List.map
+				(fun s1 -> List.map (fun s2 -> s1 ^ s2) l2)
+				l1) in
+
+	let rec scan spec ifmt iargs fmts args f =
+		match ifmt with
+		| [] 					-> finalize spec fmts args
+		| (Str.Text s)::ifmt	-> scan spec ifmt iargs (concat fmts s) args f
+		| (Str.Delim s)::ifmt	->
+			let iarg :: iargs = iargs in
+			(match Irg.escape_eline iarg with
+			| Irg.REF (_, id) ->
+				(match Sem.get_type_ident id with
+				| Irg.ANY_TYPE	-> assert false
+				| Irg.RANGE (l, u)
+								-> scan spec ifmt iargs (mult fmts ((fst f) l u (Sem.image_escape_size s))) args f
+				| Irg.ENUM l	-> scan spec ifmt iargs (mult fmts ((snd f) l (Sem.image_escape_size s))) args f
+				| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
+			| e 				-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f) in
+
+	let transform id params attrs fmt args f =
+		Irg.param_stack params;
+		let r = scan (id, params, attrs) (Sem.split_image fmt) args [""] [] f in
+		Irg.param_unstack params;
+		r in
+
+	let look res inst =
+		match inst with
+		| Irg.AND_OP (id, params, attrs) ->
+			(match (Irg.escape_eline (Irg.attr_expr "image" attrs Irg.NONE)) with
+			| Irg.FORMAT(fmt, args) ->
+				let (r, c) = count_ranges false Int32.one params in
+				if not r then inst::res else
+				let f =
+					if (Int32.compare c pqmc_threshold) >= 0
+					then (min_range, fun l n -> Pqmc.compute_primes (List.map (fun v -> to_bin v n) l))
+					else (enum_range [], fun l n -> List.map (fun v -> to_bin v n) l) in
+				let r = transform id params attrs fmt args f in
+				r @ res
+			| e -> inst :: res)
+		| _ -> failwith "Internal Error: bad instruction in remove_ranges" in
+
+	let rec process res lst =
+		match lst with
+		| [] -> res
+		| h::t -> process (look res h) t in
+
+	process [] iset
+
+
 (** output a table C decl, if idx >= 0 table name will be suffixed
 	@param out			Stream to output to.
 	@param sp_l			List of instructions.
@@ -575,6 +672,7 @@ let output_struct_decl out fetch_size idx =
 	@param fetch_state
 	*)
 let output_table out sp_l fetch_size idx fetch_stat =
+	let sp_l = remove_ranges sp_l in
 	let suffix = if idx < 0 then "" else ("_" ^ (string_of_int idx)) in
 	let aux dl dt = output_table_C_decl fetch_size suffix out fetch_stat dt dl in
 	let dl =  sort_dectree_list (build_dec_nodes sp_l) in
@@ -722,7 +820,7 @@ let print_dot_edges edge =
 	| _ ->
 		()
 
-		
+
 let print_dot_dec_tree_list tl =
 	begin
 	print_string "digraph DEC {\n";

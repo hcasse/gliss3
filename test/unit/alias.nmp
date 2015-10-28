@@ -3,9 +3,11 @@ let proc="mine"
 let gliss_isize = "32"
 let bit_order = "UPPERMOST"
 
-reg pc[1, card(32)] pc=1
+reg pc[1, card(32)] is_pc=1
 reg r[32, card(32)]
 reg r64[16, card(64)] alias = r[0]
+reg x[1, card(32)]
+reg xx[1, card(6)] alias = x<5..0>
 
 var t32[1, card(32)]
 var t64[1, card(64)]
@@ -13,7 +15,7 @@ var t64[1, card(64)]
 op init()
 	action = { }
 
-op instruction = simple | pair | field | param
+op instruction = simple | pair | field | param | assign | field2
 
 op simple()
 	syntax = "simple"
@@ -76,4 +78,19 @@ op param(a: card(16))
 		a<7..0> = t32;
 		"c"("a<15..8> = t32;");
 		a<15..8> = t32;
+	}
+
+op assign(a: card(16))
+	syntax = format("assign %d", a)
+	image = format("00000011 00000000 %16b", a)
+	action = {
+		t32<5..0> = a;
+	}
+
+op field2()
+	syntax = "field2"
+	image = "00000100 00000000 00000000 00000000"
+	action = {
+		t32 = xx;
+		xx = 0b101010;
 	}

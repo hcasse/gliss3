@@ -72,7 +72,11 @@ module Make(H: Hashtbl.HashedType) = struct
 
 	type 'a t = 'a NameMap.t
 
-	let make i id =
+	let clear _ =
+		InstMap.clear imap;
+		NameMap.clear nmap
+
+	let build i id =
 		let buf = Buffer.create 32 in
 
 		let make_char c =

@@ -44,14 +44,19 @@ let options = [
 	@raise Error	If there is an unsupported syntax expression. *)
 let rec gen_disasm info inst expr =
 
-	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST(text, false, Irg.NO_TYPE)) in
+	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST(text)) in
 
 	let format fmt args s i =
 		if s >= i then
 			Irg.NOP
 		else
-			let fmt = String.sub fmt s (i - s) in
-			Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF "__buffer")::(str fmt)::args) in
+    		let fmt = String.sub fmt s (i - s) in
+    		if fmt <> "" then 
+        		Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF (Irg.NO_TYPE, "__buffer"))::(str fmt)::args)
+      		else Irg.NOP in
+
+	let change_l fmt i =
+		(String.sub fmt 0 i) ^ "s" ^ (String.sub fmt (i + 1) ((String.length fmt) - i - 1)) in
 
 	let rec scan fmt args s used i =
 		match args with
@@ -60,22 +65,26 @@ let rec gen_disasm info inst expr =
 			if i >= (String.length fmt) then format fmt used s i else
 			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
 			if i + 1 >= String.length fmt then format fmt used s i else
-			if fmt.[i + 1] != 's' then
-				if fmt.[i + 1] = '%' then scan fmt args s used (i + 2)
-				else scan fmt tl s (hd::used) (i + 2)
-			else
-				Irg.SEQ (format fmt used s i,
-					Irg.SEQ(
-						process hd,
-						scan fmt tl (i + 2) [] (i + 2)))
+			(match fmt.[i + 1] with
+			| 's' ->
+				Irg.SEQ (format fmt (List.rev used) s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
+			| '@'
+			| 'l' ->	(* Deprecated *)
+				scan (change_l fmt (i + 1)) tl s ((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [hd]))::used) (i + 2)
+			| '%' ->
+				scan fmt args s used (i + 2)
+			| _ ->
+				scan fmt tl s (hd::used) (i + 2))
 
 	and process expr =
 		check expr;
 		match expr with
 		| Irg.FORMAT (fmt, args) ->
 			scan fmt args 0 [] 0
-		| Irg.CONST (_, Irg.STRING_CONST(s, false, _)) ->
-			Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF "__buffer"; str s])
+		| Irg.CONST (_, Irg.STRING_CONST(s)) ->
+    		if s <> ""
+    		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF (Irg.NO_TYPE, "__buffer"); str s])
+      		else Irg.NOP 
 		| Irg.IF_EXPR (_, c, t, e) ->
 			Irg.IF_STAT(c, process t, process e)
 		| Irg.SWITCH_EXPR(_, c, cases, def) ->
@@ -93,7 +102,6 @@ let rec gen_disasm info inst expr =
 		| Irg.BINOP _
 		| Irg.CONST _
 		| Irg.COERCE _
-		| Irg.EINLINE _
 		| Irg.CAST _ ->
 			Toc.error_on_expr (Printf.sprintf "bad syntax expression in instruction %s" (Iter.get_user_id inst)) expr
 		| Irg.ELINE (file, line, e) ->
@@ -110,7 +118,7 @@ let rec gen_disasm info inst expr =
 		| Irg.COERCE (_, expr) -> check expr
 		| Irg.FORMAT (_, args)
 		| Irg.CANON_EXPR (_, _, args) -> List.iter check args
-		| Irg.REF id -> check_symbol id
+		| Irg.REF (_, id) -> check_symbol id
 		| Irg.FIELDOF (_, id, _) -> check_symbol id
 		| Irg.ITEMOF (_, id, expr) -> check_symbol id; check expr
 		| Irg.BITFIELD (_, b, l, u) -> check b; check l; check u
@@ -120,7 +128,6 @@ let rec gen_disasm info inst expr =
 		| Irg.SWITCH_EXPR (_, c, cs, d) -> check c; check d; List.iter (fun (_, e) -> check e) cs
 		| Irg.CONST _ -> ()
 		| Irg.ELINE (f, l, e) -> Toc.locate_error f l check e
-		| Irg.EINLINE _ -> ()
 		| Irg.CAST (_, e) -> check e in
 
 	(* !!DEBUG!! *)
@@ -162,7 +169,7 @@ let _ =
 			options
 			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
 			(fun info ->
-				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE));
+				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE, []));
 
 				(* generate disassemble source *)
 				let maker = App.maker () in

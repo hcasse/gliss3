@@ -40,11 +40,8 @@ let is_stat_attr_recursive sp name =
 			false
 		| SEQ(s1, s2) ->
 			(find_occurence str s1) || (find_occurence str s2)
-		| EVAL(s) ->
-			((String.compare s str) == 0)
-		| EVALIND(n, attr) ->
-			(* recursivity occurs only when we refer to oneself, 'EVALIND' always refers to another spec *)
-			false
+		| EVAL(n, attr) ->
+			n = "" &&  str = attr
 		| SET(l, e) ->
 			false
 		| CANON_STAT(n, el) ->
@@ -55,12 +52,8 @@ let is_stat_attr_recursive sp name =
 			(find_occurence str s1) || (find_occurence str s2)
 		| SWITCH_STAT(e, es_l, s) ->
 			(find_occurence str s) || (List.exists (fun (ex, st) -> find_occurence str st) es_l)
-		| SETSPE(l, e) ->
-			false
 		| LINE(s, i, st) ->
 			find_occurence str st
-		| INLINE _ ->
-			false
 	in
 	let a = get_attr sp name
 	in
@@ -261,13 +254,13 @@ let rec substitute_in_expr name op ex =
 		FORMAT(s, List.map (substitute_in_expr name op) e_l)
 	| CANON_EXPR(te, s, e_l) ->
 		CANON_EXPR(te, s, List.map (substitute_in_expr name op) e_l )
-	| REF(s) ->
+	| REF(t, s) ->
 		(* change if op is a AND_MODE and s refers to it *)
 		if (name=s)&&(is_and_mode op) then
 			get_mode_value op
 		else
 			(* ? change also if s refers to an ATTR_EXPR of the same spec, does it have this form ? *)
-			REF(s)
+			REF(t, s)
 	| FIELDOF(te, s1, s2) ->
 		if (String.compare s1 name) == 0 then
 			get_expr_from_attr_from_op_or_mode op s2
@@ -289,8 +282,6 @@ let rec substitute_in_expr name op ex =
 		-> CONST(te, c)
 	| ELINE (file, line, e) ->
 		ELINE (file, line, substitute_in_expr name op e)
-	| EINLINE _ ->
-		ex
 	| CAST(size, expr) ->
 		CAST(size, substitute_in_expr name op expr)
 
@@ -321,8 +312,8 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		FORMAT(s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
 	| CANON_EXPR(t_e, s, e_l) ->
 		CANON_EXPR(t_e, s, List.map (fun x -> change_name_of_var_in_expr x var_name new_name) e_l)
-	| REF(s) ->
-		REF (get_name_param s)
+	| REF(t, s) ->
+		REF (t, get_name_param s)
 	| FIELDOF(t_e, e, s) ->
 		FIELDOF(t_e, (*change_name_of_var_in_expr*) get_name_param e (*var_name new_name*), s)
 	| ITEMOF(t_e, e1, e2) ->
@@ -341,8 +332,6 @@ let rec change_name_of_var_in_expr ex var_name new_name =
 		CONST(t_e, c)
 	| ELINE(file, line, e) ->
 		ELINE (file, line, change_name_of_var_in_expr e var_name new_name)
-	| EINLINE _ ->
-		ex
 	| CAST(size, expr) ->
 		CAST(size, change_name_of_var_in_expr expr var_name new_name)
 
@@ -402,7 +391,7 @@ let rec substitute_in_location name op loc =
 	| LOC_REF(t, s, i, l, u) ->
 		let rec subst_mode_value mv =
 			match mv with
-			REF(n) ->
+			| REF(_, n) ->
 				LOC_REF(t, n, substitute_in_expr name op i, substitute_in_expr name op l, substitute_in_expr name op u)
 			| ITEMOF(typ, n, idx) ->
 				(* can replace only if loc is "simple" (ie i = NONE), we can't express n[idx][i] *)
@@ -410,9 +399,9 @@ let rec substitute_in_location name op loc =
 					LOC_REF(typ, n, idx, substitute_in_expr name op l, substitute_in_expr name op u)
 				else
 					failwith "cannot substitute a var here (ITEMOF) (instantiate.ml::substitute_in_location)"
-			| BITFIELD(typ, REF(nn), lb, ub) when i = NONE && u = NONE & l = NONE
+			| BITFIELD(typ, REF(_, nn), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(typ, nn, NONE, lb, ub)
-			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE & l = NONE
+			| BITFIELD(t, ITEMOF(_, n, idx), lb, ub) when i = NONE && u = NONE && l = NONE
 				-> LOC_REF(t, n, idx, lb, ub)
 			| BITFIELD(t, ELINE(_, _, e), lb, ub) ->
 				subst_mode_value (BITFIELD (t, e, lb, ub))
@@ -461,19 +450,18 @@ let rec substitute_in_stat name op statement =
 		NOP
 	| SEQ(s1, s2) ->
 		SEQ(substitute_in_stat name op s1, substitute_in_stat name op s2)
-	| EVAL(s) ->
-		EVAL(s)
-	| EVALIND(n, attr) ->
-		if (String.compare n name) == 0 then
+	| EVAL(n, attr) ->
+		if n = "" then statement else
+		if n = name then
 		begin
 			if is_stat_attr_recursive op attr then
 				(*  transform x.action into x_action (this will be a new attr to add to the final spec) *)
-				EVAL(n ^ "_" ^ attr)
+				EVAL("", n ^ "_" ^ attr)
 			else
 				get_stat_from_attr_from_spec op attr
 		end
 		else
-			EVALIND(n, attr)
+			statement
 	| SET(l, e) ->
 		SET(substitute_in_location name op l, substitute_in_expr name op e)
 	| CANON_STAT(n, el) ->
@@ -484,12 +472,8 @@ let rec substitute_in_stat name op statement =
 		IF_STAT(substitute_in_expr name op e, substitute_in_stat name op s1, substitute_in_stat name op s2)
 	| SWITCH_STAT(e, es_l, s) ->
 		SWITCH_STAT(substitute_in_expr name op e, List.map (fun (ex, st) -> (ex, substitute_in_stat name op st)) es_l, substitute_in_stat name op s)
-	| SETSPE(l, e) ->
-		SETSPE(substitute_in_location name op l, substitute_in_expr name op e)
 	| LINE(s, i, st) ->
 		LINE(s, i, substitute_in_stat name op st)
-	| INLINE _ ->
-		statement
 
 
 (**
@@ -508,13 +492,12 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 		NOP
 	| SEQ(s1, s2) ->
 		SEQ(change_name_of_var_in_stat s1 var_name new_name, change_name_of_var_in_stat s2 var_name new_name)
-	| EVAL(str) ->
-		EVAL(str)
-	| EVALIND(v, attr_name) ->
+	| EVAL(v, attr_name) ->
+		if v = "" then sta else
 		if (String.compare v var_name) == 0 then
-			EVALIND(new_name, attr_name)
+			EVAL(new_name, attr_name)
 		else
-			EVALIND(v, attr_name)
+			EVAL(v, attr_name)
 	| SET(l, e) ->
 		SET(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
 	| CANON_STAT(str, e_l) ->
@@ -525,12 +508,8 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 		IF_STAT(change_name_of_var_in_expr e var_name new_name, change_name_of_var_in_stat s1 var_name new_name, change_name_of_var_in_stat s2 var_name new_name)
 	| SWITCH_STAT(e, es_l, s) ->
 		SWITCH_STAT(change_name_of_var_in_expr e var_name new_name, List.map (fun (x,y) -> (change_name_of_var_in_expr x var_name new_name, change_name_of_var_in_stat y var_name new_name)) es_l, change_name_of_var_in_stat s var_name new_name)
-	| SETSPE(l, e) ->
-		SETSPE(change_name_of_var_in_location l var_name new_name, change_name_of_var_in_expr e var_name new_name)
 	| LINE(str, n, s) ->
 		LINE(str, n, change_name_of_var_in_stat s var_name new_name)
-	| INLINE _ ->
-		sta
 
 
 (**
@@ -813,13 +792,13 @@ let rec remove_const_param_from_format f =
 						Str.Text(int64_to_string01 i (get_length_from_format regexp) "")
 				else
 					failwith "bad format, a 64 bit integer constant can be displayed only with \"%d\" and \"%xxb\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
-			| STRING_CONST(s, b, _) ->
-				if b then
-					regexp
-				else if is_string_format regexp then
+			| STRING_CONST(s) ->
+				if is_string_format regexp then
 					Str.Text(s)
 				else
 					failwith "bad format, a string constant can be displayed only with \"%s\" (instantiate.ml::remove_const_param_from_format::replace_const_param_in_format_string)"
+			| CANON s ->
+				regexp
 			| FIXED_CONST(f) ->
 				if is_float_format regexp then
 					Str.Text(string_of_float f)
@@ -868,7 +847,7 @@ let rec remove_const_param_from_format f =
 		let r_l = Irg.split_format_string s in
 		let new_s = str_list_to_str (regexp_list_to_str_list (r_aux r_l p)) in
 		let new_p = p_aux r_l p in
-		if new_p = [] then CONST(STRING, STRING_CONST(new_s, false, NO_TYPE))
+		if new_p = [] then CONST(STRING, STRING_CONST(new_s))
 		else FORMAT(new_s, new_p)
 	| COERCE(t_e, e) ->
 		COERCE(t_e, remove_const_param_from_format e)
@@ -899,14 +878,12 @@ let rec remove_const_param_from_format f =
 (*************************************************************)
 
 
-
 (**
 	instantiate all vars refering to given parameters in a statement, each original parameter
 	in the statement' spec is instantiated (no more mode nor op) to basic types (and more parameters usually)
-	@param	sta	statement in which we instantiate
-	@param	param_list	list of instantiated parameters
-	@return		the instantiated statement
-*)
+	@param	sta				statement in which we instantiate
+	@param	param_list		list of instantiated parameters
+	@return					the instantiated statement. *)
 let rec instantiate_in_stat sta param_list =
 (* !!DEBUG!! *)
 (*print_string "inst_in_s, param_list=";Irg.print_param_list param_list;Irg.print_statement sta; print_char '\n';*)
@@ -923,10 +900,9 @@ let rec instantiate_in_stat sta param_list =
 (**
 	instantiate all vars refering to given parameters in an expression, each original parameter
 	in the expression' spec is instantiated (no more mode nor op) to basic types (and more parameters usually)
-	@param	ex	expression in which we instantiate
-	@param	param_list	list of instantiated parameters
-	@return		the instantiated expression
-*)
+	@param	ex				expression in which we instantiate
+	@param	param_list		list of instantiated parameters
+	@return					the instantiated expression. *)
 let rec instantiate_in_expr ex param_list =
 (* !!DEBUG!! *)
 (*print_string "inst_in_e, param_list=";Irg.print_param_list param_list;Irg.print_expr ex; print_char '\n';*)
@@ -942,40 +918,28 @@ let rec instantiate_in_expr ex param_list =
 	aux ex param_list
 
 
-(**
-	instantiate a given parameter to its basic modes or ops (terminal OR nodes),
+(**	Instantiate a given parameter to its basic modes or ops (terminal OR nodes),
 	all possibilities are dealt with. If the param refers already to a simple type,
 	it is returned unchanged
-	@param	param	parameter to instantiate
-	@return		list of all the instantiated possibilities for param
+	@param from		Origin mode or operation.
+	@param param	Parameter to instantiate.
+	@return			List of all the instantiated possibilities for param.
 *)
-let instantiate_param param =
-	let rec aux p =
-		match p with
-		| (name, TYPE_ID(typeid))::q ->
-			(match get_symbol typeid with
-			| OR_OP(_, str_l) ->
-				(List.flatten (List.map (fun x -> aux [(name, TYPE_ID(x))]) str_l)) @ (aux q)
-			| OR_MODE(_, str_l) ->
-				(List.flatten (List.map (fun x -> aux [(name, TYPE_ID(x))]) str_l)) @ (aux q)
-			| AND_OP(_, _, _) ->
-				p @ (aux q)
-			| AND_MODE(_, _, _, _) ->
-				p @ (aux q)
-			| _ ->
-				p @ (aux q) (* will this happen? *)
-			)
-		| [] ->
-			[]
-		| _ ->
-			p
-	in
-	match param with
-	| (name, TYPE_EXPR(te)) ->
-		[param]
-	| (_ , _) ->
-		aux [param]
+let instantiate_param from param =
 
+	let rec process from name tid =
+		match get_symbol tid with
+		| UNDEF				-> Irg.error_symbol from (fun out -> Printf.fprintf out "undefined symbol '%s'" tid)
+		| OR_OP(_, ops) 	-> List.flatten (List.map (fun x -> process tid name x) ops)
+		| OR_MODE(_, mods)	-> List.flatten (List.map (fun x -> process tid name x) mods)
+		| AND_OP _
+		| AND_MODE _
+		| TYPE _			-> [(name, TYPE_ID tid)] 
+		| _					-> Irg.error_symbol from (fun out -> Printf.fprintf out "symbol '%s' should be an op or a mode" tid) in
+
+	match param with
+	| (name, TYPE_EXPR(te))	-> [param]
+	| (name , TYPE_ID tid) 	-> process from name tid
 
 
 (**
@@ -1046,14 +1010,12 @@ let list_prod p_ll =
 (**
 	takes a list of parameters (coming from a spec) and instantiate it by returning every possible
 	resulting instantiated parameter list
-	@param	p_l	a list of parameters coming from a spec
+	@param from	Origin mode or operation.
+	@paramp_l	a list of parameters coming from a spec
 	@return		list of all possible instantiated parameter lists from p_l
 *)
-let instantiate_param_list p_l =
-	let a = List.map instantiate_param p_l
-	in
-	list_prod a
-
+let instantiate_param_list from p_l =
+	list_prod (List.map (instantiate_param from) p_l)
 
 
 (**
@@ -1064,7 +1026,7 @@ let instantiate_param_list p_l =
 *)
 let instantiate_attr a params=
 	match a with
-	ATTR_EXPR(n, e) ->
+	| ATTR_EXPR(n, e) ->
 		ATTR_EXPR(n, remove_const_param_from_format (simplify_format_expr (instantiate_in_expr e params)))
 	| ATTR_STAT(n, s) ->
 		ATTR_STAT(n, instantiate_in_stat s params)
@@ -1109,11 +1071,11 @@ let add_attr_to_spec sp param =
 			match st with
 			| SEQ(s1, s2) ->
 				SEQ(aux s1 name, aux s2 name)
-			| EVAL(str) ->
+			| EVAL("", str) ->
 				if (String.compare str name) == 0 then
-					EVAL(pfx ^ "_" ^ name)
+					EVAL("", pfx ^ "_" ^ name)
 				else
-					EVAL(str)
+					EVAL("", str)
 			| IF_STAT(e, s1, s2) ->
 				IF_STAT(e, aux s1 name, aux s2 name)
 			| SWITCH_STAT(e, es_l, s) ->
@@ -1265,41 +1227,39 @@ let replace_param_list p_l =
 
 (**
 	instantiate a spec with a fully instantiated parameter list (each parameter refering to a basic type)
-	@param	sp	the spec to instantiate
+	@param	sp			the spec to instantiate
 	@param	param_list	the parameters to instantiate in the spec
-	@return		a spec which is the result of the instantiation of all parameters from param_list in sp
+	@return				a spec which is the result of the instantiation of all parameters from param_list in sp
 *)
 let instantiate_spec sp param_list =
-	let is_type_def_spec sp =
+	
+	let get_type name =
+		let sp = get_symbol name in
 		match sp with
-		| TYPE(_, _) -> true
-		| _ -> false
-	in
+		| TYPE(_, t)	-> Some t
+		| AND_OP _
+		| OR_OP _
+		| AND_MODE _
+		| OR_MODE _		-> None
+		| _				-> failwith "instantiate_spec: unresolved symbol" in
+
 	(* replace all types by basic types (replace type definitions) *)
 	let simplify_param p =
 		match p with
 		| (str, TYPE_ID(n)) ->
 			(* we suppose n can refer only to an OP or MODE, or to a TYPE *)
-			let sp = get_symbol n in
-			if is_type_def_spec sp then
-				(match sp with
-				| TYPE(_, t_e) -> (str, TYPE_EXPR(t_e))
-				| _ -> p
-				)
-			else
-				p
-		| (_, _) -> p
-	in
-	let simplify_param_list p_l =
-		List.map simplify_param p_l
-	in
-	let new_param_list = simplify_param_list param_list
-	in
+			(match get_type n with
+			| None 		-> p
+			| Some t	-> (str, TYPE_EXPR(t)))
+		| (_, _) -> p in
+
+	let simplify_param_list p_l = List.map simplify_param p_l in
+	let new_param_list = simplify_param_list param_list in
+	
 	match sp with
 	| AND_OP(name, params, attrs) ->
 		add_new_attrs (AND_OP(name, replace_param_list new_param_list, List.map (fun x -> instantiate_attr x new_param_list) attrs)) new_param_list
 	| _ -> UNDEF
-
 
 
 (**
@@ -1308,7 +1268,7 @@ let instantiate_spec sp param_list =
 	@return		the list of all fully instantiated specs (one for each parameter combination) derived from the starting spec
 *)
 let instantiate_spec_all_combinations sp =
-	let new_param_lists = instantiate_param_list (get_param_of_spec sp) in
+	let new_param_lists = instantiate_param_list (name_of sp) (get_param_of_spec sp) in
 	List.map (fun x -> instantiate_spec sp x) new_param_lists
 
 
@@ -1418,24 +1378,23 @@ let instantiate_instructions name =
 		else
 			s_l
 	in
-	let rec instantiate_to_andop s_l =
-		let rec inst_one s =
+
+	let rec instantiate_to_andop name =
+		let rec inst_one name =
+			let s = get_symbol name in
 			match s with
-			| AND_OP(_, _, _) -> [s]
-			| OR_OP(_, str_list) -> List.flatten (List.map (fun x -> inst_one (get_symbol x)) str_list)
-			| _ -> failwith "shouldn't happen (instantiate.ml::instantiate_instructions::instantiate_to_andop::inst_one)"
-		in
-		List.flatten (List.map inst_one s_l)
-	in
-	clean_instructions (aux (instantiate_to_andop [get_symbol name]))
+			| UNDEF				-> Irg.error_spec s (fun out -> Printf.fprintf out "symbol '%s' is not defined" name)
+			| AND_OP(_, _, _)	-> [s]
+			| OR_OP(_, ops) 	-> List.flatten (List.map inst_one ops)
+			| _					-> Irg.error_spec s (fun out -> Printf.fprintf out "symbol '%s' should be an op or a mode" name) in
+		inst_one name in
 
-
-
+	clean_instructions (aux (instantiate_to_andop name))
 
 
 (* a few testing functions *)
 
-
+(*
 let test_instant_spec name =
 	let rec print_spec_list l =
 		match l with
@@ -1466,4 +1425,5 @@ let test_instant_param p =
 	end
 	in
 	print_param_list_list (instantiate_param_list [("z",TYPE_EXPR(CARD(5))); ("x",TYPE_ID("_A")); ("y",TYPE_ID("_D"))])
+*)
 

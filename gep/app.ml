@@ -312,20 +312,26 @@ let get_instruction_set maker f dict i_set =
 			let spec_ = List.hd i_set in
 			let name = try
 					match Iter.get_attr spec_ "instruction_set_name" with
-					| Iter.EXPR((Irg.CONST(Irg.STRING, Irg.STRING_CONST(n, _, _)))) -> n
+					| Iter.EXPR((Irg.CONST(Irg.STRING, Irg.STRING_CONST(n)))) -> n
 					| _ -> raise (Toc.Error "attribute 'instruction_set_name' must be a constant string")
 				with Not_found ->
 					if (List.length !Iter.multi_set) > 1 then raise (Toc.Error "no attribute 'instruction_set_name'")
 					else Irg.get_proc_name () in
 			output_string out name)) ::
+		("min_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 		dict))
 
 
+(** Check if the attributes contains "pc" or "is_pc" attribute.
+	Notice that "pc" is now deprecated.
+	@param attrs	Attributes to look in.
+	@return			True if one of these attributes is defined, false else. *)
 let rec is_pc attrs =
 	match attrs with
 	| [] -> false
-	| Irg.ATTR_EXPR ("pc", _) :: _ -> true
-	| _ :: tl -> is_pc tl
+	| Irg.ATTR_EXPR ("pc", _) :: _
+	| Irg.ATTR_EXPR ("is_pc", _) :: _	-> true
+	| _ :: tl							-> is_pc tl
 
 let is_float t =
 	match t with
@@ -337,12 +343,11 @@ let rec reg_format id size attrs =
 	| [] -> if size > 1 then id ^ "%d" else id
 	| (Irg.ATTR_EXPR ("fmt", e))::_ ->
 		(try Sem.to_string e
-		with Sem.SemError m -> Toc.error "bad \"fmt\" attribute: should evaluate to string")
+		with Irg.Error _ | Irg.PreError _ -> Toc.error "bad \"fmt\" attribute: should evaluate to string")
 	| _ :: tl -> reg_format id size tl
 
 
 (** Generate the code for accessing a register.
-let gen_reg_access name size type attrs out make attr =
 	@param name		Name of the register.
 	@param size		Size of the register bank.
 	@param typ		Type of the register.
@@ -372,7 +377,7 @@ let gen_reg_access name size typ attrs out attr make =
 	@param t	Type of variable.
 	@param v	Name of the variable. *)
 let make_canon_var t v =
-	Irg.CONST (t, Irg.STRING_CONST(v, true, t))
+	Irg.CONST (t, Irg.CANON(v))
 	
 
 (** Generate the setter of a register value for a debugger.
@@ -399,7 +404,7 @@ let gen_reg_getter name size typ attrs out =
 	gen_reg_access name size typ attrs out "get"
 		(fun v -> Irg.CANON_STAT(
 			Printf.sprintf "GLISS_GET_%s" v,
-			[ if size == 1 then Irg.REF name else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
+			[ if size == 1 then Irg.REF (typ, name) else Irg.ITEMOF (typ, name, make_canon_var typ "GLISS_IDX")]))
 
 
 (** Get the label of a register bank.
@@ -410,7 +415,7 @@ let get_label name attrs =
 	let l = Irg.attr_expr "label" attrs Irg.NONE in
 	if l = Irg.NONE then name else
 	try Sem.to_string l
-	with Sem.SemError _ -> Toc.error "\"label\" attribute should be a string constant !"
+	with Irg.Error _ | Irg.PreError _ -> Toc.error "\"label\" attribute should be a string constant !"
 
 
 let get_register id f dict maker _ sym =
@@ -493,19 +498,15 @@ let list_exceptions f dict =
 		) in
 
 	let rec process exn =
-		try
 			(match Irg.get_symbol exn with
 			| Irg.OR_OP (_, exns) -> List.iter process exns
 			| Irg.AND_OP (_, _, attrs) -> gen exn attrs
-			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn))
-		with Irg.Symbol_not_found n -> Toc.error (Printf.sprintf "exception %s is undefined" exn) in
+			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn)) in
 
-	try
 		(match Irg.get_symbol "exceptions" with
+		| Irg.UNDEF -> ()
 		| Irg.OR_OP (_, exns) -> List.iter process exns
 		| _ -> ())
-	with Irg.Symbol_not_found _ -> ()
-
 
 
 let maker _ = {
@@ -596,47 +597,24 @@ let add_switch name value dict =
  *)
 let process file f opti =
 	try
-		IrgUtil.load file;
+		IrgUtil.load_with_error_support file;
 		(*check ();*)
 		if opti then
 			Optirg.optimize (Irg.get_root ());
 		let info = Toc.info () in
 		f info
 	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
 	| Irg.Error f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n';
-		exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "%s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Irg.RedefinedSymbol s ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2
-	| Irg.Symbol_not_found id ->
-		Lexer.display_error (Printf.sprintf "can not find symbol \"%s\"" id); exit 2
-	| Irg.RedefinedSymbol sym ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\" (previous definition: %s)" sym (Irg.pos_of sym)); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2;
+		(Irg.join_all [Irg.asis "ERROR: "; f; Irg.asis "\n"]) stderr; exit 5
 	| Toc.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
-	| Toc.PreError f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n';
-		exit 4
 	| Toc.LocError (file, line, f) ->
 		Printf.fprintf stderr "ERROR: %s:%d: " file line;
 		f stderr;
 		output_char stderr '\n';
 		exit 1
+	| Toc.OpError (inst, f) ->
+		Printf.fprintf stderr "ERROR: "; f stderr; Printf.fprintf stderr " from instruction '%s'\n" (Iter.get_user_id inst); exit (1)
 	| Sys_error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->

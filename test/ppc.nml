@@ -142,10 +142,10 @@ type sflot     = float ( 31 , 9 )
 
 // 1.3.1 GEP registers
 
-reg PIA     [ 1 , address ] __attr(ppc)
+reg PIA     [ 1 , address ] ppc=1
 
-reg CIA     [ 1 , address ] __attr(pc)
-reg NIA     [ 1 , address ] __attr(npc)
+reg CIA     [ 1 , address ] pc=1
+reg NIA     [ 1 , address ] npc=1
 
 // 1.3.2 UISA model registers
 
@@ -241,43 +241,43 @@ reg TBU [ 1 , card ( 32 ) ]
 
 // 1.4.2 Aliases for Integer Temps
 
-reg TMP_WORD_A1 [ 1 , card ( 16 ) ]
-	alias = TMP_WORD [ 31 ]
-reg TMP_WORD_A0 [ 1 , card ( 16 ) ]
-	alias = TMP_WORD [ 15 ]
-reg TMP_M_OP1_H1 [ 1 , int ( 32 ) ]
+var TMP_WORD_A1 [ 1 , card ( 16 ) ]
+	alias = TMP_WORD[31]
+var TMP_WORD_A0 [ 1 , card ( 16 ) ]
+	alias = TMP_WORD[15]
+var TMP_M_OP1_H1 [ 1 , int ( 32 ) ]
 	alias = TMP_M_OP1 [ 63 ]
-reg TMP_M_OP1_H0 [ 1 , int ( 32 ) ]
+var TMP_M_OP1_H0 [ 1 , int ( 32 ) ]
 	alias = TMP_M_OP1 [ 31 ]
-reg TMP_M_OP2_H1 [ 1 , int ( 32 ) ]
+var TMP_M_OP2_H1 [ 1 , int ( 32 ) ]
 	alias = TMP_M_OP2 [ 63 ]
-reg TMP_M_OP2_H0 [ 1 , int ( 32 ) ]
+var TMP_M_OP2_H0 [ 1 , int ( 32 ) ]
 	alias = TMP_M_OP2 [ 31 ]
-reg TMP_M_RES_H1 [ 1 , int ( 32 ) ]
+var TMP_M_RES_H1 [ 1 , int ( 32 ) ]
 	alias = TMP_M_RES [ 63 ]
-reg TMP_M_RES_H0 [ 1 , int ( 32 ) ]
+var TMP_M_RES_H0 [ 1 , int ( 32 ) ]
 	alias = TMP_M_RES [ 31 ]
 	
 // 1.4.3 HalfWord Integer
 
-reg TMP_SHWORD_A1 [ 1 , int ( 8 ) ]
+var TMP_SHWORD_A1 [ 1 , int ( 8 ) ]
     alias = TMP_SHWORD [ 15 ]
 
-reg TMP_SHWORD_A0 [ 1 , int ( 8 ) ]
+var TMP_SHWORD_A0 [ 1 , int ( 8 ) ]
     alias = TMP_SHWORD [ 7 ]
 
 // 1.4.4 Word Integers
 
-reg TMP_SWORD_A3 [ 1 , int ( 8 ) ]
+var TMP_SWORD_A3 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 31 ]
 	
-reg TMP_SWORD_A2 [ 1 , int ( 8 ) ]
+var TMP_SWORD_A2 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 23 ]
 
-reg TMP_SWORD_A1 [ 1 , int ( 8 ) ]
+var TMP_SWORD_A1 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 15 ]
 
-reg TMP_SWORD_A0 [ 1 , int ( 8 ) ]
+var TMP_SWORD_A0 [ 1 , int ( 8 ) ]
     alias = TMP_SWORD [ 7 ]
 
 
@@ -356,12 +356,9 @@ op instruction ( x : allinstr)
   user0 = "0"  // Default : R0 is R0 not 0
 
 op allinstr  =  uisa_instr
-                | vea_instr
-                | oea_instr
 
 
 op uisa_instr   = uisa_base_instr
-                | uisa_fp_instr
 
 op init ()
    action = {

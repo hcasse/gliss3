@@ -208,6 +208,7 @@ Define the endianness of the simulated processor: one of ''big'' or ''little''.
 Define the endianness of the host processor: one of ''big'' or ''little''.
 
 ''#define PPC_GET_GPR(s, i)'' ...
+
 Get the //i//th register of the generic register bank stored in the currant state //s//.
 
 
@@ -247,6 +248,30 @@ Informs that the current system has succeeded in the state //s//.
 ''#define PPC_SYSPARM_REG32_FAILED(s)'' ...
 
 Informs that the current system has failed in the state //s//.
+
+''#define GLISS_ORDER_BYTES_CISC ...''
+
+This definition is invoked once four bytes of instruction has been read.
+These bytes are stored in array ''uint8_t buff[4]'' and must be stored
+re-ordered in ''uint32_t word''. This definition is only used
+in CISC mode fetching, that is, when the instructions have different
+sizes.
+
+''#define GLISS_ORDER_BYTESNN ...''
+
+This macro is invoked when a fixed-size instruction set is fetched.
+It allows to re-order bytes to the instruction word according to
+an unusual policy. //NN// must be replaced by the size in bits of the
+instruction set (usually 16 or 32). The read bytes are stored in the array
+''uint8_t buff[4]'' and lust be reordered to make the word ''uint32_t word''.
+
+''#define GLISS_PROCESS_CODE_LABEL(a) ...''
+
+If defined, this macro may apply a specific process on the address
+of a code label. It useful, for example, on processor like ARM
+where the less significant bit of the label address is used to encode
+the processor mode.
+
 
 
 

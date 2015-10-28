@@ -22,8 +22,11 @@ exception UnsupportedExpression of Irg.expr
 exception Error of string
 exception PreError of (out_channel -> unit)
 exception LocError of string * int * (out_channel -> unit)
+exception OpError of Irg.spec * (out_channel -> unit)
+
 
 let trace id = () (*Printf.printf "TRACE: %s\n" id; flush stdout*)
+let sprintf = Printf.sprintf
 
 (** Threshold which integer as suffixed under *)
 let int_threshold = Int32.of_int 255
@@ -33,6 +36,26 @@ let int_threshold = Int32.of_int 255
 	@return		Constant expression. *)
 let make_int_const i =
 	Irg.CONST (Irg.INT(32), Irg.CARD_CONST (Int32.of_int i))
+
+
+(** Raise a PreError.
+	@param f		Function to display error.
+	@raise PreError	Raised exception. *)
+let pre_error f = raise (PreError f)
+
+
+(** Call f with () parameter and catch PreError exception and requalify
+	them with file and line.
+	@param	file		Source file.
+	@param	line		Source line.
+	@param  f			Function to call.
+	@return				Result of f.
+	@raise Toc.LocError	In case of error. *)
+let handle_error file line f =
+	try
+		f ()
+	with PreError f ->
+		raise (LocError (file, line, f))
 
 
 (* StringHash module *)
@@ -141,7 +164,7 @@ let info _ =
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, Irg.STRING_CONST(id, _, _)) ->
+		| Irg.LET(_, _, Irg.STRING_CONST(id)) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -161,8 +184,7 @@ let info _ =
 		Irg.StringHashtbl.fold aux Irg.syms None in
 
 	let is_true e =
-		try Sem.is_true (Sem.eval_const e)
-		with Sem.SemError msg -> raise (Error msg) in
+		Sem.is_true (Sem.eval_const e) in
 
 	let get_reg_name name =
 		match get_attr_regs name is_true with
@@ -171,8 +193,12 @@ let info _ =
 
 	let pc =
 		match get_attr_regs "pc" is_true with
-		| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )")
-		| Some n -> n in
+		| Some n -> n
+		| None ->
+			match get_attr_regs "is_pc" is_true with
+			| Some n -> n
+			| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )") in
+
 	let path = Sys.getcwd () in {
 		out = stdout;
 		proc = p;
@@ -251,7 +277,7 @@ let rec convert_type t =
 	| Irg.ENUM _ -> UINT32
 	| Irg.RANGE (_, m) ->
 		convert_type (Irg.INT (int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))))
-	| Irg.UNKNOW_TYPE ->
+	| Irg.ANY_TYPE ->
 		(* we have some of this type in bitfield expr, we can't determine the real type and mem size
 		so let's patch it up for the moment, uint32 should be the least worst choice *)
 		UINT32
@@ -269,7 +295,7 @@ let type_size t =
 	| Irg.FLOAT (n, m) -> n + m + 1
 	| Irg.RANGE (_, m) ->
 		int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))
-	| Irg.UNKNOW_TYPE -> 32
+	| Irg.ANY_TYPE -> 32
 	| _ -> unsupported_type t
 
 
@@ -440,7 +466,7 @@ let add_var info name cnt typ =
 let declare_temps info =
 	List.iter
 		(fun (name, typ) ->
-			Irg.add_symbol name (Irg.VAR (name, 1, typ));
+			Irg.add_symbol name (Irg.VAR (name, 1, typ, []));
 			Printf.fprintf info.out "\t%s %s;\n"
 				(type_to_string (convert_type typ))
 				name
@@ -548,6 +574,8 @@ let rec unaliased_mem_name name =
 		| _ -> failwith "no concat !")
 	| _ -> failwith "not memory !"
 
+
+(* Debug Function
 let print_alias msg (r, i, il, ub, lb, t) =
 	Printf.printf "\t%s(%s [" msg r;
 	Irg.print_expr i;
@@ -558,6 +586,7 @@ let print_alias msg (r, i, il, ub, lb, t) =
 	print_string " > : ";
 	Irg.print_type_expr t;
 	print_string ")\n"
+*)
 
 
 (** Perform alias resolution, that is, translate a state read/write into
@@ -630,8 +659,8 @@ let resolve_alias name idx ub lb =
 		match Irg.get_symbol r with
 		| Irg.REG (_, _, tr, attrs) ->
 			process_alias tr attrs v
-		| Irg.VAR (_, _, tr) ->
-			process_alias tr [] v
+		| Irg.VAR (_, _, tr, attrs) ->
+			process_alias tr attrs v
 		| Irg.LET _
 		| Irg.CANON_DEF _ ->
 			(name, Irg.NONE, 1, Irg.NONE, Irg.NONE, Irg.NO_TYPE)
@@ -643,7 +672,9 @@ let resolve_alias name idx ub lb =
 			| Irg.TYPE_EXPR(tt) -> (name, i, il, ub, lb, tt)
 			| _ -> failwith "OUPS!\n")
 		| s ->
-			failwith ("bad alias: " ^ r) in
+			(*Irg.print_spec (Irg.get_symbol r);*)
+			Irg.println [Irg.PTEXT "DEBUG: "; Irg.PTEXT r; Irg.PTEXT "["; Irg.PEXPR i; Irg.PTEXT "]"];
+			failwith ("toc: bad alias: " ^ r) in
 	let res = process (name, idx, 1, ub, lb, Irg.NO_TYPE) in
 	res
 
@@ -665,7 +696,7 @@ let unalias_expr name idx ub lb typ =
 		Irg.BINOP (t, Irg.ADD, e1, e2) in
 	let rec concat l tt =
 		if l = 0 then
-			if i = Irg.NONE then Irg.REF r
+			if i = Irg.NONE then Irg.REF (t, r)
 			else Irg.ITEMOF (t, r, i)
 		else
 			Irg.BINOP(tt, Irg.CONCAT,
@@ -718,14 +749,14 @@ let rec unalias_ref info expr stats =
 				unalias_expr name idx Irg.NONE Irg.NONE typ
 			else
 				expr
-		| Irg.VAR (_, cnt, Irg.NO_TYPE) ->
+		| Irg.VAR (_, cnt, Irg.NO_TYPE, _) ->
 			expr
-		| Irg.VAR (_, cnt, t) ->
+		| Irg.VAR (_, cnt, t, attrs) ->
 			add_var info name cnt t; expr
 		| _ ->
 			expr in
 	match expr with
-	| Irg.REF name ->
+	| Irg.REF (_, name) ->
 		(* if mem ref, leave it this way, it surely is a parameter for a canonical *)
 		(stats, unalias name Irg.NONE Irg.BOOL false)
 	| Irg.ITEMOF (typ, tab, idx) ->
@@ -743,7 +774,7 @@ and prepare_expr info stats expr =
 	let set typ var expr =
 		Irg.SET (Irg.LOC_REF (typ, var, Irg.NONE, Irg.NONE, Irg.NONE), expr) in
 	match expr with
-	| Irg.REF name -> unalias_ref info expr stats
+	| Irg.REF (_, name) -> unalias_ref info expr stats
 	| Irg.NONE
 	| Irg.CONST _ -> (stats, expr)
 	| Irg.COERCE (typ, expr) ->
@@ -777,7 +808,7 @@ and prepare_expr info stats expr =
 		let (estats, epart) = prepare_expr info Irg.NOP epart in
 		let tmp = new_temp info typ in
 		(seq stats (Irg.IF_STAT (cond, seq tstats (set typ tmp tpart), seq estats (set typ tmp epart))),
-		Irg.REF tmp)
+		Irg.REF (typ, tmp))
 
 	| Irg.SWITCH_EXPR (typ, cond, cases, def) ->
 		let tmp = new_temp info typ in
@@ -794,14 +825,11 @@ and prepare_expr info stats expr =
 				cond,
 				cases,
 				if def = Irg.NONE then Irg.NOP else (seq dstats (set typ tmp def)))),
-		Irg.REF tmp)
+		Irg.REF (typ, tmp))
 
 	| Irg.ELINE (file, line, expr) ->
 		let (stats, expr) = prepare_expr info stats expr in
 		(stats, Irg.ELINE (file, line, expr))
-
-	| Irg.EINLINE _ ->
-		(stats, expr)
 
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
@@ -864,7 +892,7 @@ let unalias_set info stats name idx ub lb expr =
 		if (il = 1 && ubp == Irg.NONE) || il > 1 then
 			if il = 1 then seq stats (set_item i expr) else
 			let name = new_temp info tt in
-			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF name)) 
+			seq (seq stats (sett tt name expr)) (set_concat (il - 1) (Sem.get_type_length t) (Irg.REF (tt, name))) 
 		else
 			if il = 1 then seq stats (set_full i ubp lbp expr) else
 			let name = new_temp info tt in
@@ -875,7 +903,7 @@ let unalias_set info stats name idx ub lb expr =
 		process tt
 	| Irg.MEM (_, _, tt, _) ->
 		seq stats (set_full (i) ub lb expr)
-	| Irg.VAR (_, cnt, tt) ->
+	| Irg.VAR (_, cnt, tt, _) ->
 		add_var info name cnt tt;
 		seq stats (set_full i ub lb expr)
 	| Irg.CANON_DEF _ ->
@@ -904,7 +932,7 @@ let rec prepare_stat info stat =
 	trace "prepare_stat 1";
 	let set t n e =
 		Irg.SET (Irg.LOC_REF (t, n, Irg.NONE, Irg.NONE, Irg.NONE), e) in
-	let refto n = Irg.REF n in
+	let refto t n = Irg.REF (t, n) in
 	let rshift t v s = Irg.BINOP (t, Irg.RSHIFT, v, s) in
 	let index c = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int c)) in
 
@@ -923,8 +951,8 @@ let rec prepare_stat info stat =
 			let tmp = new_temp info t in
 			let stats = seq stats (set t tmp expr) in
 			let stats = prepare_set stats l1
-				(rshift t (refto tmp) (index (get_loc_size l2))) in
-			prepare_set stats l2 (refto tmp) in
+				(rshift t (refto t tmp) (index (get_loc_size l2))) in
+			prepare_set stats l2 (refto t tmp) in
 
 	match stat with
 	| Irg.NOP
@@ -953,19 +981,12 @@ let rec prepare_stat info stat =
 	| Irg.LINE (file, line, stat) ->
 		Irg.LINE (file, line, prepare_stat info stat)
 
-	| Irg.SETSPE (l, e) ->
-		(* !!TODO!! fix type here *)
-		prepare_stat info (Irg.SET (l, e))
-
-	| Irg.EVAL name ->
+	| Irg.EVAL ("", name) ->
 		prepare_call info name;
 		stat
 
-	| Irg.EVALIND _ ->
+	| Irg.EVAL _ ->
 		failwith "prepare_stat: must have been removed !"
-
-	| Irg.INLINE _ ->
-		stat
 
 
 and prepare_call info name =
@@ -992,7 +1013,7 @@ Irg.print_expr expr; print_char '\n';*)
 	match expr with
 	| Irg.NONE -> ()
 	| Irg.CONST (typ, cst) -> gen_const info typ cst
-	| Irg.REF name -> gen_ref info name prfx
+	| Irg.REF (_, name) -> gen_ref info name prfx
 	| Irg.ITEMOF (typ, name, idx) -> gen_itemof info typ name idx prfx
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
 	| Irg.UNOP (t, op, e) -> gen_unop info t op e prfx
@@ -1005,8 +1026,6 @@ Irg.print_expr expr; print_char '\n';*)
 			(fun com arg -> if com then out ", "; gen_expr info arg prfx; true)
 			false args);
 		out ")"
-	| Irg.EINLINE s ->
-		out s
 	| Irg.ELINE (file, line, expr) ->
 		(try gen_expr info expr prfx
 		with PreError f -> raise (LocError (file, line, f)))
@@ -1075,13 +1094,10 @@ and gen_const info typ cst =
 			Printf.fprintf info.out "%ldL" v
 	| Irg.CARD _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "0x%LxLLU" v
 	| _, Irg.CARD_CONST_64 v -> Printf.fprintf info.out "%LdLL" v
-	| _, Irg.STRING_CONST(s, b, _) ->
-		if b then
-			(* canonical const *)
-			Printf.fprintf info.out "%s" (cstring s)
-		else
-			(* simple string const *)
-			Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.STRING_CONST s ->
+		Printf.fprintf info.out "\"%s\"" (cstring s)
+	| _, Irg.CANON s ->
+		Printf.fprintf info.out "%s" (cstring s)
 	| _, Irg.FIXED_CONST v -> Printf.fprintf info.out "%f" v
 
 
@@ -1089,12 +1105,11 @@ and gen_const info typ cst =
 	@param name		Name of the state item. *)
 and gen_ref info name prfx =
 	match Irg.get_symbol name with
-	| Irg.LET (_, cst) -> gen_expr info (Irg.CONST (Irg.NO_TYPE, cst)) prfx
+	| Irg.LET (_, t, cst) -> gen_expr info (Irg.CONST (t, cst)) prfx
 	| Irg.VAR _ -> output_string info.out name
 	| Irg.REG _ -> output_string info.out (state_macro info name prfx)
 	| Irg.MEM _ -> output_string info.out (state_macro info name prfx)
 	| Irg.PARAM _ -> output_string info.out (param_macro info name)
-	| Irg.ENUM_POSS (_, _, v, _) -> output_string info.out (Int32.to_string v)
 	| s -> output_string info.out name (*failwith "expression form must have been removed")*)
 
 
@@ -1120,7 +1135,8 @@ and gen_itemof info t name idx prfx =
 			(state_macro info (unaliased_mem_name name) prfx);
 		gen_expr info idx prfx;
 		output_string info.out ")"
-	| _ -> failwith "invalid itemof"
+	| _ ->
+		failwith (sprintf "invalid itemof on '%s'" name)
 
 
 (** Generate code for unary operation.
@@ -1199,7 +1215,7 @@ and coerce info t1 expr parent prfx =
 	let eq0 f _ =
 		output_string info.out "((";
 		f ();
-		output_string info.out ") == 0)" in
+		output_string info.out ") != 0)" in
 	let cast f _ =
 		Printf.fprintf info.out "((%s)(" (type_to_string t1c);
 		f ();
@@ -1290,9 +1306,9 @@ and gen_cast info typ expr prfx =
 	let asis _ = gen_expr info expr prfx in
 	
 	let equal_zero _ =
-		Printf.fprintf info.out "(0 == (";
+		Printf.fprintf info.out "(0 != (";
 		asis ();
-		Printf.fprintf info.out ")" in
+		Printf.fprintf info.out "))" in
 
 	match typ, etyp with
 	| Irg.FLOAT _, Irg.FLOAT _-> do_cast ()
@@ -1303,13 +1319,14 @@ and gen_cast info typ expr prfx =
 		Printf.fprintf info.out "%s_cast_%sto%s(" info.proc (type_to_mem etyp) (type_to_mem ctyp);
 		gen_expr info expr prfx;
 		output_char info.out ')'
-	| Irg.INT n, _
-	| Irg.CARD n, _ -> do_cast ()
 	| Irg.BOOL, Irg.CARD n when n <= 8 -> asis ()
 	| Irg.BOOL, Irg.INT n when n <= 8 -> asis ()
 	| Irg.CARD _, Irg.BOOL
 	| Irg.INT _, Irg.BOOL 
 		-> asis ()
+	| Irg.INT n, _
+	| Irg.CARD n, _
+		-> do_cast ()
 	| Irg.BOOL, Irg.CARD _
 	| Irg.BOOL, Irg.INT _
 		-> equal_zero ()
@@ -1325,12 +1342,12 @@ and gen_cast info typ expr prfx =
 	@param hi		Higher bit index. *)
 and gen_bitfield info typ expr lo up prfx =
 
-	let rec is_const e =
+	(*let rec is_const e =
 		match e with
 		| Irg.CONST(_, _) -> true
 		| Irg.ELINE(_, _, ee) -> is_const ee
 		| Irg.CAST(_, expr) -> is_const expr
-		| _ -> false in
+		| _ -> false in*)
 
 	let bitorder_to_int bo =
 		match bo with
@@ -1373,7 +1390,7 @@ and gen_bitfield info typ expr lo up prfx =
 		output_field_common_C_code inv up lo false 0
 
 	(* no constant bounds *)
-	with Sem.SemError _ ->
+	with Irg.Error _ | Irg.PreError _ ->
 		output_field_common_C_code "_generic" lo up true (bitorder_to_int info.bito)
 
 
@@ -1386,11 +1403,8 @@ let rec multiple_stats stat =
 	| Irg.SET _
 	| Irg.CANON_STAT _
 	| Irg.ERROR _
-	| Irg.SWITCH_STAT _
-	| Irg.SETSPE _
-	| Irg.INLINE _ -> false
+	| Irg.SWITCH_STAT _ -> false
 	| Irg.EVAL _
-	| Irg.EVALIND _
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
 	| Irg.LINE (_, _, stat) -> multiple_stats stat
@@ -1421,9 +1435,9 @@ let rec gen_stat info stat =
 			true
 			args) in
 
-	let loc_to_expr t id idx =
+	(* let loc_to_expr t id idx =
 		if idx = Irg.NONE then Irg.REF id
-		else Irg.ITEMOF(t, id, idx) in
+		else Irg.ITEMOF(t, id, idx) in *)
 	
 	match stat with
 	| Irg.NOP -> ()
@@ -1434,7 +1448,7 @@ let rec gen_stat info stat =
 	| Irg.SET (Irg.LOC_REF(typ, id, idx, lo, up), expr) ->
 		line (fun _ ->
 			match Irg.get_symbol id with
-			| Irg.VAR (_, _, t)
+			| Irg.VAR (_, _, t, _)
 			| Irg.REG (_, _, t, _)
 			| Irg.PARAM (_, Irg.TYPE_EXPR(t))
 			| Irg.CANON_DEF (_, _, t, _) ->
@@ -1453,10 +1467,8 @@ let rec gen_stat info stat =
 				out ", ";
 				gen_expr info (set_field info typ id Irg.NONE lo up expr) true;
 				out ");"
-			| s ->
-				Printf.printf "==> %s\n" id;
-				Irg.print_spec s;
-				failwith "gen stat 1")
+			| _ ->
+				assert false)
 
 	| Irg.CANON_STAT (name, args) ->
 		line (fun _ ->
@@ -1511,15 +1523,11 @@ let rec gen_stat info stat =
 	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
 
-	| Irg.EVAL name ->
+	| Irg.EVAL ("", name) ->
 		gen_call info name
 
-	| Irg.INLINE s ->
-		line (fun _ -> out s)
-
 	| Irg.SET _
-	| Irg.EVALIND _
-	| Irg.SETSPE _ ->
+	| Irg.EVAL _ ->
 		failwith "must have been removed"
 
 (** Generate the code for setting a field.
@@ -1534,7 +1542,7 @@ and set_field info typ id idx lo up expr =
 
 	let transform_expr sufx a b arg3 b_o =
 		let e_bo = Irg.CONST(Irg.CARD(32), Irg.CARD_CONST(Int32.of_int b_o)) in
-		let e = if idx = Irg.NONE then Irg.REF id else Irg.ITEMOF(typ, id, idx) in
+		let e = if idx = Irg.NONE then Irg.REF (typ, id) else Irg.ITEMOF(typ, id, idx) in
 		let tl = if arg3 then [e_bo] else [] in
 		Irg.CANON_EXPR (
 			typ,
@@ -1563,7 +1571,7 @@ and set_field info typ id idx lo up expr =
 			[make_int_const (ctype_size (convert_type typ)); make_int_const(type_size typ); e])
 
 	(* no constant bounds *)
-	with Sem.SemError _ ->
+	with Irg.Error _ | Irg.PreError _ ->
 		transform_expr "_generic" lo up true (if info.bito = LOWERMOST then 0 else 1);
 
 
@@ -1607,8 +1615,8 @@ let find_recursives info name =
 				match stat with
 				| Irg.NOP -> recs
 				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
-				| Irg.EVAL name -> look_attr name stack recs
-				| Irg.EVALIND _ -> error "unsupported form"
+				| Irg.EVAL ("", name) -> look_attr name stack recs
+				| Irg.EVAL _ -> error "unsupported form"
 				| Irg.SET _ -> recs
 				| Irg.CANON_STAT _ -> recs
 				| Irg.ERROR _ -> recs
@@ -1618,9 +1626,7 @@ let find_recursives info name =
 						(fun recs (_, s) -> look_stat s recs)
 						recs
 						cases)
-				| Irg.SETSPE (loc, expr) -> recs
-				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
-				| Irg.INLINE _ -> recs in
+				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs) in
 
 			look_stat (get_stat_attr name) recs in
 	
@@ -1635,14 +1641,14 @@ let gen_pc_increment info =
 	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
 	let i_name = String.uppercase info.iname in
 	let real_name = if String.compare i_name "" == 0 then "UNKNOWN" else i_name in
-	let size = Irg.EINLINE (Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name) in
+	let size = Irg.CONST (Irg.NO_TYPE, Irg.CANON(Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name)) in
 	let ppc_stat =
 		if info.ppc_name = "" then
 			Irg.NOP
 		else
 			(* PPC = PC *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.pc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name))
 	in
 	let npc_stat =
 		if info.npc_name = "" then
@@ -1651,16 +1657,16 @@ let gen_pc_increment info =
 			(* NPC = NPC + (size of current instruction) *)
 			(* cannot retrieve the type easily, not needed for generation *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String .uppercase info.npc_name), size))
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name), size))
 	in
 	let pc_stat =
 		if info.npc_name = "" then
 			(* PC = PC + (size of current instruction) *)
 			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(String.uppercase info.pc_name), size))
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name), size))
 		else
 			(* PC = NPC *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(String.uppercase info.npc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name))
 	in
 	Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
 

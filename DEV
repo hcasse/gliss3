@@ -28,7 +28,7 @@ From "The nML Machine Description Formalism", M. Freericks, 1993.
   * on memory ''alignment''=size or ''alignment''=true, error on on-aligned
   * let byte_order = "3412"
   * ''program_memory'' attribute on memories
-  
+
 
 ===== SimNML Abstract Syntax =====
 
@@ -96,7 +96,7 @@ The generation phase involves lot of transformation and analysis of the IRG and 
   * building the fetch tree (to find back quickly the instruction identifier),
   * building the decoding functions (that extracts parameters from the instruction in binary form) and may involve complex parameter decoding,
   * simulation code generation that translate SimNML action to C code requiring support of bit operations, functional expressions, aliasing support, type equivalence, type operation translation, etc.
- 
+
 
 ===== Typing System =====
 
@@ -110,8 +110,8 @@ Therefore, two typing phases would be valuable:
   * after front-end, once all types are defined.
 
 The second phase is not very well supported by the current GLISS version and should be applied
-after the building of all instructions (instantiation of parameters).
-  
+after the building on all instructions (instantiation of parameters).
+
 
 ===== Identification Generation Process =====
 
@@ -127,6 +127,179 @@ to get a valid C identifier:
 | '{' | "_LB_" |
 | '}' | "_RB_" |
 ...
+
+
+===== Smart Opcode Generation =====
+
+After instantiation, the instruction opcode is defined by a format expression
+"format"(fmt, a0, a1, ..., an-1). Each ai must match a %b argument in fmt given
+the size (in bits) of argument. a0, a1, ..., an-1 are expression whose variable
+can only be instructions parameters.
+
+This leads to several complex issues when we need to decode a machine instruction:
+  * how to rebuild parameter if they involved in complex expression
+or may be spread over several for mat arguments?
+  * how to handle parameter whose type is not full (does not fulfill the full range of bits
+matching %b) like ranges or enumerated  type?
+
+For both issues, GLISS proposes smart solutions that are described below.
+
+==== Sparse Format Argument ====
+
+A format argument field is of the form %nf where is the number of bits occupied
+by the matching argument. Basically, all n bits are encoding the argument for most
+of argument types, that is word values between 0 and 2^n - 1. Yet, GLISS provide
+sparse type like range or enumeration that only use a part of interval [0, 2^n - 1].
+Unfortunately, the fetch tree generator (see below) does not support this feature
+and this would make it unnecessarily complex to make it. Instead, we propose
+to decompose an instruction containing sparse type in as many instruction as needed
+to cover the possible argument values. In fact, the same instruction (from the point
+of view of user will match different range of decoding in the fetch tree.
+
+This is done in two steps:
+  - when an instruction contains parameters of type range or enumerate, the exhaustive
+list of possible opcodes is built,
+  - using a modified Quine - MacCluskey and to minimize the size of the fetch tree,
+the list is reduced as much as possible by grouping opcodes whose bit argument values
+are complementary.
+
+Phase (1) is quite simple for a op whose parameters are p1, ..., pn and format
+is format(f, a1, a2, ..., an).
+
+<algo>
+ALGORITHM: 	Opcode List Building
+INPUT: 		a1, a2, ..., an arguments of format.
+OUTPUT: 	list of format with no more range parameters.
+
+l <- { (a1, a2, ..., an) }
+FOREACH pi: t s.t. t = range(a, b) or t = enum(v1, ...) DO
+	FOREACH w IN t DO
+		l <- { (a1', ..., ai', an') / (a1, ..., an) in l /\ forall i: 1 <= i <= n -> a'i = ai[pi -> w] }
+result <- { (f', a1', ..., am') / forall i: 1 <= n <= n: ai constant -> f'[%f -> ai] /\ forall i: 0  <= 1 <= m -> a1' not constant }
+
+</algo>
+
+Phase 2 is a bit more complex. At this level, a format is made of of 0, 1, X and
+is extended to _. The merge U operation has the following definition:
+
+^ a U b ^ 0 ^ 1 ^ X ^ _ ^
+^     0 | 0 | X | _ | X |
+^     1 | X | 1 | _ | X |
+^     X | _ | _ | X | _ |
+^     _ | X | X | _ | _ |
+
+<algo>
+ALGORITHM:	Pseudo-Quine-MacCluskey Minimization
+INPUT:		l list of formats.
+OUTPUT:		done: minimize list of formats.
+
+	todo <- l
+	done <- {}
+	WHILE todo <> {} DO
+
+		%% build groups
+		pgroups <- { }
+		groups <- { (m, {m}) / m in todo }
+		WHILE groups <> pgroups DO
+			pgroups <- groups
+			groups <- { (U{(mi, si) in M} mi, U{(mi, si) in M} si)
+				/ forall (mi, si), (mj, sj) in M -> |mi U mj|_x - |mi|_x <= 1 }
+		DONE
+
+		%% select a group
+		let (M, S) s.t. (M, S) in groups /\ forall (m, s) in groups, |S| >= |s|
+		done <- { M }
+		todo <- todo - { G }
+
+</code>
+
+Now, we can present the last step of code opcode generation with sparse opcode arguments.
+Some instruction set (for instance, ARM9) are re-using rarely used or unconsistent opcodes
+to encore special instruction. In this case, a non-used opcode is not only a range
+or an enumerated parameter but a conjunction of different parameter values. Clearly,
+the goal is to select allowed opcode for an instruction controlled  by a condition and the
+obtained opcodes are feeded to Pseudo-Quine-MacCluskey Minimization algorithm. Yet, we
+have to extend a bit algorithm Opcode List Building to support conditional selection of
+opcodes.
+
+First, we precise the supported expression form for an opcode O:
+<code>
+O:		none
+|		format(f, a1, ..., an)
+|		if(Ep, O, O)
+</code>
+Ep is the set of expresson whose variable can only be instruction parameters.
+
+Now, we want to get the list of opcodes s.t. we can evaluate a condition to select
+a subset of opcodes. We define the function S: O x Ep -> 2^W.
+
+<algo>
+ALGORITHM:	Opcode Selection by Condition
+INPUT:		Instruction with parameter pi and opcode o.
+OUTPUT:		S[o] c
+
+S[none] _ = { }
+S[if(c', o1, o2)] c = S[o1] (c /\ c') U S[o2] (c /\ -c')
+S[format(f, a1, ..., an)] T =
+	{ (f, a'1, ..., a'n) / let sub = { pi -> w / pi:t /\ (t = range \/ t = enum) /\ w in range(t) } in
+						   forall a'i: a'i = sub a_i }
+S[format(f, a1, ..., an)] c =
+	{ (f, a'1, ..., a'n) / let sub = { pi -> w / pi:t /\ (t = range \/ t = enum \/ pi in var(c)) /\ w in range(t) } in
+						   forall a'i: a'i = sub a_i /\ I[sub c]}
+</algo
+Where I est the interpretation of its argument, I: E -> W, and sub is a subsitution in the expression of SimNML, sub: E -> E.
+
+
+==== Complex Decoding ====
+
+Most of ISA maintain a direct transformation between instruction parameter, as seen by the assembly developer,
+and the encoding of the parameter in the opcode (so we have an identity function for encoding or decoding).
+Sometimes, things may be more complex:
+  * a paremeter may be split over several opcode fields,
+  * calculation is needed to encode/decode the parameter (shift, addition, etc).
+
+In this case, we have encoding and decoding functions that are not identities but both functions have an
+important property: there are bijective. Lets go further in the encoding and decoding process.
+
+An instruction may be seen as a mnemonic with a set of parameters p1, ..., pn. An opcode is a string of bits
+with some %b bits whose value depends on parameters using argument expression to map pi to %b. So, we can define
+the set of encoding and decoding functions:
+
+enc: W x pi -> W	where each X is replaced by the matching argument.
+dec: W x W -> pi	where each pi is built from bits of the opcode.
+
+Implement enc si straight-forward once we have a value xi for each parameter pi,
+let sub = { pi -> xi } the substitution of pi by xi, encoding is the evaluation of ai
+and replacement in format word:
+env w pi = format(w, a'i) / a'i = sub ai
+
+Decoding is more complex because we have to retrieve any bit of pi from the encoded word,
+that is, more or less, inverting ai expressions.
+
+Let w<ui..li> part of opcode matching argument ai. ai contains one or several references
+to a part or a whole of pi. The goal of this algorithm is to produce a list of
+equalities of the form pi<vi..ki> in function of w<ui..li>. pi are then recomposed
+from the definition of their different fragments.
+
+<algo>
+ALGORITHM:	Paramater Decoding
+INPUT:		w<ui..li> field of opcode, pi list of parameter.
+RESULT:		pi<vi..ki>, fragments of parameters.
+
+result = U{ai} II[ai] w<ui..li>
+with II: Ep x W -> 2^(ID, Ep)
+
+II[pi] w = (pi, w)
+II[e + k] w = II[e] (w - k)
+II[e1::e2] w<u..l> = II[e1] w<u..s+l> U II[e2] <s+l-1..l> with s = |type(e)|
+
+%% TO FIX
+II[e<u..l>] w = { (pi<..>, wi<min(ui - (li - l)..max(l, li)>) / (pi<ui..li>, wi) in II[e] w }
+II[_] w = error
+
+</algo>
+
+
 
 
 

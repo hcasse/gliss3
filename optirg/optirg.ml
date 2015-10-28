@@ -47,7 +47,7 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 		let image_expr = (Image_attr_size.get_expr_of_image attr_list) in 
 		let rec int_of_expr expr = 
 			match expr with 
-			| CONST(STRING,STRING_CONST(image_string, false, _)) -> 
+			| CONST(STRING,STRING_CONST(image_string)) -> 
 				int_of_string ("0b"^image_string)
 			| ELINE(_,_,e) -> int_of_expr e
 			| _ -> failwith ("code_from_spec: Optimization need constant string as image. ("^(String_of_expr.name_of_expr image_expr)^") ")
@@ -114,7 +114,7 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.COERCE(type_expr,_) -> type_expr
 	| 	Irg.FORMAT(_,_)-> Irg.STRING
 	| 	Irg.CANON_EXPR( type_expr,_,_)-> type_expr
-	| 	Irg.REF(_)-> Irg.UNKNOW_TYPE
+	| 	Irg.REF(_)-> Irg.ANY_TYPE
 	| 	Irg.FIELDOF(type_expr,_,_) -> type_expr
 	| 	Irg.ITEMOF (type_expr,_,_)-> type_expr
 	| 	Irg.BITFIELD (type_expr,_,_,_) -> type_expr
@@ -124,7 +124,6 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.SWITCH_EXPR (type_expr,_,_,_)-> type_expr
 	| 	Irg.CONST (type_expr,_)-> type_expr
 	| 	Irg.ELINE (_,_,e)-> type_of_expr e
-	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
 	|	Irg.CAST(type_expr, _) -> type_expr
 
 (**
@@ -286,14 +285,14 @@ let attr_list_from_and_node
 			|Irg.ATTR_EXPR(name,e) when name="image"-> 
 				ATTR_EXPR(
 					name,
-					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF("code")])
+					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF(NO_TYPE, "code")])
 				)
 			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
 					SWITCH_EXPR(
 						(type_of_expr e), 
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
 						Irg.NONE
 					)
@@ -302,7 +301,7 @@ let attr_list_from_and_node
 				ATTR_STAT(
 					name,
 					SWITCH_STAT(
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						List.map (case_from_attr_stat size name) and_list, 
 						Irg.NOP
 					)
@@ -326,13 +325,13 @@ let fusion
 	((or_node,and_list):(opt_struct))
 	:Irg.spec =
 	let size = Image_attr_size.sizeOfSpec or_node in
-	let val_attr = ATTR_EXPR("__val",REF("code")) in 
+	let val_attr = ATTR_EXPR("__val",REF(NO_TYPE, "code")) in 
 	let new_attr_list = val_attr::(attr_list_from_and_node and_list size) in
 	match or_node with
 
 	(* Case in which we have a MODE *)
 	| Irg.OR_MODE(name,_) -> 
-		let val_expr = SWITCH_EXPR(STRING, REF("code"), (List.map (case_from_value_expr size) and_list), NONE) in
+		let val_expr = SWITCH_EXPR(STRING, REF(NO_TYPE, "code"), (List.map (case_from_value_expr size) and_list), NONE) in
 		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], val_expr, new_attr_list)
 
 	(* Case in which we have a MODE *)
@@ -380,7 +379,7 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 		let rec get_location = function 
 			| LINE(_,_,s) -> (get_location s) 
 			| SEQ(s1,s2) -> (get_location s1)@(get_location s2)
-			| SET(loc,_) | SETSPE(loc,_) -> get_names_from_location loc
+			| SET(loc,_) -> get_names_from_location loc
 			| _ -> []
 		in	
 		match (Irg.get_symbol name) with 
@@ -423,7 +422,7 @@ let affect_constraint_del (list_opt: opt_struct list) :opt_struct list=
 		the name of the referenced node.	
 *)
 let rec string_of_ref_expr ref_expr = match ref_expr with 
-		| REF(str) -> str
+		| REF(_, str) -> str
 		| ELINE(_,_,expr) -> string_of_ref_expr(expr)
 		| _-> failwith "optirg.ml: string_of_Ref_expr -> this argument is not a REF or a ELINE"
 
@@ -470,7 +469,7 @@ let affect_constraint (list_name: string list) :unit=
 		let rec modify_stat list_param = function 
 			| LINE(a,b,s) -> LINE(a,b,(modify_stat list_param s))
 			| SEQ(s1,s2) -> SEQ((modify_stat list_param s1),(modify_stat list_param s2))
-			| SET(loc,e) | SETSPE(loc,e) as set -> 
+			| SET(loc,e) as set -> 
 				let name_of_loc= List.hd (get_names_from_location loc) in
 				let type_of_loc= try name_of_typ ( List.assoc name_of_loc list_param ) with | _ -> " " in  
 				(* (3) *)
@@ -491,7 +490,7 @@ let affect_constraint (list_name: string list) :unit=
 				if( List.exists ((=) type_of_loc) list_name) then 
 					(* (2) *)
 					SWITCH_STAT(
-						FIELDOF(UNKNOW_TYPE, name_of_loc, "__val"),
+						FIELDOF(ANY_TYPE, name_of_loc, "__val"),
 						List.map ( create_case_stat loc e ) (case_list ()), 
 						NOP
 					)
@@ -538,9 +537,7 @@ let number_of_instr () =
 			List.fold_right (
 				fun (_,t) res ->  
 					res * 
-					try 
 						(count (get_symbol (name_of_typ t)))
-					with Symbol_not_found(_) -> 1
 				) 
 				arglist 1
 	| 	OR_MODE(_,arglist)| 	OR_OP(_,arglist) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0

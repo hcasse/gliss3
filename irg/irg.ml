@@ -19,24 +19,240 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
+(** IRG module is dedicated to the Intermediate Representation in GLISS (IRG) of SimNML
+	and to its associate facilities.
+	
+	{2 Intermediate representation}
+	The intermediate representation uses a recursive tree of several datatypes.
+	Interesting types includes:
+	- {!spec} - top level specification item (type, constant, operation, mode, etc).
+	- {!attr} - representation of attributes on object supporting them (AND operation, AND mode, registers, etc);
+	  Attributes supports values that may be locations, expression or statements.
+	- {!location} - allows to design resources supporting assignments (like registers, memories and variables).
+	- {!expr} - represents a computation expression (i.e. constant, binary or unary operations, resource access, etc).
+	- {!stat} - represents statements in SimNML i.e. assignment, sequence, selection, multiple-selection.
+	
+	Once parsed, a SimNML file (extension [.nmp] or [.nml]) is a collection of specifications
+	that are stored in the main dictionnary provided by this module.  
+	
+	Functions this collection of specifications includes:
+	- {!add_attr} to add an attribute,
+	- {!add_canon} to add and declare a canonical function,
+	- {!add_param} to add a parameter,
+	- {!add_pos} to add source information for a symbol,
+	- {!add_symbol} to add a new symbol,
+	- {!fold} to perform a computation on the set of symbols,
+	- {!get_canon} to get a canonical function,
+	- {!get_isize} to get the instruction size special constant,
+	- {!get_proc_name} to get ISA name,
+	- {!get_root} to get the root operation(s),
+	- {!get_symbol} to get a symbol by its name,
+	- {!iter} to iterate on the set of symbols,
+	- {!is_defined} to test if a symbol is defined,
+	- {!is_defined_canon} to test if a canonical function is defined,
+	- {!pos_of} to get source information about a symbol,
+	- {!rm_symbol} to remove a symbol.
+	
+	This module provides also function to serialize/deserialize the instruction to/from
+	a file (files with extension [.irg]:
+	- {!load}
+	- {!save}
+	
+	{2 Working with AND-mode or -operations}
+	
+	IRG does not provide a hierarchical table of symbols. As is, the symbol tables contains top-level
+	symbols, that is, the top-level specification. When some one has to work inside
+	an AND-mode or an AND-operation, the symbol table needs to be populated with parameters and
+	attributes. This is done with function:
+	- {!param_stack}
+	- {!attr_stack}
+	
+	After the work has been done, the symbol table need to be cleaned with functions:
+	- {!param_unstack}
+	- {!attr_unstack}
+	
+	{2 Useful Accessors}
+	
+	As IRG is not so easy to handle, some functions are provided to help the user to handle attributes:
+	- {!attr_defined} to test if an attribute is in a list of attributes,
+	- {!attr_expr} to get an attribute of type expression,
+	- {!attr_loc} to get an attribute of type location,
+	- {!attr_name} to get the name of an attribute,
+	- {!attrs_of} to get the attributes of a specification,
+	- {!set_attr} to set an attribute value in an attribute list.
+	
+	Other function are useful to handle specifications:
+	- {!escape_eline} allows to remove source information around an expression,
+	- {!is_reg} to test if a symbol is a register,
+	- {!name_of} to get name of a specification,
+	- {!string_of_binop} to convert binary operator to string,
+	- {!string_of_unop} to convert unary operator to string.
+	
+	Some functions are designed to support format strings: 
+	- {!is_bin_format} to test if an escape sequence is binary,
+	- {!is_float_format} to test if an escape sequence is float,
+	- {!is_int_format} to test if an escape sequence is integer,
+	- {!is_text_format} to test if ane scape sequence is a string/text,
+	- {!split_format_string} to split format string from [format] function.
+	
+	Other functions and data allows working with source information :
+	- {!line_from_expr} to lookup in expression for source information,
+	- {!line_from_stat} to lookup in statement for source information,
+	- {!no_line} represents empty source information.
+	
+	{2 Pretty Printing}
+	
+	IRG module provides lots of function to pretty-print the IRG elements on standard output:
+	- {!print_attr},
+	- {!print_const},
+	- {!print_expr},
+	- {!print_location},
+	- {!print_mem_attr},
+	- {!print_mem_attrs},
+	- {!print_pos},
+	- {!print_spec},
+	- {!print_statement},
+	- {!print_type},
+	- {!print_type_expr}.
+	Or any output stream:
+	- {!output_attr},
+	- {!output_const},
+	- {!output_expr},
+	- {!output_location},
+	- {!output_mem_attr},
+	- {!output_mem_attrs},
+	- {!output_spec},
+	- {!output_statement},
+	- {!output_type},
+	- {!output_type_expr}.
+
+	As these functions may be a bit tedious to use, it is possible to combine alltogether
+	in a list of {!printable} (supporting statement, expressiones, type or simple string or integers).
+	The following functions supports this feature:
+	- {!output},
+	- {!outputln},
+	- {!prerr},
+	- {!prerrln}
+	- {!print},
+	- {!println}.
+	
+	{2 Error Management}
+	
+	This module provides also a collection of exception that may be used when IRG is processed:
+	- {!SyntaxError} - only raised at parsing time to alert about a syntax error (this usually stops the parsing),
+	- {!Error} - raised to alert about a error during IRG processing or building,
+	- {!PreError} - errors that has not been localized.
+
+	An important issue concerns the way the error message is provided to the final catcher of the error: basically,
+	as function taking as unique parameter the stream to output to. This method provide bunch of flexibility in the way
+	the message are displayed. In addition, this module provides several tool function to handle error message functions:
+	- {!asis} text - generate an error function displaying the given text.
+	- {!join} f1 f2 - generate an error function concatenating both messages of f1 and f2.
+	- {!output} list - generate an error function displaying complex IRG message.
+	
+	Raising an error in a compiler may be a tricky action: to make useful by the human user, the error must be located
+	relatively to the sources. IRG provides source information through special constructors put in {!expr} and {!stat} datatypes.
+	When an error is raised during the processing of an expression or of a statement, one has to find back the closer
+	source information to locate the error. IRG provide facilities to do that if the a {!PreError} is raised:
+	an handler, associated with source information, will catch it and add missing source information to the error
+	message, that is, will transform it in {!Error} exception.
+	
+	To support this scheme, the user must call the following functions to raise an error:
+	- {!error} - to raise a PreError that will be fixed thereafter.
+	- {!handle_error} file line f - will call f with () parameter but will catch any {!PreError} and will locate it.
+	- {!complete_error} f file line - build an error function that will display file and line and append the f error function message.
+	
+	Alternatively, one may look in {!expr} or {!stat} to find closer source information (not very precise but may do the trick):
+	- {!expr_error} e f -- generate an error with display closer source information from e and message from f.
+	- {!stat_error} s f -- generate an error with display closer source information from s and message from f.
+	
+	For error concerning other IRG elements, like specification, IRG maintains an associative map between the element and the source information
+	where they are declared. The following functions may be used:
+	- {!error_symbol} name f - raise an error that displays source information of named symbol and message from f.
+	- {!error_spec} spec f - raise an error that displays source information of the given specification and message from f.
+	
+	{2 Useful constants}
+	
+	This constants provides useful intermediate representations construction.
+	- {!ieee754_32} IEEE-754 binary32 type
+	- {!ieee754_64} IEEE-754 binary64 type
+	- {!ieee754_128} IEEE-754 binary128 type
+*)
+
+
+exception SyntaxError of string
 exception Error of (out_channel -> unit)
-
-
-(** Deprecated *)
-exception RedefinedSymbol of string
-
-(** Deprecated *)
-exception IrgError of string
+exception PreError of (out_channel -> unit)
 
 
 (** Raise the error exception.
 	@param f	Function to display error. *)
-let error_with_fun f = raise (Error f)
+let error f = raise (PreError f)
 
 
-(** Raise an error exception with the given message.
-	@param msg	Message to display. *)
-let error msg = raise (Error (fun out -> output_string out msg))
+(** Emit a PreError exception. PreError are error without source line information
+	that need to be fulfilled with this information.
+	@param msg		Message of the preerror.
+	@raise PreError Ever.*)
+let pre_error msg = raise (PreError (fun out -> output_string out msg))
+
+
+(** Take a pre-error exception and build a complete error message.
+	@param m		Message function (out_channel -> unit).
+	@param f		Source file.
+	@param l		Source line.
+	@raise Error	Ever. *)
+let complete_error m f l =
+	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
+
+
+(** Manage errors from the IRG ELINE or SLINE.
+	Call teh given function with the given argument and handle any PreError.
+	@param file		Current source file.
+	@param line		Current source line.
+	@param fn 		Function to call with ().
+	@return			Result of fn call.
+	@raise Error	If there is an error. *)
+let handle_error file line fn =
+	try
+		fn ()
+	with PreError msg ->
+		complete_error msg file line
+
+
+(** Output the given text when the out stream will be passed.
+	@param text		Text to display.
+	@param out		Output stream. *)
+let asis text out =
+	output_string out text
+
+
+(** Join two output functions.
+	@param f1	First output function.
+	@param f2	Second output function.
+	@return		Output function joining both functions. *)
+let join f1 f2 out =
+	f1 out; f2 out
+
+
+(** Join several error functions.
+	@param lst	List of output functions.
+	@param out	Output stream (usually left open). *)
+let join_all lst out =
+	List.iter (fun f -> f out) lst
+
+
+(** Find index of an item in a list.
+	@param item		Looked item.
+	@param list		List to look in.
+	@return			Position of item in list or -1. *)
+let index_of item list =
+	let rec scan list i =
+		match list with
+		| [] -> -1
+		| h::_ when item = h -> i
+		| _::t -> scan t (i + 1) in
+	scan list 0
 
 
 (** May be set to true to dump line information during expression/statement
@@ -46,16 +262,27 @@ let dump_type = ref true
 
 (** Type expression *)
 type type_expr =
-	  NO_TYPE
-	| BOOL
-	| INT of int
-	| CARD of int
-	| FIX of int * int
-	| FLOAT of int * int
-	| RANGE of int32 * int32
-	| STRING
-	| ENUM of string list
-	| UNKNOW_TYPE		(* Used for OR_MODE only. The evaluation is done in a dynamic way *)
+	  NO_TYPE					(** only used for undefined type *)
+	| BOOL						(** boolean value, supports value 0 or 1 *)
+	| INT of int				(** (bits number) signed integer type *)
+	| CARD of int				(** (bits number) unsigned interger type *)
+	| FIX of int * int			(** (integer part bits number, fractional part bits number) fixed point type *)
+	| FLOAT of int * int		(** (exponent bits number, mantissa bits number) floating-point type *)
+	| RANGE of int32 * int32	(** (low, up) integer range *)
+	| STRING					(** string uniquely used for disassembly *)
+	| ENUM of int32 list		(** (list of values) enumerated type *)
+	| ANY_TYPE					(** used to represent a variable type (usually induced by OR-mode or operations *)
+
+
+(** Float type for IEEE-754 binary32 *)
+let ieee754_32 = FLOAT (8, 23)
+
+(** Float type for IEEE-754 binary64 *)
+let ieee754_64 = FLOAT (11, 52)
+
+(** Float type for IEEE-754 binary128 *)
+let ieee754_64 = FLOAT (15, 112)
+
 
 (** Use of a type *)
 type typ =
@@ -93,30 +320,31 @@ type binop =
 	| BIN_XOR
 	| CONCAT
 
+(** Type to describe constants. *)
 type const =
-	  NULL
-	| CARD_CONST of Int32.t
-	| CARD_CONST_64 of Int64.t
-	| STRING_CONST of string * bool	* type_expr	(** bool indicates if const is canonical, if bool is true then 3rd field is the type of canonical const *)
-	| FIXED_CONST of float
+	  NULL						(** Null value. *)
+	| CARD_CONST of Int32.t		(** Natural 32-bits. *)
+	| CARD_CONST_64 of Int64.t	(** Natural 64-bits. *)
+	| STRING_CONST of string	(** String. *)
+	| FIXED_CONST of float		(** Fixed-precision real value. *)
+	| CANON of string			(** Canonical constant. *)
 
 type expr =
-	  NONE									(* null expression *)
-	| COERCE of type_expr * expr						(* explicit coercition *)
-	| FORMAT of string * expr list						(* format expression *)
-	| CANON_EXPR of type_expr * string * expr list				(* canonical expression *)
-	| REF of string								(* attribute / state item access *)
-	| FIELDOF of type_expr * string * string				(* attribute access *)
-	| ITEMOF of type_expr * string * expr					(* state item array access *)
-	| BITFIELD of type_expr * expr * expr * expr				(* bit field access *)
-	| UNOP of type_expr * unop * expr					(* unary operation (negation, not, etc) *)
-	| BINOP of type_expr * binop * expr * expr				(* binary operation (arithmetic, logic, shift, etc) *)
-	| IF_EXPR of type_expr * expr * expr * expr				(* if expression *)
-	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr		(* switch expression *)
-	| CONST of type_expr * const						(* constant value *)
-	| ELINE of string * int * expr						(* source/line information (file, line, expression) *)
-	| EINLINE of string							(** inline source in expression (for internal use only) *)
-	| CAST of type_expr * expr						(** binary cast (target type, expression *)
+	  NONE																(** null expression *)
+	| COERCE of type_expr * expr										(** explicit coercition *)
+	| FORMAT of string * expr list										(** format expression *)
+	| CANON_EXPR of type_expr * string * expr list						(** canonical expression *)
+	| REF of type_expr * string											(** attribute / state item access *)
+	| FIELDOF of type_expr * string * string							(** attribute access *)
+	| ITEMOF of type_expr * string * expr								(** state item array access *)
+	| BITFIELD of type_expr * expr * expr * expr						(** bit field access *)
+	| UNOP of type_expr * unop * expr									(** unary operation (negation, not, etc) *)
+	| BINOP of type_expr * binop * expr * expr							(** binary operation (arithmetic, logic, shift, etc) *)
+	| IF_EXPR of type_expr * expr * expr * expr							(** if expression *)
+	| SWITCH_EXPR of type_expr * expr * (expr * expr) list * expr		(** switch expression *)
+	| CONST of type_expr * const										(** constant value *)
+	| ELINE of string * int * expr										(** source/line information (file, line, expression) *)
+	| CAST of type_expr * expr											(** binary cast (target type, expression *)
 
 (** Statements *)
 type location =
@@ -134,23 +362,19 @@ type attr_arg =
 (** A statement in an action. *)
 type stat =
 	  NOP
-	| SEQ of stat * stat
-	| EVAL of string
-	| EVALIND of string * string
-	| SET of location * expr
-	| CANON_STAT of string * expr list
+	| SEQ of stat * stat								(** (s1, s2) Sequential execution of s1 then s2. *)
+	| EVAL of string * string							(** (parameter, attribute) Access to an attribye. If parameter = "", this is a self-attribute. *)
+	| SET of location * expr							(** (location, expression) Assignment of expression to the given location *)
+	| CANON_STAT of string * expr list					(** Call to a canonical procedure. *)
 	| ERROR of string	(* a changer : stderr ? *)
-	| IF_STAT of expr * stat * stat
-	| SWITCH_STAT of expr * (expr * stat) list * stat
-	| SETSPE of location * expr		(** Used for allowing assigment of parameters (for exemple in predecode attribute).
-					   				This is NOT in the nML standard and is only present for compatibility *)
-	| LINE of string * int * stat	(** Used to memorise the position of a statement *)
-	| INLINE of string				(** inline source in statement (for internal use only) *)
+	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
+	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
+	| LINE of string * int * stat						(** Used to store source information.  *)
 
 
 (** attribute specifications *)
 type attr =
-	  ATTR_EXPR of string * expr
+	| ATTR_EXPR of string * expr
 	| ATTR_STAT of string * stat
 	| ATTR_USES
 	| ATTR_LOC of string * location
@@ -164,11 +388,11 @@ type canon_type =
 (** Specification of an item *)
 type spec =
 	  UNDEF
-	| LET of string * const (* typed with construction *)
+	| LET of string * type_expr * const
 	| TYPE of string * type_expr
 	| MEM of string * int * type_expr * attr list
 	| REG of string * int * type_expr * attr list
-	| VAR of string * int * type_expr
+	| VAR of string * int * type_expr * attr list
 	| AND_MODE of string * (string * typ) list * expr * attr list
 	| OR_MODE of string * string list
 	| AND_OP of string * (string * typ) list * attr list
@@ -177,11 +401,6 @@ type spec =
 	| EXN of string
 	| PARAM of string * typ
 	| ATTR of attr
-	| ENUM_POSS of string*string*Int32.t*bool	(*	Fields of ENUM_POSS :
-								the first parameter is the symbol of the enum_poss,
-								the second is the symbol of the ENUM where this ENUM_POSS is defined (must be completed - cf function "complete_incomplete_enum_poss"),
-								the third is the value of this ENUM_POSS,
-								the fourth is a flag to know if this ENUM_POSS is completed already (cf function "complete_incomplete_enum_poss")	*)
 	| CANON_DEF of string * canon_type * type_expr * type_expr list	(** declaration of a canonical: name of canonical, type (fun or const name), return type, args type *)
 
 (** Get the name from a specification.
@@ -190,11 +409,11 @@ type spec =
 let name_of spec =
 	match spec with
 	  UNDEF -> "<undef>"
-	| LET (name, _) -> name
+	| LET (name, _, _) -> name
 	| TYPE (name, _) -> name
 	| MEM (name, _, _, _) -> name
 	| REG (name, _, _, _) -> name
-	| VAR (name, _, _) -> name
+	| VAR (name, _, _, _) -> name
 	| AND_MODE (name, _, _, _) -> name
 	| OR_MODE (name, _) -> name
 	| AND_OP (name, _, _) -> name
@@ -202,7 +421,6 @@ let name_of spec =
 	| RES (name) -> name
 	| EXN (name) -> name
 	| PARAM (name, _) -> name
-	| ENUM_POSS (name, _, _, _) -> name
 	| ATTR(a) ->
 		(match a with
 		| ATTR_EXPR(name, _) -> name
@@ -249,14 +467,28 @@ let pos_of sym =
 		"<no line>"
 
 
+(** Handle an error from a symbol.
+	@param name		Name of the symbol.
+	@param f		Message function.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_symbol name f =
+	raise (Error (fun out -> Printf.fprintf out "%s: " (pos_of name); f out))	
+
+
+(** Handle an error from a specification.
+	@param spec		Specification.
+	@param msg		Message of the error.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_spec spec f =
+	error_symbol (name_of spec) f
+	
+
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 let _ =
 	StringHashtbl.add syms "__IADDR" (PARAM ("__IADDR", TYPE_EXPR (CARD(32))));
 	StringHashtbl.add syms "__ISIZE" (PARAM ("__ISIZE", TYPE_EXPR (CARD(32))))
 
-
-exception Symbol_not_found of string
 
 (** Get the symbol matching the given name or UNDEF if not found.
 	@param n	Symbol to look for.
@@ -265,16 +497,11 @@ let get_symbol n =
 	try
 		StringHashtbl.find syms n
 	with Not_found ->
-		(*if n = "bit_order" then*)
-			UNDEF
-		(*else*)
-		(* !!DEBUG!! *)
-		(*failwith ("ERROR: irg.ml::get_symbol, " ^ n ^ " not found, probably not defined in nmp sources, please check include files.")*)
-		(*raise (Symbol_not_found(n))*)
+		UNDEF
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
-	| LET(_, STRING_CONST(name, _, _)) -> name
+	| LET(_, _, STRING_CONST(name)) -> name
 	| _                         ->
 		failwith ("Unable to find 'proc_name'."^
 				  "'proc' must be defined as a string let")
@@ -298,7 +525,7 @@ let add_symbol name sym =
 			match get_symbol nm with
 			MEM(_, i, _, _)
 			| REG(_, i, _, _)
-			| VAR(_, i, _) ->
+			| VAR(_, i, _, _) ->
 				i > 1
 			| _ ->
 				false
@@ -317,13 +544,13 @@ let add_symbol name sym =
 				int_of_float (ceil ((log (float (Int32.to_int m))) /. (log 2.)))
 			| NO_TYPE
 			| STRING
-			| UNKNOW_TYPE ->
-				failwith "length unknown"
+			| ANY_TYPE ->
+				failwith "irg: length unknown"
 		in
 		let b_o =
 			match get_symbol "bit_order" with
 			UNDEF -> true
-			| LET(_, STRING_CONST(id, _, _)) ->
+			| LET(_, _, STRING_CONST(id)) ->
 				if (String.uppercase id) = "UPPERMOST" then true
 				else if (String.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
@@ -411,28 +638,15 @@ let param_unstack l= List.iter (StringHashtbl.remove syms) (List.map fst l)
 let add_attr attr =
 	StringHashtbl.add syms (name_of (ATTR(attr))) (ATTR(attr))
 
+
 (**	Add a list of attributes to the namespace.
 		@param l	The list of attributes to add.	*)
 let attr_stack l= List.iter add_attr l
 
+
 (**	Remove a list of attributes from the namespace.
 		@param l	The list of attributes to remove.	*)
 let attr_unstack l= List.iter (StringHashtbl.remove syms) (List.map (fun x -> name_of (ATTR(x))) l)
-
-(**	This function is used to make the link between an ENUM_POSS and the corresponding ENUM.
-		It must be used because when the parser encounter an ENUM_POSS, it doesn't have reduce	(* a changer : stderr ? *)d the ENUM already.
-		The ENUM can be reduced only when all the ENUM_POSS have been.
-		So when reduced, the ENUM_POSS have an boolean attribute "completed" set at false and their enum attribute is empty.
-		When the ENUM is reduced, we fill the enum attribute to make the link, and set the "completed" to true
-
-		@param id	The id of the enum
-*)
-let complete_incomplete_enum_poss id =
-	StringHashtbl.fold (fun e v d-> match v with
-				ENUM_POSS (n,_,t,false)-> StringHashtbl.replace syms e (ENUM_POSS (n,id,t,true))
-				|_->d
-			) syms ()
-
 
 
 (* --- canonical functions --- *)
@@ -461,7 +675,7 @@ let canon_table : canon_fun CanonHashtbl.t = CanonHashtbl.create 211
 (* list of all defined canonical functions *)
 let canon_list = [
 			(* this is the "default" canonical function, used for unknown functions *)
-			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=UNKNOW_TYPE };
+			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=ANY_TYPE };
 			{ name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE };
 			
 			(* for debugging generation *)
@@ -493,8 +707,7 @@ let rec get_canon name=
 
 (** Add a canonical definition to the namespace.
 	@param sym	Canonical specification (Irg.CANON_DEF(...)).
-	@param fun_name	Canonical name.
-	@raise RedefinedSymbol	If the symbol is already defined. *)
+	@param fun_name	Canonical name. *)
 let add_canon fun_name sym =
 	let canon_def_sym =
 		match sym with
@@ -505,7 +718,7 @@ let add_canon fun_name sym =
 	in
 	if CanonHashtbl.mem canon_table name
 	(* symbol already exists *)
-	then raise (RedefinedSymbol fun_name)
+	then pre_error (Printf.sprintf "redefined symbol \"%s\", firstly defined at %s" fun_name (pos_of fun_name))
 	(* add the symbol to the hashtable *)
 	else CanonHashtbl.add canon_table name canon_def_sym
 
@@ -535,10 +748,12 @@ let output_const out cst =
 	| CARD_CONST_64 v->
 		output_string out (Int64.to_string v);
 		output_string out "LL"
-	| STRING_CONST(v, _, _) ->
+	| CANON v
+	| STRING_CONST v ->
 		Printf.fprintf out "\"%s\"" v
 	| FIXED_CONST v ->
 		Printf.fprintf out "%f" v
+
 
 (** Print a constant.
 	@param cst	Constant to display. *)
@@ -568,10 +783,10 @@ let output_type_expr out t =
 		output_string out "string"
 	| ENUM l->
 		output_string out "enum (";
-		Printf.fprintf out "%s" (List.hd (List.rev l));
-		List.iter (fun i->(Printf.fprintf out ",%s" i)) (List.tl (List.rev l));
+		Printf.fprintf out "%ld" (List.hd (List.rev l));
+		List.iter (fun i->(Printf.fprintf out ", %ld" i)) (List.tl (List.rev l));
 		output_string out ")"
-	| UNKNOW_TYPE -> output_string out "unknow_type"
+	| ANY_TYPE -> output_string out "any_type"
 
 
 (** Print a type expression.
@@ -649,11 +864,13 @@ let rec output_expr out e =
 		output_string out e;
 		output_string out ".";
 		output_string out n
-	| REF id ->
-		output_string out id
+	| REF (t, id) ->
+		Printf.fprintf out "%s: " id;
+		output_type_expr out t
 	| ITEMOF (t, name, idx) ->
-		output_string out name;
-		output_string out "[";
+		Printf.fprintf out "%s: " name;
+		output_type_expr out t; 
+		output_string out " [";
 		output_expr out idx;
 		output_string out "]";
 	| BITFIELD (t, e, l, u) ->
@@ -677,16 +894,20 @@ let rec output_expr out e =
 		output_string out "(";
 		output_expr out e2;
 		output_string out ")"
-	| IF_EXPR (_,c, t, e) ->
-		output_string out "if ";
+	| IF_EXPR (tt,c, t, e) ->
+		output_string out "(:";
+		output_type_expr out tt;
+		output_string out ")if ";
 		output_expr out c;
 		output_string out " then ";
 		output_expr out t;
 		output_string out " else ";
 		output_expr out e;
 		output_string out " endif"
-	| SWITCH_EXPR (_,c, cases, def) ->
-		output_string out "switch(";
+	| SWITCH_EXPR (tt,c, cases, def) ->
+		output_string out "(:";
+		output_type_expr out tt;
+		output_string out ")switch(";
 		output_expr out c;
 		output_string out ")";
 		output_string out "{ ";
@@ -711,8 +932,6 @@ let rec output_expr out e =
 			output_string out ", ");
 		output_const out c;
 		if !dump_type then output_string out ")"
-	| EINLINE s ->
-		Printf.fprintf out "inline(%s)" s
 	| CAST (typ, expr) ->
 		output_string out "cast<";
 		output_type_expr out typ;
@@ -772,10 +991,8 @@ let rec output_statement out stat =
 	| SEQ (stat1, stat2) ->
 		output_statement out stat1;
 		output_statement out stat2
-	| EVAL ch ->
-		Printf.fprintf out "\t\t%s;\n" ch
-	| EVALIND (ch1, ch2) ->
-		Printf.fprintf out "\t\t%s.%s;\n" ch1 ch2
+	| EVAL (ch1, ch2) ->
+		if ch1 <> "" then Printf.fprintf out "\t\t%s.%s;\n" ch1 ch2 else Printf.fprintf out "\t\t%s;\n" ch2
 	| SET (loc, exp) ->
 		output_string out "\t\t";
 		output_location out loc;
@@ -814,18 +1031,8 @@ let rec output_statement out stat =
 		output_string out "\t\t\t default : \n\t\t";
 		output_statement out stat;
 		output_string out "\t\t }; \n"
-	| SETSPE (loc, exp) ->
-		output_string out "\t\t";
-		output_location out loc;
-		(* !!DEBUG!! *)
-		output_string out "=";(*"=[[SETSPE]]";*)
-		output_expr out exp;
-		output_string out ";\n"
 	| LINE (file, line, s) ->
-		(*Printf.fprintf out "#line \"%s\" %d\n" file line;*)
 		output_statement out s
-	| INLINE s ->
-		Printf.fprintf out "inline(%s)\n" s
 
 
 (** Print a statement
@@ -874,7 +1081,7 @@ let print_attr attr =
 (** Print a memory attibute.
 	@param attr	Memory attribute to print. *)
 let output_mem_attr out attr =
-	let rec print_call id args =
+	(*let rec print_call id args =
 		print_string id;
 		if args <> [] then
 			begin
@@ -888,7 +1095,7 @@ let output_mem_attr out attr =
 	and print_arg arg =
 		match arg with
 		| ATTR_ID (id, args) -> print_call id args
-		| ATTR_VAL cst -> output_const out cst in
+		| ATTR_VAL cst -> output_const out cst in*)
 
 	match attr with
 	| ATTR_EXPR("volatile", CONST(_, CARD_CONST n)) ->
@@ -923,7 +1130,7 @@ let output_spec out spec =
 	let print_newline _ = output_char out '\n' in
 	let print_string = output_string out in
 	match spec with
-	  LET (name, cst) ->
+	| LET (name, _, cst) ->
 	  	Printf.fprintf out "let %s = " name;
 		output_const out cst;
 		print_newline ()
@@ -943,10 +1150,12 @@ let output_spec out spec =
 		print_string "]";
 		output_mem_attrs out attrs;
 		print_newline ()
-	| VAR (name, size, typ) ->
+	| VAR (name, size, typ, attrs) ->
 		Printf.fprintf out "var %s [%d, " name size;
 		output_type_expr out typ;
-		print_string "]\n";
+		print_string "]";
+		output_mem_attrs out attrs;
+		print_newline ()
 	| RES name ->
 		Printf.fprintf out "resource %s\n" name
 	| EXN name ->
@@ -1004,9 +1213,6 @@ let output_spec out spec =
 	| ATTR (a) -> print_attr a;
 		()
 
-	| ENUM_POSS (name,s,_,_)->
-		Printf.fprintf out "possibility %s of enum %s\n" name s;
-
 	| CANON_DEF(name, kind, type_res, type_prms_list) ->
 		Printf.fprintf out "canon ";
 		if kind = CANON_FUNC then
@@ -1038,15 +1244,12 @@ let print_spec spec =
     return the gliss_isize defined in nmp sources
 *)
 let get_isize _ =
-	let s = try get_symbol "gliss_isize" with Symbol_not_found _ -> UNDEF
-	in
-	match s with
+	match get_symbol "gliss_isize" with
 	(* if gliss_isize not defined, we assume we have a cisc isa *)
-	UNDEF ->
-		[]
-	| LET(st, cst) ->
+	| UNDEF -> []
+	| LET(st, _, cst) ->
 		(match cst with
-		STRING_CONST(nums, _, _) ->
+		STRING_CONST(nums) ->
 			List.map
 			(fun x ->
 				try
@@ -1171,14 +1374,14 @@ let rec attr_defined id attrs =
 
 
 (** Get an attribute as an expression.
-	@param id		Identifier of the looked attribute.
-	@param attrs	List of attributes.
-	@param def		Default value if the attribute is not found.
-	@return			Found attribute value or the default.
-	@raise Error _	If the attribute exists but does not have the right type. *)
+	@param id			Identifier of the looked attribute.
+	@param attrs		List of attributes.
+	@param def			Default value if the attribute is not found.
+	@return				Found attribute value or the default.
+	@raise PreError		If the attribute exists but does not have the right type. *)
 let rec attr_expr id attrs def =
 	let error _ =
-		raise (IrgError (Printf.sprintf "attribute \"%s\" should be an expression" id)) in
+		pre_error (Printf.sprintf "attribute \"%s\" should be an expression" id) in
 	match attrs with
 	| [] -> def
 	| (ATTR_EXPR (id', e))::_ when id = id' -> e
@@ -1187,21 +1390,63 @@ let rec attr_expr id attrs def =
 	| _::tl -> attr_expr id tl def
 
 
+(** Get an attribute as a location.œ.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error	If the attribute exists but does not have the right type. *)
+let rec attr_loc id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be a location" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_LOC (id', e))::_ when id = id' -> e
+	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_loc id tl def
+
+
 (** Get an attribute as a statement.
 	@param id		Identifier of the looked attribute.
 	@param attrs	List of attributes.
 	@param def		Default value if the attribute is not found.
 	@return			Found attribute value or the default.
-	@raise Error _	If the attribute exists but does not have the right type. *)
+	@raise Error	If the attribute exists but does not have the right type. *)
 let rec attr_stat id attrs def =
 	let error _ =
-		raise (IrgError (Printf.sprintf "attribute \"%s\" should be a statement" id)) in
+		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
 	match attrs with
 	| [] -> def
 	| (ATTR_STAT (id', s))::_ when id = id' -> s
 	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
 	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
 	| _::tl -> attr_stat id tl def
+
+
+(** Get the name of an attribute.
+		@param attr Attribute to get name from.
+		@return     Attribute name or empty string for USES. *)
+let attr_name attr =
+	match attr with
+	| ATTR_EXPR (n, _)
+	| ATTR_STAT (n, _)
+	| ATTR_LOC (n, _) -> n
+	| _ -> ""
+
+
+(** Change the value of an attribute in the attribute list.
+		@param value Attribute Value.
+		@param attrs Attribute list to change.
+		@return      Changed attribute list. *)
+let set_attr value attrs =
+	let id = attr_name value in
+	let rec process res attrs =
+		match attrs with
+		| [] -> res
+		| h::t when (attr_name h) = id -> process res t
+		| h::t -> process (h::res) t in
+	 value :: (process [] attrs)
 
 
 (** Apply the given functions to all specifications.
@@ -1221,7 +1466,7 @@ let fold f d =
 
 (** Get the root node of the ISA.
 	@return			root name
-	@throw Error	If no root can be found. *)
+	@raise Error	If no root can be found. *)
 let get_root _ =
 	if is_defined "multi" then
 		"multi"
@@ -1237,6 +1482,7 @@ let format_regex = Str.regexp (
 	^ "%[0-9]*\\(\\.[0-9]+\\)?L?[aAeEfFgG]\\|"		(* float formats *)
 	^ "%[0-9]*s\\|"									(* string format *)
 	^ "%[0-9]*b\\|"									(* binary format *)
+	^ "%l\\|"										(* label format *)
 	^ "%%")											(* double percent *)
 
 
@@ -1278,3 +1524,181 @@ let is_text_format s =
 	@return		True if it is a binary format, false else. *)
 let is_bin_format s =
 	(s.[(String.length s) - 1]) = 'b'
+
+
+(** Type to perform mixed printing of IRG information. *)
+type printable =
+	| PTEXT of string
+	| PSTAT of stat
+	| PEXPR of expr
+	| PLOC of location
+	| PTYPE of type_expr
+	| PFUN of (out_channel -> unit)
+	| PINT of int
+	| PINT32 of Int32.t
+	| PINT64 of Int64.t
+	| PLN
+
+
+(** Print a message made of IRG items.
+	@param out Output channel.
+	@param lst List of items to print. *)
+let output lst out =
+	let output_item item =
+		match item with
+		| PTEXT t 	-> output_string out t
+		| PSTAT s 	-> output_statement out s
+		| PEXPR e	-> output_expr out e
+		| PLOC  l 	-> output_location out l
+		| PTYPE t 	-> output_type_expr out t 
+		| PFUN f	-> f out
+		| PINT i	-> output_value out i
+		| PINT32 i	-> output_string out (Int32.to_string i)  
+		| PINT64 i	-> output_string out (Int64.to_string i)
+		| PLN 		-> output_char out '\n' in
+	List.iter output_item lst 
+
+
+(** Print a message made of IRG items.
+	@param lst List of items to print. *)
+let print lst = output lst stdout
+
+
+(** Print an error message made of IRG items.
+	@param lst List of items to print. *)
+let prerr lst = output lst stderr
+
+
+(** Print a message made of IRG items and output a new line.
+	@param out Output channel.
+	@param lst List of items to print. *)
+let outputln lst out =
+	output lst out;
+	output_string out "\n"
+
+
+(** Print a message made of IRG items and output a new line.
+	@param lst List of items to print. *)
+let println lst = outputln lst stdout
+
+
+(** Print an error message made of IRG items and output a new line.
+	@param lst List of items to print. *)
+let prerrln lst = outputln lst stderr
+
+
+(** Get attributes of the given specification.
+	@param spec		Spec to look in.
+	@return			Attribute list (or empty list). *) 
+let attrs_of spec =
+	match spec with
+	| MEM (_, _, _, attrs)
+	| REG (_, _, _, attrs)
+	| AND_MODE (_, _, _, attrs)
+	| AND_OP (_, _, attrs)		-> attrs
+	| _ 						-> []
+
+
+(** Raise an error with message displayed by prerrln.
+	@param lst		List of arguments to display.
+	@raise Error 	Ever.*)
+let error_with_msg lst =
+	raise (Error (fun out -> output lst out))
+
+
+(** Get expression with line information removed.
+	@param expr		Expression to examine.
+	@return			Expression without line information. *)
+let rec escape_eline expr =
+	match expr with
+	| ELINE (_, _, expr) -> escape_eline expr
+	| _ -> expr
+
+
+(** No source line information .*)
+let no_line = ("", 0)
+
+type line =
+	| LEXPR of expr
+	| LSTAT of stat
+
+
+(** Find the closer line source information.
+	@param expr		Expression to look in.
+	@return			(source file, source line) or ("", 0). *)
+let rec line_from_expr expr =
+	match expr with
+	| NONE
+	| REF _
+	| FIELDOF _
+	| CONST _
+		-> no_line
+	| COERCE (_, e)
+	| ITEMOF (_, _, e)
+	| UNOP (_, _, e)
+	| CAST (_, e)
+		-> line_from_expr e
+	| FORMAT (_, args)
+	| CANON_EXPR (_, _, args)
+		-> line_from_list (List.map (fun e -> LEXPR e) args)
+	| IF_EXPR (_, e1, e2, e3)
+	| BITFIELD (_, e1, e2, e3)
+		-> line_from_list [LEXPR e1; LEXPR e2; LEXPR e3]
+	| BINOP (t, _, e1, e2)
+		-> line_from_list [LEXPR e1; LEXPR e2]
+	| SWITCH_EXPR (_, c, cs, d)
+		-> line_from_list ([LEXPR c; LEXPR d] @ (List.flatten (List.map (fun (c, e) -> [LEXPR c; LEXPR e]) cs))) 
+	| ELINE (f, l, _)
+		-> (f, l)
+
+
+(** Find the closer line source information.
+	@param stat		Statement to look in.
+	@return			(source file, source line) or ("", 0). *)
+and line_from_stat stat =
+	match stat with
+	| NOP
+	| EVAL _
+	| ERROR _
+		-> no_line
+	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
+	| SET (l, e) -> line_from_expr e 
+	| CANON_STAT (_, args) -> line_from_list (List.map (fun a -> LEXPR a) args)
+	| IF_STAT (c, s1, s2) -> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
+	| SWITCH_STAT (c, cs, d) -> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))
+	| LINE (f, l, _) -> (f, l)
+
+and line_from_list lst =
+	match lst with
+	| [] -> no_line
+	| (LEXPR e)::t ->
+		let l = line_from_expr e in
+		if l <> no_line then l else line_from_list t
+	| (LSTAT s)::t ->
+		let l = line_from_stat s in
+		if l <> no_line then l else line_from_list t
+
+
+(** Raise an error relative to a statement.
+	@param stat		Errored statement.
+	@param fn 		Function to display error. *)
+let stat_error stat fn =
+	let (f, l) = line_from_stat stat in
+	complete_error fn f l
+
+
+(** Raise an error relative to an expression.
+	@param expr		Errored Expression.
+	@param fn 		Function to display error. *)
+let expr_error expr fn =
+	let (f, l) = line_from_expr expr in
+	complete_error fn f l
+
+
+(** Test if the given ID design a register.
+	@param id	Identifier.
+	@return		True if it is a register, false else. *)
+let is_reg id =
+	match get_symbol id with
+	| REG _ -> true
+	| _ -> false

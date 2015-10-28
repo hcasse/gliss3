@@ -42,7 +42,7 @@ let case_code_from_spec (s:Irg.spec) :int = match s with
 		let image_expr = (Image_attr_size.get_expr_of_image attr_list) in 
 		let rec int_of_expr expr = 
 			match expr with 
-			| CONST(STRING,STRING_CONST(image_string, false, _)) -> 
+			| CONST(STRING,STRING_CONST(image_string)) -> 
 				int_of_string ("0b"^image_string)
 			| ELINE(_,_,e) -> int_of_expr e
 			| FORMAT(f_str,_) -> Image_attr_size.parse_format_to_code f_str
@@ -119,7 +119,7 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.COERCE(type_expr,_) -> type_expr
 	| 	Irg.FORMAT(_,_)-> Irg.STRING
 	| 	Irg.CANON_EXPR( type_expr,_,_)-> type_expr
-	| 	Irg.REF(_)-> Irg.UNKNOW_TYPE
+	| 	Irg.REF(_)-> Irg.ANY_TYPE
 	| 	Irg.FIELDOF(type_expr,_,_) -> type_expr
 	| 	Irg.ITEMOF (type_expr,_,_)-> type_expr
 	| 	Irg.BITFIELD (type_expr,_,_,_) -> type_expr
@@ -129,7 +129,6 @@ let rec type_of_expr (expr:Irg.expr) : Irg.type_expr = match expr with
 	| 	Irg.SWITCH_EXPR (type_expr,_,_,_)-> type_expr
 	| 	Irg.CONST (type_expr,_)-> type_expr
 	| 	Irg.ELINE (_,_,e)-> type_of_expr e
-	| 	Irg.EINLINE(_)-> Irg.NO_TYPE
 	|	Irg.CAST(type_expr, _) -> type_expr
 
 
@@ -156,14 +155,14 @@ let attr_list_from_and_node
 			|Irg.ATTR_EXPR(name,e) when name="image"-> 
 				ATTR_EXPR(
 					name,
-					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF("code")])
+					Irg.FORMAT("%"^(string_of_int size)^"b",[Irg.REF(Irg.NO_TYPE, "code")])
 				)
 			|Irg.ATTR_EXPR(name,e) -> 
 				ATTR_EXPR(
 					name,
 					SWITCH_EXPR(
 						(type_of_expr e), 
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						(List.map (case_from_attr_expr size name) and_list) , 
 						Irg.NONE
 					)
@@ -172,7 +171,7 @@ let attr_list_from_and_node
 				ATTR_STAT(
 					name,
 					SWITCH_STAT(
-						REF("code"), 
+						REF(NO_TYPE, "code"), 
 						List.map (case_from_attr_stat size name) and_list, 
 						Irg.NOP
 					)

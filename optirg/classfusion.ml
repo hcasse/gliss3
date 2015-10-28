@@ -23,7 +23,7 @@ let fusion_nodes
 	(t:Irgp.nodeType)
 	:Irg.spec
 	= 
-	let val_attr = Irg.ATTR_EXPR("__val",Irg.REF("__code")) in 
+	let val_attr = Irg.ATTR_EXPR("__val",Irg.REF(Irg.NO_TYPE, "__code")) in 
 	let new_attr_list = val_attr::(Sw_fun.attr_list_from_and_node and_nodes size) in
 	match t with
 		| Irgp.NotANode -> failwith ("optirg/classfusion.ml::fusion_nodes : "^name^" is not a node class. ")
@@ -32,7 +32,7 @@ let fusion_nodes
 			let val_expr = 
 				Irg.SWITCH_EXPR(
 					Irg.STRING, 
-					Irg.REF("__code"), 
+					Irg.REF(NO_TYPE, "__code"), 
 					(List.map (Sw_fun.case_from_value_expr size) and_nodes), 
 					Irg.NONE
 				) 
@@ -66,9 +66,7 @@ let fusion_by_classes (node_to_optimize:Irg.spec) :unit =
 			| _ 	-> failwith "Impossible"
 		in
 		let nodes_list = 
-			try
 				List.map (Irg.get_symbol) nodes_name_list
-			with Irg.Symbol_not_found(n) -> failwith ("fusion_by_classes : A son (\""^n^"\") is not present in syms. ")
 		in
 		let part = classify nodes_list in 
 		let _ = print_string (string_of_partition part) in 

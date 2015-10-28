@@ -28,7 +28,7 @@ let rec string_of_expr (expr:Irg.expr) : string = match expr with
                 e^ 
                 "."^ 
                 n
-        | REF id ->
+        | REF (_, id) ->
                 id
         | ITEMOF (t, name, idx) ->
                 name^ 
@@ -82,8 +82,6 @@ let rec string_of_expr (expr:Irg.expr) : string = match expr with
                 string_of_expr e
         | CONST (_,c) ->
                 "CONST"
-        | EINLINE s ->
-                "inline()"
 	| CAST(t, e) ->
 		"coerce("^
 		", "^ 
@@ -119,7 +117,7 @@ let rec name_of_expr (expr:Irg.expr) : string = match expr with
                 e^ 
                 "."^ 
                 n
-        | REF id ->
+        | REF (_, id) ->
                 "[REF]"^id
         | ITEMOF (t, name, idx) ->"[ITEMOF]"^
                 name^ 
@@ -173,8 +171,6 @@ let rec name_of_expr (expr:Irg.expr) : string = match expr with
                 name_of_expr e
         | CONST (_,c) ->
                 "CONST"
-        | EINLINE s ->
-                "inline()"
         | CAST (t, e) ->
                 "coerce[CAST]("^ 
                 ", "^ 

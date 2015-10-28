@@ -12,6 +12,7 @@ LIB_SOURCES = \
 	config.ml \
 	IdMaker.ml \
 	irg.ml \
+	irgio.ml \
 	instantiate.ml \
 	lexer.mll \
 	sem.ml \

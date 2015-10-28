@@ -1,7 +1,7 @@
 # $Id: Makefile,v 1.13 2009/09/15 07:50:48 casse Exp $
 include ../Makefile.head
 
-OCAML_FLAGS=-I ../irg -I ../optirg
+OCAML_INC=../irg ../optirg
 ifndef NDEBUG
 OCAML_FLAGS+=-g
 OCAML_LDFLAGS+=-g
@@ -16,7 +16,8 @@ LIBGEP_SOURCES=\
 	profile.ml \
 	decode_arg.ml \
 	bits.ml \
-	stot.ml
+	stot.ml \
+	pqmc.ml
 $(eval $(call ocaml_byte_code_lib,libgep,$(LIBGEP_SOURCES)))
 
 # GEP build

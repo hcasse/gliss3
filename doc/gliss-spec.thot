@@ -15,9 +15,11 @@ access to the state attribute definitions and this attributes may be used for an
 In @(GLISS) V2, the following attributes are used:
 
 ^ Attribute ^ Item | Description ^
-| ''pc'' = 1 | register | designs the program counter (address of  executed instruction) |
+| ''is_pc'' = 1 | register | designs the program counter (address of  executed instruction) |
 | ''fmt'' = STRING | register | defines a string format to display the register name |
-|  | (if register is multiple, the string must contains a ''%d'') |
+
+Notice that ''is_pc'' replaces old ''pc'' that is currently deprecated but accepted
+for compatibility purpose.
 
 
 ===== Specific Symbols =====
@@ -215,25 +217,25 @@ When adding to an instruction statement:
 set_attr_branch = 1 
 </code>
 
-This attribute tells to the simulator generator that the instruction describde a branch instruction
-(wether it is a conditionnal jump or not). Be carreful to not forget a branch instruction because
+This attribute tells to the simulator generator that the instruction describe a branch instruction
+(whether it is a conditional jump or not). Be careful to not forget a branch instruction because
 GEP won't be able to see it. However, as long as you are not using GEP option '-gen-with-trace'
 such error will have no effect. To learn more about optimizing output code and the option '-gen-with-trace',
-see section "Optimisations".
+see section "Optimizations".
 
 
 
 ===== Debugger Support =====
 
 @(GLISS) allows to easily generate a debugger from the SimNML description.
-Basicallt, the //debug// modules provides an API to get mainly the list
+Basically, the //debug// modules provides an API to get mainly the list
 of registers of an ISA.
 
 ==== Register Access ====
 
 In addition, the way this information is generated may be customized
 according to the different needs. Basically, all registers of the ISA are included
-in the debugging information. This behaviour may be switched by defining a constant
+in the debugging information. This behavior may be switched by defining a constant
 named ''gliss_debug_only'' as below:
 
 <code>
@@ -245,7 +247,7 @@ are output in the debugging information. This may be useful with complex ISA
 to hide a bit of the complexity to the debugger user. In addition, the following
 attributes may be added to customize the debugging information:
   ? ''label'' : this a more friendly way to name the register bank (as the default, this is the name of the bank);
-  ? ''fmt'' : allows to give the way the register are named, it must be a litteral string containing a %d that will be replaced
+  ? ''fmt'' : allows to give the way the register are named, it must be a literal string containing a %d that will be replaced
 by the register number;
   ? ''get'' : to read a register, a simple indexed access is made on the bank; with this attribute, the read may be customized (see below);
   ? ''set'' : to write a register, a simple indexed access is made on the bank; with this attribute, the write may be customized (see below);
@@ -327,3 +329,24 @@ typedef struct PROC_exception_t {
 
 The function ''PROC_exceptions()'' get the array exceptions ended by a descriptor
 with a null-name.
+
+
+==== Label Support ====
+
+Basically, @(GLISS) uses ELF format to load binaries.
+Such a format may contain labels used to perform compilation or assembling.
+To make the disassembly output more readable, one would like to replaces
+as much as possible branch and other addresses by a label if it is existing.
+This is easily done using a special kind of format in ''syntax'' attribute
+noted "%@".
+
+This special format is replaced by a label name if one exists, or the hexadecimal
+address else.
+
+op branch(c: cond, off: int(32)) 
+	syntax = format("b%s %@", c, PC + off)
+
+The example above will display the 'b' mnemonic, followed by the condition //c//
+and finally, if available, the label where this instruction branch to.
+
+

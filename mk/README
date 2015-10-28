@@ -1,0 +1,48 @@
+====== How to use this Makefile ? =====
+
+===== Making your project =====
+
+Copy both files, ''Makefile'' and ''config.mk.in'', at the top-level of your ISA directory.
+
+Edit ''Makefile'':
+  * fix the ''ARCH'' with the name of your ISA,
+  * fix ''MAIN_NMP'' with the name of the NMP file,
+  * fix ''NMP'' to add other NMP file.
+
+As in the example below:
+<code makefile>
+ARCH= avr
+
+# main NMP file here
+MAIN_NMP	= avr.nmp	
+
+# list of NMP files
+NMP = 	nmp/$(MAIN_NMP) \
+		nmp/state.nmp \
+		nmp/alu.nmp \
+		nmp/mem.nmp \
+		nmp/control.nmp
+</code>
+
+We assume that the NMP files are stored in ''nmp'' directory but may easily change this.
+
+You may also consider that these files are just a base for your ISA and modify them according to your needs.
+Just keep in mind to isolate configurable items in ''config.mk.in''.
+
+===== How to build your project? =====
+
+At first use, the configuration need to be built:
+	> make config
+
+To build the project:
+	> make
+
+To install the project:
+	> make all
+
+To clean unused files:
+	> make clean
+
+To clean for distribution:
+	> make distclean
+

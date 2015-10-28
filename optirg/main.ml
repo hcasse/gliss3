@@ -22,10 +22,9 @@ let arg_error msg =
 
 let find_irg_root_node _ =
 	let is_defined id =
-		try
 			match Irg.get_symbol id with
+			| UNDEF -> false
 			| _ -> true
-		with Irg.Symbol_not_found _ -> false
 	in
 	if is_defined "multi" then
 		"multi"
@@ -53,10 +52,3 @@ let _ =
 		Lexer.display_error "syntax error"; exit 2
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2

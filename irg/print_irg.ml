@@ -40,24 +40,12 @@ let _ =
 
 
 let _ =
-	try
-		begin
-			IrgUtil.load !input;
-			if !insts then
-				Iter.iter
-					(fun _ spec -> Printf.printf "%d:%s -> \n" (Iter.get_id spec) (Iter.get_name spec); Irg.print_spec spec)
-					()
-			else
-				Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;
-		end
-	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error msg; exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error msg; fn (); exit 2
+	begin
+		IrgUtil.load_with_error_support !input;
+		if !insts then
+			Iter.iter
+				(fun _ spec -> Printf.printf "%d:%s -> \n" (Iter.get_id spec) (Iter.get_name spec); Irg.print_spec spec)
+				()
+		else
+			Irg.StringHashtbl.iter (fun _ s -> Irg.print_spec s) Irg.syms;
+	end

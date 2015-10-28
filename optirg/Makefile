@@ -8,7 +8,7 @@ OCAML_LDFLAGS+=-g
 endif
 
 IRG=../irg
-OCAML_FLAGS += -I $(IRG)
+OCAML_INC += $(IRG)
 OCAML_LDFLAGS += -I $(IRG)
 
 
@@ -22,7 +22,7 @@ LIB_SOURCES = \
 	canon.ml \
 	node_classes.ml \
 	classfusion.ml \
-	optirg.ml 
+	optirg.ml
 $(eval $(call ocaml_byte_code_lib,liboptirg,$(LIB_SOURCES)))
 
 

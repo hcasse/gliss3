@@ -135,12 +135,20 @@ rule scanner out dict state = parse
 | "$(" ([^ ')']+ as id) ")"
 	{ do_text out dict id; scanner out dict state lexbuf }
 
+| "//$"
+	{ comment out dict state lexbuf }
+
 | _ as c
 	{ output_char out c; scanner out dict state lexbuf }
 
 | eof
 	{ () }
 
+and comment out dict state = parse
+	"\n"
+		{ scanner out dict state lexbuf }
+|	_
+		{ comment out dict state lexbuf }
 
 and skip out dict cnt = parse
   "$$"

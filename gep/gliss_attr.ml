@@ -78,22 +78,11 @@ let process inst out info =
 				Irg.param_unstack params
 			end in
 
-	let process_proc s =
-		begin
-			let params = Iter.get_params inst in
-			Irg.param_stack params;
-			let s = Toc.prepare_stat info s in
-			Toc.declare_temps info;
-			Toc.gen_stat info s;
-			Toc.cleanup_temps info;
-			Irg.param_unstack params
-		end in
-	
 	let rec process_copy e =
 		match e with
 		| Irg.ELINE(_, _, e) ->
 			process_copy e
-		| Irg.CONST(_, Irg.STRING_CONST(v, _, _)) ->
+		| Irg.CONST(_, Irg.STRING_CONST(v)) ->
 			output_string info.Toc.out v
 		| _ -> raise (Toc.Error (Printf.sprintf "attribute %s must be an action !" !attr)) in
 	
@@ -118,8 +107,8 @@ let process inst out info =
 		
 	with Not_found ->
 		output_string info.Toc.out !def
-	|	Sem.SemError msg ->
-			raise (Toc.Error (Printf.sprintf "%s not constant: %s" !attr msg))
+	| Irg.Error f | Irg.PreError f ->
+		Irg.error (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
 
 
 
@@ -131,7 +120,9 @@ let _ =
 			(fun info ->
 
 				(* download the extensions *)
-				List.iter IrgUtil.load !extends;
+				List.iter IrgUtil.load_with_error_support !extends;
+				Iter.clear_insts ();
+				Iter.get_insts ();
 
 				(* perform generation *)
 				if !template = "" then raise (CommandError "a template must specified with '-t'") else

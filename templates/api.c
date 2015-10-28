@@ -8,6 +8,7 @@
 #include "platform.h"
 #include <$(proc)/env.h>
 #include <$(proc)/macros.h>
+#include <$(proc)/config.h>
 
 
 static char *$(proc)_string_ident[] = {
@@ -26,7 +27,7 @@ char *$(proc)_get_string_ident($(proc)_ident_t id)
 }
 
 static unsigned long $(proc)_size_ident[] = {
-	32$(foreach instructions),
+	$(min_instruction_size)$(foreach instructions),
 	$(size)$(end)
 };
 
@@ -258,6 +259,11 @@ $(gen_init_code)
 
 	/* PC initialization */
 	state->$(pc_name) = platform->entry;
+#	ifdef $(PROC)_INIT_PC
+		$(PROC)_INIT_PC
+#	else
+		state->$(pc_name) = platform->entry;
+#	endif
 
 $(if has_npc)
 	/* if there is a NPC and a RISC ISA we can initialize it easily,

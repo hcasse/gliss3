@@ -195,8 +195,9 @@ $(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(pr
 	code_t code;
 	$(if !is_RISC_size)/* init a buffer for the read instr, size should be max instr size for the given arch */
 	uint32_t i_buff[$(max_instruction_size) / 32 + ($(max_instruction_size) % 32? 1: 0)];
-	code.mask->mask = i_buff;
-	code.mask->bit_length = 0;$(end)
+	mask_t mask = { i_buff, 0 };
+	code.mask = &mask;
+	$(end)
 
 	/* first, fetch the instruction at the given address */
 	id = $(proc)_fetch(decoder->fetch, address, &code);

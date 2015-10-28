@@ -1,3 +1,24 @@
+(*
+ * GLISS2 -- bitmask module
+ * Copyright (c) 2011, IRIT - UPS <casse@irit.fr>
+ *
+ * This file is part of GLISS2.
+ *
+ * GLISS2 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * GLISS2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with GLISS2; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *)
+
 type bitmask =
 	(* value of the mask as a '0' '1' char only string *)
 	| BITMASK of string
@@ -508,7 +529,7 @@ let rec get_str e =
 	| Irg.CONST(t_e, c) ->
 		if t_e=Irg.STRING then
 			match c with
-			| Irg.STRING_CONST(str, false, _) -> str
+			| Irg.STRING_CONST(str) -> str
 			| _ -> ""
 		else
 			""
@@ -528,7 +549,7 @@ this happens with the tricore processor for example.
 let get_bit_image_order _ =
 	match Irg.get_symbol "bit_image_order" with
 	| Irg.UNDEF -> false
-	| Irg.LET(_, c) ->
+	| Irg.LET(_, _, c) ->
 		(match c with
 		| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
 		| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
@@ -655,7 +676,10 @@ let get_value_mask sp =
 	in
 	(*!DEBUG!!*)
 	(*let res =*)
-	BITMASK(revert_bytes (get_mask_from_regexp_list (Str.full_split (Str.regexp "%[0-9]*[bdfxs]") (remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
+	BITMASK(revert_bytes
+		(get_mask_from_regexp_list
+			(Str.full_split (Str.regexp "%[0-9]*[bdfxs]")
+				(remove_space (get_str (get_expr_from_iter_value (Iter.get_attr sp "image")))))))
 	(*in
 	let s = get_intern_val res in
 	Printf.printf "get_value_mask, [%s] (%d)\n" s (String.length s);

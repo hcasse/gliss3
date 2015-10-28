@@ -43,29 +43,9 @@ let _ =
 	if !out = "" then arg_error "one IRG file must be given !\n"
 
 let _ =
+	IrgUtil.load_with_error_support !nmp;
 	try
-		begin
-			IrgUtil.load !nmp;
-			Irg.save !out
-		end
-	with
-	  Parsing.Parse_error ->
-		Lexer.display_error "syntax error"; exit 2
-	| Irg.Error f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n';
-		exit 2
-	| Lexer.BadChar chr ->
-		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
-	| Sem.SemError msg ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg); exit 2
-	| Irg.Symbol_not_found sym ->
-		Lexer.display_error (Printf.sprintf "symbol not found: %s" sym); exit 2
-	| Irg.IrgError msg ->
-		Lexer.display_error (Printf.sprintf "ERROR: %s" msg); exit 2
-	| Sem.SemErrorWithFun (msg, fn) ->
-		Lexer.display_error (Printf.sprintf "semantics error : %s" msg);
-		fn (); exit 2
-	| Irg.RedefinedSymbol s ->
-		Lexer.display_error (Printf.sprintf "ERROR: redefined symbol \"%s\", firstly defined at %s" s (Irg.pos_of s)); exit 2
+		Irg.save !out
+	with Sys_error m ->
+		Printf.fprintf stderr "ERROR: %s\n" m;
+		exit 3

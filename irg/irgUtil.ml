@@ -47,15 +47,6 @@ let run_nmp2nml file =
 	Unix.open_process_in cmd
 
 
-(** Generate an IRG with the given specification, prefixing it
-	with source file and source line of specification declaration.
-	@param name			Name of the specification.
-	@param msg			Message of error.
-	@raise Irg.Error	As an overall result. *)
-let error_spec name msg =
-	Irg.error (Printf.sprintf "%s: %s" (Irg.pos_of name) msg)
-
-
 (** Performed several checks once all specification are known:
 	* that all OR-operation are defined,
 	* that all AND-operation parameters are defined.
@@ -72,13 +63,13 @@ let check_ops _ =
 			| Irg.OR_MODE _
 			| Irg.AND_OP _
 			| Irg.OR_OP _ -> ()
-			| _ -> error_spec op_name (Printf.sprintf "parameter type \"%s\" used in \"%s\" is not a valid type" n op_name ) in
+			| _ -> Irg.error_symbol op_name (fun out -> Printf.fprintf out "parameter type \"%s\" used in \"%s\" is not a valid type" n op_name ) in
 
 	let check name op =
 		match get_symbol op with
-		| Irg.UNDEF -> error_spec name (Printf.sprintf "symbol \"%s\" used in op \"%s\" is not defined" op name)
+		| Irg.UNDEF -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in op \"%s\" is not defined" op name)
 		| Irg.AND_OP _ | Irg.OR_OP _ -> ()
-		| _ -> error_spec name (Printf.sprintf "op \"%s\" used in \"%s\" should be an op" op name) in
+		| _ -> error_symbol name (fun out -> Printf.fprintf out "op \"%s\" used in \"%s\" should be an op" op name) in
 		
 	Irg.iter (fun name spec ->
 		match spec with
@@ -99,18 +90,60 @@ let check_modes _ =
 			| Irg.TYPE _
 			| Irg.AND_MODE _
 			| Irg.OR_MODE _ -> ()
-			| _ -> error_spec mode_name (Printf.sprintf "parameter type \"%s\" used in \"%s\" is not a valid type" n mode_name ) in
+			| _ -> error_symbol mode_name (fun out -> Printf.fprintf out "parameter type \"%s\" used in \"%s\" is not a valid type" n mode_name ) in
 
 	let check name mode =
 		match get_symbol mode with
-		| Irg.UNDEF -> error_spec name (Printf.sprintf "symbol \"%s\" used in mode \"%s\" is not defined" mode name)
+		| Irg.UNDEF -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in mode \"%s\" is not defined" mode name)
 		| Irg.OR_MODE _ | Irg.AND_MODE _ -> ()
-		| _ -> error_spec name (Printf.sprintf "symbol \"%s\" used in \"%s\" should be a mode" mode name) in
+		| _ -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in \"%s\" should be a mode" mode name) in
 	Irg.iter (fun name spec ->
 		match spec with
 		| Irg.OR_MODE (_, modes) -> List.iter (check name) modes
 		| Irg.AND_MODE (_,  params, _, _) -> List.iter (check_param name) params
 		| _ -> ())
+
+
+(* TODO*)
+(* Perform a second complete check: no more "unknown type" should remain. *)
+
+
+(** Second phase type check: expressions.
+	@param e	Expression to check.
+	@return		Checked expression.
+	@raise		Irg.Error. *)
+let rec check_expr e =
+	
+	let check t =
+		if t == Irg.ANY_TYPE then Irg.pre_error "unresolved type" else t in
+	
+	match e with
+	| Irg.COERCE (t, e) -> Irg.COERCE(t, check_expr e)
+	| Irg.FORMAT (f, args) -> Irg.FORMAT (f, List.map check_expr args)
+	| Irg.CANON_EXPR(t, f, args) ->
+		if t == Irg.ANY_TYPE
+		then Irg.CANON_EXPR (Irg.(CARD 32), f, List.map check_expr args) 
+		else Irg.CANON_EXPR (t, f, List.map check_expr args)
+	| Irg.FIELDOF (t, pid, cid) ->
+		let t = if t = Irg.ANY_TYPE then check (Sem.type_of_field pid cid) else t in 
+		Irg.FIELDOF (t, pid, cid)
+	| Irg.ELINE (f, l, e) ->
+		(try Irg.ELINE(f, l, check_expr e)
+		with Irg.PreError m -> Irg.complete_error m f l)  
+	| Irg.ITEMOF (t, id, idx) ->
+		Irg.ITEMOF (t, id, check_expr idx)
+	| Irg.BITFIELD (t, v, u, l) ->
+		let v = check_expr v in
+		let u = check_expr u in
+		let l = check_expr l in
+		let t = if t == Irg.ANY_TYPE then (check (Sem.get_type_expr v)) else t in
+		Irg.BITFIELD (t, v, u, l)	
+	| Irg.UNOP (t, op, e) ->
+		if t == Irg.ANY_TYPE then
+			let (t, e) = Sem.check_unop (check_expr e) op in
+			Irg.UNOP (check t, op, e)
+		else e	
+	| _ -> e
 
 
 (** Load an NML description either NMP, NML or IRG.
@@ -124,8 +157,8 @@ let load path =
 		Lexer.line_offset := 0;
 		Lexer.lexbuf := lexbuf;
 		Parser.top Lexer.main lexbuf;
-		check_ops ();
-		check_modes () in		
+		let _ = Iter.get_insts () in
+		() in		
 
 	(* is it an IRG file ? *)
 	if Filename.check_suffix path ".irg" then
@@ -148,3 +181,28 @@ let load path =
 	(* else error *)
 	else
 		raise (Sys_error (Printf.sprintf "ERROR: unknown file type: %s\n" path))
+
+
+(** Load the given that may be .NMP, .NML or .IRG
+	and display message to standard error channel if an error is raised.
+	@param path		Path of file to load. *)
+let load_with_error_support path =
+	try
+		load path;
+	with
+	  Parsing.Parse_error ->
+		Lexer.display_error "syntax error"; exit 2
+	| Irg.SyntaxError msg ->
+		Lexer.display_error msg; exit 2
+	| Irg.Error f ->
+		output_string stderr "ERROR: ";
+		f stderr;
+		output_char stderr '\n';
+		exit 2
+	| Irg.PreError f ->
+		Printf.fprintf stderr "ERROR:%s: " (Lexer.current_loc ());
+		f stderr;
+		output_char stderr '\n';
+		exit 2		
+	| Lexer.BadChar chr ->
+		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2

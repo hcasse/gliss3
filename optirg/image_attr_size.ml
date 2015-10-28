@@ -99,7 +99,7 @@ let rec sizeOfExpr
 	:int = 
 	begin
 	match e with 
-			FIELDOF(STRING, objName, _) | REF(objName)-> 
+			FIELDOF(STRING, objName, _) | REF(_, objName)-> 
 				(* Aller chercher dans liste param le nom du mode/op correspondant à n *)
 				let modop = match (List.assoc objName listeParam) with 
 					|	TYPE_ID(name) -> name
@@ -123,7 +123,7 @@ let rec sizeOfExpr
 						size 
 				in 
 				List.fold_right (sizeCmp) liste (sizeOfExpr listeParam t) 
-		| 	CONST(_,STRING_CONST(st, false, _))-> String.length st
+		| 	CONST(_,STRING_CONST(st))-> String.length st
 		|	_ -> failwith ("sizeOfExpr : Constructor "^(name_of_expr e)^" of expr is not yet implemented. ")
 	end
 and
@@ -161,9 +161,7 @@ and
  	sizeOfNodeKey  
 	(key:string) 
 	:int = 
-	try
 		sizeOfSpec (Irg.get_symbol key)
-	with Irg.Symbol_not_found(n) -> failwith ("image_attr_size.ml::sizeOfNodeKey : \""^n^"\" is not present in syms. ")
 and
 (**
 	Return the size of a node's expression.
@@ -205,7 +203,7 @@ let rec fclassOfExpr
 	match e with 
 		|	ELINE(_,_,e) ->  fclassOfExpr e
 		| 	FORMAT(st, expr_list) -> fclassOfFormat st expr_list
-		| 	CONST(_,STRING_CONST(st, false, _))-> (fparse st,[])
+		| 	CONST(_,STRING_CONST(st))-> (fparse st,[])
 		|	_ ->  raise NotFormated
 	end
 and
@@ -238,9 +236,7 @@ and
  fclassOfNodeKey  
 	(key:string) 
 	:string * (string list) = 
-	try
 		fclassOfSpec (Irg.get_symbol key)
-		with Irg.Symbol_not_found(n) -> failwith ("image_attr_size.ml::fclassOfNodeKey : \""^n^"\" is not present in syms. ")
 and
 (**
 	Return the format class of a node's expression.
