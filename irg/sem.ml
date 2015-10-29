@@ -277,8 +277,6 @@ let rec eval_unop op (_, c) =
 let eval_concat t1 v1 t2 v2 =
 	let s2 = get_type_length t2 in
 	let r = Int32.logor (Int32.shift_left v1 s2) v2 in
-	(*print [PTEXT "DEBUG: t2 = "; PTYPE t2; PLN];
-	Printf.printf "%ld :: %ld (%d) = %ld\n" v1 v2 s2 r;*)
 	r
 
 
@@ -311,7 +309,6 @@ let eval_binop_card op (t1, v1) (t2, v2) =
 	| BIN_OR	-> CARD_CONST (Int32.logor v1 v2)
 	| BIN_XOR	-> CARD_CONST (Int32.logxor v1 v2)
 	| CONCAT	-> CARD_CONST (eval_concat t1 v1 t2 v2)
-	| _			-> pre_error (sprintf "d. bad type operand for '%s'" (string_of_binop op))
 
 
 (** Evaluate a fixed binary operation.
@@ -418,11 +415,7 @@ let eval_bitfield v u l =
 		(	Irg.CARD (u - l + 1),
 			Irg.CARD_CONST
 				(if (u - l + 1) = 32 then v else
-				let r = Int32.logand (Int32.shift_right v l) (Int32.pred (Int32.shift_left Int32.one (u - l + 1))) in
-				begin
-					(*Printf.printf "DEBUG: %ld<%d..%d> = %ld\n" v u l r;*)
-					r
-				end))
+				Int32.logand (Int32.shift_right v l) (Int32.pred (Int32.shift_left Int32.one (u - l + 1)))))
 	else	(* with inversion *)
 		pre_error "unsupported bitfield"
 
@@ -456,7 +449,7 @@ and eval_typed_const expr =
 		select c cases def
 	| REF (_, id) ->
 		(match get_symbol id with
-		| LET (_, t, cst) -> (*print [PTEXT "DEBUG: "; PTEXT id; PTEXT " = "; PCONST cst; PLN];*) (t, cst)
+		| LET (_, t, cst) -> (t, cst)
 		| _ -> pre_error (id ^ " is not a constant symbol"))
 	| BITFIELD (t, e, u, l) ->
 		eval_bitfield (snd (eval_typed_const e)) (snd (eval_typed_const u)) (snd (eval_typed_const l))
@@ -1170,10 +1163,37 @@ let check_switch_expr test list_case default=
 	@return True if the id is a valid memory location, false otherwise *)
 let rec is_location id =
 
-	let scan_param n t =
+	let rec scan_expr e =
+		match e with
+		| NONE
+		| COERCE _
+		| FORMAT _
+		| CANON_EXPR _
+		| FIELDOF _
+		| UNOP _
+		| BINOP _
+		| IF_EXPR _
+		| SWITCH_EXPR _
+		| CONST _
+		| CAST _
+			-> false
+		| REF (_, id)
+		| ITEMOF (_, id, _)
+			-> is_location id
+		| BITFIELD(_, e, _, _)
+		| ELINE (_, _, e)
+			-> scan_expr e
+
+	and scan_mode id =
+			match get_symbol id with
+			| AND_MODE (_, _, e, _) -> scan_expr e
+			| OR_MODE (_, l) -> List.for_all scan_mode l
+			| _ -> false
+
+	and scan_param n t =
 		match t with
-		| TYPE_ID idb -> (rm_symbol n; let v = is_location idb in add_param (n,t); v)
-		| TYPE_EXPR _ -> false in
+		| TYPE_EXPR _ -> false
+		| TYPE_ID idb -> scan_mode idb in (*rm_symbol n; let v = is_location idb in add_param (n,t); v*)
 
 	match Irg.get_symbol id with
 	| UNDEF -> true
@@ -1402,17 +1422,21 @@ let check_alias mem =
 
 	let rec test loc =
 		match loc with
-		| LOC_NONE -> mem
-		| LOC_CONCAT (_, l1, l2) ->
-			let m, _ = test l1, test l2 in m
+		| LOC_NONE
+			-> ()
+		| LOC_CONCAT (_, l1, l2)
+			-> (test l1; test l2)
 		| Irg.LOC_REF (_, id, _, _, _) ->
 			(match (mem, get_symbol id) with
 			| (MEM _, MEM _)
 			| (REG _, REG _)
-			| (VAR _, VAR _) -> mem
-			| (_, _) -> pre_error (Printf.sprintf "unconsistant alias to %s" id)) in
+			| (VAR _, VAR _)
+				-> ()
+			| (_, _)
+				-> error_symbol (name_of mem) (asis (Printf.sprintf "unconsistant alias to %s" id))) in
 
-	test (Irg.attr_loc "alias" attrs LOC_NONE)
+	if not !gliss1_compat then  test (Irg.attr_loc "alias" attrs LOC_NONE);
+	mem
 
 
 (* list of undefined canonical type *)

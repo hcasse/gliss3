@@ -1309,6 +1309,8 @@ and gen_cast info typ expr prfx =
 		asis ();
 		Printf.fprintf info.out "))" in
 
+	if typ = etyp then asis () else
+
 	match typ, etyp with
 	| Irg.FLOAT _, Irg.FLOAT _-> do_cast ()
 	| Irg.FLOAT _, _
@@ -1330,6 +1332,7 @@ and gen_cast info typ expr prfx =
 	| Irg.BOOL, Irg.INT _
 		-> equal_zero ()
 	| _ ->
+		Irg.print [Irg.PTEXT "cast("; Irg.PTYPE typ; Irg.PTEXT ", "; Irg.PEXPR expr; Irg.PTEXT ": "; Irg.PTYPE etyp; Irg.PTEXT ")\n"];
 		failwith "unsupported CAST"
 
 

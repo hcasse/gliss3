@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
 
-(** This module provides several to perform input/output on IRG data structures.
+(** This module provides several functions to perform input/output on IRG data structures.
 	- 
 *)
 
@@ -146,7 +146,8 @@ let output_xml out list =
 		| PINT i 	-> XTEXT (string_of_int i)
 		| PINT32 i	-> XTEXT (Int32.to_string i)
 		| PINT64 i 	-> XTEXT (Int64.to_string i)
-		| PLN		-> XTEXT "\n" in
+		| PLN		-> XTEXT "\n"
+		| PSPEC	s	-> XTEXT "" in
 	
 	output_xml out (xelement "irg" [] (List.map print_item list))
 
@@ -245,7 +246,8 @@ let dump_stream out list =
 		| PINT i 	-> write (string_of_int i)
 		| PINT32 i	-> write (Int32.to_string i)
 		| PINT64 i 	-> write (Int64.to_string i)
-		| PLN		-> write "\n" in
+		| PLN		-> write "\n"
+		| PSPEC s	-> () in
 
 	List.iter item_of list
 

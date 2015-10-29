@@ -623,16 +623,18 @@ let remove_ranges iset =
 		| [] 					-> finalize spec fmts args
 		| (Str.Text s)::ifmt	-> scan spec ifmt iargs (concat fmts s) args f
 		| (Str.Delim s)::ifmt	->
-			let iarg :: iargs = iargs in
-			(match Irg.escape_eline iarg with
-			| Irg.REF (_, id) ->
-				(match Sem.get_type_ident id with
-				| Irg.ANY_TYPE	-> assert false
-				| Irg.RANGE (l, u)
-								-> scan spec ifmt iargs (mult fmts ((fst f) l u (Sem.image_escape_size s))) args f
-				| Irg.ENUM l	-> scan spec ifmt iargs (mult fmts ((snd f) l (Sem.image_escape_size s))) args f
-				| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
-			| e 				-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f) in
+			match iargs with
+			| [] -> failwith "here";
+			| iarg :: iargs ->
+				(match Irg.escape_eline iarg with
+				| Irg.REF (_, id) ->
+					(match Sem.get_type_ident id with
+					| Irg.ANY_TYPE	-> assert false
+					| Irg.RANGE (l, u)
+									-> scan spec ifmt iargs (mult fmts ((fst f) l u (Sem.image_escape_size s))) args f
+					| Irg.ENUM l	-> scan spec ifmt iargs (mult fmts ((snd f) l (Sem.image_escape_size s))) args f
+					| t 			-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f)
+				| e 				-> scan spec ifmt iargs (concat fmts s) (iarg :: args) f) in
 
 	let transform id params attrs fmt args f =
 		Irg.param_stack params;

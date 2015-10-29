@@ -32,7 +32,7 @@ let fusion_nodes
 			let val_expr = 
 				Irg.SWITCH_EXPR(
 					Irg.STRING, 
-					Irg.REF(NO_TYPE, "__code"), 
+					Irg.REF(Irg.NO_TYPE, "__code"), 
 					(List.map (Sw_fun.case_from_value_expr size) and_nodes), 
 					Irg.NONE
 				) 

@@ -292,7 +292,7 @@ let shift_right m sh =
 	if sh < 0 then
 		failwith "shouldn't happen (bitmask.ml::shift_right)"
 	else
-		(if l == 0 or sh >= l then
+		(if l == 0 || sh >= l then
 			void_mask
 		else
 			(let s_ext = String.make sh s.[0] in

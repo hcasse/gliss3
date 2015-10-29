@@ -1534,6 +1534,7 @@ type printable =
 	| PLOC of location
 	| PTYPE of type_expr
 	| PFUN of (out_channel -> unit)
+	| PSPEC of spec
 	| PINT of int
 	| PINT32 of Int32.t
 	| PINT64 of Int64.t
@@ -1552,6 +1553,7 @@ let output lst out =
 		| PLOC  l 	-> output_location out l
 		| PTYPE t 	-> output_type_expr out t 
 		| PFUN f	-> f out
+		| PSPEC s	-> output_spec out s
 		| PINT i	-> output_value out i
 		| PINT32 i	-> output_string out (Int32.to_string i)  
 		| PINT64 i	-> output_string out (Int64.to_string i)

@@ -220,11 +220,11 @@ MachineSpec :
 
 
 LetDef	:
-	LET LocatedID EQ LetExpr	{  Irg.add_pos ($2) !(Lexer.file) $1;($2, Sem.make_let $2 $4) }
+	LET LocatedID EQ LetExpr	{  ($2, Sem.make_let $2 $4) }
 ;
 
 ResourceSpec:
-	RESOURCE ResourceList	{ List.iter (fun e->Irg.add_pos e !(Lexer.file) $1) $2}
+	RESOURCE ResourceList	{ $2 }
 ;
 
 ResourceList:
@@ -266,17 +266,17 @@ TypeList:
 
 
 ExceptionSpec:
-	EXCEPTION IdentifierList	{ List.iter (fun id -> (Irg.add_pos id !(Lexer.file) $1;(Irg.add_symbol id (Irg.EXN id)))) $2 }
+	EXCEPTION IdentifierList	{ $2 }
 ;
 
 IdentifierList:
-	ID				{ [$1] }
-|	IdentifierList COMMA ID		{ $3::$1 }
+	LocatedID						{ [$1] }
+|	IdentifierList COMMA LocatedID	{ $3::$1 }
 ;
 
 TypeSpec:
 	TYPE LocatedID EQ TypeExpr
-		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Irg.TYPE ($2, $4)) }
+		{ ($2, Irg.TYPE ($2, $4)) }
 ;
 
 TypeExpr:
@@ -325,17 +325,17 @@ LetExpr:
 
 MemorySpec:
 	MEM LocatedID LBRACK MemPart RBRACK OptionalMemAttrDefList
-		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Sem.check_alias (Irg.MEM ($2, fst $4, snd $4, $6))) }
+		{ ($2, Sem.check_alias (Irg.MEM ($2, fst $4, snd $4, $6))) }
 ;
 
 RegisterSpec:
 	REG LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{ Irg.add_pos $2 !(Lexer.file) $1; ($2, Sem.check_alias (Irg.REG ($2, fst $4, snd $4, $6))) }
+		{ ($2, Sem.check_alias (Irg.REG ($2, fst $4, snd $4, $6))) }
 ;
 
 VarSpec:
 	VAR LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{ Irg.add_pos $2 !(Lexer.file) $1; $2, Irg.VAR ($2, fst $4, snd $4, $6) }
+		{ ($2, Irg.VAR ($2, fst $4, snd $4, $6)) }
 ;
 
 MemPart:
@@ -398,16 +398,12 @@ ModeSpec:
 	MODE LocatedID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{
 			Sem.check_image $2 $4;
-			Irg.add_pos $2 !(Lexer.file) $1;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $7;
 			($2, Irg.AND_MODE ($2, $4, $6, $7))
 		}
 |	MODE LocatedID EQ Identifier_Or_List
-		{
-			Irg.add_pos $2 !(Lexer.file) $1;
-			$2, Irg.OR_MODE ($2, $4)
-		}
+		{ $2, Irg.OR_MODE ($2, $4) }
 ;
 
 
