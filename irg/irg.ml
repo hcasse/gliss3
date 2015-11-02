@@ -21,7 +21,7 @@
 
 (** IRG module is dedicated to the Intermediate Representation in GLISS (IRG) of SimNML
 	and to its associate facilities.
-	
+
 	{2 Intermediate representation}
 	The intermediate representation uses a recursive tree of several datatypes.
 	Interesting types includes:
@@ -31,10 +31,10 @@
 	- {!location} - allows to design resources supporting assignments (like registers, memories and variables).
 	- {!expr} - represents a computation expression (i.e. constant, binary or unary operations, resource access, etc).
 	- {!stat} - represents statements in SimNML i.e. assignment, sequence, selection, multiple-selection.
-	
+
 	Once parsed, a SimNML file (extension [.nmp] or [.nml]) is a collection of specifications
-	that are stored in the main dictionnary provided by this module.  
-	
+	that are stored in the main dictionnary provided by this module.
+
 	Functions this collection of specifications includes:
 	- {!add_attr} to add an attribute,
 	- {!add_canon} to add and declare a canonical function,
@@ -52,27 +52,27 @@
 	- {!is_defined_canon} to test if a canonical function is defined,
 	- {!pos_of} to get source information about a symbol,
 	- {!rm_symbol} to remove a symbol.
-	
+
 	This module provides also function to serialize/deserialize the instruction to/from
 	a file (files with extension [.irg]:
 	- {!load}
 	- {!save}
-	
+
 	{2 Working with AND-mode or -operations}
-	
+
 	IRG does not provide a hierarchical table of symbols. As is, the symbol tables contains top-level
 	symbols, that is, the top-level specification. When some one has to work inside
 	an AND-mode or an AND-operation, the symbol table needs to be populated with parameters and
 	attributes. This is done with function:
 	- {!param_stack}
 	- {!attr_stack}
-	
+
 	After the work has been done, the symbol table need to be cleaned with functions:
 	- {!param_unstack}
 	- {!attr_unstack}
-	
+
 	{2 Useful Accessors}
-	
+
 	As IRG is not so easy to handle, some functions are provided to help the user to handle attributes:
 	- {!attr_defined} to test if an attribute is in a list of attributes,
 	- {!attr_expr} to get an attribute of type expression,
@@ -80,28 +80,28 @@
 	- {!attr_name} to get the name of an attribute,
 	- {!attrs_of} to get the attributes of a specification,
 	- {!set_attr} to set an attribute value in an attribute list.
-	
+
 	Other function are useful to handle specifications:
 	- {!escape_eline} allows to remove source information around an expression,
 	- {!is_reg} to test if a symbol is a register,
 	- {!name_of} to get name of a specification,
 	- {!string_of_binop} to convert binary operator to string,
 	- {!string_of_unop} to convert unary operator to string.
-	
-	Some functions are designed to support format strings: 
+
+	Some functions are designed to support format strings:
 	- {!is_bin_format} to test if an escape sequence is binary,
 	- {!is_float_format} to test if an escape sequence is float,
 	- {!is_int_format} to test if an escape sequence is integer,
 	- {!is_text_format} to test if ane scape sequence is a string/text,
 	- {!split_format_string} to split format string from [format] function.
-	
+
 	Other functions and data allows working with source information :
 	- {!line_from_expr} to lookup in expression for source information,
 	- {!line_from_stat} to lookup in statement for source information,
 	- {!no_line} represents empty source information.
-	
+
 	{2 Pretty Printing}
-	
+
 	IRG module provides lots of function to pretty-print the IRG elements on standard output:
 	- {!print_attr},
 	- {!print_const},
@@ -135,9 +135,9 @@
 	- {!prerrln}
 	- {!print},
 	- {!println}.
-	
+
 	{2 Error Management}
-	
+
 	This module provides also a collection of exception that may be used when IRG is processed:
 	- {!SyntaxError} - only raised at parsing time to alert about a syntax error (this usually stops the parsing),
 	- {!Error} - raised to alert about a error during IRG processing or building,
@@ -149,30 +149,30 @@
 	- {!asis} text - generate an error function displaying the given text.
 	- {!join} f1 f2 - generate an error function concatenating both messages of f1 and f2.
 	- {!output} list - generate an error function displaying complex IRG message.
-	
+
 	Raising an error in a compiler may be a tricky action: to make useful by the human user, the error must be located
 	relatively to the sources. IRG provides source information through special constructors put in {!expr} and {!stat} datatypes.
 	When an error is raised during the processing of an expression or of a statement, one has to find back the closer
 	source information to locate the error. IRG provide facilities to do that if the a {!PreError} is raised:
 	an handler, associated with source information, will catch it and add missing source information to the error
 	message, that is, will transform it in {!Error} exception.
-	
+
 	To support this scheme, the user must call the following functions to raise an error:
 	- {!error} - to raise a PreError that will be fixed thereafter.
 	- {!handle_error} file line f - will call f with () parameter but will catch any {!PreError} and will locate it.
 	- {!complete_error} f file line - build an error function that will display file and line and append the f error function message.
-	
+
 	Alternatively, one may look in {!expr} or {!stat} to find closer source information (not very precise but may do the trick):
 	- {!expr_error} e f -- generate an error with display closer source information from e and message from f.
 	- {!stat_error} s f -- generate an error with display closer source information from s and message from f.
-	
+
 	For error concerning other IRG elements, like specification, IRG maintains an associative map between the element and the source information
 	where they are declared. The following functions may be used:
 	- {!error_symbol} name f - raise an error that displays source information of named symbol and message from f.
 	- {!error_spec} spec f - raise an error that displays source information of the given specification and message from f.
-	
+
 	{2 Useful constants}
-	
+
 	This constants provides useful intermediate representations construction.
 	- {!ieee754_32} IEEE-754 binary32 type
 	- {!ieee754_64} IEEE-754 binary64 type
@@ -472,7 +472,7 @@ let pos_of sym =
 	@param f		Message function.
 	@raise Error	Located to the given symbol with the given message. *)
 let error_symbol name f =
-	raise (Error (fun out -> Printf.fprintf out "%s: " (pos_of name); f out))	
+	raise (Error (fun out -> Printf.fprintf out "%s: " (pos_of name); f out))
 
 
 (** Handle an error from a specification.
@@ -481,7 +481,7 @@ let error_symbol name f =
 	@raise Error	Located to the given symbol with the given message. *)
 let error_spec spec f =
 	error_symbol (name_of spec) f
-	
+
 
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
@@ -677,17 +677,17 @@ let canon_list = [
 			(* this is the "default" canonical function, used for unknown functions *)
 			{ name=UNKNOW; type_fun=CANON_FUNC;type_param=[];type_res=ANY_TYPE };
 			{ name=NAMED "print";type_fun=CANON_FUNC;type_param=[STRING];type_res=NO_TYPE };
-			
+
 			(* for debugging generation *)
 			{name=NAMED "GLISS_IDX"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(32); };
 			{name=NAMED "GLISS_I"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(32); };
 			{name=NAMED "GLISS_L"; type_fun=CANON_CNST; type_param=[]; type_res=CARD(64); };
 			{name=NAMED "GLISS_F"; type_fun=CANON_CNST; type_param=[]; type_res=FLOAT(23, 9); };
 			{name=NAMED "GLISS_D"; type_fun=CANON_CNST; type_param=[]; type_res=FLOAT(52, 12); };
-			{name=NAMED "GLISS_GET_I"; type_fun=CANON_FUNC; type_param=[CARD(32)]; type_res=NO_TYPE; };			
-			{name=NAMED "GLISS_GET_L"; type_fun=CANON_FUNC; type_param=[CARD(65)]; type_res=NO_TYPE; };			
-			{name=NAMED "GLISS_GET_F"; type_fun=CANON_FUNC; type_param=[FLOAT(23, 9)]; type_res=NO_TYPE; };			
-			{name=NAMED "GLISS_GET_D"; type_fun=CANON_FUNC; type_param=[FLOAT(52, 12)]; type_res=NO_TYPE; };			
+			{name=NAMED "GLISS_GET_I"; type_fun=CANON_FUNC; type_param=[CARD(32)]; type_res=NO_TYPE; };
+			{name=NAMED "GLISS_GET_L"; type_fun=CANON_FUNC; type_param=[CARD(65)]; type_res=NO_TYPE; };
+			{name=NAMED "GLISS_GET_F"; type_fun=CANON_FUNC; type_param=[FLOAT(23, 9)]; type_res=NO_TYPE; };
+			{name=NAMED "GLISS_GET_D"; type_fun=CANON_FUNC; type_param=[FLOAT(52, 12)]; type_res=NO_TYPE; };
 		 ]
 
 (* we add all the defined canonical functions to the canonical functions space *)
@@ -869,7 +869,7 @@ let rec output_expr out e =
 		output_type_expr out t
 	| ITEMOF (t, name, idx) ->
 		Printf.fprintf out "%s: " name;
-		output_type_expr out t; 
+		output_type_expr out t;
 		output_string out " [";
 		output_expr out idx;
 		output_string out "]";
@@ -1331,7 +1331,7 @@ let native_path path =
 		if s = "" then "" else
 		(if starts_with s "/" then "\\" else head s 1)
 		^ (replace (tail s 1)) in
-	
+
 	if not is_windows then path else
 	let path =
 		if starts_with path "/c/" then "C:\\" ^ (tail path 3) else
@@ -1478,10 +1478,11 @@ let get_root _ =
 
 (* regex for format decoding *)
 let format_regex = Str.regexp (
-	  "%[0-9]*\\(h\\|l\\|hh\\|ll\\)?[dioxXu]\\|"	(* integer formats *)
+	  "%[0-9]*\\(h\\|l\\|hh\\|ll\\)?[dioxXub]\\|"	(* integer formats *)
 	^ "%[0-9]*\\(\\.[0-9]+\\)?L?[aAeEfFgG]\\|"		(* float formats *)
 	^ "%[0-9]*s\\|"									(* string format *)
 	^ "%[0-9]*b\\|"									(* binary format *)
+	^ "%@\\|"										(* label format *)
 	^ "%l\\|"										(* label format *)
 	^ "%%")											(* double percent *)
 
@@ -1496,6 +1497,7 @@ let split_format_string s =
 	let process_double_percent e =
 		match e with
 		| Str.Delim("%%") -> Str.Text("%%")
+		| Str.Delim("%l") -> Str.Delim("%@")
 		| _ -> e in
 	List.map process_double_percent (Str.full_split format_regex s)
 
@@ -1538,6 +1540,7 @@ type printable =
 	| PINT of int
 	| PINT32 of Int32.t
 	| PINT64 of Int64.t
+	| PCST of const
 	| PLN
 
 
@@ -1551,14 +1554,15 @@ let output lst out =
 		| PSTAT s 	-> output_statement out s
 		| PEXPR e	-> output_expr out e
 		| PLOC  l 	-> output_location out l
-		| PTYPE t 	-> output_type_expr out t 
+		| PTYPE t 	-> output_type_expr out t
 		| PFUN f	-> f out
 		| PSPEC s	-> output_spec out s
-		| PINT i	-> output_value out i
-		| PINT32 i	-> output_string out (Int32.to_string i)  
+		| PINT i	-> output_string out (string_of_int i)
+		| PINT32 i	-> output_string out (Int32.to_string i)
 		| PINT64 i	-> output_string out (Int64.to_string i)
-		| PLN 		-> output_char out '\n' in
-	List.iter output_item lst 
+		| PLN 		-> output_char out '\n'
+		| PCST c	-> output_const out c in
+	List.iter output_item lst
 
 
 (** Print a message made of IRG items.
@@ -1591,7 +1595,7 @@ let prerrln lst = outputln lst stderr
 
 (** Get attributes of the given specification.
 	@param spec		Spec to look in.
-	@return			Attribute list (or empty list). *) 
+	@return			Attribute list (or empty list). *)
 let attrs_of spec =
 	match spec with
 	| MEM (_, _, _, attrs)
@@ -1649,7 +1653,7 @@ let rec line_from_expr expr =
 	| BINOP (t, _, e1, e2)
 		-> line_from_list [LEXPR e1; LEXPR e2]
 	| SWITCH_EXPR (_, c, cs, d)
-		-> line_from_list ([LEXPR c; LEXPR d] @ (List.flatten (List.map (fun (c, e) -> [LEXPR c; LEXPR e]) cs))) 
+		-> line_from_list ([LEXPR c; LEXPR d] @ (List.flatten (List.map (fun (c, e) -> [LEXPR c; LEXPR e]) cs)))
 	| ELINE (f, l, _)
 		-> (f, l)
 
@@ -1664,7 +1668,7 @@ and line_from_stat stat =
 	| ERROR _
 		-> no_line
 	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
-	| SET (l, e) -> line_from_expr e 
+	| SET (l, e) -> line_from_expr e
 	| CANON_STAT (_, args) -> line_from_list (List.map (fun a -> LEXPR a) args)
 	| IF_STAT (c, s1, s2) -> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
 	| SWITCH_STAT (c, cs, d) -> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))

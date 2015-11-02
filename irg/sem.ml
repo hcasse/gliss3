@@ -220,6 +220,34 @@ let to_int c =
 	Int32.to_int (to_int32 c)
 
 
+(** Mask 32-bits integer on n bits.
+	@param i	Integer to mask.
+	@param n	Number of bits of the mask.
+	@return		n lowest bits of i. *)
+let mask32 i n =
+	Int32.logand i (Int32.pred (Int32.shift_left Int32.one n))
+
+
+(** Mask 64-bits integer on n bits.
+	@param i	Integer to mask.
+	@param n	Number of bits of the mask.
+	@return		n lowest bits of i. *)let mask64 i n =
+	Int64.logand i (Int64.pred (Int64.shift_left Int64.one n))
+
+
+(** Mask the given integer on n bits.
+	@param i	Integer to mask.
+	@param n	Number of bits to keep.
+	@return		Constant with lowest n bits of i. *) 
+let mask i n =
+	match i with
+	| CARD_CONST i 		when n < 32 	-> CARD_CONST (mask32 i n)
+	| CARD_CONST _						-> i
+	| CARD_CONST_64 i	when n < 64 	-> CARD_CONST_64 (mask64 i n)
+	| CARD_CONST_64 _					-> i 
+	| _									-> failwith "mask: unsupported type to mask"
+
+
 (** Test if a constant is true.
 	@param c	Constant to test.
 	@return		True if constant is true. *)
@@ -373,30 +401,36 @@ let eval_binop op (t1, c1) (t2, c2) =
 	@return			Result of coercion.
 	@raise SemError	If the coercion is not supported. *)
 let eval_coerce t (_, v) =
-	let mask32 i n = Int32.logand i (Int32.pred (Int32.shift_left Int32.one n)) in
-	let mask64 i n = Int64.logand i (Int64.pred (Int64.shift_left Int64.one n)) in
 	match t, v with
-	| _, NULL -> NULL
-	| BOOL, CARD_CONST i -> CARD_CONST (if i = Int32.zero then Int32.zero else Int32.one)
-	| BOOL, CARD_CONST_64 i -> CARD_CONST (if i = Int64.zero then Int32.zero else Int32.one)
-	| INT n, CARD_CONST i when n <= 32 -> v
-	| INT n, CARD_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_int32 i)
-	| INT n, CARD_CONST_64 i when n <= 32 -> CARD_CONST (Int64.to_int32 i)
-	| INT n, CARD_CONST_64 i when n <= 64 -> v
-	| INT n, FIXED_CONST i when n <= 32 -> CARD_CONST (Int32.of_float i)
-	| INT n, FIXED_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_float i)
-	| CARD n, CARD_CONST i when n < 32 -> CARD_CONST (mask32 i n)
-	| CARD n, CARD_CONST i when n = 32 -> v
-	| CARD n, CARD_CONST i when n < 64 -> CARD_CONST_64 (mask64 (Int64.of_int32 i) n)
-	| CARD n, CARD_CONST i when n = 64 -> CARD_CONST_64 (Int64.of_int32 i)
-	| CARD n, CARD_CONST_64 i when n < 32 -> CARD_CONST (mask32 (Int64.to_int32 i) n)
-	| CARD n, CARD_CONST_64 i when n = 32 -> CARD_CONST (Int64.to_int32 i)
-	| CARD n, CARD_CONST_64 i when n < 64 -> CARD_CONST_64 (mask64 i n)
-	| CARD n, CARD_CONST_64 i when n = 64 -> v
-	| CARD n, FIXED_CONST i when n <= 32 -> CARD_CONST (Int32.of_float (abs_float i))
-	| CARD n, FIXED_CONST i when n <= 64 -> CARD_CONST_64 (Int64.of_float (abs_float i))
+	| _, NULL 									-> NULL
+	| BOOL, CARD_CONST i 						-> CARD_CONST (if i = Int32.zero then Int32.zero else Int32.one)
+	| BOOL, CARD_CONST_64 i						-> CARD_CONST (if i = Int64.zero then Int32.zero else Int32.one)
+
+	| INT n, CARD_CONST i 		when n < 32 	-> CARD_CONST (mask32 i n)
+	| INT n, CARD_CONST i 		when n = 32 	-> v
+	| INT n, CARD_CONST i 		when n < 64		-> CARD_CONST_64 (Int64.of_int32 i)
+	| INT n, CARD_CONST i 		when n = 64 	-> CARD_CONST_64 (Int64.of_int32 i)
+	| INT n, CARD_CONST_64 i	when n < 32 	-> CARD_CONST (mask32 (Int64.to_int32 i) n)
+	| INT n, CARD_CONST_64 i 	when n = 32 	-> CARD_CONST (Int64.to_int32 i)
+	| INT n, CARD_CONST_64 i 	when n < 64 	-> CARD_CONST_64 (mask64 i n)
+	| INT n, CARD_CONST_64 i 	when n = 64 	-> v
+	| INT n, FIXED_CONST i 		when n <= 32 	-> CARD_CONST (Int32.of_float i)
+	| INT n, FIXED_CONST i 		when n <= 64 	-> CARD_CONST_64 (Int64.of_float i)
+
+	| CARD n, CARD_CONST i 		when n < 32 	-> CARD_CONST (mask32 i n)
+	| CARD n, CARD_CONST i 		when n = 32 	-> v
+	| CARD n, CARD_CONST i 		when n < 64 	-> CARD_CONST_64 (mask64 (Int64.of_int32 i) n)
+	| CARD n, CARD_CONST i 		when n = 64 	-> CARD_CONST_64 (Int64.of_int32 i)
+	| CARD n, CARD_CONST_64 i	when n < 32 	-> CARD_CONST (mask32 (Int64.to_int32 i) n)
+	| CARD n, CARD_CONST_64 i 	when n = 32 	-> CARD_CONST (Int64.to_int32 i)
+	| CARD n, CARD_CONST_64 i 	when n < 64 	-> CARD_CONST_64 (mask64 i n)
+	| CARD n, CARD_CONST_64 i 	when n = 64 	-> v
+	| CARD n, FIXED_CONST i 	when n <= 32 	-> CARD_CONST (Int32.of_float (abs_float i))
+	| CARD n, FIXED_CONST i 	when n <= 64 	-> CARD_CONST_64 (Int64.of_float (abs_float i))
+
 	| FLOAT _, CARD_CONST i -> FIXED_CONST (Int32.to_float i)
 	| FLOAT _, CARD_CONST_64 i -> FIXED_CONST (Int64.to_float i)
+
 	| _ -> pre_error "unsupported constant coerction"
 
 
@@ -441,6 +475,8 @@ and eval_typed_const expr =
 		(t, cst)
 	| UNOP (t, op, e) ->
 		(t, eval_unop op (eval_typed_const e))
+	| BINOP (CARD(n), op, e1, e2) when n <> 32 && n <> 64 ->
+		(CARD(n), mask (eval_binop op (eval_typed_const e1) (eval_typed_const e2)) n)
 	| BINOP (t, op, e1, e2) ->
 		(t, eval_binop op (eval_typed_const e1) (eval_typed_const e2))
 	| IF_EXPR(tt, c, t, e) ->
@@ -1265,24 +1301,18 @@ let rec is_loc_spe id =
 	|_->false
 
 
-(* this is the regular expression whitch represent a call to a parameter in a format *)
-let reg_exp = Str.regexp "%[0-9]*[ldbxsfu%]"
-	(* 	The expression %0b was used with some versions to avoid a bug of Gliss v1 ,
-		so we allow this kind of expression here for compatibility *)
-
 (** this function is used to find all references to parameters in a string passed to a format
 	@param str	The string to treat
 	@return 	A list of string matching reg_exp
  *)
 let get_all_ref str =
-	let str_list = Str.full_split reg_exp str in
+	(*let str_list = Str.full_split reg_exp str in*)
 	let rec temp str_l res_l=
 		match str_l with
 		| [] -> res_l
 		| (Str.Text _)::l -> temp l res_l
-		| (Str.Delim s)::l when s = "%%" -> temp l res_l
 		| (Str.Delim s)::l -> temp l (s::res_l) in
-	temp str_list []
+	temp (Irg.split_format_string str) []
 
 
 (** Create a FORMAT operation and check if it is well written
@@ -1339,7 +1369,7 @@ let check_canon_params name params =
 		if t = pt then p else
 		match (t, pt) with
 		| _, NO_TYPE
-		| STRING, _ 
+		| STRING, _
 		| _, STRING -> pre_error "bad argument type"
 		| _, ANY_TYPE -> p
 		| _, _ -> Irg.COERCE(t, p) in

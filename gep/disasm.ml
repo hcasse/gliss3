@@ -46,52 +46,75 @@ let rec gen_disasm info inst expr =
 
 	let str text = Irg.CONST (Irg.STRING, Irg.STRING_CONST(text)) in
 
-	let format fmt args s i =
-		if s >= i then
-			Irg.NOP
-		else
-    		let fmt = String.sub fmt s (i - s) in
-    		if fmt <> "" then 
-        		Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF (Irg.NO_TYPE, "__buffer"))::(str fmt)::args)
-      		else Irg.NOP in
+	let dec_format f a =
+		(String.sub f 0 ((String.length f) - 1)) ^
+		(match Toc.convert_type (Sem.get_type_expr a) with
+		| Toc.INT8
+		| Toc.UINT8
+		| Toc.INT16
+		| Toc.UINT16
+		| Toc.INT32		-> "d"
+		| Toc.UINT32	-> "u"
+		| Toc.INT64		-> "Ld"
+		| Toc.UINT64	-> "Lu"
+		| Toc.FLOAT
+		| Toc.DOUBLE
+		| Toc.LONG_DOUBLE
+		| Toc.CHAR_PTR	-> failwith "gen_disasm.int_format") in
 
-	let change_l fmt i =
-		(String.sub fmt 0 i) ^ "s" ^ (String.sub fmt (i + 1) ((String.length fmt) - i - 1)) in
+	let unsigned_format i i32 i64 f a =
+		(String.sub f 0 ((String.length f) - 1)) ^
+		(match Toc.convert_type (Sem.get_type_expr a) with
+		| Toc.INT8
+		| Toc.UINT8
+		| Toc.INT16
+		| Toc.UINT16	-> i
+		| Toc.INT32
+		| Toc.UINT32 	-> i32
+		| Toc.INT64
+		| Toc.UINT64 	-> i64
+		| Toc.FLOAT
+		| Toc.DOUBLE
+		| Toc.LONG_DOUBLE
+		| Toc.CHAR_PTR 	-> failwith "gen_disasm.int_format") in
 
-	let rec scan fmt args s used i =
-		match args with
-		| [] -> format fmt (List.rev used) s (String.length fmt)
-		| hd::tl ->
-			if i >= (String.length fmt) then format fmt used s i else
-			if fmt.[i] <> '%' then scan fmt args s used (i + 1) else
-			if i + 1 >= String.length fmt then format fmt used s i else
-			(match fmt.[i + 1] with
-			| 's' ->
-				Irg.SEQ (format fmt (List.rev used) s i, Irg.SEQ(process hd, scan fmt tl (i + 2) [] (i + 2)))
-			| '@'
-			| 'l' ->	(* Deprecated *)
-				scan (change_l fmt (i + 1)) tl s ((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [hd]))::used) (i + 2)
-			| '%' ->
-				scan fmt args s used (i + 2)
-			| _ ->
-				scan fmt tl s (hd::used) (i + 2))
+	let fix f a =
+		(match String.get f ((String.length f) - 1) with
+		| 'd' | 'i' | 'u'	-> dec_format
+		| 'x' 				-> unsigned_format "x" "lx" "Lx"
+		| 'X' 				-> unsigned_format "X" "lX" "LX"
+		| 'o' 				-> unsigned_format "o" "lo" "Lo"
+		| 'b' 				-> unsigned_format "b" "lb" "Lb"
+		| _ 				-> (fun f _ -> f)) f a in
+
+	let format fmt args =
+		if fmt = "" then Irg.NOP else
+        Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF (Irg.NO_TYPE, "__buffer"))::(str fmt)::args) in
+
+	let rec scan fmt args cfmt cargs =
+		match fmt with
+		| []
+			-> format cfmt cargs
+		| (Str.Text t)::fmt
+			-> scan fmt args (cfmt ^ t) cargs
+		| (Str.Delim d)::fmt when (Str.last_chars d 1) = "s"
+	 		-> Irg.SEQ (format cfmt (List.rev cargs), Irg.SEQ(process (List.hd args), scan fmt (List.tl args) "" []))
+		| (Str.Delim d)::fmt when (Str.last_chars d 1) = "@"
+			-> scan fmt (List.tl args) (cfmt ^ "%s") (((Irg.CANON_EXPR(Irg.STRING, info.Toc.proc ^ "_solve_label", [List.hd args])))::cargs)
+		| (Str.Delim d)::fmt
+			-> scan fmt (List.tl args) (cfmt ^ (fix d (List.hd args))) ((List.hd args)::cargs)
 
 	and process expr =
 		check expr;
 		match expr with
 		| Irg.FORMAT (fmt, args) ->
-			scan fmt args 0 [] 0
+			scan (Irg.split_format_string fmt) args "" []
 		| Irg.CONST (_, Irg.STRING_CONST(s)) ->
-    		if s <> ""
-    		then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF (Irg.NO_TYPE, "__buffer"); str s])
-      		else Irg.NOP 
+    		if s <> "" then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF (Irg.NO_TYPE, "__buffer"); str s]) else Irg.NOP
 		| Irg.IF_EXPR (_, c, t, e) ->
 			Irg.IF_STAT(c, process t, process e)
 		| Irg.SWITCH_EXPR(_, c, cases, def) ->
-			Irg.SWITCH_STAT(
-				c,
-				List.map (fun (c, e) -> (c, process e)) cases,
-				if def <> Irg.NONE then process def else Irg.NOP)
+			Irg.SWITCH_STAT(c, List.map (fun (c, e) -> (c, process e)) cases,if def <> Irg.NONE then process def else Irg.NOP)
 		| Irg.REF _
 		| Irg.NONE
 		| Irg.CANON_EXPR _
@@ -196,7 +219,7 @@ let _ =
 							raise (CommandError  "no template to make disasm program")
 					end
 			)
-	with 
+	with
 	| Toc.Error msg ->
 		display_error msg
 	| CommandError msg ->

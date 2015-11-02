@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <gliss/api.h>
 #include <gliss/loader.h>
 #include <gliss/config.h>
@@ -89,7 +90,7 @@ void add_to_list(list_entry_t **m, const char *n, gliss_address_t a) {
 	*prev = e;
 	if(cur)
 		e->next = cur;
-}	
+}
 
 
 /**
@@ -100,18 +101,18 @@ void add_to_list(list_entry_t **m, const char *n, gliss_address_t a) {
  * @return	0 if no label exists for the given address, non zero otherwise
 */
 int get_label_from_list(list_entry_t *m, gliss_address_t addr, const char **name) {
-	
+
 	/* find the entry */
 	list_entry_t *e = m;
 	while(e && e->addr < addr)
 		e = e->next;
-	
+
 	/* found ? */
 	if(e && e->addr == addr) {
 		*name = e->name;
 		return 1;
 	}
-	
+
 	/* not found */
 	else {
 		*name = 0;
@@ -157,13 +158,13 @@ void destroy_list(list_entry_t *m) {
  */
 static void fail_with_help(const char *msg, ...) {
 	va_list args;
-	
+
 	/* display syntax */
 	fprintf(stderr, "SYNTAX: disasm ");
 	if(gliss_modes[0].name)
 		fprintf(stderr, "[-m MODE] ");
 	fprintf(stderr, "EXECUTABLE\n");
-	
+
 	/* display modes */
 	if(gliss_modes[0].name) {
 		int i, fst = 1;
@@ -177,7 +178,7 @@ static void fail_with_help(const char *msg, ...) {
 		}
 		fprintf(stderr, "\n");
 	}
-	
+
 	/* display error message */
 	fprintf(stderr, "\nERROR: ");
 	va_start(args, msg);
@@ -278,7 +279,7 @@ int main(int argc, char **argv) {
 		}
 		printf("\t%20s\tvalue:%08X\tsize:%08X\tinfo:%08X\tshndx:%08X\n", data.name, data.value, data.size, data.type, data.sect);
 	}
-	
+
 	/* configure disassembly */
 	gliss_solve_label = gliss_solve_label_disasm;
 
@@ -309,7 +310,7 @@ int main(int argc, char **argv) {
 
 	/* disassemble the sections */
 	for(i_sect = 0; i_sect<nb_sect_disasm; i_sect++) {
-		
+
 		/* display new section */
 		gliss_address_t adr_start = s_tab[i_sect].addr;
 		gliss_address_t adr_end = s_tab[i_sect].addr + s_tab[i_sect].size;
@@ -318,27 +319,27 @@ int main(int argc, char **argv) {
 
 		/* traverse all instructions */
 		while (adr_start < adr_end) {
-			
+
 			/* disassemble instruction */
 			int size;
 			char buff[100];
 			gliss_inst_t *inst = decode(d, adr_start);
 			gliss_disasm(buff, inst);
 			const char *n;
-			
+
 			/* display label */
 			if(get_label_from_list(labels, adr_start, &n)) {
 				printf("\n%08x <%s>\n", adr_start, n);
 				prev_addr = adr_start;
 			}
-			
+
 			/* display the address */
 			if((prev_addr & 0xffff0000) == (adr_start & 0xffff0000))
 				printf("    %04x:\t", adr_start & 0x0000ffff);
 			else
 				printf("%08x:\t", adr_start);
 			prev_addr = adr_start;
-			
+
 			/* display the instruction bytes */
 			size = gliss_get_inst_size(inst) / 8;
 			for(i = 0; i < max_size; i++) {
@@ -347,7 +348,7 @@ int main(int argc, char **argv) {
 				else
 					fputs("  ", stdout);
 			}
-			
+
 			/* displat the instruction */
 			printf("\t%s\n", buff);
 			/* inst size is given in bit, we want it in byte */

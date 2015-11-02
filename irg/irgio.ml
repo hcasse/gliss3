@@ -147,7 +147,8 @@ let output_xml out list =
 		| PINT32 i	-> XTEXT (Int32.to_string i)
 		| PINT64 i 	-> XTEXT (Int64.to_string i)
 		| PLN		-> XTEXT "\n"
-		| PSPEC	s	-> XTEXT "" in
+		| PSPEC	s	-> XTEXT ""
+		| PCST c	-> XTEXT (const_of c) in
 	
 	output_xml out (xelement "irg" [] (List.map print_item list))
 
@@ -247,7 +248,8 @@ let dump_stream out list =
 		| PINT32 i	-> write (Int32.to_string i)
 		| PINT64 i 	-> write (Int64.to_string i)
 		| PLN		-> write "\n"
-		| PSPEC s	-> () in
+		| PSPEC s	-> ()
+		| PCST c	-> const_of c in
 
 	List.iter item_of list
 

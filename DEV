@@ -148,6 +148,28 @@ max(r) = maximum value ranges.
 	|	switche(Expr, (Expr x Expr)*, Expr)
 
 
+===== Coercing and casting =====
+
+Order on types, t1 > t2 defined by:
+any_type > _
+float(n, m) > float(n', m') if m > m' \/ (m = m' /\ n > n')
+float(_) > _
+fixed(n, m) > fixed(n', m') if n > n' \/ (n = n' /\ m > m')
+fixed(n, m) > int(n') if n >= n'
+fixed(n, m) > card(n') if n >= n'
+int(n) > int(n') if n > n'
+int(n) > bool
+card(n) > card(n') if n > n'
+card(n) > bool
+int(n) > card(n') if n >= n'
+card(n) > int(n') if n > n'
+int(n) > enum(rs) if n >= log2(max(rs)) + 2
+card(n) > enum(rs) if n >= log2(max(rs)) + 1
+
+CAST operation is a bit-to-bit copy from one value to another one:
+CAST(float(n, m), v: float(n', m')) =
+
+
 ===== Identification Generation Process =====
 
 Identifier is derived from "syntax" attribute taking

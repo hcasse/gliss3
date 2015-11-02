@@ -80,8 +80,7 @@ let check sw =
 			let s = 1 lsl (Sem.get_type_length (Sem.get_type_expr c)) in
 			if s > !max then -1 else
 			let items = List.map (fun (c, v) ->
-				(*print [PTEXT "DEBUG:"; PEXPR c; PLN];*)
-				(Sem.eval_const c, Sem.eval_const v )) cs in
+				 (Sem.eval_const c, Sem.eval_const v)) cs in
 			(*List.iter (fun (c, v) -> print [PTEXT "DEBUG: "; PCONST c; PTEXT " -> "; PCONST v; PTEXT "\n"]) items;*)
 			let def = Sem.eval_const def in
 
@@ -89,7 +88,6 @@ let check sw =
 			let n = !num in
 			let a = Array.make s def in
 			List.iter (fun (i, v) ->
-				(*Printf.printf "DEBUG: array[%d]\n" (Sem.to_int i);*)
 				Array.set a (Sem.to_int i) v) items;
 			let k = (t, a) in
 
