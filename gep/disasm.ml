@@ -94,7 +94,7 @@ let rec gen_disasm info inst expr =
 	let rec scan fmt args cfmt cargs =
 		match fmt with
 		| []
-			-> format cfmt cargs
+			-> format cfmt (List.rev cargs)
 		| (Str.Text t)::fmt
 			-> scan fmt args (cfmt ^ t) cargs
 		| (Str.Delim d)::fmt when (Str.last_chars d 1) = "s"
