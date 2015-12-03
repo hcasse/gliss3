@@ -343,8 +343,10 @@ noted "%@".
 This special format is replaced by a label name if one exists, or the hexadecimal
 address else.
 
+<code>
 op branch(c: cond, off: int(32)) 
 	syntax = format("b%s %@", c, PC + off)
+</code>
 
 The example above will display the 'b' mnemonic, followed by the condition //c//
 and finally, if available, the label where this instruction branch to.

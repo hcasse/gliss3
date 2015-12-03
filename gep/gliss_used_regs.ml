@@ -26,6 +26,8 @@ let extends: string list ref = ref []
 
 exception UsedRegsError of string
 let no_used_regs = "no_used_regs"
+let no_collect_regs = "__no_collect_regs"
+let do_collect_regs = "__do_collect_regs"
 
 
 (** Generate a macro register name.
@@ -179,27 +181,28 @@ let add_read (rds, wrs) id num =
 
 
 (** Collect used registers in statement.
-	@param stat		Current statement.
+	@param info		Generation information.
 	@param lst		List of collected used registers (identifier, number). *)
 let collect info =
 		let variable = ref false in
 		
-		let rec collect_stat stat lst (line: string * int) =
+		let rec collect_stat stat (c, lst) (line: string * int) =
 		match stat with
-			| Irg.NOP -> lst
-			| Irg.SEQ (s1, s2) -> collect_stat s1 (collect_stat s2 lst line) line
-			| Irg.EVAL ("", id) -> collect_call id lst
+			| Irg.NOP -> (c, lst)
+			| Irg.SEQ (s1, s2) -> collect_stat s2 (collect_stat s1 (c, lst) line) line
+			| Irg.EVAL ("", id) -> (c, collect_call id lst)
 			| Irg.EVAL _ -> failwith "gliss-used-regs: collect_stat"
-			| Irg.SET (l, e) -> collect_loc l (collect_expr e lst line) line
-			| Irg.CANON_STAT (_, args) -> List.fold_left (fun l e -> collect_expr e l line) lst args
-			| Irg.ERROR _ -> lst
-			| Irg.IF_STAT (c, t, e) -> collect_expr c (collect_stat t (collect_stat e lst line) line) line
-			| Irg.SWITCH_STAT (c, cs, d) ->
-				List.fold_left
-					(fun l (_, s) -> collect_stat s l line)
-					(collect_expr c (collect_stat d lst line) line)
-					cs
-			| Irg.LINE (f, l, s) -> collect_stat s lst (f, l)
+			| Irg.SET (l, e) -> (c, collect_loc l (c, scan c e lst line) line)
+			| Irg.CANON_STAT ("//no_collect_regs", _) -> (false, lst)
+			| Irg.CANON_STAT ("//do_collect_regs", _) -> (true, lst)
+			| Irg.CANON_STAT (_, args) -> (c, List.fold_left (fun l e -> scan c e l line) lst args)
+			| Irg.ERROR _ -> (c, lst)
+			| Irg.IF_STAT (cd, t, e) -> (c, snd (collect_stat t (collect_stat e (c, scan c cd lst line) line) line))
+			| Irg.SWITCH_STAT (cd, cs, d) ->
+				(c, snd (List.fold_left
+					(fun l (_, s) -> collect_stat s l line) (collect_stat d (c, scan c cd lst line) line)
+					cs))
+			| Irg.LINE (f, l, s) -> collect_stat s (c, lst) (f, l)
 
 		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
@@ -212,6 +215,8 @@ let collect info =
 					collect_expr e lst line)
 			| Irg.MEM (_, _, _, attrs) -> collect_expr idx lst line
 			| _ -> lst
+
+		and scan c e l line = if c then collect_expr e l line else l
 
 		and collect_expr expr lst (line: string * int) =
 			match expr with
@@ -231,7 +236,8 @@ let collect info =
 			| Irg.ELINE (f, l, e) -> collect_expr e lst (f, l)
 			| Irg.CAST (_, e) -> collect_expr e lst line
 
-		and collect_loc loc lst (line: string * int) =
+		and collect_loc loc (c, lst) (line: string * int) =
+			if not c then lst else
 			match loc with
 			| Irg.LOC_NONE -> lst
 			| Irg.LOC_REF (_, id, idx, l, u) ->
@@ -242,11 +248,11 @@ let collect info =
 						let lst = collect_expr l (collect_expr u (collect_expr idx lst line) line) line in
 						collect_reg add_write lst id idx line
 					| Irg.LOC_REF (t, id, idx, l, u) ->
-						collect_stat (Toc.unalias_set info Irg.NOP id idx l u Irg.NONE) lst line
+						snd (collect_stat (Toc.unalias_set info Irg.NOP id idx l u Irg.NONE) (true, lst) line)
 					| Irg.LOC_CONCAT (_, l1, l2) ->
-						collect_loc l1 (collect_loc l2 lst line) line)
+						collect_loc l1 (c, (collect_loc l2 (c, lst) line)) line)
 				| _ -> lst)
-			| Irg.LOC_CONCAT (_, l1, l2) -> collect_loc l1 (collect_loc l2 lst line) line
+			| Irg.LOC_CONCAT (_, l1, l2) -> collect_loc l1 (c, (collect_loc l2 (c, lst) line)) line
 
 		and collect_reg f lst (id: string) idx ((file, line): string * int) =
 			match Irg.get_symbol id with
@@ -266,12 +272,13 @@ let collect info =
 			| _ -> lst
 
 		and collect_call name lst =
+			Printf.printf "DEBUG: call(%s)\n" name;
 			if ends_with name no_used_regs then lst else
 			if List.mem_assoc name info.Toc.calls then lst else
 			let stat = Toc.get_stat_attr name in
 			let before = info.Toc.calls in
 			info.Toc.calls <- (name, "")::info.Toc.calls;
-			let lst = collect_stat stat lst ("", 0) in
+			let lst = snd (collect_stat stat (true, lst) ("", 0)) in
 			info.Toc.calls <- before;
 			lst in
 		

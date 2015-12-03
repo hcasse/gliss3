@@ -54,10 +54,10 @@
 	- {!to_bool}
 	- {!to_card}
 	- {!to_cond}
-	- {!true_const}
 
 	It includes also useful constants:
 	- {!false_const}
+	- {!true_const}
 
 	{2 Type Checking}
 
@@ -456,13 +456,14 @@ let eval_bitfield v u l =
 
 (** Perform the expression switch.
 	@param c		Condition.
-	@param cases	Cases of the switch.
-	@param def		Default value. *)
-let rec select c cases def =
-	  match cases with
-	    [] -> eval_typed_const def
-	  | (cp, e)::_ when cp = c -> eval_typed_const e
-	  | _::t -> select c t def
+	@param cs		Cases of the switch.
+	@param d		Default value. *)
+let rec select c cs d =
+	let ec = eval_typed_const c in
+	match cs with
+	| [] -> eval_typed_const d
+	| (cp, e)::_ when (eval_typed_const cp) = ec -> eval_typed_const e
+	| _::t -> select c t d
 
 
 (** Evaluate an expression to constant.

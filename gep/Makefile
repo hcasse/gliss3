@@ -50,7 +50,7 @@ gliss-attr: ../irg/irg.cma libgep.cma
 
 # gliss-attr build
 USED_REGS_SOURCES = \
-	gliss-used-regs.ml
+	gliss_used_regs.ml
 
 gliss-used-regs_LIBS = str unix ../irg/irg ../optirg/liboptirg libgep
 $(eval $(call ocaml_prog,gliss-used-regs,$(USED_REGS_SOURCES)))

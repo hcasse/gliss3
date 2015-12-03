@@ -215,7 +215,7 @@ MachineSpec :
 |   ResourceSpec	{ }
 |   ExceptionSpec	{ }
 |	ExtendSpec		{ }
-| CanonSpec		{ Irg.add_symbol (fst $1) (snd $1); Irg.add_canon (fst $1) (snd $1) }
+| 	CanonSpec		{ Irg.add_symbol (fst $1) (snd $1); Irg.add_canon (fst $1) (snd $1) }
 
 
 
@@ -239,25 +239,15 @@ Resource:
 
 CanonSpec:
 	CANON STRING_CONST LPAREN TypeList RPAREN
-	{
-		($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, $4))
-	}
+		{ ($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, $4)) }
 |	CANON Type STRING_CONST LPAREN TypeList RPAREN
-	{
-		($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, $5))
-	}
+		{ ($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, $5)) }
 |	CANON STRING_CONST LPAREN RPAREN
-	{
-		($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, []))
-	}
+		{ ($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, [])) }
 |	CANON Type STRING_CONST LPAREN RPAREN
-	{
-		($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, []))
-	}
+		{ ($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, [])) }
 |	CANON Type STRING_CONST
-	{
-		($3, Irg.CANON_DEF($3, Irg.CANON_CNST, $2, []))
-	}
+		{ ($3, Irg.CANON_DEF($3, Irg.CANON_CNST, $2, [])) }
 ;
 
 TypeList:
@@ -391,7 +381,7 @@ MemLocBase:
 	ID
 		{ ($1, Irg.NONE) }
 |	ID LBRACK Expr RBRACK
-		{ ($1, $3) }
+		{ ($1, CONST (CARD(32), Sem.eval_const $3)) }
 ;
 
 ModeSpec:

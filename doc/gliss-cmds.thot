@@ -122,3 +122,64 @@ Options are:
   * ''-t'' TEMPLATE -- select the template flag,
   * ''-v'' -- verbose mode.
 
+===== gliss-used-regs =====
+
+''gliss-used-regs'' try to scan the action of instruction to derive
+the list of used registers (read and written). All identified
+accessed registers are include in the output even if they are only
+used in one branch of a selection. The result is an API put in the generated
+library. This function follows the signature below:
+
+<code c>
+void ARCH_used_regs(ARCH_inst_t *inst, ARCH_used_regs_read_t rds, ARCH_used_regs_write_t wrs);
+</code>
+
+''rds'' and ''rws'' are 0-terminated integer arrays representing the list, respectively,
+of read and written registers. Register are encoded as number that depends on the
+architecture and whose identifying constants are put in header file //ARCH//''/used_regs.h''.
+Depending on the nature of the register, the given identifier constants concerns one register
+or a suite of registers identifiers.
+
+the behaviour of ''gliss-used-regs'' may be customized according to different flavors.
+Sometimes, the modification or the access to some register (like the PC) are not of interest.
+To prevent or allow ''gliss-used-regs'' from scanning this part of code, two special
+canonical functions may be used:
+  * "//no_collect_regs"() -- disable register collection at this program point,
+  * "//do_collect_regs"() -- enable register collection at this program point.
+
+In the example below, register collection is disabled for register incrementation
+and re-enabled for other actions:
+<code>
+op instruction(x: all_instructions)
+	action = {
+		"//no_collect_regs"();
+		NPC = PC + 4;
+		
+		"//do_collect_regs"();
+		x.action;
+		
+		"//no_collect_resg"();
+		PC = NPC;
+	}
+</code>
+Notice that this canonical functions have no effect on the instruction execution.
+
+If the collection algorithm of ''gliss-used-regs'' is not enough to collect
+used register, it can be by-passed by providing a special attribute named
+''used_regs''. This attribute contains an action that provide read registers
+using ''read'' canonical and written register using ''write'' canonical.
+Their argument is the read or the written register.
+
+In the example below, accessed registers are encoded as a bit set
+and each bit is examined to know if the register is really read or not:
+<code>
+op store_multiple(rd: card(4), set: card(4))
+	used_regs = {
+		"read"(R(rd));
+		"write"(R(rd));
+		if set & 0b0001 then "read"(R(0)); endif;
+		if set & 0b0010 then "read"(R(1)); endif;
+		if set & 0b0100 then "read"(R(2)); endif;
+		if set & 0b1000 then "read"(R(3)); endif;
+	}
+</code>
