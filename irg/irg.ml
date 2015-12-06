@@ -1390,6 +1390,23 @@ let rec attr_expr id attrs def =
 	| _::tl -> attr_expr id tl def
 
 
+(** Get an attribute as a statement.
+	@param id			Identifier of the looked attribute.
+	@param attrs		List of attributes.
+	@param def			Default value if the attribute is not found.
+	@return				Found attribute value or the default.
+	@raise PreError		If the attribute exists but does not have the right type. *)
+let rec attr_stat id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| (ATTR_STAT (id', s))::_ when id = id' -> s
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_stat id tl def
+
+
 (** Get an attribute as a location.œ.
 	@param id		Identifier of the looked attribute.
 	@param attrs	List of attributes.
@@ -1447,6 +1464,22 @@ let set_attr value attrs =
 		| h::t when (attr_name h) = id -> process res t
 		| h::t -> process (h::res) t in
 	 value :: (process [] attrs)
+
+
+(** Set the value of an expression attribute in the main symbol table.
+	@param id	Attribute identifier.
+	@param e	Attribute expression value. *)
+let set_expr_attr id e =
+	rm_symbol id;
+	add_symbol id (ATTR (ATTR_EXPR (id, e)))
+
+
+(** Set the value of a statement attribute in the main symbol table.
+	@param id	Attribute identifier.
+	@param e	Attribute statement value. *)
+let set_stat_attr id s =
+	rm_symbol id;
+	add_symbol id (ATTR (ATTR_STAT (id, s)))
 
 
 (** Apply the given functions to all specifications.
@@ -1603,6 +1636,30 @@ let attrs_of spec =
 	| AND_MODE (_, _, _, attrs)
 	| AND_OP (_, _, attrs)		-> attrs
 	| _ 						-> []
+
+
+(** Get statement attribute from the main symbol table.
+	@param id		Attribute identifier.
+	@param def		Default value.
+	@return			Found statement value or default value.
+	@raise PreError	If symbol does not match. *)
+let get_stat_attr id def =
+	match get_symbol id with
+	| UNDEF -> def
+	| ATTR (ATTR_STAT (_, s)) -> s
+	| _ -> error (fun out -> Printf.fprintf out "%s should a statement attribute" id)
+
+
+(** Get an expression attribute from the main symbol table.
+	@param id		Attribute identifier.
+	@param def		Default value.
+	@return			Found statement value or default value.
+	@raise PreError	If symbol does not match. *)
+let get_expr_attr id def =
+	match get_symbol id with
+	| UNDEF -> def
+	| ATTR (ATTR_EXPR (_, e)) -> e
+	| _ -> error (fun out -> Printf.fprintf out "%s should an expression attribute" id)
 
 
 (** Raise an error with message displayed by prerrln.

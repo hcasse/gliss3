@@ -736,7 +736,8 @@ let rec seq_list list =
 (** Unalias a reference.
 	@param info			Current generation information.
 	@param expr			Current expression.
-	@return				unaliased expression. *)
+	@param stats		List of statements to extend.
+	@return				(required statements, unaliased expression) *)
 let rec unalias_ref info expr stats =
 	let unalias name idx typ unalias_mem =
 		match Irg.get_symbol name with

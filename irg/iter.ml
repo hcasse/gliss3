@@ -1,5 +1,4 @@
 (*
- * $Id$
  * Copyright (c) 2010, IRIT - UPS <casse@irit.fr>
  *
  * This file is part of GLISS2.
@@ -18,6 +17,34 @@
  * along with GLISS2; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *)
+
+(** Iter module is dedicated to the generation of instruction form the
+	IRG representation. Starting from the top-level instruction,
+	basically named "instruction", instanciates all parameters in a
+	recursive way until obtaining a list of instructions without 
+	any op or mode parameter.
+	
+	Instruction are represented as {!inst} in the following interesting
+	variable:
+	- {!null} represents the null instruction,
+	- {!instr_set} lists the instructions,
+	- {!multi_set}, in case of a multi-instruction set, lists them.
+	
+	Following function may be useful:
+	- {!build_name} gets unique C name of an instruction.
+	- {!clear_insts} remove the built instructions.
+	- {!get_attr} gets attribute of a function by its name.
+	- {!get_id} returns unique integer identifier for an instruction.
+	- {!get_instruction_length} gets the length in bits of an instruction.
+	- {!get_insts} builds and returns the list of real instructions.
+	- {!get_name} gets "$ID" attribute of the instruction.
+	- {!get_params} gets parameters of an instruction.
+	- {!get_params_nb} counts the parameters of an instruction.
+	- {!get_user_id} gets instruction identifier to display to user.
+	- {!iter} iterates on the instructions.
+	- {!must_expr_attr} gets an attribute that must an expression.
+	- {!transform} applies a transformation on the attributes of an instructions.
+	*)
 
 (** Type of integrated instructions. *)
 type inst = Irg.spec

@@ -180,6 +180,15 @@ let get_params maker inst f dict =
 		0
 		(Iter.get_params inst))
 
+
+(** Default implementation to access an instruction from "instructions" list.
+	Call the "get_instruction" from the maker with a dictionary augmanted
+	with "IDENT", "ident", "ICODE", "params", "has_param", "num_params",
+	"is_inst_branch", "attr" and "predecode".
+	@param info		Current generation information (not set for instruction action).
+	@param maker	Current maker structure.
+	@param dict		Environment dictionnary.
+	@param i		Current instruction. *)
 let get_instruction info maker f dict _ i =
 	let gen_predecode out =
 		try

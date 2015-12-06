@@ -272,7 +272,6 @@ let collect info =
 			| _ -> lst
 
 		and collect_call name lst =
-			Printf.printf "DEBUG: call(%s)\n" name;
 			if ends_with name no_used_regs then lst else
 			if List.mem_assoc name info.Toc.calls then lst else
 			let stat = Toc.get_stat_attr name in
