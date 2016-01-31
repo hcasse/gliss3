@@ -367,7 +367,7 @@ MemAttrDef:
 |	ID EQ Expr
 		{ Irg.ATTR_EXPR ($1, $3) }
 |	ID EQ LBRACE Sequence RBRACE
-		{ Irg.ATTR_STAT ($1, $4) }
+		{ let r = Irg.ATTR_STAT ($1, $4) in Sem.reset_local(); r }
 ;
 
 MemLocation:
@@ -381,7 +381,7 @@ MemLocBase:
 	ID
 		{ ($1, Irg.NONE) }
 |	ID LBRACK Expr RBRACK
-		{ ($1, CONST (CARD(32), Sem.eval_const $3)) }
+		{ ($1, Irg.CONST (Irg.CARD(32), Sem.eval_const $3)) }
 ;
 
 ModeSpec:
@@ -493,13 +493,13 @@ AttrDef :/* It is not possible to check if the ID and the attributes exits becau
 	ID EQ Expr
 		{ Irg.ATTR_EXPR ($1, $3) }
 |	ID EQ LBRACE Sequence RBRACE
-		{ Irg.ATTR_STAT ($1, $4) }
+		{ let r = Irg.ATTR_STAT ($1, $4) in Sem.reset_local (); r }
 |	SYNTAX EQ AttrExpr
 		{ Irg.ATTR_EXPR  ("syntax", (Sem.change_string_dependences "syntax" $3)) }
 |	IMAGE EQ AttrExpr
 		{ Irg.ATTR_EXPR  ("image", (Sem.change_string_dependences "image" $3)) }
 |	ACTION EQ LBRACE Sequence RBRACE
-		{ Irg.ATTR_STAT ("action", $4) }
+		{ let r = Irg.ATTR_STAT ("action", $4) in Sem.reset_local (); r }
 |	USES EQ UsesDef
 		{ Irg.ATTR_USES }
 |	ID EQ error
@@ -524,11 +524,8 @@ FormatIdlist:
 FormatId:
 	ID
 		{
-		if Irg.is_defined $1
-		then
-			 Irg.REF $1
-		else
-			raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
+			if Irg.is_defined $1 then Irg.REF $1
+			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
 		}
 |	ID DOT IMAGE
 		{
@@ -601,6 +598,10 @@ Statement:
 		{ Sem.test_canonical $1; Sem.build_canonical_stat $1 (List.rev $3) }
 |	ERROR LPAREN STRING_CONST RPAREN
 		{ handle_stat (fun _ -> Irg.ERROR $3) }
+|	LET ID EQ Expr
+		{ handle_stat (fun _ -> Sem.make_local $2 $4) }
+|	LET ID COLON Type EQ Expr
+		{ handle_stat (fun _ -> Sem.make_typed_local $2 $4 $6) }
 ;
 
 ArgList :
@@ -694,15 +695,16 @@ Expr:
 			eline (Sem.get_binop $1 $3 Irg.CONCAT)
 		}
 |	ID
-		{ handle_expr (fun _ -> Sem.make_ref $1) }
+		{ handle_expr (fun _ -> Sem.make_ref (Sem.unalias_local $1)) }
 |	ID LPAREN
 		{ raise (Irg.SyntaxError "unreduced macro here") }
 |	ID LBRACK Expr RBRACK
 		{
-		if Irg.is_defined $1 then
-			if (Sem.is_location $1) || (Sem.is_loc_spe $1)  || (Sem.is_loc_mode $1)
+		let id = Sem.unalias_local $1 in
+		if Irg.is_defined id then
+			if (Sem.is_location id) || (Sem.is_loc_spe id)  || (Sem.is_loc_mode id)
 				then
-					eline (Irg.ITEMOF ((Sem.get_type_ident $1), $1, $3))
+					eline (Irg.ITEMOF ((Sem.get_type_ident id), id, $3))
 				else
 					Irg.error (Irg.output [Irg.PTEXT $1; Irg.PTEXT " is not a valid location: type is "])
 		else Irg.error (Irg.asis (Printf.sprintf "the keyword %s is undefined\n" $1))
@@ -775,8 +777,6 @@ Expr:
 		{ handle_expr (fun _ -> Sem.make_switch_expr $3 (fst $6) (snd $6)) }
 |	SWITCH error
 		{ syntax_error "malformed switch expression" }
-/*|	AROBAS STRING_CONST
-		{ eline (Irg.EINLINE $2) }*/
 |	Constant
 		{ eline (Irg.CONST (fst $1, snd $1)) }
 ;

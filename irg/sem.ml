@@ -539,46 +539,6 @@ let check_constant_type t c =
 		false
 
 
-(** Give the size of a memory location
-   @author PJ
-   @param  loc		a memory location
-   @return  the number of bit available of the location
-*)
-(*let rec  get_location_size loc =
-	match loc with
-	  LOC_REF id -> (match Irg.get_symbol id with
-			UNDEF -> raise (SemError (Printf.sprintf "get_location_size : undeclared memory location :\"%s\"" id))
-			|MEM(s,i,t,_)|REG(s,i,t,_)|VAR(s,i,t) ->( match t with
-								 NO_TYPE |RANGE _ -> 8  (* maybe à modifier *)
-								|INT t|CARD t -> t
-								|FIX(n,l)|FLOAT(n,l) -> n+l
-								| _ -> raise (SemError "unexpected type")  )
-			| _ ->raise (SemError (Printf.sprintf "get_location_size : identifier is not a memory location reference :\"%s\"" id)))
-
-	| LOC_ITEMOF (loc,_) -> (get_location_size loc)
-	| LOC_BITFIELD (_,e1,e2) ->(match ((eval_const e2),(eval_const e1))with
-					 (CARD_CONST t,CARD_CONST v)-> (Int32.to_int t) - (Int32.to_int v)
-					|(FIXED_CONST t,FIXED_CONST v) -> (int_of_float t)-(int_of_float v)
-					|(CARD_CONST t,FIXED_CONST v) -> (Int32.to_int t)-(int_of_float v)
-					|(FIXED_CONST t,CARD_CONST v) -> (int_of_float t)- (Int32.to_int v)
-					|(STRING_CONST t,_)|(_,STRING_CONST t) -> raise (SemError (Printf.sprintf "get_location_size : uncompatible bitfield identifier :\"%s\"" t))
-					|(NULL,_)|(_,NULL)->raise (SemError " memory location untyped "))
-	| LOC_CONCAT (l1,l2) -> ((get_location_size l1) + (get_location_size l2))*)
-
-
-(** make the implicit conversion a to b in b op a)
-  @author PJ
-  @param loc		location
-  @param expr_b		expression to cast
-  @return           expr_b casted to loc
-*)
-
-(*nml_cast a b =
-	match (a,b) with
-	  (INT k,CARD(n,m)) ->  n+m
-	| _ -> failwith*)
-
-
 (** Test if a float number respects the IEE754 specification
     @param f          a nml float
     @return   true if the float is an IEEE754 float, false otherwise
@@ -595,8 +555,7 @@ let is_IEEE754_float f = match f with
 (** Get the type associated with an identifiant.
 	@param id	The identifiant to type.
 	@return A type.
-	@raise SemError if the keyword is not defined
-*)
+	@raise SemError if the keyword is not defined. *)
 let rec get_type_ident id=
 	let symb= get_symbol id
 	in
@@ -665,6 +624,26 @@ and get_type_expr exp =
 	| CONST (t,_)						-> t
 	| ELINE (_, _, e) 					-> get_type_expr e
 	| CAST(t, _) 						-> t
+
+
+(** Generator for getting unique name of local variables. *)
+let local_uniq = ref 0
+
+(** Map for local renaming *)
+let local_map : string StringHashtbl.t = StringHashtbl.create 211
+
+(** If the given identifier designs a local variable, return its
+	unique name. Else return the identifier as is. *)
+let unalias_local id =
+	try
+		StringHashtbl.find local_map id
+	with Not_found ->
+		id
+
+(** Reset local management. *)
+let reset_local _ =
+	clean_local ();
+	StringHashtbl.clear local_map
 
 
 (** Give the bit lenght of an expression
@@ -1307,7 +1286,6 @@ let rec is_loc_spe id =
 	@return 	A list of string matching reg_exp
  *)
 let get_all_ref str =
-	(*let str_list = Str.full_split reg_exp str in*)
 	let rec temp str_l res_l=
 		match str_l with
 		| [] -> res_l
@@ -1426,7 +1404,7 @@ let get_loc_type loc =
 
 (** Get the type of location reference.
 	@param name			Location reference name.
-	@return				Type of the matching location.
+	@return				(real name, type of the matching location)
 	@raise SemError		Raised when the reference does not exist,
 						or is not a location. *)
 let get_loc_ref_type name =
@@ -1437,11 +1415,11 @@ let get_loc_ref_type name =
 		| TYPE_EXPR e	-> e in
 
 	match Irg.get_symbol name with
-	| UNDEF -> pre_error (name ^ " is undefined")
-	| MEM (_, _, t, _) 	-> t
-	| REG (_, _, t, _) 	-> t
-	| VAR (_, _, t, _) 	-> t
-	| PARAM (_, t)		-> if not !gliss1_compat then ANY_TYPE else look t
+	| UNDEF 			-> pre_error (name ^ " is undefined")
+	| MEM (n, _, t, _) 	-> t
+	| REG (n, _, t, _) 	-> t
+	| VAR (n, _, t, _) 	-> t
+	| PARAM (n, t)		-> if not !gliss1_compat then ANY_TYPE else look t
 	| _					-> pre_error (name ^ " is not a location")
 
 
@@ -1802,6 +1780,7 @@ let make_concat_loc l1 l2 =
 	@param lo	Lower bit.
 	@return 	Built location . *)
 let make_access_loc id idx up lo =
+	let id = unalias_local id in
 	if (is_location id) || (is_loc_spe id)
 	then LOC_REF (get_loc_ref_type id, id, idx, up, lo)
 	else pre_error (Printf.sprintf "'%s' is not a valid location" id)
@@ -1914,6 +1893,7 @@ let get_data_info id =
 	@param id		Identifier of the reference.
 	@return			Built expression. *)
 let make_ref id =
+	let id = unalias_local id in
 	let (t, i, e) = get_data_info id in
 	if e = NONE then REF (t, id) else e
 
@@ -2015,7 +1995,8 @@ let rec check_stat_inst stat =
 	match stat with
 	| NOP
 	| EVAL _
-	| ERROR _ ->
+	| ERROR _
+	| LOCAL _ ->
 		stat
 	| SEQ (s1, s2) ->
 		let s1', s2' = check_stat_inst s1, check_stat_inst s2 in
@@ -2093,4 +2074,41 @@ let rec uniq l =
 	| [_]					-> l
 	| a::b::t when a = b	-> uniq (b::t)
 	| h::t					-> h::(uniq t)
+
+
+(** Add a local variable definition.
+	@param id	Local variable identifier.
+	@param e	Expression initializing the variable.
+	@return		Matching instruction. *)
+let make_local id e =
+	let t = get_type_expr e in
+	if t = NO_TYPE || t == STRING then 
+		error (output [ PTEXT "type "; PTYPE t; PTEXT " unsupported for local variable"])
+	else
+		begin
+			let uid = Printf.sprintf "__gliss_%d_%s" !local_uniq id in
+			local_uniq := !local_uniq + 1;
+			handle_local uid t;
+			StringHashtbl.add local_map id uid;
+			SEQ(LOCAL (uid, t), SET(LOC_REF (t, uid, NONE, NONE, NONE), e))
+		end
+
+
+(** Make a local variable definition with its own type.
+	@param id	Local variable identifier.
+	@param t	Declared type.
+	@param e	Expression initializing the variable.
+	@return		Matching instruction. *)
+let make_typed_local id t e =
+	if t = NO_TYPE || t == STRING then 
+		error (output [ PTEXT "type "; PTYPE t; PTEXT " unsupported for local variable"])
+	else
+		begin
+			let uid = Printf.sprintf "__gliss_%d_%s" !local_uniq id in
+			local_uniq := !local_uniq + 1;
+			handle_local uid t;
+			StringHashtbl.add local_map id uid;
+			SEQ(LOCAL (uid, t), make_set (LOC_REF (t, uid, NONE, NONE, NONE)) e)
+		end
+
 

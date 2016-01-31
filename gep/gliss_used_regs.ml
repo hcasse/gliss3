@@ -141,7 +141,8 @@ let rec stateless_loc loc =
 let rec stateless_stat stat sp =
 	match stat with
 	| Irg.NOP
-	| Irg.ERROR _  					-> true
+	| Irg.ERROR _
+	| Irg.LOCAL _  					-> true
 	| Irg.SEQ(s1, s2) 				-> (stateless_stat s1 sp) && (stateless_stat s2 sp)
 	| Irg.SET (l, e) 				-> (stateless_loc l) && (stateless e) 
 	| Irg.CANON_STAT (_, args) 		-> List.for_all stateless_expr args
@@ -188,7 +189,8 @@ let collect info =
 		
 		let rec collect_stat stat (c, lst) (line: string * int) =
 		match stat with
-			| Irg.NOP -> (c, lst)
+			| Irg.NOP
+			| Irg.LOCAL _ -> (c, lst)
 			| Irg.SEQ (s1, s2) -> collect_stat s2 (collect_stat s1 (c, lst) line) line
 			| Irg.EVAL ("", id) -> (c, collect_call id lst)
 			| Irg.EVAL _ -> failwith "gliss-used-regs: collect_stat"
@@ -371,7 +373,8 @@ let compile_regs inst stat out =
 		match stat with
 		| Irg.NOP
 		| Irg.ERROR _
-		| Irg.SET _ -> stat
+		| Irg.SET _
+		| Irg.LOCAL _ -> stat
 		| Irg.EVAL ("", id) ->
 			scan_call id; stat
 		| Irg.SEQ (s1, s2) ->

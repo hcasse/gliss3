@@ -1,5 +1,18 @@
 ====== GLISS2 Development Notes ======
 
+===== Directory Organization =====
+
+  * ''gep'' -- generator libraries and commands,
+  * ''irg'' -- core module to support language (parsing and intermediate
+    representation)
+  * ''templates'' -- template file used for the C generation
+    of ISS library, simulator and disassembler.
+  * ''lib'' -- other C files included in the ISS library but with
+    less customization.
+  * ''doc'' -- user documentation.
+  * ''autodoc'' (automatically generation) -- automatic documentation.
+  * ''test'' -- test files.
+
 ===== Unsupported Syntax =====
 
 From "The nML Machine Description Formalism", M. Freericks, 1993.

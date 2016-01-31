@@ -1,0 +1,45 @@
+====== GLISS v2 ======
+
+GLISS is an ISS (Instruction Set Simulator). It takes as input a file
+(or a collection of files) in SimNML (an ADL -- Architecture Description
+Language) and produces a library containing modules to decode,
+simulate and disassemble a binary program in the given instruction set.
+
+GLISS v2 has the following dependencies:
+  * OCAML [[http://ocaml.org/]],
+  * Perl,
+  * GNU Make.
+
+The generated library sources are in C so a good C compiler is also
+required.
+
+To compile GLISS v2:
+<code sh>
+> cd gliss2
+> make
+</code>
+
+Several instruction sets are already supported by GLISS v2:
+  * PowerPC (ppc2)
+  * ARM v5 (armv5t)
+  * ARM v7 (armv7t)
+  * Sparc (sparc)
+  * TriCore (tricore)
+
+To get such an instruction set and build the ISS library, take the identifier
+in parenthesis, let be XXX, and type:
+<code sh>
+> cd ..
+> hg clone https://wwwsecu.irit.fr/hg/TRACES/XXX/trunk XXX
+> cd XXX
+> make
+</code>
+
+Generation of code of most of them may be customized: just edit the file
+''Makefile'' and the option are available at the head of the file.
+
+For any problem, contact us at mailto:otawa@irit.fr.
+
+GLISS v2 is delivered under GPL v3 license by the university of Toulouse.
+
+

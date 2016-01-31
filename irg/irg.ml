@@ -370,6 +370,7 @@ type stat =
 	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
 	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
 	| LINE of string * int * stat						(** Used to store source information.  *)
+	| LOCAL of string * type_expr						(** (variable name, variable type) Local variable declaration *)
 
 
 (** attribute specifications *)
@@ -1033,6 +1034,10 @@ let rec output_statement out stat =
 		output_string out "\t\t }; \n"
 	| LINE (file, line, s) ->
 		output_statement out s
+	| LOCAL (v, t) ->
+		Printf.fprintf out "\t\tlet %s = " v;
+		output_type_expr out t;
+		output_string out " \n"
 
 
 (** Print a statement
@@ -1723,13 +1728,13 @@ and line_from_stat stat =
 	| NOP
 	| EVAL _
 	| ERROR _
-		-> no_line
-	| SEQ (s1, s2) -> line_from_list [LSTAT s1; LSTAT s2]
-	| SET (l, e) -> line_from_expr e
-	| CANON_STAT (_, args) -> line_from_list (List.map (fun a -> LEXPR a) args)
-	| IF_STAT (c, s1, s2) -> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
-	| SWITCH_STAT (c, cs, d) -> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))
-	| LINE (f, l, _) -> (f, l)
+	| LOCAL _					-> no_line
+	| SEQ (s1, s2) 				-> line_from_list [LSTAT s1; LSTAT s2]
+	| SET (l, e) 				-> line_from_expr e
+	| CANON_STAT (_, args) 		-> line_from_list (List.map (fun a -> LEXPR a) args)
+	| IF_STAT (c, s1, s2) 		-> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
+	| SWITCH_STAT (c, cs, d)	-> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))
+	| LINE (f, l, _) 			-> (f, l)
 
 and line_from_list lst =
 	match lst with
@@ -1765,3 +1770,30 @@ let is_reg id =
 	match get_symbol id with
 	| REG _ -> true
 	| _ -> false
+
+
+
+
+(************ Local Variable Manegement ***********)
+
+(** List of defined locale variables. *)
+let local_list: string list ref = ref []
+
+
+(** Helper function to handle let instruction: the given variable is
+	added to the symbol table. At the end of evaluation of action,	
+	@param v	Name of the variable to add.
+	@param t	Type of the variable to add.
+	@return		Result of f.;*)
+let handle_local (v: string) (t: type_expr) =
+	local_list := v :: !local_list;
+	add_symbol v (VAR (v, 1, t, []))
+
+
+(** Clean local variable from the symbol table. *)
+let clean_local _ =
+	List.iter rm_symbol !local_list;
+	local_list := []
+
+
+

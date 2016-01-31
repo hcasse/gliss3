@@ -346,8 +346,8 @@ let rec type_to_printf_format t =
 	| UINT16 -> "%04X"
 	| INT32 -> "%08X"
 	| UINT32 -> "%08X"
-	| INT64 -> "%016LX"
-	| UINT64 -> "%016LX"
+	| INT64 -> "%016lX"
+	| UINT64 -> "%016lX"
 	| FLOAT -> "%f"
 	| DOUBLE -> "%f"
 	| LONG_DOUBLE -> "%Lf"
@@ -959,7 +959,9 @@ let rec prepare_stat info stat =
 	| Irg.ERROR _ ->
 		stat
 	| Irg.SEQ (s1, s2) ->
-		Irg.SEQ (prepare_stat info s1, prepare_stat info s2)
+		let s1 = prepare_stat info s1 in
+		let s2 = prepare_stat info s2 in
+		Irg.SEQ (s1, s2)
 	| Irg.SET (loc, expr) ->
 		let (stats, expr) = prepare_expr info Irg.NOP expr in
 		prepare_set stats loc expr
@@ -980,6 +982,9 @@ let rec prepare_stat info stat =
 
 	| Irg.LINE (file, line, stat) ->
 		Irg.LINE (file, line, prepare_stat info stat)
+		
+	| Irg.LOCAL (v, t) ->
+		Irg.handle_local v t; stat
 
 	| Irg.EVAL ("", name) ->
 		prepare_call info name;
@@ -1200,7 +1205,7 @@ and gen_binop info t op e1 e2 prfx =
 
 
 (** Generate code for coercition.
-	@param typ	Type to coerce to.
+	@param t1	Type to coerce to.
 	@param expr	Expression to coerce. *)
 and coerce info t1 expr parent prfx =
 	let asis _ = gen_expr info expr prfx in
@@ -1411,6 +1416,7 @@ let rec multiple_stats stat =
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
 	| Irg.LINE (_, _, stat) -> multiple_stats stat
+	| Irg.LOCAL (_, _) -> false
 
 
 (** Generate a prepared statement.
@@ -1526,6 +1532,9 @@ let rec gen_stat info stat =
 	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
 
+	| Irg.LOCAL (_, _) ->
+		()
+
 	| Irg.EVAL ("", name) ->
 		gen_call info name
 
@@ -1616,7 +1625,8 @@ let find_recursives info name =
 
 			let rec look_stat stat recs =
 				match stat with
-				| Irg.NOP -> recs
+				| Irg.NOP
+				| Irg.LOCAL _ -> recs
 				| Irg.SEQ (s1, s2) -> look_stat s1 (look_stat s2 recs)
 				| Irg.EVAL ("", name) -> look_attr name stack recs
 				| Irg.EVAL _ -> error "unsupported form"
@@ -1697,7 +1707,8 @@ let gen_action info name =
 
 	(* cleanup at end *)
 	cleanup_temps info;
-	StringHashtbl.clear info.attrs
+	StringHashtbl.clear info.attrs;
+	Irg.clean_local ()
 
 
 (** Return the code corresponding to what is found in the op init.

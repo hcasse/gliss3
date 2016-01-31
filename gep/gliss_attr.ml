@@ -60,6 +60,7 @@ let rec stmt_stateless cc s =
 	| Irg.NOP
 	| Irg.EVAL _
 	| Irg.ERROR _
+	| Irg.LOCAL _
 		-> true
 	| Irg.SEQ (s1, s2)
 		-> (stmt_stateless cc s1) && (stmt_stateless cc s2)

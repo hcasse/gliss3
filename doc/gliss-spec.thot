@@ -352,3 +352,30 @@ The example above will display the 'b' mnemonic, followed by the condition //c//
 and finally, if available, the label where this instruction branch to.
 
 
+===== Local Variable Statement =====
+
+Variables using ''var'' declaration are useful but a bit intrusive
+and may create naming conflicts between NMP files. In addition, one may
+remark that their content, in opposite to registers or memories, is not
+preserved between action calls. In, variables are used as temporaries
+container along the execution of an action, so why not making them
+local to an action?
+
+@(GLISS) supports this concept as local variable that are declared
+with the following syntax added to the statements:
+<code>
+Statement ::= ...
+            | 'let' ID '=' Expression
+            | 'let' ID ':' Type '=' Expression
+</code>
+
+In the first form, a new variable is created and is alive until the end
+of the action. Its type is derived from the expression after that is
+used to initialize it. The second form does the same but the type of
+the variable is given and the expression initializing it is possibly
+converted to the type of the local variable.
+
+Local variables only exist in the action where they are defined and
+can not be accessed in a different action.
+
+
