@@ -202,6 +202,17 @@ let to_int32 c =
 	| _ -> pre_error "should evaluate to an int."
 
 
+(** Convert a constant to int64.
+	@param c		Constant to convert.
+	@return			Constant in int64.
+	@raise PreError	If the conversion cannot be done. *)
+let to_int64 c =
+	match c with
+	| CARD_CONST n		-> Int64.of_int32 n
+	| CARD_CONST_64 n	-> n
+	| _ 				-> pre_error "cannot be converted to 64-bits integer"
+
+
 (** Convert an expression to a string.
 	@param e		Expression to convert.
 	@return			Converted to string.
@@ -1098,47 +1109,50 @@ let interval_of t =
 	@return the type of the switch
 	@raise SemError	Raised when the parameters are incorrect
 *)
-let check_switch_expr test list_case default=
+let check_switch_expr test list_case default =
+	let zero = Int64.zero in
+	let one = Int64.one in
+	let top n = Int64.sub (Int64.shift_left one n) one in
+	let bot n = Int64.neg (Int64.shift_left one n) in
+	let shl = Int64.shift_left in
+	let of_int32 = Int64.of_int32 in
+	let of_int = Int64.of_int in
+	let sub = Int64.sub in
+	let succ = Int64.succ in
+	let in_range lo up x =
+		((Int64.compare lo x) <= 0) && ((Int64.compare x up) <= 0) in
+	let in_set set x = List.mem x set in
+	let t = get_type_expr test in
 
-	(* This part check if all the cases of a switch are of the type of the expression to be tested*)
-	let check_switch_cases =
-		let t = get_type_expr test in
-		(*!!DEBUG!!*)
-		(*print_string "**check_switch_cases, test:";Irg.print_type_expr t; print_string "\n";*)
-		let rec sub_fun list_c =
-			match list_c with
-			| [] -> true
-			| (c,_)::l-> (get_type_expr c = t) && (sub_fun l) in
-		let rec is_int lst =
-			match lst with
-			| [] -> true
-			| (hd, _)::tl ->
-				(match get_type_expr hd with
-				| BOOL | CARD _ | INT _ | RANGE _ -> is_int tl
-				| _ -> false) in
-		match t with
-		| ENUM _ -> sub_fun list_case
-		(* UNKNOW_TYPE corresponds to an expr like x.item not yet instantiated *)
-		| BOOL | CARD _ | INT _ | RANGE _ | ANY_TYPE -> is_int list_case
-		| _ -> (*!!DEBUG!!*)(*print_string "check_switch, t_=";Irg.print_type_expr t;*) false
+	let rec check_case isin lst (c, _) =
+		let v = to_int64 (eval_const c) in
+		if List.mem v lst 
+		then pre_error (Printf.sprintf "case value %Ld is used several times" v)
+		else if not (isin v) 
+		then pre_error (Printf.sprintf "case %Ld is out of range of condition values" v)
+		else v::lst in
 
-	(* This part check if all the possible result of a switch expression are of the same type *)
-	(*and check_switch_return_type =
-		let type_default = get_type_expr default in
-		let set = if type_default == NO_TYPE then [] else [type_default] in
-		let set = List.fold_left (fun set (c, v) ->
-					let t = get_type_expr v in
-					if (List.exists (fun tt -> t = tt) set) then set else t::set)
-					set list_case in
-		if (List.length set) = 1 then true else
-		Irg.error_with_fun (fun out ->
-			fprintf out "functional switch with different case types.";
-			List.iter (fun (c, v) -> prerrln [PTEXT "\t case "; PEXPR c; PTEXT ": "; PTYPE (get_type_expr v)]) list_case;
-			if type_default <> NO_TYPE then prerrln [PTEXT "\tdefault: "; PTYPE type_default])*)
-
-	(* This part check if all the possibles values of the expression to test are covered *)
-	and check_switch_all_possibilities =
-		(* a default is needed to be sure that all possibilities are covered, except for ENUM where you can enumerate all the possibilities*)
+	let check_cases _ =
+		let isin, cnt =
+			match t with
+			| BOOL
+				-> (in_range zero one, succ one)
+			| CARD n
+				-> (in_range zero (top n), shl one n)
+			| INT n
+				-> (in_range (bot (n - 1)) (top (n - 1)), shl one n)
+			| RANGE (l, u)
+				-> (in_range (of_int32 l) (of_int32 u), succ (sub (of_int32 u) (of_int32 l)))
+			| ENUM set 
+				-> (in_set (List.map of_int32 set), of_int (List.length set))
+			| t
+				-> error (output [PTEXT "condition of type "; PTYPE t; PTEXT " cannot be used in a switch"]) in
+		let cases = List.fold_left (check_case isin) [] list_case in
+		if (default == NONE) && ((of_int (List.length cases)) <> cnt)
+		then pre_error "some cases in this functionnal switch are missing!"
+		else () in
+	
+	let check_switch_all_possibilities =
 		if (not (default = NONE)) then true
 		else
 			let min, max = interval_of (get_type_expr test) in
@@ -1160,10 +1174,8 @@ let check_switch_expr test list_case default=
 						test (i + 1) (List.tl l) in
 				test min vals in
 
-	(* --- And finally we apply all these three subfunctions to check the switch --- *)
-	if not check_switch_cases then
-		pre_error "the cases of a functional switch must be consistent with the expression to test"
-	else if not check_switch_all_possibilities then
+	check_cases ();
+	if not check_switch_all_possibilities then
 		error (output [
 				PTEXT "the cases of a functional switch must cover all possibilities or contain a default entry:\n";
 				PTEXT "switch type is "; PTYPE (get_type_expr test)])

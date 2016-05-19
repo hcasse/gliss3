@@ -1225,10 +1225,11 @@ and coerce info t1 expr parent prfx =
 		Printf.fprintf info.out "((%s)(" (type_to_string t1c);
 		f ();
 		output_string info.out "))" in
-	let mask n f _ =
+	let mask s n f _ =
 		output_string info.out "((";
 		f ();
-		Printf.fprintf info.out ") &  ((1 << %d) - 1))" n in
+		Printf.fprintf info.out ") &  ((1%s << %d) - 1))"
+			(if s > 32 then "ll" else "") n in
 	let to_range lo up f _ =
 		Printf.fprintf info.out "%s_check_range(" info.proc;
 		f ();
@@ -1241,6 +1242,8 @@ and coerce info t1 expr parent prfx =
 		Printf.fprintf info.out "__%s_EXTS(%d, " (String.uppercase info.proc) n;
 		f a;
 		Printf.fprintf info.out ")" in
+	let word_size (x: int) =
+		List.mem x [8; 16; 32; 64; 128] in
 
 	(* special cases *)
 	match (t1, t2) with
@@ -1253,15 +1256,16 @@ and coerce info t1 expr parent prfx =
 	| Irg.BOOL, Irg.FLOAT _ -> eq0 asis ()
 
 	(* conversion to card *)
-	| Irg.CARD n, Irg.CARD m when n < m -> mask n asis ()
-	| Irg.CARD n, Irg.CARD m when n > m -> cast asis ()
-	| Irg.CARD n, Irg.INT m when n = m -> cast asis ()
-	| Irg.CARD n, Irg.INT m when n < m -> cast (mask n asis) ()
-	| Irg.CARD n, Irg.INT m when n > m -> cast (mask m asis) ()
-	| Irg.CARD _, Irg.BOOL -> cast asis ()
+	| Irg.CARD n, Irg.CARD m when n < m 					-> mask m n asis ()
+	| Irg.CARD n, Irg.CARD m when n > m 					-> cast asis ()
+	| Irg.CARD n, Irg.INT  m when n = m 					-> cast asis ()
+	| Irg.CARD n, Irg.INT  m when n < m 					-> cast (mask m n asis) ()
+	| Irg.CARD n, Irg.INT  m when n > m && (word_size m)	-> cast asis ()
+	| Irg.CARD n, Irg.INT  m when n > m						-> cast (mask m m asis) ()
+	| Irg.CARD _, Irg.BOOL									-> cast asis ()
 	| Irg.CARD _, Irg.RANGE _
-	| Irg.CARD _, Irg.ENUM _ -> cast asis ()
-	| Irg.CARD _, Irg.FLOAT (23, 9) -> cast asis ()
+	| Irg.CARD _, Irg.ENUM _ 								-> cast asis ()
+	| Irg.CARD _, Irg.FLOAT (23, 9) 						-> cast asis ()
 
 	(* conversion to int *)
 	| Irg.INT n, Irg.INT _
