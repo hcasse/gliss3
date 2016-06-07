@@ -1145,6 +1145,8 @@ let check_switch_expr test list_case default =
 				-> (in_range (of_int32 l) (of_int32 u), succ (sub (of_int32 u) (of_int32 l)))
 			| ENUM set 
 				-> (in_set (List.map of_int32 set), of_int (List.length set))
+			| ANY_TYPE
+				-> ((fun _ -> true), zero)
 			| t
 				-> error (output [PTEXT "condition of type "; PTYPE t; PTEXT " cannot be used in a switch"]) in
 		let cases = List.fold_left (check_case isin) [] list_case in
