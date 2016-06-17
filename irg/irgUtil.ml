@@ -122,7 +122,7 @@ let rec check_expr e =
 	| Irg.FORMAT (f, args) -> Irg.FORMAT (f, List.map check_expr args)
 	| Irg.CANON_EXPR(t, f, args) ->
 		if t == Irg.ANY_TYPE
-		then Irg.CANON_EXPR (Irg.(CARD 32), f, List.map check_expr args) 
+		then Irg.CANON_EXPR (Irg.CARD(32), f, List.map check_expr args) 
 		else Irg.CANON_EXPR (t, f, List.map check_expr args)
 	| Irg.FIELDOF (t, pid, cid) ->
 		let t = if t = Irg.ANY_TYPE then check (Sem.type_of_field pid cid) else t in 
