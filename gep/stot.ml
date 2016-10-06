@@ -77,7 +77,9 @@ let check sw =
 			(*print [PTEXT "DEBUG: SWITCH\n"];*)
 
 			(* try to get a constant table *)
-			let s = 1 lsl (Sem.get_type_length (Sem.get_type_expr c)) in
+			let b = Sem.get_type_length (Sem.get_type_expr c) in
+			if b >= (Sys.word_size - 1) then -1 else
+			let s = 1 lsl b in
 			if s > !max then -1 else
 			let items = List.map (fun (c, v) ->
 				 (Sem.eval_const c, Sem.eval_const v)) cs in
