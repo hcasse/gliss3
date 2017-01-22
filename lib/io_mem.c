@@ -1068,3 +1068,30 @@ void gliss_set_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_
 	/* signal we have to update already created pages */
 	mem->callback_infos.is_changed = 1;
 }
+
+/**
+ * Remove the callback for the given range of memory.
+ * @param mem	Memory to set.
+ * @param start	Start address (rounded to the page).
+ * @param end	End address (rounded to the page).
+ */
+void gliss_unset_range_callback(gliss_memory_t *mem, gliss_address_t start, gliss_address_t end) {
+	gliss_address_t startp = (start + MEMORY_PAGE_SIZE - 1) & ~(MEMORY_PAGE_SIZE - 1);
+	gliss_address_t endp = (end + MEMORY_PAGE_SIZE - 1) & ~(MEMORY_PAGE_SIZE - 1);
+	gliss_address_t a;
+
+	// synchronize callback information
+	if (mem->callback_infos.is_changed)
+		update_callback_infos(mem);
+
+	// unset concerned page (beware the end address at 0xfffff000)
+	a = startp;
+	while(1) {
+		memory_page_table_entry_t *page = mem_search_page(mem, a);
+		if(page)
+			page->info = NULL;
+		if(a == endp)
+			break;
+		a = a + MEMORY_PAGE_SIZE;
+	}		
+}
