@@ -596,7 +596,7 @@ int main(int argc, char **argv) {
 		else if(strncmp(argv[i], "-exit=", 6) == 0) {
 			is_exit_given = i;
 			addr_exit = strtoul(argv[is_exit_given] + 6, &c_ptr, 16);
-			if(*c_ptr == '\0') {
+			if(*c_ptr != '\0') {
 				syntax_error(argv[0], "bad exit address specified : %s, only hexadecimal address accepted\n", argv[i]);
 				return 2;
 			}
