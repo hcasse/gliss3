@@ -132,7 +132,7 @@ let output_xml out list =
 		| IF_STAT (c, s1, s2)		-> xelement "if" [] [expr_of c; stat_of s1; stat_of s2]
 		| SWITCH_STAT (v, cs, s)	-> xelement "switch" [] ([expr_of v] @ (List.map scase_of cs) @ [stat_of s])
 		| LINE (_, _, s)			-> stat_of s
-		| LOCAL (v, t)			-> xelement "let" [("id", v); ("type", type_of t)] []
+		| LOCAL (v, o, t)			-> xelement "let" [("id", v); ("oid", o); ("type", type_of t)] []
 	and scase_of (c, s) =
 		xelement "case" [] [expr_of c; stat_of s] in
 			
@@ -234,7 +234,7 @@ let dump_stream out list =
 		| IF_STAT (c, s1, s2)		-> op "if"; expr_of c; com (); stat_of s1; com (); stat_of s2; close ()
 		| SWITCH_STAT (v, cs, s)	-> op "switch"; expr_of v; com (); List.iter scase_of cs; stat_of s; close ()
 		| LINE (_, _, s)			-> stat_of s
-		| LOCAL (v, t)				-> op "let"; str v; com(); type_of t; close()
+		| LOCAL (v, o, t)			-> op "let"; str o; com(); type_of t; close()
 	and scase_of (c, s) =
 		op "case"; expr_of c; com (); stat_of s; close(); com () in
 			

@@ -370,7 +370,7 @@ type stat =
 	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
 	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
 	| LINE of string * int * stat						(** Used to store source information.  *)
-	| LOCAL of string * type_expr						(** (variable name, variable type) Local variable declaration *)
+	| LOCAL of string * string * type_expr				(** (variable name, original name, variable type) Local variable declaration *)
 
 
 (** attribute specifications *)
@@ -1034,8 +1034,8 @@ let rec output_statement out stat =
 		output_string out "\t\t }; \n"
 	| LINE (file, line, s) ->
 		output_statement out s
-	| LOCAL (v, t) ->
-		Printf.fprintf out "\t\tlet %s = " v;
+	| LOCAL (v, o, t) ->
+		Printf.fprintf out "\t\tlet %s = " o;
 		output_type_expr out t;
 		output_string out " \n"
 

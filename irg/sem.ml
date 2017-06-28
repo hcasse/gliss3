@@ -2104,7 +2104,7 @@ let make_local id e =
 			local_uniq := !local_uniq + 1;
 			handle_local uid t;
 			StringHashtbl.add local_map id uid;
-			SEQ(LOCAL (uid, t), SET(LOC_REF (t, uid, NONE, NONE, NONE), e))
+			SEQ(LOCAL (uid, id, t), SET(LOC_REF (t, uid, NONE, NONE, NONE), e))
 		end
 
 
@@ -2122,7 +2122,7 @@ let make_typed_local id t e =
 			local_uniq := !local_uniq + 1;
 			handle_local uid t;
 			StringHashtbl.add local_map id uid;
-			SEQ(LOCAL (uid, t), make_set (LOC_REF (t, uid, NONE, NONE, NONE)) e)
+			SEQ(LOCAL (uid, id, t), make_set (LOC_REF (t, uid, NONE, NONE, NONE)) e)
 		end
 
 

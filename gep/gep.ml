@@ -370,26 +370,31 @@ let make_env info =
 		let isize = find_iset_size_of_inst inst in
 		let is_risc = isize <> 0 in
 		let is_multi = (List.length instr_sets) > 1 in
+		
 		("decoder", Templater.TEXT (
 			if is_risc then (decoder info inst idx is_multi isize)
 			else (decoder_CISC info inst idx is_multi))) ::
+
 		("decoder_complex", Templater.TEXT (fun out ->
 			if not !decode_arg then
 				raise (Sys_error "template $(decoder_complex) should be used only if complex argument decoding is activated (option -D)")
 			else
 				output_decoder_complex info inst idx is_multi isize is_risc out)) ::
+
 		("mask_decl", Templater.TEXT (output_mask_decl inst idx is_risc)) ::
 		(*("mask_decl_all", Templater.TEXT (fun out -> List.iter (fun x -> output_string out x) (Decode.get_mask_decl_all_format_params inst))) ::*)
 		dict in
-	let add_size_to_inst inst dict =
-		let iset_size = find_iset_size_of_inst inst in
-		let is_risc = iset_size <> 0 in
+
+		let add_size_to_inst inst dict =
+			let iset_size = find_iset_size_of_inst inst in
+			let is_risc = iset_size <> 0 in
 		("size", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_instruction_length inst))) ::
+
+		(* generate the action code *)
 		("gen_code", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
-			(*!!WARNING!!*)
 			(* gliss1 compatibility, predecode generation before action *)
 			(try
 				let _ = Iter.get_attr inst "predecode" in
@@ -397,18 +402,24 @@ let make_env info =
 			with
 			| Not_found -> ());
 			Toc.gen_action info "action")) ::
+
 		("gen_pc_incr", Templater.TEXT (fun out ->
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.set_inst info inst;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
+		
 		(* true if inst belongs to a RISC instr set *)
 		("is_RISC_inst", Templater.BOOL (fun _ -> iset_size <> 0)) ::
+
 		(* instr size of the instr set where belongs inst (meaning stg only if instr set is RISC) *)
 		("iset_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" iset_size)) ::
+
 		("mask_decl_all", Templater.TEXT (fun out -> mask_decl_all inst is_risc out)) ::
+
 		dict
 	in
+
 	let get_instr_set_size f dict size =
 	f (
 		("is_RISC_size", (Templater.BOOL (fun _ -> size <> 0))) ::
@@ -657,7 +668,10 @@ let _ =
 					else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
 								   "but gep was not able to find a single one while parsing the NML")
 				);
-				App.make_template "code_table.h" "src/code_table.h" dict;
+				(*try  DEBUG *)
+					App.make_template "code_table.h" "src/code_table.h" dict
+				(*with Toc.PreError f ->
+					(print_string "DEBUG: "; f stdout; failwith "too bad!"*);
 
 				(* module linking *)
 				List.iter (process_module info) !modules;

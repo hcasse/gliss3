@@ -254,10 +254,35 @@ let ceil_log2 n =
 	int_of_float (ceil ((log (Int32.to_float n)) /. (log 2.)))
 
 
+(** Test if the given type is supported in C.
+	@param t	Type to test.
+	@return		True if supported, false else. *)
+let rec is_supported t =
+	match t with
+	| Irg.NO_TYPE
+		-> assert false
+	| Irg.BOOL
+	| Irg.FLOAT (23, 9)
+	| Irg.FLOAT (52, 12)
+	| Irg.FLOAT (64, 16)
+	| Irg.STRING
+	| Irg.ENUM _
+	| Irg.ANY_TYPE
+		-> true
+	| Irg.INT n when n <= 64
+		-> true
+	| Irg.CARD n when n <= 64
+		-> true
+	| Irg.RANGE (_, m)
+		-> is_supported (Irg.INT (int_of_float (ceil ((log (Int32.to_float m)) /. (log 2.)))))
+	| _
+		-> false
+
+
 (** Convert an NML type to C type.
 	@param t	Type to convert.
 	@return		Matching C type.
-	@raise UnsupportedType	If the type is not supported. *)
+	@raise PreError	If the type is not supported. *)
 let rec convert_type t =
 	match t with
 	  Irg.NO_TYPE -> assert false
@@ -444,11 +469,14 @@ let rec is_nop stat =
 	@param info	Current generation information.
 	@param t	Type of the temporary.
 	@return		Temporary name. *)
-let new_temp info typ =
-	let var = Printf.sprintf "__gtmp_%d" info.temp in
-	info.temp <- info.temp + 1;
-	info.temps <- (var, typ)::info.temps;
-	var
+let new_temp info t =
+	if not (is_supported t)
+	then pre_error (Irg.outputln [Irg.PTEXT "unsupported type in expression: "; Irg.PTYPE t])
+	else
+		let v = Printf.sprintf "__gtmp_%d" info.temp in
+		info.temp <- info.temp + 1;
+		info.temps <- (v, t)::info.temps;
+		v
 
 
 (** Add a used variable (and only if it has not been declared).
@@ -474,10 +502,13 @@ let declare_temps info =
 		info.temps;
 	List.iter
 		(fun (name, (cnt, typ)) ->
-			Printf.fprintf info.out "\t%s %s%s;\n"
-				(type_to_string (convert_type typ))
-				name
-				(if cnt = 1 then "" else Printf.sprintf "[%d]" cnt)
+			try
+				Printf.fprintf info.out "\t%s %s%s;\n"
+					(type_to_string (convert_type typ))
+					name
+					(if cnt = 1 then "" else Printf.sprintf "[%d]" cnt)
+			with PreError f ->
+				failwith "declare_temps"
 		)
 		info.vars
 
@@ -828,8 +859,10 @@ and prepare_expr info stats expr =
 		Irg.REF (typ, tmp))
 
 	| Irg.ELINE (file, line, expr) ->
-		let (stats, expr) = prepare_expr info stats expr in
-		(stats, Irg.ELINE (file, line, expr))
+		handle_error file line
+			(fun _ ->
+				let (stats, expr) = prepare_expr info stats expr in
+				(stats, Irg.ELINE (file, line, expr)))
 
 	| Irg.CAST(size, expr) ->
 		let stats, expr = prepare_expr info stats expr in
@@ -981,10 +1014,13 @@ let rec prepare_stat info stat =
 		Irg.SEQ (stats, Irg.SWITCH_STAT (cond, cases, prepare_stat info def))
 
 	| Irg.LINE (file, line, stat) ->
-		Irg.LINE (file, line, prepare_stat info stat)
+		handle_error file line
+			(fun _ -> Irg.LINE (file, line, prepare_stat info stat))
 		
-	| Irg.LOCAL (v, t) ->
-		Irg.handle_local v t; stat
+	| Irg.LOCAL (v, o, t) ->
+		if not (is_supported t)
+		then pre_error (Irg.outputln [Irg.PTEXT "unsupported type "; Irg.PTYPE t; Irg.PTEXT " for local variable ";  Irg.PTEXT o])
+		else Irg.handle_local v t; stat
 
 	| Irg.EVAL ("", name) ->
 		prepare_call info name;
@@ -1420,7 +1456,7 @@ let rec multiple_stats stat =
 	| Irg.SEQ _
 	| Irg.IF_STAT _ -> true
 	| Irg.LINE (_, _, stat) -> multiple_stats stat
-	| Irg.LOCAL (_, _) -> false
+	| Irg.LOCAL _ -> false
 
 
 (** Generate a prepared statement.
@@ -1536,7 +1572,7 @@ let rec gen_stat info stat =
 	| Irg.LINE (_, _, stat) ->
 		gen_stat info stat
 
-	| Irg.LOCAL (_, _) ->
+	| Irg.LOCAL _ ->
 		()
 
 	| Irg.EVAL ("", name) ->
