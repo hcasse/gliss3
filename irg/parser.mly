@@ -220,7 +220,8 @@ MachineSpec :
 
 
 LetDef	:
-	LET LocatedID EQ LetExpr	{  ($2, Sem.make_let $2 $4) }
+	LET LocatedID EQ LetExpr			{  ($2, Sem.make_let $2 Irg.NO_TYPE $4) }
+|	LET LocatedID COLON Type EQ LetExpr	{  ($2, Sem.make_let $2 $4 $6) }
 ;
 
 ResourceSpec:
@@ -238,9 +239,9 @@ Resource:
 ;
 
 CanonSpec:
-	CANON STRING_CONST LPAREN TypeList RPAREN
+	CANON STRING_CONST LPAREN CanonParamList RPAREN
 		{ ($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, $4)) }
-|	CANON Type STRING_CONST LPAREN TypeList RPAREN
+|	CANON Type STRING_CONST LPAREN CanonParamList RPAREN
 		{ ($3, Irg.CANON_DEF($3, Irg.CANON_FUNC, $2, $5)) }
 |	CANON STRING_CONST LPAREN RPAREN
 		{ ($2, Irg.CANON_DEF($2, Irg.CANON_FUNC, Irg.NO_TYPE, [])) }
@@ -250,10 +251,15 @@ CanonSpec:
 		{ ($3, Irg.CANON_DEF($3, Irg.CANON_CNST, $2, [])) }
 ;
 
-TypeList:
-	Type			{ [$1] }
-|	TypeList COMMA Type		{ $3::$1 }
+CanonParamList:
+	CanonParam						{ [$1] }
+|	CanonParamList COMMA CanonParam	{ $3::$1 }
+;
 
+CanonParam:
+	Type					{ $1 }
+|	LocatedID COLON Type	{ $3 }
+;
 
 ExceptionSpec:
 	EXCEPTION IdentifierList	{ $2 }

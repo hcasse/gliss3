@@ -273,12 +273,19 @@ type, operation and mode definitions. The identifier must be unique
 in the SimNML file.
 
 <code>
-LetSpecification ::= 'let Identifier '=' ConstantExpression
+LetSpecification ::=
+	'let' Identifier '=' ConstantExpression
+|	'let' Identifier ':' Type '=' ConstantExpression
 </code>
 
-The ''ConstantExpression'' is an expression that must evaluates to a constant
-at generation time: it contains either literal constant values or constant identifiers.
+**Second form is a GLISS extension only!**
 
+The ''ConstantExpression'' is an expression that must evaluates to a constant
+at generation time: it contains either literal constant values or constant
+identifiers.
+
+The type of the constant is either derived from the type of the expression
+(first form) or from the specified type (second form).
 
 
 
@@ -730,6 +737,7 @@ BinaryExpression ::=
 	| LogicalExpression
 	| BitOperation
 	| ShiftOperation
+	| CoerceExpression
 </code>
 
 Arithmetic operations applies on two integers, signed or unsigned.
@@ -925,6 +933,27 @@ case //v// value matches //c//, this //r// is evaluated and returned.
 Notice that all //r// expressions must be of the same type.
 
 
+===== Coerce Expression =====
+
+A coerce expression converts a value from its current type to the
+specified type.
+
+<code>
+CoerceExpression ::= 'coerce' (' TypeExpr ',' Expr ')'
+</code>
+
+The coercion consist in converting a value to a different type,
+trying to maintain the semantic of the value itself depending on the
+coercion type. This is different of the automatic conversion operation
+(casting) used in NML that just perform a copy bit-to-bit of the value
+(possibly changing the meaning of the value).
+
+To illustrate this, a coercion of a floating-point value to integer
+will only preserve the integer part (possibly rounding it) while
+the casting copies bits as is and, therefore, outcomes a very
+different integer value (for bit access purpose for example).
+
+
 
 ===== Priorities and Associativities =====
 
@@ -962,6 +991,7 @@ Statement ::=
 	| SwitchStatement
 	| CanonStatement
 	| CallStatement
+	| LetStatement
 </code>
 
 ===== Action Statement =====
@@ -1085,3 +1115,31 @@ CallStatement ::= Identifier '(' (Expression (',' Expression)*)? ')' ';'
 
 Built-in functions includes:
   * ''error''(message) -- that takes as parameter a message string.
+
+
+===== Let Statement =====
+
+**The ''let'' statement is a GLISS extension to NML!**
+
+It allows to declare variables that are local
+to the current attribute. This is a convenient replacement to ''var''
+usage that requires the variable identifier to be global. The identifier
+of the local declaration is local to the attribute containing it and
+does not conflict with any other local declaration in a different
+attribute.
+
+<code>
+LetStatement ::=
+	'let' ID '=' Expr ';'
+|	'let' ID ':' TypeExpr '=' Expr ';'
+</code>
+
+Basically, the local definition defines a new name which value is the
+result of the argument expression. The type of the definition is
+derived from the type of the assigned value or the specified type
+(for second syntax form).
+
+If the identifier corresponds to a global definition identifier,
+it is hidden by the local variable.
+
+

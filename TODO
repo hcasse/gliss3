@@ -1,4 +1,7 @@
 ====== TODO ======
 
-[ ] Remove non-useful conversions (for operations with constant operand).
+[ ] Remove useless conversions (for operations with constant operand)
+[ ] Compute constant expressions.
 [ ] Port multi-instr set to other decoders.
+[ ] Add -switch option to gliss-attr and gliss-disasm.
+

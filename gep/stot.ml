@@ -83,14 +83,14 @@ let check sw =
 			if s > !max then -1 else
 			let items = List.map (fun (c, v) ->
 				 (Sem.eval_const c, Sem.eval_const v)) cs in
-			(*List.iter (fun (c, v) -> print [PTEXT "DEBUG: "; PCONST c; PTEXT " -> "; PCONST v; PTEXT "\n"]) items;*)
-			let def = Sem.eval_const def in
+			let def =
+				if def = NONE then NULL else  Sem.eval_const def in
+			(*List.iter (fun (c, v) -> print [PTEXT "DEBUG: "; PCST c; PTEXT " -> "; PCST v; PTEXT "\n"]) items;*)
 
 			(* build the table *)
 			let n = !num in
 			let a = Array.make s def in
-			List.iter (fun (i, v) ->
-				Array.set a (Sem.to_int i) v) items;
+			List.iter (fun (i, v) -> Array.set a (Sem.to_int i) v) items;
 			let k = (t, a) in
 
 			(* declare it *)
@@ -125,25 +125,30 @@ let declare info =
 	@param attr		Name of the attribute to transform. *)
 let transform_aux attr =
 
-	let rec get_attr al name =
+	let rec set_attr al n a =
 		match al with
-		| [] -> failwith "stot: missing attribute ?"
-		| Irg.ATTR_STAT (n, s)::_ when n = name -> s
-		| _::t -> get_attr t name in
+		| [] -> failwith "stot: lost attribute?"
+		| Irg.ATTR_STAT (m, _)::t when n = m -> a::t
+		| Irg.ATTR_EXPR (m, _)::t when n = m -> a::t
+		| h::t -> h::(set_attr t n a) in
 
-	let rec set_attr al n s =
-		match al with
-		| [] -> failwith "stot: lost attribute ?"
-		| Irg.ATTR_STAT (m, _)::t when n = m -> (Irg.ATTR_STAT (n, s))::t
-		| h::t -> h::(set_attr t n s) in
-
-	let rec process_attr name (pl, al, st) =
-		(*List.iter Irg.print_attr al;*)
+	let rec process_attrs name (pl, al, st) =
 		if List.mem name st then (pl, al, st) else
-		let s = get_attr al name in
-		let sp, (pl, al, _) = process_stat s (pl, al, name::st) in
-		(*List.iter Irg.print_attr al;*)
-		(pl, set_attr al name sp, st)
+		process_attr name al (pl, al, st)		
+
+	and process_attr name l info =
+		match l with
+		| [] ->
+			info
+		| Irg.ATTR_STAT (n, s)::_ when n = name ->
+			let (pl, al, st) = info in
+			let sp, (pl, al, _) = process_stat s (pl, al, name::st) in
+			(pl, set_attr al name (Irg.ATTR_STAT(name, sp)), st)
+		| Irg.ATTR_EXPR (n, e)::_ when n = name ->
+			let (pl, al, st) = info in
+			(pl, set_attr al name (Irg.ATTR_EXPR(name, process_expr e)), st)
+		| _::l ->
+			process_attr name l info
 
 	and process_stat s info =
 		match s with
@@ -152,7 +157,7 @@ let transform_aux attr =
 			let (s2, info) = process_stat s2 info in
 			(SEQ (s1, s2), info)
 		| EVAL ("", name) ->
-			(s, process_attr name info)
+			(s, process_attrs name info)
 		| SET (l, e) ->
 			(SET (process_loc l, process_expr e), info)
 		| CANON_STAT (n, args) ->
@@ -202,7 +207,7 @@ let transform_aux attr =
 		init ();
 		Iter.transform (fun _ pl al ->
 			param_stack pl;
-			let pl, al, _ = process_attr attr (pl, al, []) in
+			let pl, al, _ = process_attrs attr (pl, al, []) in
 			param_unstack pl;
 			((), pl, al)) ()
 	end

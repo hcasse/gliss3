@@ -1914,11 +1914,13 @@ let make_ref id =
 
 (** Build a let specification.
 	@param id			Let identifier.
-	@param expr			Expression of the constant.
+	@param t			Type of the let (possibly NO_TYPE)
+	@param e			Expression of the constant.
 	@return				Built specification.
 	@raise PreError		If there is a typing error or something is not computable. *)
-let make_let id expr =
-	Irg.LET (id, get_type_expr expr, eval_const expr)
+let make_let id t e =
+	let t = if t = NO_TYPE then get_type_expr e else t in
+	Irg.LET (id, t, eval_const e)
 
 
 (** Check type of expression after instruction instanciation.

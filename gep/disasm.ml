@@ -34,7 +34,7 @@ let command = ref false
 let options = [
 	("-o", Arg.Set_string out, "output file");
 	("-c", Arg.Set command, "generate also the command")
-]
+] @ Stot.opts
 
 
 (** Generate code to perform disassembly.
@@ -91,6 +91,10 @@ let rec gen_disasm info inst expr =
 		if fmt = "" then Irg.NOP else
         Irg.CANON_STAT ("__buffer += sprintf", (Irg.REF (Irg.NO_TYPE, "__buffer"))::(str fmt)::args) in
 
+	let buffer = Irg.REF (Irg.NO_TYPE, "__buffer") in
+	let sprintf = "__buffer += sprintf" in
+	let sformat = Irg.CONST(Irg.STRING, Irg.STRING_CONST "%s") in
+
 	let rec scan fmt args cfmt cargs =
 		match fmt with
 		| []
@@ -110,14 +114,15 @@ let rec gen_disasm info inst expr =
 		| Irg.FORMAT (fmt, args) ->
 			scan (Irg.split_format_string fmt) args "" []
 		| Irg.CONST (_, Irg.STRING_CONST(s)) ->
-    		if s <> "" then Irg.CANON_STAT ("__buffer += sprintf", [Irg.REF (Irg.NO_TYPE, "__buffer"); str s]) else Irg.NOP
+    		if s <> "" then Irg.CANON_STAT (sprintf, [buffer; str s]) else Irg.NOP
 		| Irg.IF_EXPR (_, c, t, e) ->
 			Irg.IF_STAT(c, process t, process e)
 		| Irg.SWITCH_EXPR(_, c, cases, def) ->
 			Irg.SWITCH_STAT(c, List.map (fun (c, e) -> (c, process e)) cases,if def <> Irg.NONE then process def else Irg.NOP)
+		| Irg.CANON_EXPR _ ->
+			Irg.CANON_STAT(sprintf, [buffer; sformat; expr])
 		| Irg.REF _
 		| Irg.NONE
-		| Irg.CANON_EXPR _
 		| Irg.FIELDOF _
 		| Irg.ITEMOF _
 		| Irg.BITFIELD _
@@ -186,19 +191,25 @@ let disassemble inst out info =
 
 
 let _ =
-	let display_error msg = Printf.fprintf stderr "ERROR: %s\n" msg in
-	try
-		App.run
-			options
-			"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
-			(fun info ->
-				Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE, []));
+	App.run
+		options
+		"SYNTAX: gep [options] NML_FILE\n\tGenerate code for a simulator"
+		(fun info ->
+			Irg.add_symbol "__buffer" (Irg.VAR ("__buffer", 1, Irg.NO_TYPE, []));
+
+		try
+
+				(* transform switches *)
+				Stot.transform_aux "syntax";
 
 				(* generate disassemble source *)
 				let maker = App.maker () in
 				maker.App.get_instruction <- (fun inst dict ->
-					("disassemble", Templater.TEXT (fun out -> disassemble inst out info)) :: dict);
-				let dict = App.make_env info maker in
+					("disassemble", Templater.TEXT (fun out -> disassemble inst out info)) ::
+					dict);
+				let dict =
+					("declare_switch", Templater.TEXT (fun out -> info.Toc.out <- out; Stot.declare info)) ::
+					(App.make_env info maker) in
 				if not !App.quiet then (Printf.printf "creating \"%s\"\n" !out; flush stdout);
 				Templater.generate dict "disasm.c" !out;
 
@@ -218,19 +229,7 @@ let _ =
 						with Not_found ->
 							raise (CommandError  "no template to make disasm program")
 					end
-			)
-	with
-	| Toc.Error msg ->
-		display_error msg
-	| CommandError msg ->
-		display_error msg
-	| Toc.LocError (file, line, f) ->
-		Printf.fprintf stderr "ERROR: %s:%d: " file line;
-		f stderr;
-		output_char stderr '\n'
-	| Toc.PreError f ->
-		output_string stderr "ERROR: ";
-		f stderr;
-		output_char stderr '\n'
-
-
+		with
+		| CommandError msg -> raise (Irg.Error (Irg.asis msg))
+		| Toc.PreError f -> raise (Irg.Error f)
+	)

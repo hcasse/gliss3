@@ -13,6 +13,7 @@
 #define __GLISS_MASK64(n, e) ((n)==64 ? (e) : ((e) & ((1LL << n) - 1)))
 #define __GLISS_EXTS(n, e) (((e) << n) >> n)
 
+$(declare_switch)
 
 /**
  * Pointer allowing to change the way a label is solved.
