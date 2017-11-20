@@ -2033,6 +2033,9 @@ let rec check_stat_inst stat =
 	| LINE (file, line, stat) ->
 		let stat' = check_stat_inst stat in
 		if stat == stat' then stat else LINE (file, line, stat')
+	| FOR(v, uv, t, l, u, b) ->
+		let b' = check_stat_inst b in
+		if b = b' then stat else FOR(v, uv, t, l, u, b')
 
 
 (** Check type of attribute after instruction instanciation.
@@ -2108,6 +2111,38 @@ let make_local id e =
 			StringHashtbl.add local_map id uid;
 			SEQ(LOCAL (uid, id, t), SET(LOC_REF (t, uid, NONE, NONE, NONE), e))
 		end
+
+
+(** Prepare a for-instruction, mainly, declare the local instruction.
+	@param v	Variable identifier.
+	@param t	Type of identifier (possibly NO_TYPE).
+	@param l	Lower value (constant expression).
+	@param u	Upper value (constant expression). *)
+let prepare_for v t l u =
+	let (lt, lv) = eval_typed_const l in
+	let (ut, uv) = eval_typed_const u in
+	let t =
+		if t = STRING then error (asis "induction variable cannot have string type")
+		else if t = NO_TYPE then lt
+		else t in
+	let lv = if lt = t then lv else eval_coerce t (lt, lv) in
+	let uv = if ut = t then uv else eval_coerce t (ut, uv) in
+	let vv = Printf.sprintf "__gliss_%d_%s" !local_uniq v in
+	local_uniq := !local_uniq + 1;
+	handle_local vv t;
+	StringHashtbl.add local_map v vv;
+	(v, vv, t, lv, uv)
+
+
+(** Build a for statement.
+	@param v	Variable identifier.
+	@param uv	Unique variable name.
+	@param t	Type of identifier (possibly NO_TYPE).
+	@param l	Lower value (constant expression).
+	@param u	Upper value (constant expression).
+	@param b	For body. *)
+let make_for (v, uv, t, l, u) b =
+	FOR(v, uv, t, l, u, b)
 
 
 (** Make a local variable definition with its own type.

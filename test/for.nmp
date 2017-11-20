@@ -1,0 +1,24 @@
+
+let proc="mine"
+let gliss_isize = "16"
+let bit_order = "UPPERMOST"
+
+reg ppc[1, card(32)] pc=1
+reg r[8, card(32)]
+
+op init()
+	action = { }
+
+op instruction = clear
+
+op clear(mask: card(8))
+	syntax = format("clear %08b", mask)
+	image = format("0000 0000 %8b", mask)
+	action = {
+		let zero = 0;
+		for i in 0..7 do
+			if mask<i..i> then
+				r[i] = zero;
+			endif;
+		enddo;
+	}

@@ -45,7 +45,8 @@ let is_stat_attr_recursive sp name =
 		| IF_STAT(e, s1, s2) 		-> (find_occurence str s1) || (find_occurence str s2)
 		| SWITCH_STAT(e, es_l, s) 	-> (find_occurence str s) || (List.exists (fun (ex, st) -> find_occurence str st) es_l)
 		| LINE(s, i, st) 			-> find_occurence str st
-		| LOCAL (v, _, t) 			-> false in
+		| LOCAL (v, _, t) 			-> false
+		| FOR(v, uv, t, l, u, b)	-> find_occurence str b in
 	let a = get_attr sp name in
 	find_occurence name a
 
@@ -464,6 +465,8 @@ let rec substitute_in_stat name op statement =
 		LINE(s, i, substitute_in_stat name op st)
 	| LOCAL (v, o, t) ->
 		LOCAL (v, o, t)
+	| FOR(v, uv, t, l, u, b) ->
+		FOR(v, uv, t, l, u, substitute_in_stat name op b)
 
 
 (**
@@ -502,6 +505,8 @@ let rec change_name_of_var_in_stat sta var_name new_name =
 		LINE(str, n, change_name_of_var_in_stat s var_name new_name)
 	| LOCAL(v, o, t) ->
 		LOCAL (v, o, t)
+	| FOR(v, uv, t, l, u, b) ->
+		FOR(v, uv, t, l, u, change_name_of_var_in_stat b var_name new_name)
 
 
 (**

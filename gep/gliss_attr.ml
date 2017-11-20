@@ -74,6 +74,8 @@ let rec stmt_stateless cc s =
 		-> (expr_stateless cc e) && (stmt_stateless cc d) && List.for_all (stmt_stateless cc) (snd (List.split cs))
 	| Irg.LINE (_, _, s)
 		-> stmt_stateless cc s
+	| Irg.FOR (v, uv, t, l, u, b)
+		-> stmt_stateless cc b
 
 
 (** Test if the expression is stateless.

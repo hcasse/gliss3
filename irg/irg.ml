@@ -362,15 +362,16 @@ type attr_arg =
 (** A statement in an action. *)
 type stat =
 	  NOP
-	| SEQ of stat * stat								(** (s1, s2) Sequential execution of s1 then s2. *)
-	| EVAL of string * string							(** (parameter, attribute) Access to an attribye. If parameter = "", this is a self-attribute. *)
-	| SET of location * expr							(** (location, expression) Assignment of expression to the given location *)
-	| CANON_STAT of string * expr list					(** Call to a canonical procedure. *)
+	| SEQ of stat * stat										(** (s1, s2) Sequential execution of s1 then s2. *)
+	| EVAL of string * string									(** (parameter, attribute) Access to an attribye. If parameter = "", this is a self-attribute. *)
+	| SET of location * expr									(** (location, expression) Assignment of expression to the given location *)
+	| CANON_STAT of string * expr list							(** Call to a canonical procedure. *)
 	| ERROR of string	(* a changer : stderr ? *)
-	| IF_STAT of expr * stat * stat						(** (condition, s1, s2) Selection statement. *)
-	| SWITCH_STAT of expr * (expr * stat) list * stat	(** (value, cases, default case) Multiple selection. *)
-	| LINE of string * int * stat						(** Used to store source information.  *)
-	| LOCAL of string * string * type_expr				(** (variable name, original name, variable type) Local variable declaration *)
+	| IF_STAT of expr * stat * stat								(** (condition, s1, s2) Selection statement. *)
+	| SWITCH_STAT of expr * (expr * stat) list * stat			(** (value, cases, default case) Multiple selection. *)
+	| LINE of string * int * stat								(** Used to store source information.  *)
+	| LOCAL of string * string * type_expr						(** (variable name, original name, variable type) Local variable declaration *)
+	| FOR of string * string * type_expr * const * const * stat	(** (variable name, unique name, variable type, initial bound, final bound, body) Loop definition *)
 
 
 (** attribute specifications *)
@@ -1038,6 +1039,16 @@ let rec output_statement out stat =
 		Printf.fprintf out "\t\tlet %s = " o;
 		output_type_expr out t;
 		output_string out " \n"
+	| FOR(v, _, t, l, u, b) ->
+		Printf.fprintf out "\t\tfor %s: " v;
+		output_type_expr out t;
+		output_string out " in ";
+		output_const out l;
+		output_string out "..";
+		output_const out u;
+		output_string out " do\n";
+		output_statement out b;
+		output_string out "\t\tenddo;\n"
 
 
 (** Print a statement
@@ -1717,7 +1728,7 @@ let rec line_from_expr expr =
 	| SWITCH_EXPR (_, c, cs, d)
 		-> line_from_list ([LEXPR c; LEXPR d] @ (List.flatten (List.map (fun (c, e) -> [LEXPR c; LEXPR e]) cs)))
 	| ELINE (f, l, _)
-		-> (f, l)
+		-> (f, l)		
 
 
 (** Find the closer line source information.
@@ -1735,6 +1746,7 @@ and line_from_stat stat =
 	| IF_STAT (c, s1, s2) 		-> line_from_list [LEXPR c; LSTAT s1; LSTAT s2]
 	| SWITCH_STAT (c, cs, d)	-> line_from_list ([LEXPR c; LSTAT d] @ (List.map (fun (_, s) -> LSTAT s) cs))
 	| LINE (f, l, _) 			-> (f, l)
+	| FOR(_, _, _, _, _, b)		-> line_from_stat b
 
 and line_from_list lst =
 	match lst with

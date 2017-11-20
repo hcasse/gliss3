@@ -492,6 +492,8 @@ let add_var info name cnt typ =
 (** Declare temporaries variables.
 	@param	Generation information. *)
 let declare_temps info =
+
+	(* declare temporaries *)
 	List.iter
 		(fun (name, typ) ->
 			Irg.add_symbol name (Irg.VAR (name, 1, typ, []));
@@ -500,6 +502,8 @@ let declare_temps info =
 				name
 		)
 		info.temps;
+		
+	(* declare global, local and for variables *)
 	List.iter
 		(fun (name, (cnt, typ)) ->
 			try
@@ -1021,6 +1025,14 @@ let rec prepare_stat info stat =
 		if not (is_supported t)
 		then pre_error (Irg.outputln [Irg.PTEXT "unsupported type "; Irg.PTYPE t; Irg.PTEXT " for local variable ";  Irg.PTEXT o])
 		else Irg.handle_local v t; stat
+		
+	| Irg.FOR (v, uv, t, l, u, b) ->
+		if not (is_supported t)
+		then pre_error (Irg.outputln [Irg.PTEXT "unsupported type "; Irg.PTYPE t; Irg.PTEXT " for local variable ";  Irg.PTEXT v])
+		else
+			Irg.handle_local v t;
+			add_var info uv 1 t;
+			Irg.FOR (v, uv, t, l, u, prepare_stat info b)
 
 	| Irg.EVAL ("", name) ->
 		prepare_call info name;
@@ -1451,12 +1463,13 @@ let rec multiple_stats stat =
 	| Irg.SET _
 	| Irg.CANON_STAT _
 	| Irg.ERROR _
-	| Irg.SWITCH_STAT _ -> false
+	| Irg.SWITCH_STAT _
+	| Irg.LOCAL _
+	| Irg.FOR _				-> false
 	| Irg.EVAL _
 	| Irg.SEQ _
-	| Irg.IF_STAT _ -> true
-	| Irg.LINE (_, _, stat) -> multiple_stats stat
-	| Irg.LOCAL _ -> false
+	| Irg.IF_STAT _			-> true
+	| Irg.LINE (_, _, stat)	-> multiple_stats stat
 
 
 (** Generate a prepared statement.
@@ -1465,16 +1478,23 @@ let rec multiple_stats stat =
 let rec gen_stat info stat =
 	trace "gen_stat 1";
 	let out = output_string info.out in
-	let line f =
+	let preline f =
 		for i = 1 to info.indent do
 			out "\t"
 		done;
-		f();
+		f() in
+	let line f =
+		preline f;
 		out "\n" in
 	let indented f =
 		info.indent <- info.indent + 1;
 		f ();
 		info.indent <- info.indent - 1 in
+	let sub s =
+		let m = multiple_stats s in
+		out (if m then " {\n" else "\n");
+		indented (fun _ -> gen_stat info s);
+		if m then line (fun _ -> out "}") in
 
 	let iter_args args =
 		ignore(List.fold_left
@@ -1574,6 +1594,16 @@ let rec gen_stat info stat =
 
 	| Irg.LOCAL _ ->
 		()
+		
+	| Irg.FOR (v, uv, t, l, u, b) ->
+		let rev = (Sem.eval_binop Irg.LT (t, l) (t, u)) = Sem.false_const in
+		preline (fun _ ->
+			out (Printf.sprintf "for(%s = " uv);
+			gen_const info t l;
+			out (Printf.sprintf "; %s != " uv);
+			gen_const info t u;
+			out (Printf.sprintf "%s 1; %s%s)" (if rev then "-" else "+") uv (if rev then "--" else "++")));
+		sub b
 
 	| Irg.EVAL ("", name) ->
 		gen_call info name
@@ -1581,6 +1611,7 @@ let rec gen_stat info stat =
 	| Irg.SET _
 	| Irg.EVAL _ ->
 		failwith "must have been removed"
+
 
 (** Generate the code for setting a field.
 	@param typ	Type of set state item.
@@ -1679,7 +1710,8 @@ let find_recursives info name =
 						(fun recs (_, s) -> look_stat s recs)
 						recs
 						cases)
-				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs) in
+				| Irg.LINE (file, line, s) -> locate_error file line (fun (s, r) -> look_stat s r) (s, recs)
+				| Irg.FOR (v, uv, t, l, u, b) -> look_stat b recs in
 
 			look_stat (get_stat_attr name) recs in
 	

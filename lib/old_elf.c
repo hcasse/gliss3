@@ -560,6 +560,11 @@ static int ElfReadSymTbl(int fd, const Elf32_Ehdr *Ehdr) {
 	return 0;
 }
 
+static void LoadString(char *buf, char *src, int n) {
+	strncpy(buf, src, n - 1);
+	buf[n - 1] = '\0';
+}
+
 static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 	int32_t i,foffset;
 	struct text_secs *txt_sec, **ptr, *ptr1;
@@ -581,7 +586,7 @@ static int ElfReadTextSecs(int fd, const Elf32_Ehdr *Ehdr) {
 				errno = ENOMEM;
 				return -1;
 			}
-			strcpy(txt_sec->name,&Tables.sec_name_tbl[Tables.sec_header_tbl[i].sh_name]);
+			LoadString(txt_sec->name, &Tables.sec_name_tbl[Tables.sec_header_tbl[i].sh_name], sizeof(txt_sec->name));
 			if(!strcmp(txt_sec->name,".text"))
 				Text.txt_index = i;
 			txt_sec->offset = Tables.sec_header_tbl[i].sh_offset;
@@ -663,7 +668,7 @@ static int ElfInsertDataSec(const Elf32_Shdr *hdr,int fd) {
 		errno = ENOMEM;
 		return -1;
 	}
-	strcpy(data_sec->name,&Tables.sec_name_tbl[hdr->sh_name]);
+	LoadString(data_sec->name, &Tables.sec_name_tbl[hdr->sh_name], sizeof(data_sec->name));
 	data_sec->offset = hdr->sh_offset;
 	data_sec->address = hdr->sh_addr;
 	data_sec->size = hdr->sh_size;

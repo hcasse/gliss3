@@ -106,67 +106,79 @@ let intersect_attrs attrs1 attrs2 =
 
 %}
 
-%token<string>	ID
-%token<Int32.t>	CARD_CONST
-%token<Int64.t> CARD_CONST_64
-%token<float>	FIXED_CONST
-%token<string>	STRING_CONST
+/* litterals */
+%token<string>			ID
 %token<Int32.t * int>	BIN_CONST
 %token<Int64.t * int>	BIN_CONST_64
+%token<Int32.t>			CARD_CONST
+%token<Int64.t> 		CARD_CONST_64
+%token<float>			FIXED_CONST
+%token<string>			STRING_CONST
 
-%token    EOF
+/* deprecated */
 %token    DOLLAR
-%token<int>     MEM
-%token    VOLATILE
-%token    ALIAS
-%token    PORTS
-%token    COERCE
-%token	  ERROR
-%token<int>     TYPE
-%token<int>    LET
-%token    MACRO
-%token    IF
-%token    THEN
-%token    ELSE
-%token    ENDIF
-%token    SWITCH
-%token    CASE
-%token    DEFAULT
-%token    BOOL
-%token    INT
-%token    CARD
-%token    FIX
-%token    FLOAT
-%token    ENUM
-%token<int>     MODE
-%token<int>     REG
-%token<int>     VAR
-%token<int>     OP
-%token    NOT
-%token    FORMAT
-%token    LIST	/* ? never used ? */
-%token    NOP
-%token    USES
-%token 	  SYNTAX
-%token	  IMAGE
-%token    ACTION
-%token    INITIALA
-%token<int>     RESOURCE
-%token<int>     EXCEPTION
-%token	  BINARY_CONST
-%token	  HEX_CONST
-%token    OR AND LEQ GEQ EQU NEQ
-%token    LEFT_SHIFT RIGHT_SHIFT DOUBLE_STAR
-%token    ROTATE_RIGHT ROTATE_LEFT DOUBLE_COLON DOUBLE_DOT
-%token    BIT_LEFT BIT_RIGHT
-%token    EQ EXCLAM PIPE CIRC AMPERS GT LT SHARP
-%token    PLUS MINUS STAR SLASH PERCENT TILD COLON
-%token	  COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
-%token	  ATTR
-%token		EXTEND
-%token		AROBAS
-%token		CANON
 
+/* keywords */
+%token    	ACTION
+%token    	ALIAS
+%token	  	ATTR
+%token    	BOOL
+%token		CANON
+%token    	CARD
+%token    	CASE
+%token		COERCE
+%token    	DEFAULT
+%token		DO
+%token    	ELSE
+%token		ENDDO
+%token    	ENDIF
+%token    	ENUM
+%token	  	ERROR
+%token		EXTEND
+%token    	FIX
+%token    	FLOAT
+%token		FOR
+%token    	FORMAT
+%token    	IF
+%token		IN
+%token	  	IMAGE
+%token    	INITIALA
+%token    	INT
+%token<int>	LET
+%token<int>	MEM
+%token<int>	MODE
+%token<int>	OP
+%token<int>	REG
+%token    	SWITCH
+%token 	  	SYNTAX
+%token    	THEN
+%token<int>	TYPE
+%token<int>	VAR
+%token    	VOLATILE
+
+
+/* hardware extension keywords */
+%token    	PORTS
+%token<int>	RESOURCE
+%token    	USES
+
+/* future use */
+%token<int>	EXCEPTION
+%token    	MACRO
+
+/* operators */
+%token	EOF
+%token	NOT
+%token	OR AND LEQ GEQ EQU NEQ
+%token	LEFT_SHIFT RIGHT_SHIFT DOUBLE_STAR
+%token	ROTATE_RIGHT ROTATE_LEFT DOUBLE_COLON DOUBLE_DOT
+%token	BIT_LEFT BIT_RIGHT
+%token	EQ EXCLAM PIPE CIRC AMPERS GT LT SHARP
+%token	PLUS MINUS STAR SLASH PERCENT TILD COLON
+%token	COMMA LBRACE RBRACE LBRACK RBRACK LPAREN RPAREN SEMI DOT
+%token	AROBAS
+
+/* operator priority */
 %right	EQ
 %left	DOUBLE_COLON
 %left	OR
@@ -193,7 +205,7 @@ let intersect_attrs attrs1 attrs2 =
 %%
 
 top:
-	specs EOF		{ (*print_string "Start Symbol reduced, end of recognition\n########################\n"*) }
+	specs EOF		{ }
 ;
 
 LocatedID:
@@ -608,6 +620,15 @@ Statement:
 		{ handle_stat (fun _ -> Sem.make_local $2 $4) }
 |	LET ID COLON Type EQ Expr
 		{ handle_stat (fun _ -> Sem.make_typed_local $2 $4 $6) }
+|	ForHeader DO Sequence ENDDO
+		{ handle_stat (fun _ -> Sem.make_for $1 $3) }
+;
+
+ForHeader: 
+|	FOR ID IN Expr DOUBLE_DOT Expr
+		{ Sem.prepare_for $2 Irg.NO_TYPE $4 $6 }
+|	FOR ID COLON Type IN Expr DOUBLE_DOT Expr
+		{ Sem.prepare_for $2 $4 $6 $8 }
 ;
 
 ArgList :

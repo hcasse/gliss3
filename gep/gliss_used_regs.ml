@@ -151,6 +151,7 @@ let rec stateless_stat stat sp =
 	| Irg.LINE (_, _, s) 			-> stateless_stat s sp 
 	| Irg.EVAL ("", id)				-> stateless_stat_id id sp
 	| Irg.EVAL _ 					-> assert false
+	| Irg.FOR (v, uv, t, l, u, b)	-> stateless_stat b sp
 and stateless_stat_id id sp =
 	if List.mem id sp then true else
 	match Irg.get_symbol id with
@@ -205,6 +206,7 @@ let collect info =
 					(fun l (_, s) -> collect_stat s l line) (collect_stat d (c, scan c cd lst line) line)
 					cs))
 			| Irg.LINE (f, l, s) -> collect_stat s (c, lst) (f, l)
+			| Irg.FOR (v, uv, t, l, u, b) -> collect_stat b (c, lst) line
 
 		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
@@ -396,6 +398,8 @@ let compile_regs inst stat out =
 			Toc.locate_error f l (fun _ -> Irg.LINE (f, l, scan_stat s)) ()
 		| Irg.EVAL _ ->
 			assert false
+		| Irg.FOR (v, uv, t, l, u, b) ->
+			scan_stat b
 	
 	and scan_call name =
 		if 	not (List.mem_assoc name info.Toc.calls) then

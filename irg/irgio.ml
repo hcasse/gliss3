@@ -133,6 +133,7 @@ let output_xml out list =
 		| SWITCH_STAT (v, cs, s)	-> xelement "switch" [] ([expr_of v] @ (List.map scase_of cs) @ [stat_of s])
 		| LINE (_, _, s)			-> stat_of s
 		| LOCAL (v, o, t)			-> xelement "let" [("id", v); ("oid", o); ("type", type_of t)] []
+		| FOR(v, uv, t, l, u, b)	-> xelement "for" [("id", v); ("uid", uv); ("type", type_of t); ("lo", const_of l); ("hi", const_of u)] [stat_of b]
 	and scase_of (c, s) =
 		xelement "case" [] [expr_of c; stat_of s] in
 			
@@ -235,6 +236,7 @@ let dump_stream out list =
 		| SWITCH_STAT (v, cs, s)	-> op "switch"; expr_of v; com (); List.iter scase_of cs; stat_of s; close ()
 		| LINE (_, _, s)			-> stat_of s
 		| LOCAL (v, o, t)			-> op "let"; str o; com(); type_of t; close()
+		| FOR (v, _, t, l, u, b)	-> op "for"; str v; str ": "; type_of t; str " in "; const_of l; str ".."; const_of u; str "do"; com(); stat_of b; com(); close ()
 	and scase_of (c, s) =
 		op "case"; expr_of c; com (); stat_of s; close(); com () in
 			

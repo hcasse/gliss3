@@ -379,3 +379,47 @@ Local variables only exist in the action where they are defined and
 can not be accessed in a different action.
 
 
+===== For Statement =====
+
+In the previous version of @(GLISS), loops were implemented as a kind
+of recursion in the attribute definition. An attribute was recalling
+itself until a condition from the global variable was reached. This way
+of implementing is very powerful but may lead to code that will be
+very hard to manage. Additionally, the generation requires the use
+of C ''goto'' and the synthesis will be also very hard to perform.
+
+To replace this, @(GLISS) proposes now the use of a special instruction,
+''for'', that allow to perform a fixed number of iterations using
+a local variable that will range from a lower value to an upper value,
+both constants at compilation time.
+
+The syntax is exposed below:
+<code>
+Statement ::= ...
+            | 'for' ID 'in' l: Expression '..' u: Expression 'do' Sequence 'enddo'
+            | 'for' ID ':' Type 'in' l: Expression '..' u: Expression 'do' Sequence 'enddo'
+</code>
+
+The identifier must not already exist and will be declared local to
+the attribute containing the instruction.
+
+In the form, the typpe of the identifier is deduced from the bigger
+type of //l// and //u//.
+
+//l// and //u// must be constant expression evaluated at compilation
+time and their type must be compatible with the identifier type.
+
+The sequence will be executed assigning to the identifier local variable
+all values from //l// to //u//, incremented/decremented by 1 according
+to the relative values of //l// and //u//. If //l// < //u//, the
+local variable is incremented, else it is decremened.
+
+The implementation of this loop operator can be considered as a multiple
+instantiation of its body where each instance of the local variable
+is replaced by each value of the range between //l// and //u//. The
+instantiation order depends on the relative values of //l// and //u//.
+
+**The use of recursive attribute to implement loops is now considered
+as deprecated.**
+
+ 
