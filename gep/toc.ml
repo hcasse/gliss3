@@ -1071,7 +1071,7 @@ Irg.print_expr expr; print_char '\n';*)
 	| Irg.BITFIELD (typ, expr, lo, up) -> gen_bitfield info typ expr lo up prfx
 	| Irg.UNOP (t, op, e) -> gen_unop info t op e prfx
 	| Irg.BINOP (t, op, e1, e2) -> gen_binop info t op e1 e2 prfx
-	| Irg.COERCE (typ, sube) -> coerce info typ sube expr prfx
+	| Irg.COERCE (typ, sube) -> gen_coerce info typ sube expr prfx
 	| Irg.CANON_EXPR (_, name, args) ->
 		flush info.out;
 		Printf.fprintf info.out "%s(" name;
@@ -1255,7 +1255,7 @@ and gen_binop info t op e1 e2 prfx =
 (** Generate code for coercition.
 	@param t1	Type to coerce to.
 	@param expr	Expression to coerce. *)
-and coerce info t1 expr parent prfx =
+and gen_coerce info t1 expr parent prfx =
 	let asis _ = gen_expr info expr prfx in
 
 	(* simple equality *)
@@ -1287,7 +1287,7 @@ and coerce info t1 expr parent prfx =
 		f ();
 		Printf.fprintf info.out ", %d)" (List.length vals) in
 	let exts n f a =
-		Printf.fprintf info.out "__%s_EXTS(%d, " (String.uppercase info.proc) n;
+		Printf.fprintf info.out "__%s_EXTS%d(%d, " (String.uppercase info.proc) (ctype_size t2c) n;
 		f a;
 		Printf.fprintf info.out ")" in
 	let word_size (x: int) =
@@ -1324,9 +1324,9 @@ and coerce info t1 expr parent prfx =
 	| Irg.INT n, Irg.CARD m ->
 		let cn = ctype_size t1c in
 		let cm = ctype_size t2c in
-		if n = m && cn = cm then cast asis () else
-		if n >= m then exts (cn - m) (cast asis) ()
-		else exts (cn - n) (cast asis) ()
+		if n = cn && m = cm then cast asis ()
+		else if n >= m then exts (cn - m) (cast asis) ()
+		else exts (cm - n) (cast asis) ()
 
 	(* conversion to float *)
 	| Irg.FLOAT (23, 9), _
@@ -1354,9 +1354,10 @@ and coerce info t1 expr parent prfx =
 	@param expr		Expression to cast. *)
 and gen_cast info typ expr prfx =
 	let etyp = Sem.get_type_expr expr in
+	let tt t = type_to_string (convert_type typ) in
 
 	let do_cast _ =
-		Printf.fprintf info.out "((%s)(" (type_to_string (convert_type typ));
+		Printf.fprintf info.out "((%s)(" (tt typ);
 		gen_expr info expr prfx;
 		output_string info.out "))" in
 

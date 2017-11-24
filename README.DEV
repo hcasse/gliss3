@@ -369,7 +369,13 @@ II[_] w = error
 
 </algo>
 
+===== To Fix =====
 
+Error messages:
+[ ]		Complex decoding error display.
+
+Bit masks decoding:
+[ ]		Only character 0, 1 et %... must be considered as bits (other are ignored or considered as errors).
 
 
 
