@@ -115,7 +115,7 @@ let declare info =
 			let _ = Array.fold_left (fun f i ->
 						if not f then output_string info.Toc.out ",\n\t";
 						Toc.gen_const info t i; false) true a in
-			Printf.fprintf info.Toc.out "\n};\n\n#define %s(i) __gswitch_t%d[i]" (gen_get n) n
+			Printf.fprintf info.Toc.out "\n};\n\n#define %s(i) __gswitch_t%d[i]\n" (gen_get n) n
 		)
 		tab
 
