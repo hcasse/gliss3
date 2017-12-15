@@ -216,7 +216,6 @@ let build_sons_of_tree tr =
 		in
 		if (List.length res) == 1 && (List.length (get_instr_list (List.hd res))) > 1 then
 			(output_string stderr "ERROR: some instructions seem to have same opcode:\n";
-			(*List.iter (fun x -> Printf.fprintf stderr "%s, " (Irg.name_of x)) (get_instr_list (List.hd res));*)
 			let expr_from_value v =
 				match v with
 				| Iter.EXPR(e) -> e
@@ -224,9 +223,9 @@ let build_sons_of_tree tr =
 			in
 			List.iter
 				(fun x ->
-					Printf.fprintf stderr "\t%s: image=" (Iter.get_user_id x);
+					Printf.fprintf stderr "\timage=";
 					Irg.output_expr stderr (expr_from_value (Iter.get_attr x "image"));
-					output_char stderr '\n')
+					Printf.fprintf stderr "\n\t\t(%s)\n" (Iter.get_user_id x))
 				(get_instr_list (List.hd res));
 			output_string stderr "\n";
 			raise (Sys_error "cannot continue with 2 instructions with same image"))
