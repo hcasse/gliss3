@@ -1314,6 +1314,7 @@ and gen_coerce info t1 expr parent prfx =
 	| Irg.CARD _, Irg.RANGE _
 	| Irg.CARD _, Irg.ENUM _ 								-> cast asis ()
 	| Irg.CARD _, Irg.FLOAT (23, 9) 						-> cast asis ()
+	| Irg.CARD _, Irg.FLOAT (52, 12) 						-> cast asis ()
 
 	(* conversion to int *)
 	| Irg.INT n, Irg.INT _

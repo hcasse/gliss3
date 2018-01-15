@@ -2122,7 +2122,7 @@ let prepare_for v t l u =
 	let (lt, lv) = eval_typed_const l in
 	let (ut, uv) = eval_typed_const u in
 	let t =
-		if t = STRING then error (asis "induction variable cannot have string type")
+		if t = STRING then error (asis "induction variable cannot be of type string")
 		else if t = NO_TYPE then lt
 		else t in
 	let lv = if lt = t then lv else eval_coerce t (lt, lv) in
@@ -2131,6 +2131,7 @@ let prepare_for v t l u =
 	local_uniq := !local_uniq + 1;
 	handle_local vv t;
 	StringHashtbl.add local_map v vv;
+	add_symbol vv (VAR (vv, 1, t, []));
 	(v, vv, t, lv, uv)
 
 

@@ -375,7 +375,7 @@ sub check_macro{
     $txt =~ s/\/\/.*//mg;
     # check that all parameters are used
     foreach $param (@params){
-        ($txt !~ /\b$param\b/) && nMP_warning("Macro '$nom` doesn't use parameter '$param` ! \n");
+        ($txt !~ /\b$param\b/) && $param !~ /_.*/ && nMP_warning("Macro '$nom` doesn't use parameter '$param` ! \n");
     }
     #print STDERR "Macro : $nom, params @params, code $txt\n";
 }

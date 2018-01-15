@@ -119,6 +119,7 @@ and sym_stateless cc id =
 	let cc = id::cc in
 	match Irg.get_symbol id with
 	| Irg.UNDEF
+		-> Printf.printf "DEBUG: undef %s\n" id; false
 	| Irg.MEM _
 	| Irg.REG _
 		-> false

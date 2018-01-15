@@ -242,6 +242,8 @@ let get_user_id inst =
 				(match c with
 				| Irg.STRING_CONST(str) -> str
 				| _ -> "")
+		| Irg.IF_EXPR(_, _, e1, e2) ->
+			(make e1) ^ " | " ^ (make e2)
 		| Irg.ELINE(_, _, e) -> make e
 		| _ -> "" in
 	make (must_expr_attr inst "syntax")
