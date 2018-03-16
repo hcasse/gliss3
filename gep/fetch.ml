@@ -317,16 +317,17 @@ exception CheckIsizeException
 let fetch_generic = 0
 
 
-(* outputs the declaration of all structures related to the given DecTree dt in C language,
-	all needed Decode_Ent and Table_Decodage structures will be output and already initialised,
-	everything will be output in the given channel,
-	dl is the global list of all nodes, used to find sons for instance
+(* outputs the declaration of all structures related to the given DecTree dt
+	in C language, all needed Decode_Ent and Table_Decodage structures
+	will be output and already initialised, everything will be output in
+	the given channel, dl is the global list of all nodes, used to find sons
+	for instance
 	@param fetch_size		Instruction size (in bits).
 	@param suffix			Suffix to name the table.
 	@param out				Output stream.
-	@param fetch_stat
-	@param dt
-	@param dl				*)
+	@param fetch_stat		Do we output statistics?
+	@param dt				Node to output.
+	@param dl				All node list. *)
 let rec output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 
 	let name_of t =
@@ -361,10 +362,9 @@ let rec output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 
 	let name = (suffix ^ (name_of dt)) in
 	let type_suffix =
-		if (List.length !Iter.multi_set) > 1 then
-			(if fetch_size != 0 then Printf.sprintf "_%d" fetch_size else "_CISC")
-		else
-			"" in
+		if fetch_size = 0 then "_CISC" else
+		if (List.length !Iter.multi_set) > 1 then Printf.sprintf "_%d" fetch_size
+		else "" in
 	let l_mask =
 		match dt with
 		| DecTree(_, _, lm, _, _) -> lm in
@@ -686,7 +686,10 @@ let output_all_table_C_decl out =
 	let iss = !Iter.multi_set in
 	let iss_sizes = List.map (fun x -> (find_fetch_size x, x)) iss in
 	let num_iss = List.length iss in
-	let fetch_stat = if !output_fetch_stat then open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat") else stdout in
+	let fetch_stat =
+		if !output_fetch_stat
+		then open_out ((Irg.get_proc_name ()) ^ "_fetch_tables.stat")
+		else stdout in
 	(* table and struct names must be suffixed if several tables generated *)
 	let idx = ref (-1) in
 	(*List.iter (fun x -> (output_struct_decl out (fst x) !idx); idx := !idx + 1) iss_sizes;*)

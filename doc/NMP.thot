@@ -1,7 +1,7 @@
 @use dokuwiki
 @TITLE=NMP Manual for GLISS V2
 @AUTHORS=H. Cassé <hugues.casse@laposte.net>, J. Barre <barre@irit.fr>
-@VERSION=0.1
+@VERSION=1.0
 @LANG=en_EN
 @ENCODING=UTF-8
 @HTML_STYLES=gliss.css
@@ -992,6 +992,7 @@ Statement ::=
 	| CanonStatement
 	| CallStatement
 	| LetStatement
+	| ForStatement
 </code>
 
 ===== Action Statement =====
@@ -1142,4 +1143,24 @@ derived from the type of the assigned value or the specified type
 If the identifier corresponds to a global definition identifier,
 it is hidden by the local variable.
 
+
+===== Let Statement =====
+
+**The ''for'' statement is a GLISS extension to NML!**
+
+The ''for'' statement allows implementing a loop in a very controlled
+and limited way. One must keep in mind that NML may be used to generate
+compilers or circuits and some loop configurations may be hard or
+expensive to generate.
+
+
+The result is the following ''for'' loop:
+
+<code>
+ForStatement ::= 'for' i: ID 'in' lo: Expr '..' up: Expr ''do'' Sequence ''enddo'' '';''
+</code>
+
+Expressions //lo// and //up// are evaluated at compilation time and must
+be integer constants. The loop repeats the statement sequence for //i//
+ranging from //lo// to //up// incremented by a step if 1.
 

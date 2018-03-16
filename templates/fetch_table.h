@@ -45,16 +45,16 @@ typedef struct Table_Decodage_CISC {
 $(end)
 $(end)$(end)
 $(if !is_multi_set)
-$(if is_RISC)
+$(if is_RISC_size)
 typedef struct Table_Decodage {
         uint$(C_inst_size)_t        mask;
         Decode_Ent      *table;
 } Table_Decodage;
 $(else)
-typedef struct Table_Decodage {
+typedef struct Table_Decodage_CISC {
         mask_t        *mask;
         Decode_Ent      *table;
-} Table_Decodage;
+} Table_Decodage_CISC;
 $(end)$(end)
 
 $(INIT_FETCH_TABLES)

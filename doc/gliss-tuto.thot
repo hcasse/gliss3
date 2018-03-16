@@ -10,7 +10,7 @@ This is a toy assembly language used to expose the features of @(GLISS) V2.
 
 An NMP file is a text file writable with any text editor.
 It must contains ASCII character (common subset of any used character set
-from UTF-8 to ISO-8859-X). User comments extends from double slash ''//''
+from UTF-8 to ISO-8859-X). User comments extends from double slash ''/ /''
 to the end of a line. Blanks (space, tabulation or new line) are not
 meaningfull.
 
@@ -22,7 +22,7 @@ let gliss_isize = "16"
 
 The three first declarations allows to give the assembly name, ''toy'',
 bit order (in bit images and bit fields) to encode instructions and
-instruction word size. ''"uppermost"'' means that uppermost bits comes
+instruction word size. ''uppermost'' means that uppermost bits comes
 first in the bit image of the instruction.
 Although we give here only one size (16 bits), several ones may be
 given separated by commas. This latter definition is used to check
@@ -74,7 +74,7 @@ used by the instruction semantics description to store and retrieve
 data items.
 
 <code>
-mode r(i: rind) = R[i]
+mode reg_mode(i: rindex) = R[i]
 	syntax = format("r%d", i)
 	image = format("%4b", i)
 </code>
@@ -84,7 +84,7 @@ In NMP, it is a way to factorize state access behaviour. Here we have
 just described access to registers.
 
 <code>
-mode r0(i: rind) = if i = 0 then 0 else R[i]
+mode reg0_mode(i: rindex) = if i = 0 then 0 else R[i]
 	syntax = if i = 0 then "zero" else format("r%d", i)
 	image = format("%4b", i)
 </code>
@@ -122,9 +122,9 @@ This OR operation gives alternatives for building an instruction,
 the three supported instruction that are defined as AND operations.
 
 <code>
-op set(d: r, imm: int(8))
-	syntax = format("set r%d, #%d", r, imm)
-	image = format("0000 %4b %8b", r, imm)
+op set(d: reg_mode, imm: int(8))
+	syntax = format("set %s, #%d", r, imm)
+	image = format("0000 %s %8b", r, imm)
 	action = { d = imm; }
 </code>
 
@@ -136,9 +136,9 @@ fields. The ''action'' express only the fact that the register
 whose index is in ''r'' is set to the immediate value ''imm''.
 
 <code>
-op add(d: r, s1: r, s2: r)
-	syntax = format("add r%d, r%d, r%d", d, s1, s2)
-	image = format("0001 %4b %4b %4b", d, s1, s2)
+op add(d: reg_mode, s1: reg_mode, s2: reg_mode)
+	syntax = format("add %s, %s, %s", d, s1, s2)
+	image = format("0001 %s %s %s", d, s1, s2)
 	action = { d = s1 + s2; }
 </code>
 This instruction defines a three-operand addition on registers.
@@ -146,9 +146,9 @@ Be careful to have instructions with different operation codes.
 Else the @(GLISS) generator will refuse to work.
 
 <code>
-op ifeq(r1: r, r2: r0, off: int(3))
-	syntax = format("beq r%d, r%d, %d", r1, r2, __IADDR + off << 1)
-	image = format("0010 %4b %4b %4b", r1, r2, off)
+op ifeq(r1: reg_mode, r2: reg0_mode, off: int(3))
+	syntax = format("beq %s, %s, %d", r1, r2, __IADDR + off << 1)
+	image = format("0010 %s %s %4b", r1, r2, off)
 	action = { if r1 = r2 then PC = PC + off << 1; endif }
 </code>
 This descriptions models a conditional branch on equality of two

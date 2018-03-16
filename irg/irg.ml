@@ -70,6 +70,9 @@
 	After the work has been done, the symbol table need to be cleaned with functions:
 	- {!param_unstack}
 	- {!attr_unstack}
+	
+	Pushing and popping may be done automatically with:
+	- {!in_context}
 
 	{2 Useful Accessors}
 
@@ -281,13 +284,19 @@ let ieee754_32 = FLOAT (8, 23)
 let ieee754_64 = FLOAT (11, 52)
 
 (** Float type for IEEE-754 binary128 *)
-let ieee754_64 = FLOAT (15, 112)
+let ieee754_128 = FLOAT (15, 112)
 
 
 (** Use of a type *)
 type typ =
 	  TYPE_ID of string
 	| TYPE_EXPR of type_expr
+
+
+(** Type to represent source line information supporting instantiation
+	of operations and modes. *)
+type line_info =
+	| LINE_INFO of string * int * line_info list
 
 
 (* Expressions *)
@@ -380,6 +389,7 @@ type attr =
 	| ATTR_STAT of string * stat
 	| ATTR_USES
 	| ATTR_LOC of string * location
+	| ATTR_LINE_INFO of string * line_info
 
 (* 2 kinds of canonicals, functions and constants *)
 type canon_type =
@@ -428,7 +438,8 @@ let name_of spec =
 		| ATTR_EXPR(name, _) -> name
 		| ATTR_STAT(name, _) -> name
 		| ATTR_USES -> "<ATTR_USES>"
-		| ATTR_LOC(name, _) -> name)
+		| ATTR_LOC(name, _) -> name
+		| ATTR_LINE_INFO(name, _) -> name)
 	| CANON_DEF(name, _, _, _) -> name
 
 
@@ -649,6 +660,21 @@ let attr_stack l= List.iter add_attr l
 (**	Remove a list of attributes from the namespace.
 		@param l	The list of attributes to remove.	*)
 let attr_unstack l= List.iter (StringHashtbl.remove syms) (List.map (fun x -> name_of (ATTR(x))) l)
+
+
+(** Execute the function f in the context of given parameters and attributes.
+	They pushed before running f and popped just after.
+	@param params	Context parameters.
+	@param attrs	Context attributes.
+	@param f		Function to call in the context.
+	@return			Result of f. *)
+let in_context params attrs f =
+	attr_stack attrs;
+	param_stack params;
+	let r = f () in
+	param_unstack params;
+	attr_unstack attrs;
+	r
 
 
 (* --- canonical functions --- *)
@@ -1068,6 +1094,21 @@ let output_type out typ =
 let print_type typ =
 	output_type stdout typ
 
+(** Output a line information.
+	@param out	Channel to output to.
+	@param li	Line information to output. *)
+let rec output_line_info out li =
+	let LINE_INFO (file, line, sub) = li in
+	Printf.fprintf out "%s:%d" file line;
+	if sub <> [] then begin
+		output_string out " [";
+		List.iter (output_line_info out) sub;
+		output_string out "]"
+	end
+
+(** Display to standard output a line information. *)
+let print_line_info = output_line_info stdout
+
 (** Print an attribute.
 	@param attr	Attribute to print. *)
 let output_attr out attr =
@@ -1087,7 +1128,10 @@ let output_attr out attr =
 		Printf.fprintf out "\t%s = " id;
 		output_location out l;
 		output_char out '\n'
-
+	| ATTR_LINE_INFO (id, li) ->
+		Printf.fprintf out "\t%s = " id;
+		output_line_info out li;
+		output_char out '\n'
 
 (** Print an attribute.
 	@param attr	Attribute to print. *)
@@ -1508,7 +1552,6 @@ let iter f =
 	@param f	Function to apply.
 	@param d	Initial data.
 	@return 	Result data *)
-
 let fold f d =
 	StringHashtbl.fold f syms d
 
@@ -1676,6 +1719,42 @@ let get_expr_attr id def =
 	| UNDEF -> def
 	| ATTR (ATTR_EXPR (_, e)) -> e
 	| _ -> error (fun out -> Printf.fprintf out "%s should an expression attribute" id)
+
+
+
+(* new position management system *)
+
+(** Identifier of source line information in specification. *)
+let line_attr = "gliss-line-info"
+
+(** Null line information. *)
+let null_line_info = LINE_INFO ("", 0, [])
+
+(** Build a line information attribute.
+	@param file		Source file.
+	@param line		Source line.
+	@return			Built attribute.*)
+let make_line_info file line =
+	ATTR_LINE_INFO (line_attr, LINE_INFO (file, line, []))
+
+(** Add a line information to the given specification.
+	@param atts		Attribute list to add to.
+	@param file		Source file.
+	@param line		Source line.
+	@return			Updated attribute list. *)
+let set_line_info atts file line =
+	set_attr (make_line_info file line) atts
+
+(** Get the file information from a specification.
+	@param spec		Specification to look in.
+	@return			Line information. *)
+let get_line_info spec =
+	let rec look atts =
+		match atts with
+		| [] -> null_line_info
+		| (ATTR_LINE_INFO (i, li))::_ when i = line_attr -> li
+		| _::t -> look t in
+	look (attrs_of spec)
 
 
 (** Raise an error with message displayed by prerrln.

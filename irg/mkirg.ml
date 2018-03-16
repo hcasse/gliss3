@@ -30,7 +30,7 @@ let free_arg arg =
 	if !nmp = "" then nmp := arg else
 	if !out = "" then out := arg else
 	raise (Arg.Bad "only NML and out files required")
-let usage_msg = "SYNTAX: gep [options] NML_FILE IRG_FILE\n\tGenerate code for a simulator"
+let usage_msg = "SYNTAX: mkirg [options] NML_FILE IRG_FILE\n\tGenerate IRG file from NML or NMP source."
 
 let arg_error msg =
 		Printf.fprintf stderr "ERROR: %s\n" msg;

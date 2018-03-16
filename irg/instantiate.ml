@@ -521,7 +521,7 @@ let change_name_of_var_in_attr a var_name new_name =
 	(*print_string ("chg_var_in_a var_name="^var_name^", new_name="^new_name^", a=");
 	Irg.print_attr a; print_char '\n';*)
 	match a with
-	ATTR_EXPR(str, e) ->
+	| ATTR_EXPR(str, e) ->
 		ATTR_EXPR(str, change_name_of_var_in_expr e var_name new_name)
 	| ATTR_STAT(str, s) ->
 		ATTR_STAT(str, change_name_of_var_in_stat s var_name new_name)
@@ -529,6 +529,8 @@ let change_name_of_var_in_attr a var_name new_name =
 		ATTR_USES
 	| ATTR_LOC(id, l) ->
 		ATTR_LOC(id, change_name_of_var_in_location l var_name new_name)
+	| ATTR_LINE_INFO _ ->
+		a
 
 
 (**
@@ -1032,7 +1034,8 @@ let instantiate_attr a params=
 	| ATTR_LOC(n, l) ->
 		(* TODO: fix like this ATTR_LOC(n, instantiate_in_location l params) *)
 		a
-
+	| ATTR_LINE_INFO _ ->
+		a
 
 
 (**
@@ -1090,6 +1093,8 @@ let add_attr_to_spec sp param =
 			ATTR_STAT(pfx ^ "_" ^ n, aux at n)
 		| ATTR_USES ->
 			failwith "shouldn't happen (instantiate.ml::add_attr_to_spec::prefix_recursive_attr::ATTR_USES)"
+		| ATTR_LINE_INFO _ ->
+			a
 	in
 	let compare_attrs a1 a2 =
 		match a1 with
@@ -1125,6 +1130,10 @@ let add_attr_to_spec sp param =
 				true
 			else
 				false
+		| ATTR_LINE_INFO (n1, _) ->
+			(match a2 with
+			| ATTR_LINE_INFO (n2, _) -> n1 = n2
+			| _						 -> false)
 	in
 	(* returns the attr in param not present in sp (or present but recursive in param and not in sp, a new fully renamed attr must be produced for sp) *)
 	let rec search_in_attrs a_l a_l_param =

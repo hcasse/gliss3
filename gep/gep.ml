@@ -304,67 +304,67 @@ let mask_decl_all inst is_risc out =
 	@param info		Information for generation.
 	@return			Default template environement. *)
 let make_env info =
+
 	let min_size =
 		Iter.iter
 			(fun min inst ->
 				let size = Iter.get_instruction_length inst
 				in if size < min then size else min)
-			1024
-	in
+			1024 in
+	
 	let max_size =
 		Iter.iter
 			(fun max inst ->
 				let size = Iter.get_instruction_length inst
 				in if size > max then size else max)
-			0
-	in
+			0 in
+	
 	let is_RISC =
+		Printf.printf "DEBUG: %d = %d\n" min_size max_size;
 		if min_size == max_size then
 			(match min_size with
 			| 8
 			| 16
 			| 32
 			| 64 -> true
-			| _ -> false
-			)
+			| _ -> false)
 		else
-			false
-	in
+			false in
+
 	let get_C_size n =
 		match n with
 		| _ when n > 0 && n <= 8 -> 8
 		| _ when n > 8 && n <= 16 -> 16
 		| _ when n > 16 && n <= 32 -> 32
 		| _ when n > 32 && n <= 64 -> 64
-		| _ -> raise BadCSize
-	in
+		| _ -> raise BadCSize in
+
 	let instr_sets = !Iter.multi_set in
+	
 	let rec suppress_double l =
 		match l with
 		| [] -> []
-		| a::b -> if List.mem a b then suppress_double b else a::(suppress_double b)
-	in
+		| a::b -> if List.mem a b then suppress_double b else a::(suppress_double b) in
 	let instr_sets_sizes_map = List.map (Fetch.find_fetch_size) instr_sets in
 	let instr_sets_sizes = suppress_double instr_sets_sizes_map in
 	let find_iset_size_of_inst inst =
 		let member = List.map (List.mem inst) instr_sets in
 		let member_size = List.map2 (fun x y -> if x then [y] else []) member instr_sets_sizes_map in
-		List.hd (List.flatten member_size)
-	in
+		List.hd (List.flatten member_size) in
+
 	let get_msb_mask n =
 		try
 			(match get_C_size n with
-			| 8 -> "0x80"
+			| 8  -> "0x80"
 			| 16 -> "0x8000"
 			| 32 -> "0x80000000"
 			| 64 -> "0x8000000000000000LL"
-			| _ -> raise BadCSize)
+			| _  -> raise BadCSize)
 		with
-			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with a RISC ISA")
-	in
+			BadCSize -> raise (Sys_error "template $(msb_mask) should be used only with a RISC ISA") in
+
 	let max_op_nb = Iter.get_params_max_nb () in
-	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *)
-	in
+	let inst_count = (Iter.iter (fun cpt inst -> cpt+1) 0) + 1 (* plus one because I'm counting the UNKNOW_INST as well *) in
 
 	let add_mask_32_to_param inst idx name _ dict =
 		let isize = find_iset_size_of_inst inst in
@@ -417,8 +417,7 @@ let make_env info =
 
 		("mask_decl_all", Templater.TEXT (fun out -> mask_decl_all inst is_risc out)) ::
 
-		dict
-	in
+		dict in
 
 	let get_instr_set_size f dict size =
 	f (
@@ -432,14 +431,14 @@ let make_env info =
 				raise (Sys_error "template $(msb_size_mask) in $(instr_sets_sizes) collection should be used only with RISC ISA")
 			else output_string out (get_msb_mask size))) ::
 		dict
-	)
-	in
+	) in
+	
 	let print_name n out info =
 		let o = info.Toc.out in
 		info.Toc.out <- out;
 		Toc.gen_expr info (snd (Toc.prepare_expr info Irg.NOP (Irg.REF (Irg.NO_TYPE, n)))) false;
-		info.Toc.out <- o
-	in
+		info.Toc.out <- o in
+
 	let maker = App.maker() in
 	maker.App.get_params <- add_mask_32_to_param;
 	maker.App.get_instruction <- add_size_to_inst;
@@ -448,9 +447,11 @@ let make_env info =
 	("sources", Templater.COLL (fun f dict -> List.iter (get_source f dict) !sources)) ::
 
 	("is_complex_decode", Templater.BOOL (fun _ -> !decode_arg)) ::
+	
 	(* declarations of fetch tables *)
 	("INIT_FETCH_TABLES", Templater.TEXT(fun out -> Fetch.output_all_table_C_decl out)) ::
-(* create a iss coll were these attr will have meaning *)
+	
+	(* create a iss coll were these attr will have meaning *)
 	("min_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" min_size)) ::
 	("max_instruction_size", Templater.TEXT (fun out -> Printf.fprintf out "%d" max_size)) ::
 	("is_RISC", Templater.BOOL (fun _ ->
@@ -458,6 +459,7 @@ let make_env info =
 			raise (Sys_error "template $(is_RISC) should be used only when only one instruction set is defined")
 		else is_RISC)) ::
 	("is_CISC_present", Templater.BOOL (fun _ -> List.exists (fun x -> x = 0) instr_sets_sizes)) ::
+	
 	(* next 2 things have meaning only if a RISC ISA is considered as we use min_size *)
 	(* stands for the most appropriate standard C size (uintN_t) *)
 	("C_inst_size",
@@ -468,6 +470,7 @@ let make_env info =
 				(Printf.fprintf out "%d"
 					(try (get_C_size min_size) with
 					| BadCSize -> raise (Sys_error "template $(C_inst_size) should be used only with RISC ISA"))))) ::
+	
 	(* return a mask for the most significant bit, size depends on the C size needed *)
 	("msb_mask",
 		(App.out (fun _ ->
@@ -476,10 +479,13 @@ let make_env info =
 			else (get_msb_mask min_size)))) ::
 
 	("is_multi_set", Templater.BOOL (fun _ -> ((List.length instr_sets) > 1))) ::
+	
 	(* quantity of instruction sets *)
 	("num_instr_sets", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length instr_sets)) ) ::
+	
 	(* different sizes of the instr sets (no double) *)
 	("instr_sets_sizes", Templater.COLL (fun f dict -> List.iter (get_instr_set_size f dict) instr_sets_sizes)) ::
+	
 	(* declaration of the value type that holds an instr code in read only, used in decode, should be concat directly to var name in C code *)
 	("code_read_param_decl", Templater.TEXT (fun out ->
 		Printf.fprintf out "%s"
@@ -488,6 +494,7 @@ let make_env info =
 			else (if is_RISC then
 				(Printf.sprintf "uint%d_t " (get_C_size min_size))
 			else "mask_t *")))) ::
+	
 	(* declaration of the value type that holds an instr code in write mode, used in decode, should be concat directly to var name in C code *)
 	("code_write_param_decl", Templater.TEXT (fun out ->
 		Printf.fprintf out "%s"
@@ -496,6 +503,7 @@ let make_env info =
 			else (if is_RISC then
 				(Printf.sprintf "uint%d_t *" (get_C_size min_size))
 			else "mask_t *")))) ::
+	
 	(* declaration of the value type that holds an instr code in read only, used in decode, should be concat directly to var name in C code *)
 	("code_read_decl", Templater.TEXT (fun out ->
 		Printf.fprintf out "%s"
@@ -534,6 +542,7 @@ let make_env info =
 	("npc_name", Templater.TEXT (fun out -> print_name (info.Toc.npc_name) out info)) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::
 	("PC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.pc_name) out info)) ::
+	
 	(*("pc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.pc_name))) ::*)
 	("pc_name", Templater.TEXT (fun out -> print_name info.Toc.pc_name out info)) ::
 	("PPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.ppc_name) out info)) ::
