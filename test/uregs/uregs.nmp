@@ -1,0 +1,31 @@
+
+let proc="mine"
+let gliss_isize = "16"
+let bit_order = "UPPERMOST"
+
+reg R[16, card(16)]
+reg S[1, card(16)]
+reg PC[1, card(16)] pc = 1
+
+op init()
+	action = { }
+
+op instruction = one | two
+
+op one(d: card(4), a: card(4), b: card(4))
+	syntax = "gen"
+	image = format("0000 %4b %4b %4b", d, a, b)
+	action = {
+		if S<0..0> then
+			R[d] = R[a];
+		else
+			R[d] = R[b];
+		endif;
+	}
+
+op two(d: card(4), a: card(4), b: card(4))
+	syntax = "gen"
+	image = format("0001 %4b %4b %4b", d, a, b)
+	action = {
+		R[d] = R[a] + R[ R[b]<3..0> ];
+	}
