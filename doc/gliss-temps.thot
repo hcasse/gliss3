@@ -55,12 +55,17 @@ Other types of symbols allows to iterate on collections of NML items
 ones are evaluated as boolean and allows to perform conditional generation
 of code.
 
+During the generation, all global symbols of the SimNML file can be
+accessed using the textual notation. Yet, it must be noticed that only
+''let'' constants can generate something.
+
+
 ==== Collection Symbols ====
 
 To iterate on a collection symbol, the ''foreach'' statement must be
 used:
 <code>
-TemplateCommands ::⁼ TemplateForeach
+TemplateCommands ::= TemplateForeach
 TemplateForeach ::= '$(foreach' IDENTIFIER ')' TEXT '$(end)'
 </code>
 
@@ -82,9 +87,42 @@ The ''instructions'' symbols provides the collection of instructions
 and each instruction provides the ''disassemble'' symbol. Notice that
 the latter symbol is only visible in the ''foreach'' statement.
 
+You can perform ''foreach'' not only on symbols declared as collection
+but also on OR operations and modes defined in the processed SimNML
+description. In this case, the iteration will be performed on the
+operation or mode defined listed in the OR operation and mode definition.
+At each iteration, the attributes of the current operation or mode
+are provided as textual symbols.
+
+
+==== Composite Symbols ====
+
+A composite symbol of the SimNML description can be explored using
+the ''with'' statement. This means that, inside the ''with'' statement,
+all sub-symbols of the composite symbol are available.
+The only composite symbols currently provided are the AND operations
+and modes: their sub-symbols are the attributes that are defined inside.
+
+<code>
+TemplateCommands ::= WithCommand
+WithCommand ::= '$(with' IDENTIFIER ')' TEXT '$(end)'
+</code>
+
+In the example below, the ''action'' attribute of the AND operation ''init''
+will be generated.
+
+<code c>
+$(with init)
+void $(proc)_init(void) {
+	$(action)
+}
+$(end)
+</code>
+
+
 ==== Conditional Symbols ====
 
-Finally, some symbols are of type boolean and may be used to generate
+Some symbols are of type boolean and may be used to generate
 sources according some conditions if they are used in conditional
 statement.
 
@@ -124,6 +162,21 @@ It contains a double condition. The first one says that only unaliased
 registers are declared: there is no ''else'' part. In the second one,
 we use two ways to generate the register declaration according if they
 are arrays or not.
+
+==== Other conditions ====
+
+There exist two other conditions to test if a symbol is existing or not.
+<code>
+TemplateCommands ::= IfDefCommand | IfNotDefCommand
+IfDefCommand    ::= '$(ifdef' IDENTIFIER ')' TEXT '$(end)'
+                |   '$(ifdef' IDENTIFIER ')' TEXT '$(else)' '$(end)'
+IfNotDefCommand ::= '$(ifndef' IDENTIFIER ')' TEXT '$(end)'
+                |   '$(ifndef' IDENTIFIER ')' TEXT '$(else)' '$(end)'
+</code>
+
+For ''ifdef'', the //else// part is executed if the //IDENTIFIER// corresponds
+to an existing symbol. For ''ifndef'', the //else// part is executed
+if the //IDENTIFIER// does not correspond to any existing symbol.
 
 
 ===== Symbols and Templates =====
