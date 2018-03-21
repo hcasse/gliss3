@@ -174,6 +174,29 @@
 	- {!error_symbol} name f - raise an error that displays source information of named symbol and message from f.
 	- {!error_spec} spec f - raise an error that displays source information of the given specification and message from f.
 
+	{2 Source line tracking for specification}
+	This new system replaces the old one based on the storage of source line
+	information in a hash table based on the name of the specification.
+	Now, the source line information is stored in the attributes of the
+	specification. As a side effect, all specifications will be improved
+	with an attribute list.
+	
+	To take into account the instantiation of AND/OR operations/modes, the
+	source line information is structured as a tree which top-level
+	corresponds to the more generic specification. Each level in the source
+	line information corresponds to a level of AND/OR operations/modes
+	with several source line information at each level depending on the
+	instantiated parameters.
+	
+	The following functions may be used with source line information:
+	- {!line_info} type of source line information tree
+	- {!output_line_info} to display a source line information
+	- {!print_line_info} to display a source line information to standard output
+	- {!null_line_info}
+	- {!make_line_info} to build a line information
+	- {!set_line_info} to set the line information to an attribute list
+	- {!get_line_info} to get line information from a specification
+
 	{2 Useful constants}
 
 	This constants provides useful intermediate representations construction.
@@ -400,15 +423,15 @@ type canon_type =
 (** Specification of an item *)
 type spec =
 	  UNDEF
-	| LET of string * type_expr * const
-	| TYPE of string * type_expr
-	| MEM of string * int * type_expr * attr list
-	| REG of string * int * type_expr * attr list
-	| VAR of string * int * type_expr * attr list
+	| LET of string * type_expr * const				  * attr list
+	| TYPE of string * type_expr					  * attr list
+	| MEM of string * int * type_expr				  * attr list
+	| REG of string * int * type_expr				  * attr list
+	| VAR of string * int * type_expr				  * attr list
 	| AND_MODE of string * (string * typ) list * expr * attr list
-	| OR_MODE of string * string list
-	| AND_OP of string * (string * typ) list * attr list
-	| OR_OP of string * string list
+	| OR_MODE of string * string list				  * attr list
+	| AND_OP of string * (string * typ) list		  * attr list
+	| OR_OP of string * string list					  * attr list
 	| RES of string
 	| EXN of string
 	| PARAM of string * typ
@@ -420,27 +443,25 @@ type spec =
 	@return			Name of the specification. *)
 let name_of spec =
 	match spec with
-	  UNDEF -> "<undef>"
-	| LET (name, _, _) -> name
-	| TYPE (name, _) -> name
-	| MEM (name, _, _, _) -> name
-	| REG (name, _, _, _) -> name
-	| VAR (name, _, _, _) -> name
-	| AND_MODE (name, _, _, _) -> name
-	| OR_MODE (name, _) -> name
-	| AND_OP (name, _, _) -> name
-	| OR_OP (name, _) -> name
-	| RES (name) -> name
-	| EXN (name) -> name
-	| PARAM (name, _) -> name
-	| ATTR(a) ->
-		(match a with
-		| ATTR_EXPR(name, _) -> name
-		| ATTR_STAT(name, _) -> name
-		| ATTR_USES -> "<ATTR_USES>"
-		| ATTR_LOC(name, _) -> name
-		| ATTR_LINE_INFO(name, _) -> name)
-	| CANON_DEF(name, _, _, _) -> name
+	| UNDEF							-> "<undef>"
+	| LET (name, _, _, _)
+	| TYPE (name, _, _)
+	| MEM (name, _, _, _)
+	| REG (name, _, _, _)
+	| VAR (name, _, _, _)
+	| AND_MODE (name, _, _, _)
+	| OR_MODE (name, _, _)
+	| AND_OP (name, _, _)
+	| OR_OP (name, _, _)
+	| RES (name)
+	| EXN (name)
+	| PARAM (name, _)
+	| CANON_DEF(name, _, _, _)
+	| ATTR(ATTR_EXPR(name, _))
+	| ATTR(ATTR_STAT(name, _))
+	| ATTR(ATTR_LOC(name, _))
+	| ATTR(ATTR_LINE_INFO(name, _)) -> name
+	| ATTR(ATTR_USES)				-> "<ATTR_USES>"
 
 
 (* Symbol table *)
@@ -514,7 +535,7 @@ let get_symbol n =
 
 (** Get processor name of the simulator *)
 let get_proc_name () = match get_symbol "proc" with
-	| LET(_, _, STRING_CONST(name)) -> name
+	| LET(_, _, STRING_CONST(name), _) -> name
 	| _                         ->
 		failwith ("Unable to find 'proc_name'."^
 				  "'proc' must be defined as a string let")
@@ -563,7 +584,7 @@ let add_symbol name sym =
 		let b_o =
 			match get_symbol "bit_order" with
 			UNDEF -> true
-			| LET(_, _, STRING_CONST(id)) ->
+			| LET(_, _, STRING_CONST(id), _) ->
 				if (String.uppercase id) = "UPPERMOST" then true
 				else if (String.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
@@ -751,6 +772,47 @@ let add_canon fun_name sym =
 	else CanonHashtbl.add canon_table name canon_def_sym
 
 (* --- end canonical functions --- *)
+
+
+(* --- useful accessors --- *)
+
+(** Get a let value of type string from the current symbol table.
+	@param id	Identifier of the table.
+	@return		Some x if id exists and is of type string, None else. *)
+let get_string_let id =
+	match get_symbol id with
+	| LET (_, _, STRING_CONST s, _) -> Some s
+	| _								-> None
+
+(** Get a let value of type int from the current symbol table.
+	@param id	Identifier of the table.
+	@return		Some x if id exists and is of type int, None else. *)
+let get_int_let id =
+	match get_symbol id with
+	| LET (_, _, CARD_CONST i, _)		-> Some (Int32.to_int i)
+	| LET (_, _, CARD_CONST_64 i, _)	-> Some (Int64.to_int i)
+	| _									-> None
+
+
+(** Identifier of compatible mode enabled. *)
+let compat_id = "__compat"
+
+
+(** Test if the compatible mode is enabled. *)
+let is_compat _ =
+	match get_int_let compat_id with
+	| None
+	| Some 0 -> false
+	| Some _ -> true
+
+
+
+(** Set the compatible mode.
+	@param ena	True for enabled, false for disabled. *)
+let set_compat ena =
+	let v = if ena then Int32.one else Int32.zero in
+	if is_defined compat_id then rm_symbol compat_id;
+	add_symbol compat_id (LET (compat_id, CARD(1), CARD_CONST v, []))
 
 
 (* --- display functions --- *)
@@ -1190,13 +1252,15 @@ let output_spec out spec =
 	let print_newline _ = output_char out '\n' in
 	let print_string = output_string out in
 	match spec with
-	| LET (name, _, cst) ->
+	| LET (name, _, cst, atts) ->
 	  	Printf.fprintf out "let %s = " name;
 		output_const out cst;
-		print_newline ()
-	| TYPE (name, t) ->
+		if atts <> [] then List.iter (output_attr out) (List.rev atts);
+		print_newline ();
+	| TYPE (name, t, atts) ->
 		Printf.fprintf out "type %s = " name;
 		output_type_expr out t;
+		if atts <> [] then List.iter (output_attr out) (List.rev atts);
 		print_newline ()
 	| MEM (name, size, typ, attrs) ->
 		Printf.fprintf out "mem %s [%d, " name size;
@@ -1241,30 +1305,32 @@ let output_spec out spec =
 		print_string "\n";
 		List.iter (output_attr out) (List.rev attrs) ;
 		print_newline ();
-	| OR_MODE (name, modes) -> Printf.printf "mode %s = " name ;
-				   List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes)) ;
-				   Printf.fprintf out "%s" (List.hd (modes));
-				   Printf.fprintf out "\n";
-		()
-	| AND_OP (name, pars, attrs) -> Printf.fprintf out "op %s (" name ;
-					if (List.length pars)>0
-					then begin
-						List.iter (fun a -> begin 	Printf.fprintf out "%s : " (fst a) ;
-										output_type out (snd a);
-										Printf.fprintf out ", ";
-								   end) (List.rev (List.tl pars));
-						Printf.fprintf out "%s : " (fst (List.hd pars));
-						output_type out (snd (List.hd pars));
-					end;
-					Printf.fprintf out ")\n";
-					List.iter (output_attr out) (List.rev attrs) ;
-		()
-	| OR_OP (name, modes) -> Printf.fprintf out "op %s = " name ;
-				 List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes));
-				 Printf.fprintf out "%s" (List.hd modes);
-				 Printf.fprintf out "\n";
-		()
-
+	| OR_MODE (name, modes, atts) ->
+		Printf.printf "mode %s = " name ;
+		List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes));
+		Printf.fprintf out "%s" (List.hd (modes));
+		List.iter (output_attr out) (List.rev atts) ;
+		print_newline ()
+	| AND_OP (name, pars, attrs) ->
+		Printf.fprintf out "op %s (" name ;
+		if (List.length pars) > 0 then begin
+			List.iter (fun a -> begin
+				Printf.fprintf out "%s : " (fst a) ;
+				output_type out (snd a);
+				Printf.fprintf out ", ";
+			end) (List.rev (List.tl pars));
+			Printf.fprintf out "%s : " (fst (List.hd pars));
+			output_type out (snd (List.hd pars));
+		end;
+		Printf.fprintf out ")\n";
+		List.iter (output_attr out) (List.rev attrs);
+		print_newline ()
+	| OR_OP (name, modes, atts) ->
+		Printf.fprintf out "op %s = " name ;
+		List.iter (fun a -> Printf.fprintf out " %s | " a) (List.rev (List.tl modes));
+		Printf.fprintf out "%s" (List.hd modes);
+		List.iter (output_attr out) (List.rev atts) ;
+		print_newline ()
 	| PARAM (name,t)->
 		Printf.fprintf out "param %s (" name;
 		output_type out t;
@@ -1307,7 +1373,7 @@ let get_isize _ =
 	match get_symbol "gliss_isize" with
 	(* if gliss_isize not defined, we assume we have a cisc isa *)
 	| UNDEF -> []
-	| LET(st, _, cst) ->
+	| LET(st, _, cst, _) ->
 		(match cst with
 		STRING_CONST(nums) ->
 			List.map
@@ -1690,10 +1756,13 @@ let prerrln lst = outputln lst stderr
 	@return			Attribute list (or empty list). *)
 let attrs_of spec =
 	match spec with
-	| MEM (_, _, _, attrs)
-	| REG (_, _, _, attrs)
-	| AND_MODE (_, _, _, attrs)
-	| AND_OP (_, _, attrs)		-> attrs
+	| LET (_, _, _, atts)
+	| TYPE (_, _, atts)
+	| MEM (_, _, _, atts)
+	| REG (_, _, _, atts)
+	| VAR (_, _, _, atts)
+	| AND_MODE (_, _, _, atts)
+	| AND_OP (_, _, atts)		-> atts
 	| _ 						-> []
 
 
@@ -1742,7 +1811,7 @@ let make_line_info file line =
 	@param file		Source file.
 	@param line		Source line.
 	@return			Updated attribute list. *)
-let set_line_info atts file line =
+let set_line_info atts (file, line) =
 	set_attr (make_line_info file line) atts
 
 (** Get the file information from a specification.
@@ -1865,7 +1934,7 @@ let is_reg id =
 
 
 
-(************ Local Variable Manegement ***********)
+(************ Local Variable Management ***********)
 
 (** List of defined locale variables. *)
 let local_list: string list ref = ref []

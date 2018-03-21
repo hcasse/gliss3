@@ -162,7 +162,7 @@ let get_params maker inst f dict =
 		  Irg.TYPE_EXPR t -> t
 		| Irg.TYPE_ID n ->
 			(match (Irg.get_symbol n) with
-			  Irg.TYPE (_, t) -> t
+			  Irg.TYPE (_, t, _) -> t
 			| _ -> Irg.NO_TYPE) in
 
 	ignore (List.fold_left
@@ -508,13 +508,13 @@ let list_exceptions f dict =
 
 	let rec process exn =
 			(match Irg.get_symbol exn with
-			| Irg.OR_OP (_, exns) -> List.iter process exns
+			| Irg.OR_OP (_, exns, _) -> List.iter process exns
 			| Irg.AND_OP (_, _, attrs) -> gen exn attrs
 			| _ -> Toc.error (Printf.sprintf "%s exception should an AND or an OR operation" exn)) in
 
 		(match Irg.get_symbol "exceptions" with
 		| Irg.UNDEF -> ()
-		| Irg.OR_OP (_, exns) -> List.iter process exns
+		| Irg.OR_OP (_, exns,_) -> List.iter process exns
 		| _ -> ())
 
 
@@ -562,7 +562,7 @@ let make_env info maker =
 			  Irg.TYPE_EXPR t -> TypeSet.add (Toc.convert_type t) set
 			| Irg.TYPE_ID n ->
 				(match (Irg.get_symbol n) with
-				  Irg.TYPE (_, t) -> TypeSet.add (Toc.convert_type t) set
+				  Irg.TYPE (_, t, _) -> TypeSet.add (Toc.convert_type t) set
 				| _ -> set) in
 
 		let collect_fields set params =
@@ -649,11 +649,11 @@ let nmp: string ref = ref ""
 let quiet = ref false
 let verbose = ref false
 let optirg = ref false
-let options = [
-	("-v", Arg.Set verbose, "verbose mode");
-	("-q", Arg.Set quiet, "quiet mode");
-	("-O",   Arg.Set     optirg, "try to optimize instructions tree (see doc in optirg for description)");
-]
+let options =
+	("-v", Arg.Set verbose, "verbose mode") ::
+	("-q", Arg.Set quiet, "quiet mode") ::
+	("-O",   Arg.Set     optirg, "try to optimize instructions tree (see doc in optirg for description)") ::
+	IrgUtil.options
 
 
 (** Run a standard command using IRG. Capture and display all errors.

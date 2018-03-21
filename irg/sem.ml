@@ -497,7 +497,7 @@ and eval_typed_const expr =
 		select c cases def
 	| REF (_, id) ->
 		(match get_symbol id with
-		| LET (_, t, cst) -> (t, cst)
+		| LET (_, t, cst, _) -> (t, cst)
 		| _ -> pre_error (id ^ " is not a constant symbol"))
 	| BITFIELD (t, e, u, l) ->
 		eval_bitfield (snd (eval_typed_const e)) (snd (eval_typed_const u)) (snd (eval_typed_const l))
@@ -525,7 +525,7 @@ not a type. *)
 let type_from_id id =
 	try
 		match StringHashtbl.find syms id with
-		  TYPE (_, te) -> te
+		  TYPE (_, te, _) -> te
 		| _ ->	pre_error (sprintf "%s does not named a type" id)
 	with Not_found ->
 		pre_error (sprintf "unknown identifier \"%s\"" id)
@@ -577,7 +577,7 @@ let rec get_type_ident id=
 	else
 
 	match symb with
-	| LET (_, _, c)->
+	| LET (_, _, c, _)->
 			(match c with
 			| NULL				-> NO_TYPE
 			| CARD_CONST _		->CARD 32
@@ -585,7 +585,7 @@ let rec get_type_ident id=
 			| STRING_CONST _	-> STRING
 			| FIXED_CONST _		-> FLOAT (24,8)
 			| CANON _ 			-> ANY_TYPE)
-	| TYPE (_,t)->(match t with
+	| TYPE (_,t, _)->(match t with
 			ENUM l->(let i = List.length l in
 				CARD (int_of_float (ceil ((log (float i)) /. (log 2.)))))
 			|_->t)
@@ -1217,7 +1217,7 @@ let rec is_location id =
 	and scan_mode id =
 		match get_symbol id with
 		| AND_MODE (_, p, e, a)	-> in_context p a (fun _ -> scan_expr e)
-		| OR_MODE (_, l)		-> List.for_all scan_mode l
+		| OR_MODE (_, l, _)		-> List.for_all scan_mode l
 		| _ -> false
 
 	and scan_param n t =
@@ -1255,7 +1255,7 @@ let rec is_loc_mode id =
 		let sym=Irg.get_symbol id
 		in
 		match sym with
-			(AND_MODE(_,_,_,_)|OR_MODE(_,_))->true
+			(AND_MODE(_,_,_,_)|OR_MODE(_,_, _))->true
 			|_->false
 	in
 	match sym with
@@ -1296,7 +1296,7 @@ let rec is_loc_spe id =
 	match sym with
 	| PARAM (n, t)	->
 		let r = process_param n t in
-		if r then Printf.fprintf stderr
+		if r && not (Irg.is_compat ()) then Printf.fprintf stderr
 			"WARNING:%s:%d: assignment to parameter \"%s\" is supported for compatibility purpose but is now deprecated!\n"
 			!Lexer.file !Lexer.line n;
 		r
@@ -1761,7 +1761,7 @@ let rec get_field_type spec id =
 	match spec with
 	| AND_MODE (_, params, _, attrs)
 	| AND_OP (_, params, attrs)	-> find params attrs
-	| OR_MODE (_, syms) 		-> collect syms NO_TYPE
+	| OR_MODE (_, syms, _) 		-> collect syms NO_TYPE
 	| _ 						-> raise Not_found
 
 
@@ -1876,7 +1876,7 @@ let get_data_info id =
 
 	let named_type pid id =
 		match get_symbol id with
-		| TYPE (_, t) 	-> t
+		| TYPE (_, t, _) 	-> t
 		| UNDEF
 		| AND_MODE _
 		| OR_MODE _ 	-> ANY_TYPE
@@ -1894,7 +1894,7 @@ let get_data_info id =
 
 	match get_symbol id with
 	| UNDEF							-> error (asis (sprintf "symbol '%s' is undefined" id))
-	| LET (_, t, _) 				-> (t, false, NONE)
+	| LET (_, t, _, _) 				-> (t, false, NONE)
 	| REG (_, n, t, _) 				-> (t, n > 1, NONE)
 	| VAR (_, n, t, _)			 	-> (t, n > 1, NONE)
 	| MEM (_, _, t, _)				-> (t, true, NONE)
@@ -1923,13 +1923,14 @@ let make_ref id =
 
 (** Build a let specification.
 	@param id			Let identifier.
+	@param line			Line information.
 	@param t			Type of the let (possibly NO_TYPE)
 	@param e			Expression of the constant.
 	@return				Built specification.
 	@raise PreError		If there is a typing error or something is not computable. *)
-let make_let id t e =
+let make_let (id, line) t e =
 	let t = if t = NO_TYPE then get_type_expr e else t in
-	Irg.LET (id, t, eval_const e)
+	Irg.LET (id, t, eval_const e, set_line_info [] line)
 
 
 (** Check type of expression after instruction instanciation.
@@ -2175,3 +2176,85 @@ let make_typed_local id t e =
 		end
 
 
+(** Make an AND operation specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param pars	Parameters.
+	@param atts	Attributes.
+	@return		Made specification. *)
+let make_and_op (id, line) pars atts =
+	in_context pars atts (fun _ -> check_image id pars);
+	AND_OP (id, pars, set_line_info atts line)
+
+
+(** Make an AND mode specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param pars	Parameters.
+	@param exp	Value expression.
+	@param atts	Attributes.
+	@return		Made specification. *)
+let make_and_mode (id, line) pars exp atts =
+	in_context pars atts (fun _ -> check_image id pars);
+	AND_MODE (id, pars, exp, set_line_info atts line)
+
+
+(** Make a memory specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param size	Size in bits of address space.
+	@param typ	Type of memory cells.
+	@param atts	Attributes.
+	@return		Made specification. *)
+let make_mem (id, line) size typ atts =
+	check_alias (Irg.MEM (id, size, typ, set_line_info atts line))
+
+
+(** Make a register specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param size	Size in bits of address space.
+	@param typ	Type of memory cells.
+	@param atts	Attributes.
+	@return		Made specification. *)
+let make_reg (id, line) size typ atts =
+	check_alias (Irg.REG (id, size, typ, set_line_info atts line))
+
+
+(** Make a variable specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param size	Size in bits of address space.
+	@param typ	Type of memory cells.
+	@param atts	Attributes.
+	@return		Made specification.
+	@deprecated	Variables are now deprecated. Use "let" instruction instead. *)
+let make_var (id, line) size typ atts =
+	check_alias (Irg.VAR (id, size, typ, set_line_info atts line))
+
+
+(** Make a variable specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param te	Type expression.
+	@return		Made specification. *)
+let make_type (id, line) te =
+	Irg.TYPE (id, te, set_line_info [] line)
+
+
+(** Make a OR mode specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param lst	List of composed modes.
+	@return		Made specification. *)
+let make_or_mode (id, line) lst =
+	Irg.OR_MODE (id, lst, set_line_info [] line)
+
+
+(** Make a OR operation specification.
+	@param id	Specification name.
+	@param line	Line information.
+	@param lst	List of composed modes.
+	@return		Made specification. *)
+let make_or_op (id, line) lst =
+	Irg.OR_OP (id, lst, set_line_info [] line)

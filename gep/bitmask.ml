@@ -41,10 +41,10 @@ let get_intern_val m =
 
 let string_map f s =
 	let l = String.length s in
-	let res = String.create l in
+	let res = Bytes.create l in
 	let rec aux n =
 		if n < l then
-			(res.[n] <- f s.[n];
+			(Bytes.set res n (f s.[n]);
 			aux (n + 1))
 		else
 			()
@@ -56,10 +56,10 @@ let string_map f s =
 let string_map2 f s1 s2 =
 	let l = String.length s1 in
 	let l2 = String.length s2 in
-	let res = String.create l in
+	let res = Bytes.create l in
 	let rec aux n =
 		if n < l then
-			(res.[n] <- (f s1.[n] s2.[n]);
+			(Bytes.set res n (f s1.[n] s2.[n]);
 			aux (n + 1))
 		else
 			()
@@ -152,9 +152,9 @@ let string_fold_right2 f a s1 s2 =
 
 let string_rev s =
 	let l = String.length s in
-	let res = String.create l in
+	let res = Bytes.create l in
 	let aux i c =
-		res.[i] <- c;
+		Bytes.set res i c;
 		i - 1
 	in
 	ignore (string_fold_left aux (l - 1) s);
@@ -307,12 +307,12 @@ let masked_value m mask =
 	let vmask = get_intern_val mask in
 	let l = min (String.length v) (String.length vmask) in
 	let lr = min l (bit_count mask) in
-	let res = String.create lr in
+	let res = Bytes.create lr in
 	let set_res n n_res =
 		if v.[n] <> '0' && v.[n] <> '1' then
 			failwith "shouldn't happen (bitmask.ml::masked_value)"
 		else
-			res.[n_res] <- v.[n]
+			Bytes.set res n_res v.[n]
 	in		
 	let rec aux step step_res =
 		if step >= l then
@@ -341,13 +341,13 @@ let unmask m mask =
 	let vm = get_intern_val mask in
 	let lv = String.length v in
 	let l = min lv (String.length vm) in
-	let res = String.create lv in
+	let res = Bytes.create lv in
 	let v_suffix = String.sub v l (lv - l) in
 	let set_res n c =
 		if c <> '0' && c <> '1' then
 			failwith "shouldn't happen (bitmask.ml::unmask)"
 		else
-			res.[n] <- c
+			Bytes.set res n c
 	in
 	let rec aux step =
 		if step >= l then
@@ -549,7 +549,7 @@ this happens with the tricore processor for example.
 let get_bit_image_order _ =
 	match Irg.get_symbol "bit_image_order" with
 	| Irg.UNDEF -> false
-	| Irg.LET(_, _, c) ->
+	| Irg.LET(_, _, c, _) ->
 		(match c with
 		| Irg.CARD_CONST(i32) -> ((Int32.compare i32 Int32.zero) != 0)
 		| _ -> raise (Bad_bit_image_order "bit_image_order can only be an boolean int constant.")
@@ -587,7 +587,7 @@ let get_mask sp =
 				begin
 					(* a 'X' or 'x' in an image means a useless bit => not in the mask *)
 					if s.[pos]='x' || s.[pos]='X' then
-						accu.[pos] <- '0'
+						Bytes.set accu pos '0'
 					else
 						();
 					aux s (pos+1) accu

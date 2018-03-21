@@ -928,13 +928,13 @@ let instantiate_param from param =
 
 	let rec process from name tid =
 		match get_symbol tid with
-		| UNDEF				-> Irg.error_symbol from (fun out -> Printf.fprintf out "undefined symbol '%s'" tid)
-		| OR_OP(_, ops) 	-> List.flatten (List.map (fun x -> process tid name x) ops)
-		| OR_MODE(_, mods)	-> List.flatten (List.map (fun x -> process tid name x) mods)
+		| UNDEF					-> Irg.error_symbol from (fun out -> Printf.fprintf out "undefined symbol '%s'" tid)
+		| OR_OP(_, ops, _) 		-> List.flatten (List.map (fun x -> process tid name x) ops)
+		| OR_MODE(_, mods, _)	-> List.flatten (List.map (fun x -> process tid name x) mods)
 		| AND_OP _
 		| AND_MODE _
-		| TYPE _			-> [(name, TYPE_ID tid)] 
-		| _					-> Irg.error_symbol from (fun out -> Printf.fprintf out "symbol '%s' should be an op or a mode" tid) in
+		| TYPE _				-> [(name, TYPE_ID tid)] 
+		| _						-> Irg.error_symbol from (fun out -> Printf.fprintf out "symbol '%s' should be an op or a mode" tid) in
 
 	match param with
 	| (name, TYPE_EXPR(te))	-> [param]
@@ -1242,7 +1242,7 @@ let instantiate_spec sp param_list =
 	let get_type name =
 		let sp = get_symbol name in
 		match sp with
-		| TYPE(_, t)	-> Some t
+		| TYPE(_, t, _)	-> Some t
 		| AND_OP _
 		| OR_OP _
 		| AND_MODE _
@@ -1391,7 +1391,7 @@ let instantiate_instructions name =
 			match s with
 			| UNDEF				-> Irg.error_spec s (fun out -> Printf.fprintf out "symbol '%s' is not defined" name)
 			| AND_OP(_, _, _)	-> [s]
-			| OR_OP(_, ops) 	-> List.flatten (List.map inst_one ops)
+			| OR_OP(_, ops, _) 	-> List.flatten (List.map inst_one ops)
 			| _					-> Irg.error_spec s (fun out -> Printf.fprintf out "symbol '%s' should be an op or a mode" name) in
 		inst_one name in
 

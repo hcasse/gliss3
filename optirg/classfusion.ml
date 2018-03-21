@@ -53,15 +53,15 @@ let fusion_nodes
 *)
 let fusion_by_classes (node_to_optimize:Irg.spec) :unit = 
 	let t = match node_to_optimize with 
-		| Irg.OR_MODE(_,_) 	-> Irgp.Mode
-		| Irg.OR_OP(_,_) 	-> Irgp.Op
-		| _ 			-> Irgp.NotANode
+		| Irg.OR_MODE(_,_, _) 	-> Irgp.Mode
+		| Irg.OR_OP(_,_, _) 	-> Irgp.Op
+		| _ 					-> Irgp.NotANode
 	in
 	if t=Irgp.NotANode then 
 		() (* Not Optimizable here, so nothing to do. *)
 	else 
 		let (name, nodes_name_list) = match node_to_optimize with 
-			| Irg.OR_MODE(name, nodes_list) | Irg.OR_OP(name, nodes_list) 
+			| Irg.OR_MODE(name, nodes_list, _) | Irg.OR_OP(name, nodes_list, _) 
 				-> (name, nodes_list)
 			| _ 	-> failwith "Impossible"
 		in
@@ -83,8 +83,8 @@ let fusion_by_classes (node_to_optimize:Irg.spec) :unit =
 		in
 		let sons_name_list = List.fold_right (fun part res -> (and_node_from part)@res ) part [] in 
 		let or_node = match t with
-			| Irgp.Op 	-> Irg.OR_OP(name,sons_name_list)
-			| Irgp.Mode 	-> Irg.OR_MODE(name,sons_name_list)
+			| Irgp.Op 	-> Irg.OR_OP(name,sons_name_list, [])
+			| Irgp.Mode 	-> Irg.OR_MODE(name,sons_name_list, [])
 			| Irgp.NotANode -> Irg.UNDEF (* should never happen as we filter this out in a higher if *)
 		in 
 		Irgp.replace_symbol name or_node

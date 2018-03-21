@@ -176,7 +176,7 @@ and
 	begin
 	match spec with 
 	| 	AND_MODE (_,listeParam,_,attr_list) | AND_OP(_,listeParam, attr_list) -> sizeOfExpr listeParam (get_expr_of_image attr_list)
-	| 	OR_MODE (_,st_list) | OR_OP (_,st_list) ->
+	| 	OR_MODE (_,st_list, _) | OR_OP (_,st_list, _) ->
 			(match (List.map (sizeOfNodeKey) st_list) with
 			| [] -> failwith "sizeOfSpec : OR node with no sons"
 			| h::size_list ->

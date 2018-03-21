@@ -30,10 +30,10 @@ let or_fusion () =
 		else return its name.
 	*)
 	and loop name = match get_symbol name with
-		| OR_MODE(_,sons) -> 
-			replace name (OR_MODE(name, flat_sons sons)) ; flat_sons sons
-		| OR_OP(_,sons) -> 
-			replace name (OR_OP(name, flat_sons sons)) ; flat_sons sons
+		| OR_MODE(_,sons,atts) -> 
+			replace name (OR_MODE(name, flat_sons sons, atts)) ; flat_sons sons
+		| OR_OP(_,sons, atts) -> 
+			replace name (OR_OP(name, flat_sons sons, atts)) ; flat_sons sons
 		| _ -> 
 			ignore (flat_sons (next name)) ; [name]
 	in

@@ -146,6 +146,8 @@ and sym_stateless cc id =
 		-> stmt_stateless cc s
 	| Irg.ATTR (Irg.ATTR_LOC (_, l))
 		-> loc_stateless cc l
+	| Irg.ATTR (Irg.ATTR_LINE_INFO _)
+		-> failwith "meaningless with such symbol"
 
 (** Test if a location is stateless.
 	@param cc	Call context.

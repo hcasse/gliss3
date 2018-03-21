@@ -73,8 +73,8 @@ let check_ops _ =
 		
 	Irg.iter (fun name spec ->
 		match spec with
-		| Irg.OR_OP (_, ops) -> List.iter (check name) ops
-		| Irg.AND_OP (_,  params, _) -> List.iter (check_param name) params
+		| Irg.OR_OP (_, ops, _)			-> List.iter (check name) ops
+		| Irg.AND_OP (_,  params, _)	-> List.iter (check_param name) params
 		| _ -> ())
 
 
@@ -99,8 +99,8 @@ let check_modes _ =
 		| _ -> error_symbol name (fun out -> Printf.fprintf out "symbol \"%s\" used in \"%s\" should be a mode" mode name) in
 	Irg.iter (fun name spec ->
 		match spec with
-		| Irg.OR_MODE (_, modes) -> List.iter (check name) modes
-		| Irg.AND_MODE (_,  params, _, _) -> List.iter (check_param name) params
+		| Irg.OR_MODE (_, modes, _)			-> List.iter (check name) modes
+		| Irg.AND_MODE (_,  params, _, _)	-> List.iter (check_param name) params
 		| _ -> ())
 
 
@@ -206,3 +206,9 @@ let load_with_error_support path =
 		exit 2		
 	| Lexer.BadChar chr ->
 		Lexer.display_error (Printf.sprintf "bad character '%c'" chr); exit 2
+
+
+(** Set of always defined options. *)
+let options = [
+	("-compat", Arg.Unit (fun _ -> Irg.set_compat true), "Enabled compatibility mode with old SimNML files")
+]

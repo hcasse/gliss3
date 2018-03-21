@@ -24,7 +24,7 @@ type nodeType = NotANode|Mode | Op
 let next (s:string) : (string list) = match (get_symbol s) with
 	|AND_MODE(_,pl,_,_) | AND_OP(_,pl,_) 
 		-> List.fold_right (fun (_,t) r ->match t with TYPE_ID(s)->s::r | _ -> r) pl []
-	|OR_MODE(_,sl) | OR_OP(_,sl) 
+	|OR_MODE(_,sl,_) | OR_OP(_,sl,_) 
 		-> sl
 	| _ 
 		-> []

@@ -212,7 +212,7 @@ aucun attribut du mode OU n’est en partie gauche d’une affectation.
 *)
 let is_opt (struc:opt_struct) :bool = 
 	match struc with 
-	|	(OR_MODE(name,_), sons) | (OR_OP(name,_), sons) ->
+	|	(OR_MODE(name,_, _), sons) | (OR_OP(name,_, _), sons) ->
 		begin 
 
 			let param = (List.for_all 
@@ -330,12 +330,12 @@ let fusion
 	match or_node with
 
 	(* Case in which we have a MODE *)
-	| Irg.OR_MODE(name,_) -> 
+	| Irg.OR_MODE(name,_, _) -> 
 		let val_expr = SWITCH_EXPR(STRING, REF(NO_TYPE, "code"), (List.map (case_from_value_expr size) and_list), NONE) in
 		Irg.AND_MODE(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], val_expr, new_attr_list)
 
 	(* Case in which we have a MODE *)
-	| Irg.OR_OP(name,_) -> 
+	| Irg.OR_OP(name,_, _) -> 
 		Irg.AND_OP(name,[("code",Irg.TYPE_EXPR(Irg.CARD(size)))], new_attr_list)
 
 	(* Case in which we have an other thing : it should not happen here. *)
@@ -540,7 +540,7 @@ let number_of_instr () =
 						(count (get_symbol (name_of_typ t)))
 				) 
 				arglist 1
-	| 	OR_MODE(_,arglist)| 	OR_OP(_,arglist) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0
+	| 	OR_MODE(_,arglist,_)| 	OR_OP(_,arglist,_) -> List.fold_right (fun n res ->  res + (count (get_symbol n))) arglist 0
 	|_ -> 1 
 	in count (get_symbol !root_name)
 	 	

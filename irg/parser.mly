@@ -104,6 +104,7 @@ let intersect_attrs attrs1 attrs2 =
 	let member_of attr attrs = List.exists (fun item -> equal attr item) attrs in
 	List.fold_left (fun res attr -> if member_of attr attrs2 then attr::res else res) [] attrs1
 
+
 %}
 
 /* litterals */
@@ -209,7 +210,9 @@ top:
 ;
 
 LocatedID:
-	ID	{ Irg.add_pos $1 !Lexer.file !Lexer.line; $1 }
+	ID	{ Irg.add_pos $1 !Lexer.file !Lexer.line;
+			($1, (!Lexer.file, !Lexer.line))
+		}
 
 specs :
 		MachineSpec		{   }
@@ -232,8 +235,8 @@ MachineSpec :
 
 
 LetDef	:
-	LET LocatedID EQ LetExpr			{  ($2, Sem.make_let $2 Irg.NO_TYPE $4) }
-|	LET LocatedID COLON Type EQ LetExpr	{  ($2, Sem.make_let $2 $4 $6) }
+	LET LocatedID EQ LetExpr			{  (fst $2, Sem.make_let $2 Irg.NO_TYPE $4) }
+|	LET LocatedID COLON Type EQ LetExpr	{  (fst $2, Sem.make_let $2 $4 $6) }
 ;
 
 ResourceSpec:
@@ -246,8 +249,8 @@ ResourceList:
 ;
 
 Resource:
-	LocatedID							{ Irg.add_symbol $1 (Irg.RES $1); $1 }
-|	LocatedID LBRACK CARD_CONST RBRACK	{ Irg.add_symbol $1 (Irg.RES $1); $1 }
+	LocatedID							{ Irg.add_symbol (fst $1) (Irg.RES (fst $1)); $1 }
+|	LocatedID LBRACK CARD_CONST RBRACK	{ Irg.add_symbol (fst $1) (Irg.RES (fst $1)); $1 }
 ;
 
 CanonSpec:
@@ -284,7 +287,7 @@ IdentifierList:
 
 TypeSpec:
 	TYPE LocatedID EQ TypeExpr
-		{ ($2, Irg.TYPE ($2, $4)) }
+		{ (fst $2, Sem.make_type $2 $4) }
 ;
 
 TypeExpr:
@@ -333,17 +336,17 @@ LetExpr:
 
 MemorySpec:
 	MEM LocatedID LBRACK MemPart RBRACK OptionalMemAttrDefList
-		{ ($2, Sem.check_alias (Irg.MEM ($2, fst $4, snd $4, $6))) }
+		{ (fst $2, Sem.make_mem $2 (fst $4) (snd $4) $6) }
 ;
 
 RegisterSpec:
 	REG LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{ ($2, Sem.check_alias (Irg.REG ($2, fst $4, snd $4, $6))) }
+		{ (fst $2, Sem.make_reg $2 (fst $4) (snd $4) $6) }
 ;
 
 VarSpec:
 	VAR LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{ ($2, Irg.VAR ($2, fst $4, snd $4, $6)) }
+		{ (fst $2, Sem.make_var $2 (fst $4) (snd $4) $6) }
 ;
 
 MemPart:
@@ -405,13 +408,12 @@ MemLocBase:
 ModeSpec:
 	MODE LocatedID LPAREN ParamList RPAREN OptionalModeExpr  AttrDefList
 		{
-			Sem.check_image $2 $4;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $7;
-			($2, Irg.AND_MODE ($2, $4, $6, $7))
+			(fst $2, Sem.make_and_mode $2 $4 $6 $7)
 		}
 |	MODE LocatedID EQ Identifier_Or_List
-		{ $2, Irg.OR_MODE ($2, $4) }
+		{ (fst $2, Sem.make_or_mode $2 $4) }
 ;
 
 
@@ -424,13 +426,12 @@ OptionalModeExpr :
 OpSpec:
 	OP LocatedID LPAREN ParamList RPAREN AttrDefList
 		{
-			Sem.check_image $2 $4;
 			Irg.param_unstack $4;
 			Irg.attr_unstack $6;			
-			($2, Irg.AND_OP ($2, $4, $6))
+			(fst $2, Sem.make_and_op $2 $4 $6)
 		}
 |	OP LocatedID EQ Identifier_Or_List
-		{ $2, Irg.OR_OP ($2, $4) }
+		{ (fst $2, Sem.make_or_op $2 $4) }
 |	OP LocatedID error
 		{ raise (Irg.SyntaxError "missing '=' or '('") }
 ;

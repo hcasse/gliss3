@@ -164,7 +164,7 @@ let info _ =
 	let b =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
-		| Irg.LET(_, _, Irg.STRING_CONST(id)) ->
+		| Irg.LET(_, _, Irg.STRING_CONST(id), _) ->
 			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
 			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
@@ -1158,7 +1158,7 @@ and gen_const info typ cst =
 	@param name		Name of the state item. *)
 and gen_ref info name prfx =
 	match Irg.get_symbol name with
-	| Irg.LET (_, t, cst) -> gen_expr info (Irg.CONST (t, cst)) prfx
+	| Irg.LET (_, t, cst, _) -> gen_expr info (Irg.CONST (t, cst)) prfx
 	| Irg.VAR _ -> output_string info.out name
 	| Irg.REG _ -> output_string info.out (state_macro info name prfx)
 	| Irg.MEM _ -> output_string info.out (state_macro info name prfx)
