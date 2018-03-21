@@ -71,21 +71,46 @@ let add_module text =
 		| _ -> [new_mod] in
 	modules := set !modules
 
+(** additional templates to generate (input file, output file).
+	Absolute path or paths starting with "./" for intput file are kept as is.
+	Other paths are considered as relative to GLISS template directory. *)
+let templates: (string * string) list ref = ref []
+	
+(** Prefix excluding relativity to the template directory. *)
+let relative_prefix = "." ^ Filename.dir_sep
+
+(** Add a template to the list of templates.
+	Input file path is analyzed and prepended with GLISS template path
+	if the input path is neither absolute, nor starting with "./". *)
+let add_template arg =
+	try
+		let i = String.index arg ':' in
+		let inp = String.sub arg 0 i in
+		let out = String.sub arg (i+1) ((String.length arg) - i) in
+		let inp =
+			if not (Filename.is_relative inp) then inp else
+			let len = String.length relative_prefix in
+			if ((String.length inp) >= len)
+			&& (relative_prefix == (String.sub arg 0 len)) then inp else
+			Irg.native_path (Config.source_dir ^ "/templates/" ^ inp) in
+		templates := (inp, out) :: !templates
+	with Not_found ->
+		raise (Arg.Bad "bad template")
+
 
 (* options *)
 let paths = [
 	Config.install_dir ^ "/lib/gliss/lib";
 	Config.source_dir ^ "/lib";
 	Sys.getcwd ()]
-let check				 = ref false
-let sim                  = ref false
-let decode_arg           = ref false
-let gen_with_trace       = ref false
-let memory               = ref "fast_mem"
-let size                 = ref 0
-let sources : string list ref = ref []
-let switches: (string * bool) list ref = ref []
-let no_default			= ref false
+let check				 				= ref false
+let sim                  				= ref false
+let decode_arg           				= ref false
+let gen_with_trace       				= ref false
+let size                 				= ref 0
+let sources : string list ref			= ref []
+let switches: (string * bool) list ref	= ref []
+let no_default							= ref false
 let options = [
 	("-m",   Arg.String  add_module, "add a module (module_name:actual_module)]");
 	("-s",   Arg.Set_int size, "for fixed-size ISA, size of the instructions in bits (to control NMP images)");
@@ -97,12 +122,13 @@ let options = [
 	("-p",   Arg.String (fun a -> Iter.instr_stats := Profile.read_profiling_file a),
 		"Optimized generation with a profiling file given it's path. Instructions handlers are sorted to optimized host simulator cache" );
 	("-PJ",  Arg.Int (fun a -> (App.profiled_switch_size := a; switches := ("GLISS_PROFILED_JUMPS", true)::!switches)),
-		"Stands for profiled jumps : enable better branch prediction if -p option is also activated");
+		"Stands for profiled jumps: enable better branch prediction if -p option is also activated");
 	("-off", Arg.String (fun a -> switches := (a, false)::!switches), "unactivate the given switch");
 	("-on",  Arg.String (fun a -> switches := (a, true)::!switches), "activate the given switch");
 	("-fstat", Arg.Set Fetch.output_fetch_stat, "generates stats about fetch tables in <proc_name>_fetch_tables.stat");
 	("-c", Arg.Set check, "only check if the NML is valid for generation");
-	("-no-default", Arg.Set no_default, "disable automatic generation of Makefile, api, fetch, decode and code tables")
+	("-no-default", Arg.Set no_default, "disable automatic generation of Makefile, api, fetch, decode and code tables");
+	("-t", Arg.String add_template, "add a template to generate")
 ] @ Stot.opts
 
 
@@ -677,7 +703,7 @@ let _ =
 					else
 						(* now decode files are in templates directory (unlike a module) *)
 						(* !!TODO!! outut the correct decoder, not only decode_dtrace
-						 * design a fun : name_module instance -> output correct module
+						 * design a fun: name_module instance -> output correct module
 						 * wherever the files are (lib or templates) *)
 						if Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false then begin
 							(* dtrace has a different decode table organization ==> different table template *)
@@ -693,6 +719,9 @@ let _ =
 
 				(* module linking *)
 				List.iter (process_module info) !modules;
+
+				(* generate other templates *)
+				List.iter (fun (inp, out) -> App.make_template_path inp out dict) !templates;
 
 				(* generate application *)
 				if !sim then

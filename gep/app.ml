@@ -684,3 +684,11 @@ let make_template template file dict =
 	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
 	Templater.generate dict template file
 
+
+(** Build a template, possibly informing the user.
+	@param template		Template name.
+	@param file			File path to output to.
+	@param dict			Dictionary to use. *)
+let make_template_path template file dict =
+	if not !quiet then (Printf.printf "creating \"%s\"\n" file; flush stdout);
+	Templater.generate_path dict template file
