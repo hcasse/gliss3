@@ -352,18 +352,22 @@ let enumerate_instr_sets i_l =
 
 (** Get the list of instructions. If it has not been computed,
 	compute it.
-	@return	List of instructions. *)
+	@return	List of instructions or an empty list of no root is defined. *)
 let get_insts _ =
-	let root_inst = Irg.get_root () in
 
 	(* initialization *)
 	if !instr_set = [Irg.UNDEF] then
 		(try
-			instr_set := List.map check_coerce (Instantiate.instantiate_instructions root_inst);
-			instr_set := List.map build_name !instr_set;
-			instr_set := List.map Sem.check_spec_inst !instr_set;
-			if !multi_set = [] then
-				enumerate_instr_sets !instr_set;			
+			let root_inst = Irg.get_root () in
+			if root_inst = "" then
+				instr_set := []
+			else begin
+				instr_set := List.map check_coerce (Instantiate.instantiate_instructions root_inst);
+				instr_set := List.map build_name !instr_set;
+				instr_set := List.map Sem.check_spec_inst !instr_set;
+				if !multi_set = [] then
+					enumerate_instr_sets !instr_set;			
+			end
 		with Instantiate.Error (sp, msg) ->
 			Irg.error (Irg.asis (Printf.sprintf "%s in instruction %s" msg (get_user_id sp))));
 	

@@ -1,0 +1,11 @@
+
+let proc = "pio"
+let i = 33
+let f = 3.3
+let s = "hel\"lo"
+
+let bool_x = 0
+let bool_y = 1
+
+op init()
+	action = { "ok"(); }

@@ -1623,15 +1623,11 @@ let fold f d =
 
 
 (** Get the root node of the ISA.
-	@return			root name
-	@raise Error	If no root can be found. *)
+	@return			Root name or empty string if there is no root name. *)
 let get_root _ =
-	if is_defined "multi" then
-		"multi"
-	else if is_defined "instruction" then
-		"instruction"
-	else
-		raise (Error (fun out -> Printf.fprintf out "one of root node, \"instruction\" or \"multi\" must be defined !"))
+	if is_defined "multi" then "multi" else
+	if is_defined "instruction" then "instruction" else
+	""
 
 
 (* regex for format decoding *)

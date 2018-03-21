@@ -86,12 +86,12 @@ let add_template arg =
 	try
 		let i = String.index arg ':' in
 		let inp = String.sub arg 0 i in
-		let out = String.sub arg (i+1) ((String.length arg) - i) in
+		let out = String.sub arg (i+1) ((String.length arg) - i - 1) in
 		let inp =
 			if not (Filename.is_relative inp) then inp else
 			let len = String.length relative_prefix in
 			if ((String.length inp) >= len)
-			&& (relative_prefix == (String.sub arg 0 len)) then inp else
+			&& (relative_prefix = (String.sub inp 0 len)) then inp else
 			Irg.native_path (Config.source_dir ^ "/templates/" ^ inp) in
 		templates := (inp, out) :: !templates
 	with Not_found ->
@@ -326,6 +326,95 @@ let mask_decl_all inst is_risc out =
 			(fun idx _ -> output_char out '\t'; output_mask_decl inst idx is_risc out; idx + 1)
 			0
 			(Iter.get_params inst))
+
+
+(** Generate code for an IRG specification as a text.
+	@param info	Source generation information.
+	@param id	IRG specification name.
+	@param out	Output channel. *)
+let generate_text info out id =
+	match Irg.get_symbol id with
+	| Irg.LET (_, _, Irg.CARD_CONST v, _) ->
+		Printf.fprintf out "%ld" v
+	| Irg.LET (_, _, Irg.CARD_CONST_64 v, _) ->
+		Printf.fprintf out "%Ld" v
+	| Irg.LET (_, _, Irg.STRING_CONST v, _) ->
+		Printf.fprintf out "%s" (Toc.cstring v)
+	| Irg.LET (_, _, Irg.FIXED_CONST v, _) ->
+		Printf.fprintf out "%f" v
+	| Irg.LET (_, _, Irg.CANON v, _) ->
+		Printf.fprintf out "%s" v
+	| Irg.ATTR (Irg.ATTR_EXPR (_, e)) ->
+		let (s, e) = Toc.prepare_expr info Irg.NOP e in
+		if s <> Irg.NOP then
+			raise (Templater.Error (Printf.sprintf "expression attribute \"%s\" is too complex to be generated" id))
+		else begin
+			info.Toc.out <- out;
+			Toc.gen_expr info e true;
+			info.Toc.out <- stdout
+		end
+	| Irg.ATTR (Irg.ATTR_STAT (_, s)) ->
+		info.Toc.out <- out;
+		Toc.gen_stat info (Toc.prepare_stat info s);
+		info.Toc.out <- stdout
+	| Irg.ATTR (Irg.ATTR_LINE_INFO (_, Irg.LINE_INFO (f, l, _))) ->
+		Printf.fprintf out "#line %d \"%s\"\n" l (Toc.cstring f)
+	| _ ->
+		Templater.error (Printf.sprintf "generation unsupported for \"%s\"" id)
+
+
+(** Generate boolean for an IRG specification.
+	@param id	IRG specification name.
+	@param out	Output channel. *)
+let generate_bool id =
+	match Irg.get_symbol id with
+	| Irg.LET (_, _, c, _) -> Sem.is_true c
+	| Irg.ATTR (Irg.ATTR_EXPR (_, e)) ->
+		(try Sem.is_true (Sem.eval_const e)
+		with Irg.PreError _ -> false)
+	| _ ->
+		false
+
+
+(** Generate code for an IRG specification as a text.
+	@param info	Source generation information.
+	@param id	IRG specification name.
+	@param f	Function to call.
+	@param dict	Initial dictionary. *)
+let rec generate_coll info id f dict =
+	let out s o = output_string o s in
+
+	let process name pars atts  dict =
+		let dict = ("name", Templater.TEXT (out name)) :: dict in
+		Irg.in_context [] atts (fun _ -> f dict) in
+
+	match Irg.get_symbol id with
+	| Irg.LET (name, _, _, atts)
+	| Irg.TYPE (name, _, atts) ->
+		process name [] atts dict
+	
+	| Irg.MEM(name, size, typ, atts) ->
+		Irg.in_context [] atts
+			(fun _ -> f (App.make_memory_dict name size typ atts dict))
+
+	| Irg.REG(name, size, typ, atts) ->
+		Irg.in_context [] atts
+			(fun _ -> f (App.make_register_dict name size typ atts dict))
+
+	| Irg.AND_OP (name, pars, atts) ->
+		Irg.in_context [] atts
+			(fun _ -> f (App.make_op_dict name pars atts dict))		
+
+	| Irg.AND_MODE (name, pars, expr, atts) ->
+		Irg.in_context [] atts
+			(fun _ -> f (App.make_op_dict name pars atts dict))		
+
+	| Irg.OR_OP (_, names, _)
+	| Irg.OR_MODE (_, names, _) ->
+		List.iter (fun name -> generate_coll info name f dict) names
+
+	| _ ->
+		Templater.error (Printf.sprintf "generation unsupported for \"%s\"" id)
 
 
 (** Build a template environment.
@@ -577,6 +666,10 @@ let make_env info =
 	("ppc_name", Templater.TEXT (fun out -> print_name (info.Toc.ppc_name) out info)) ::
 	("bit_image_inversed", Templater.BOOL (fun _ -> Bitmask.get_bit_image_order ())) ::
 	("declare_switch", Templater.TEXT (fun out -> info.Toc.out <- out; Stot.declare info)) ::
+	(Templater.fallback_text, Templater.FUN (generate_text info)) ::
+	(Templater.fallback_coll, Templater.GEN_COLL (generate_coll info)) ::
+	(Templater.fallback_ifdef, Templater.GEN_BOOL Irg.is_defined) ::
+	(Templater.fallback_bool, Templater.GEN_BOOL generate_bool) ::
 	(App.make_env info maker)
 
 
@@ -659,6 +752,10 @@ let _ =
 				()
 			else
 
+				(* check any available instruction set *)
+				if not !no_default && Iter.get_insts () = [] then
+					raise (Irg.error (fun out -> Printf.fprintf out "one of root node, \"instruction\" or \"multi\" must be defined !"));
+
 				(* optimisations *)
 				Stot.transform ();
 
@@ -674,8 +771,8 @@ let _ =
 				say (Printf.sprintf "creating \"%s\"\n" info.Toc.hpath);
 				App.makedir info.Toc.hpath;
 				if not !no_default then begin
-				App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
-				App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
+					App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
+					App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
 					App.make_template "debug.h" ("include/" ^ info.Toc.proc ^ "/debug.h") dict;
 					App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict
 				end;

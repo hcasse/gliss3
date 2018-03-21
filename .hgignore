@@ -7,6 +7,8 @@ test/.*\.c
 test/.*\.h
 test/.*\.log
 test/src
+test/noiset/src
+test/noiset/include
 .*\.dep
 gep/gep
 gep/gliss-attr

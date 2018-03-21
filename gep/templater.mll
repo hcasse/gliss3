@@ -21,6 +21,31 @@
 	Finally, notes that "$$" expression is reduceded to "$$".
 	*)
 
+exception Error of string
+
+(** Current file. *)
+let file = ref ""
+
+(** Current line. *)
+let line = ref 0
+
+(** Raise a template error.
+	@param msg	Error message. *)
+let error msg =
+	raise (Error (Printf.sprintf "%s:%d: %s" !file !line msg))
+
+(** Fallback symbol to look if a text symbol is not found (TEXT or FUN). *)
+let fallback_text = "!text"
+
+(** Fallback symbol to look for if a collection symbol is not found (COLL or GEN_COLL). *)
+let fallback_coll = "!coll"
+
+(** Fallback symbol to look if isdef fail (BOOL or GEN_BOOL). *)
+let fallback_ifdef = "!isdef"
+
+(** Fallback symbol to evaluate a symbol that is not found (BOOL or GEN_BOOL). *)
+let fallback_bool = "!bool"
+
 (** Type of dictionnaries. *)
 type dict_t = (string * value_t) list
 
@@ -31,6 +56,9 @@ and  value_t =
 															with a dictionnary fixed for the current element. *)
 	| BOOL of (unit -> bool)							(** boolean value *)
 	| FUN of (out_channel -> string -> unit)			(** function value *)
+	| GEN_COLL of (string -> (dict_t -> unit) -> dict_t -> unit)
+		(** collection : argument function must be called for each element with a dictionary fixed for the current element. *)
+	| GEN_BOOL of (string -> bool)						(** generic boolean symbol *)
 
 
 type state_t =
@@ -38,6 +66,7 @@ type state_t =
 	| THEN
 	| ELSE
 	| FOREACH
+	| WITH
 
 
 (** Perform text evaluation (and function if any)
@@ -45,31 +74,26 @@ type state_t =
 	@param dict	Used dictionnary.
 	@param id	Text identifier. *)
 let do_text out dict id =
+	let fail _ = raise (Error (Printf.sprintf "symbol \"%s\" cannot be found or has bad type" id)) in
+
+	(* parse arguments *)
 	let p =  try String.index id ':' with Not_found -> -1 in
+	let id = if p == -1 then id else String.sub id 0 p in
+	let args = if p == -1 then "" else (String.sub id (p + 1) ((String.length id) - p - 1)) in
+		
+	let lookup id args fb =
+		try
+			(match List.assoc id dict with
+			| TEXT f -> f out
+			| FUN f ->  f out args
+			| _ -> fb ())
+		with Not_found ->
+			fb () in
+	
 	try
-	
-	(* function call *)
-	if p >= 0 then
-		let id = String.sub id 0 p in
-		(match List.assoc id dict with
-		  FUN f ->
-			(try f out (String.sub id (p + 1) ((String.length id) - p - 1))
-			with Not_found -> failwith ("error in generation with "^id))
-		| _ -> failwith (id ^ " is not a text !"))
-	
-	(* simple variable eveluation *)	
-	else
-		match List.assoc id dict with
-		  TEXT f ->
-			(try f out
-			with Not_found -> failwith (Printf.sprintf "uncaught Not_found in generation with \"%s\"" id))
-		| _ -> failwith (id ^ " is not a text !")
-	
-	(* not existing symbol *)
+		lookup id args (fun _ -> lookup fallback_text id fail)
 	with Not_found ->
-		List.iter (fun (n, _) -> Printf.printf "=>[%s]\n" n) dict;
-		Printf.printf "<=[%s]\n" id;
-		failwith (id ^ " is undefined !")
+		raise (Error (Printf.sprintf "uncaught Not_found in generation with \"%s\"" id))
 
 
 (** Get a collection.
@@ -77,12 +101,19 @@ let do_text out dict id =
 	@param id	Identifier.
 	@return		Found collection function. *)
 let do_coll dict id =
-	try
-		(match List.assoc id dict with
-		  COLL f -> f
-		| _ -> failwith (id ^ " is not a collection"))
-	with Not_found ->
-		failwith (id ^ " is undefined !")
+
+	let lookup i f =
+		try
+			match List.assoc i dict with
+			| COLL f -> f
+			| GEN_COLL f -> (f id)
+			| _ -> f ()
+		with Not_found ->
+			f () in
+
+	lookup id
+		(fun _ -> lookup fallback_coll
+			(fun _ -> error (Printf.sprintf "\"%s\" is undefined or not a collection" id)))
 
 
 (** Get a boolean value.
@@ -90,14 +121,32 @@ let do_coll dict id =
 	@param id		Identifier.
 	@return			Boolean value. *)
 let do_bool dict id =
+
+	let lookup i f =
+		try
+			match List.assoc i dict with
+			| BOOL f -> f ()
+			| GEN_BOOL f -> f id
+			| _ -> f ()
+		with Not_found ->
+			f () in
+
+	lookup id
+		(fun _ -> lookup fallback_bool
+			(fun _ -> false))
+
+
+(** Test if a definition is provided in the dictionary.
+	@param dict		Dictionnary to look in.
+	@param id		Identifier.
+	@return			Boolean value. *)
+let do_ifdef dict id =
+	if List.mem_assoc id dict then true else
 	try
-		(match List.assoc id dict with
-		  BOOL f -> f ()
-		| _ -> failwith (id ^ " is not a boolean"))
-	with Not_found ->
-		false
-
-
+		match List.assoc fallback_ifdef dict with
+		| GEN_BOOL f -> f id
+		| _ -> false
+	with Not_found -> false
 }
 
 let blank = [' ' '\t']
@@ -107,30 +156,72 @@ rule scanner out dict state = parse
   "$$"
   	{ output_char out '$'; scanner out dict state lexbuf }
 
-|  "$(foreach" blank (id as id) ")" '\n'?
+|  "$(foreach" blank (id as id) ")" ('\n'? as nl)
   	{
 		let buf = Buffer.contents (scan_end (Buffer.create 1024) 0 lexbuf) in
 		let f = do_coll dict id in
+		if nl <> "" then incr line;
 		f (fun dict -> scanner out dict FOREACH (Lexing.from_string buf)) dict;
 		scanner out dict state lexbuf
 	}
 
-| "$(end)" '\n'?
-	{ () }
+| "$(with" blank (id as id) ')'  ('\n'? as nl)
+	{
+		let buf = Buffer.contents (scan_end (Buffer.create 1024) 0 lexbuf) in
+		let f = do_coll dict id in
+		if nl <> "" then incr line;
+		f (fun dict -> scanner out dict WITH (Lexing.from_string buf)) dict;
+		scanner out dict state lexbuf
+	}
 
-| "$(else)" '\n'?
-	{	if state = THEN then skip out dict 0 lexbuf
-		else failwith "'else' out of 'if'" }
+| "$(end)" ('\n'? as nl)
+	{
+		if nl <> "" then incr line;		
+		if state = TOP then error "extraneous $(end) tag"
+	}
 
-| "$(if" blank '!' (id as id) ')' '\n'?
-	{	if not (do_bool dict id) then scanner out dict THEN lexbuf
+| "$(else)" ('\n'? as nl)
+	{
+		if nl <> "" then incr line;
+		if state = THEN then skip out dict 0 lexbuf
+		else failwith "'else' out of 'if'"
+	}
+
+| "$(if" blank '!' (id as id) ')' ('\n'? as nl)
+	{
+		let cond = do_bool dict id in
+		if nl <> "" then incr line;
+		if not cond then scanner out dict THEN lexbuf
 		else skip out dict 0 lexbuf;
-		scanner out dict state lexbuf }
+		scanner out dict state lexbuf
+	}
 
-| "$(if" blank (id as id) ')' '\n'?
-	{	if do_bool dict id then scanner out dict THEN lexbuf
+| "$(if" blank (id as id) ')' ('\n'? as nl)
+	{
+		let cond = do_bool dict id in
+		if nl <> "" then incr line;
+		if cond then scanner out dict THEN lexbuf
 		else skip out dict 0 lexbuf;
-		scanner out dict state lexbuf }
+		scanner out dict state lexbuf
+	}
+
+| "$(ifdef" blank (id as id) ')' ('\n'? as nl)
+	{
+		let cond = do_ifdef dict id in
+		if nl <> "" then incr line;
+		if cond then scanner out dict THEN lexbuf
+		else skip out dict 0 lexbuf;
+		scanner out dict state lexbuf
+	}
+
+| "$(ifndef" blank (id as id) ')' ('\n'? as nl)
+	{
+		let cond = do_ifdef dict id in
+		if nl <> "" then incr line;
+		if not cond then scanner out dict THEN lexbuf
+		else skip out dict 0 lexbuf;
+		scanner out dict state lexbuf
+	}
 
 | "$(" ([^ ')']+ as id) ")"
 	{ do_text out dict id; scanner out dict state lexbuf }
@@ -138,6 +229,8 @@ rule scanner out dict state = parse
 | "//$"
 	{ comment out dict state lexbuf }
 
+| '\n'
+	{ incr line; output_char out '\n'; scanner out dict state lexbuf }
 | _ as c
 	{ output_char out c; scanner out dict state lexbuf }
 
@@ -146,7 +239,7 @@ rule scanner out dict state = parse
 
 and comment out dict state = parse
 	"\n"
-		{ scanner out dict state lexbuf }
+		{ incr line; scanner out dict state lexbuf }
 |	_
 		{ comment out dict state lexbuf }
 
@@ -162,6 +255,8 @@ and skip out dict cnt = parse
 | "$(else)" '\n'?
 	{	if cnt = 0 then scanner out dict ELSE lexbuf
 		else skip out dict cnt lexbuf }
+| "\n"
+	{ incr line; skip out dict cnt lexbuf }
 | _
 	{ skip out dict cnt lexbuf }
 | eof
@@ -178,6 +273,8 @@ and scan_end buf cnt = parse
 | "$(end)" as s
 	{ if cnt = 0 then buf
 	else (Buffer.add_string buf s; scan_end buf (cnt - 1) lexbuf) }
+| '\n'
+	{ incr line; Buffer.add_char buf '\n'; scan_end buf cnt lexbuf }
 | _ as c
 	{ Buffer.add_char buf c; scan_end buf cnt lexbuf }
 | eof
@@ -192,10 +289,13 @@ and scan_end buf cnt = parse
 let generate_path dict in_path out_path =
 	let output = open_out out_path in
 	let input = open_in in_path in
+	file := in_path;
+	line := 1;	
 	scanner output dict TOP (Lexing.from_channel input);
 	close_in input;
-	close_out output
-
+	close_out output;
+	file := "";
+	line := 0
 
 (** Perform a template generation.
 	@param dict		Dictionnary to use.

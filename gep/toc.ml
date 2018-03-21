@@ -150,7 +150,7 @@ type info_t = {
 	mutable recs: string list;		(** list of recursive actions *)
 	mutable lab: int;				(** index of a new label *)
 	mutable attrs: Irg.stat StringHashtbl.t;			(** list of prepared attributes *)
-	mutable pc_name: string;			(** name of the register used as PC (marked as __attr(pc)) *)
+	mutable pc_name: string;		(** name of the register used as PC (marked as __attr(pc)) *)
 	mutable ppc_name: string;		(** name of the register used as previous instruction PC (marked as __attr(ppc)) *)
 	mutable npc_name: string;		(** name of the register used as next instruction PC (marked as __attr(npc)) *)
 	mutable indent: int;			(** identation level *)
@@ -197,7 +197,7 @@ let info _ =
 		| None ->
 			match get_attr_regs "is_pc" is_true with
 			| Some n -> n
-			| None -> raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )") in
+			| None -> "" in
 
 	let path = Sys.getcwd () in {
 		out = stdout;
@@ -1725,6 +1725,8 @@ we return an Irg.STAT which has to be transformed, useful to resolve alias
 	@param	info		Generation information (PCs name)
 	@return			an Irg.STAT object representing the sequence of the desired instructions *)
 let gen_pc_increment info =
+	if info.pc_name = "" then
+			raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )");
 	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
 	let i_name = String.uppercase info.iname in
 	let real_name = if String.compare i_name "" == 0 then "UNKNOWN" else i_name in

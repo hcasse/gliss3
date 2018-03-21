@@ -155,6 +155,25 @@ let defined_attr inst id =
 let out f = Templater.TEXT (fun out -> output_string out (f ()))
 
 
+(** Extended a dictionary with parameter information.
+	@param name		Parameter name.
+	@param typ		Parameter type.
+	@param num		Parameter number (0 for first parameter).
+	@param dict		Dictionary to extend.
+	@return			Extended dictionary. *)
+let make_param_dict name typ num dict =
+	("PARAM",		out (fun _ -> name)) ::
+	("INDEX",		out (fun _ -> string_of_int num)) ::
+	("TYPE",		out (fun _ -> Toc.type_to_string (Toc.convert_type typ))) ::
+	("PARAM_TYPE",	out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type typ)))) ::
+	("param_type", 	out (fun _ -> Toc.type_to_field (Toc.convert_type typ))) ::
+	dict
+
+
+(** Call f with each parameter of the instruction.
+	@param maker	Current maker.
+	@param f		Function to call.
+	@param dict		Initial dictionary. *)
 let get_params maker inst f dict =
 
 	let get_type t =
@@ -169,16 +188,34 @@ let get_params maker inst f dict =
 		(fun (i: int) (n, t) ->
 			let t = get_type t in
 			(if t <> Irg.NO_TYPE then
-				f (maker.get_params inst i n t (
-					("PARAM", out (fun _ -> n)) ::
-					("INDEX", out (fun _ -> string_of_int i)) ::
-					("TYPE", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-					("PARAM_TYPE", out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type t)))) ::
-					("param_type", out (fun _ -> Toc.type_to_field (Toc.convert_type t))) ::
-					dict)));
+				f (maker.get_params inst i n t
+					(make_param_dict n t i dict)));
 			i + 1)
 		0
 		(Iter.get_params inst))
+
+
+(** Extended dictionary with definitions for an AND operation.
+	@param name		Operation name.
+	@param pars		Operation parameters.
+	@param atts		Operation attributes.
+	@param dict		Dictionary to extend.
+	@return			Extended dictionary. *)
+let make_op_dict name pars atts dict =
+	let process f dict = 
+		ignore (List.fold_left
+			(fun i (n, t) ->
+				let t = Sem.get_expr_from_type t in
+				f (make_param_dict n t i dict);
+				i + 1)
+			0
+			pars) in
+	("IDENT", out (fun _ -> String.uppercase name)) ::
+	("ident", out (fun _ -> name)) ::
+	("params", Templater.COLL process) ::
+	("has_param", Templater.BOOL (fun _ -> (List.length pars) > 0)) ::
+	("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length pars))) ::
+	dict
 
 
 (** Default implementation to access an instruction from "instructions" list.
@@ -199,16 +236,12 @@ let get_instruction info maker f dict _ i =
 		with Not_found -> () in
 
 	f (maker.get_instruction  i
-		(("IDENT", out (fun _ -> String.uppercase (Iter.get_name i))) ::
-		("ident", out (fun _ -> Iter.get_name i)) ::
-		("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
-		("params", Templater.COLL (get_params maker i)) ::
-		("has_param", Templater.BOOL (fun _ -> (List.length (Iter.get_params  i)) > 0)) ::
-		("num_params", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length (Iter.get_params i)))) ::
+		(("ICODE", Templater.TEXT (fun out -> Printf.fprintf out "%d" (Iter.get_id i))) ::
 		("is_inst_branch", Templater.BOOL (fun _ -> Iter.is_branch_instr i )) ::
 		("attr", Templater.FUN (eval_attr info i)) ::
-		("predecode", Templater.TEXT gen_predecode) ::
-		dict))
+		("params", Templater.COLL (get_params maker i)) ::
+		("predecode", Templater.TEXT gen_predecode)::
+		(make_op_dict (Iter.get_name i) (Iter.get_params i) (Iter.get_attr i) dict)))
 
 
 (** Get the nth first instructions defined by nb_inst
@@ -427,31 +460,53 @@ let get_label name attrs =
 	with Irg.Error _ | Irg.PreError _ -> Toc.error "\"label\" attribute should be a string constant !"
 
 
-let get_register id f dict maker _ sym =
-	match sym with
-	  Irg.REG (name, size, t, attrs) ->
-		let is_debug _ = 
-			if Irg.is_defined "gliss_debug_only"
-			then Irg.attr_defined "debug" attrs
-			else not (contains_alias attrs) in
-		incr id; f (maker.get_register sym (
-			("type", out (fun _ -> Toc.type_to_string (Toc.convert_type t))) ::
-			("name", out (fun _ -> name)) ::
-			("NAME", out (fun _ -> String.uppercase name)) ::
-			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
-			("is_debug", Templater.BOOL (fun _ -> is_debug ())) ::
-			("array", Templater.BOOL (fun _ -> size > 1)) ::
-			("size", out (fun _ -> string_of_int size)) ::
-			("id", out (fun _ -> string_of_int !id)) ::
-			("type_size", out (fun _ -> string_of_int (Sem.get_type_length t))) ::
-			("is_pc", Templater.BOOL (fun _ -> is_pc attrs)) ::
-			("is_float", Templater.BOOL (fun _ -> is_float t)) ::
-			("format", out (fun _ -> "\"" ^ (reg_format name size attrs) ^ "\"")) ::
-			("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type t))) ::
-			("get", Templater.TEXT (fun out -> gen_reg_getter name size t attrs out)) ::
-			("set", Templater.TEXT (fun out -> gen_reg_setter name size t attrs out)) ::
-			("label", out (fun _ -> get_label name attrs)) ::
-			dict))	(* make_array size*)
+(** Test if debugging information is available for a register.
+	@param atts		Register attributes. *)
+let is_debug atts = 
+	if Irg.is_defined "gliss_debug_only"
+	then Irg.attr_defined "debug" atts
+	else not (contains_alias atts)
+
+
+(** Extended the dictionary with definition for a register.
+	@param name		Register name.
+	@param size		Register size.
+	@param typ		Register type.
+	@param atts		Register attributes.
+	@param dict		Dictionary to extend.
+	@return			Extended dictionary. *)
+let make_register_dict name size typ atts dict =
+	("type", out (fun _ -> Toc.type_to_string (Toc.convert_type typ))) ::
+	("name", out (fun _ -> name)) ::
+	("NAME", out (fun _ -> String.uppercase name)) ::
+	("aliased", Templater.BOOL (fun _ -> contains_alias atts)) ::
+	("is_debug", Templater.BOOL (fun _ -> is_debug atts)) ::
+	("array", Templater.BOOL (fun _ -> size > 1)) ::
+	("size", out (fun _ -> string_of_int size)) ::
+	("type_size", out (fun _ -> string_of_int (Sem.get_type_length typ))) ::
+	("is_pc", Templater.BOOL (fun _ -> is_pc atts)) ::
+	("is_float", Templater.BOOL (fun _ -> is_float typ)) ::
+	("format", out (fun _ -> "\"" ^ (reg_format name size atts) ^ "\"")) ::
+	("printf_format", out (fun _ -> Toc.type_to_printf_format (Toc.convert_type typ))) ::
+	("get", Templater.TEXT (fun out -> gen_reg_getter name size typ atts out)) ::
+	("set", Templater.TEXT (fun out -> gen_reg_setter name size typ atts out)) ::
+	("label", out (fun _ -> get_label name atts)) ::
+	dict
+
+
+(** Test if the given specification is a register and call f with
+	a dictionary extended with the register description.
+	@param id		Unique identifier variable.
+	@param f		Function to call.
+	@param maker	Maker description.
+	@param spec		Specification to scan. *)
+let get_register id f dict maker _ spec =
+	match spec with
+	| Irg.REG (name, size, t, atts) ->
+		incr id;
+		f (maker.get_register spec
+			(("id", out (fun _ -> string_of_int !id)) ::
+			(make_register_dict name size t atts dict)))
 	| _ -> ()
 
 let get_value f dict t =
@@ -467,17 +522,34 @@ let get_param f dict t =
 		dict
 	)
 
-let get_memory f dict key sym =
-	match sym with
-	 | Irg.MEM (name, size, Irg.CARD(8), attrs)
+
+(** Build a dictionary with memory description.
+	@param name	Memory name.
+	@param size	Memory size.
+	@param typ	Memory type.
+	@param dict	Dictionary to extend.
+	@param atts	Memory attributes.
+	@return		Extended dictionary. *)
+let make_memory_dict name size typ atts dict =
+	("NAME", out (fun _ -> String.uppercase name)) ::
+	("name", out (fun _ -> name)) ::
+	("aliased", Templater.BOOL (fun _ -> contains_alias atts)) ::
+	dict
+
+
+(** Scan the given specification. If it is an unaliased memory, run f
+	with the dictionary improved with memory definitions.
+	a solid memory (not aliased).
+	@param f	Function to run.
+	@param dict	Initial dictionary.
+	@param key	Memory name.
+	@param spec	Specification to scan. *)
+let get_memory f dict key spec =
+	match spec with
+	 | Irg.MEM (name, size, Irg.CARD(8), atts)
 	 (* you can find int(8) memories in some description (carcore, hcs12) *)
-	 | Irg.MEM (name, size, Irg.INT(8), attrs) ->
-	  	f (
-			("NAME", out (fun _ -> String.uppercase name)) ::
-			("name", out (fun _ -> name)) ::
-			("aliased", Templater.BOOL (fun _ -> contains_alias attrs)) ::
-			dict
-		)
+	 | Irg.MEM (name, size, Irg.INT(8), atts) ->
+	  	f (make_memory_dict name size (Irg.INT(8)) atts dict)
 	| _ -> ()
 
 
@@ -615,7 +687,8 @@ let process file f opti =
 	with
 	| Irg.Error f ->
 		(Irg.join_all [Irg.asis "ERROR: "; f; Irg.asis "\n"]) stderr; exit 5
-	| Toc.Error msg ->
+	| Toc.Error msg
+	| Templater.Error msg ->
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 4
 	| Toc.LocError (file, line, f) ->
 		Printf.fprintf stderr "ERROR: %s:%d: " file line;
@@ -628,6 +701,7 @@ let process file f opti =
 		Printf.fprintf stderr "ERROR: %s\n" msg; exit 1
 	| Unix.Unix_error (err, _, path) ->
 		Printf.fprintf stderr "ERROR: %s on \"%s\"\n" (Unix.error_message err) path; exit 4
+		
 
 
 (** Find a source from "lib/"
