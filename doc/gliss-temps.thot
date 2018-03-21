@@ -193,9 +193,18 @@ In addition, they are suffixed by their type that may be:
 
 ==== Standard Symbols ====
 
-These symbols are defined whatever the used template.
+These symbols are defined whatever the used template. 
 
 === Top Level ===
+
+Notice that all
+the top-level of the SimNML description file are also accessible with
+the following nature:
+  * ''let'' symbols (//text// or //bool//)
+  * AND operations or modes (//collect// of their attributes)
+  * OR operations or modes (//collect// of their list of operations and modes)
+  
+Other top-level symbols include:
 
 ''date'' (//text//) -- current date including days and hours (useful
 to know when a source has been generated)
