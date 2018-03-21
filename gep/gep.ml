@@ -647,9 +647,9 @@ let _ =
 				App.makedir "include";
 				say (Printf.sprintf "creating \"%s\"\n" info.Toc.hpath);
 				App.makedir info.Toc.hpath;
+				if not !no_default then begin
 				App.make_template "id.h" ("include/" ^ info.Toc.proc ^ "/id.h") dict;
 				App.make_template "api.h" ("include/" ^ info.Toc.proc ^ "/api.h") dict;
-				if not !no_default then begin
 					App.make_template "debug.h" ("include/" ^ info.Toc.proc ^ "/debug.h") dict;
 					App.make_template "macros.h" ("include/" ^ info.Toc.proc ^ "/macros.h") dict
 				end;
@@ -659,37 +659,36 @@ let _ =
 				App.makedir "src";
 
 				App.make_template "gliss-config" ("src/" ^ info.Toc.proc ^ "-config") dict;
-				App.make_template "api.c" "src/api.c" dict;
 				if not !no_default then begin
+					App.make_template "api.c" "src/api.c" dict;
 					App.make_template "Makefile" "src/Makefile" dict;
 					App.make_template "debug.c" "src/debug.c" dict;
 					App.make_template "platform.h" "src/platform.h" dict;
 					App.make_template "fetch_table.h" "src/fetch_table.h" dict;
 					App.make_template "fetch.h" ("include/" ^ info.Toc.proc ^ "/fetch.h") dict;
 					App.make_template "fetch.c" "src/fetch.c" dict;
-					(if not !gen_with_trace
-					then
-						(App.make_template "decode_table.h" "src/decode_table.h" dict;
+					
+					(* select decoder *)
+					if not !gen_with_trace then begin
+						App.make_template "decode_table.h" "src/decode_table.h" dict;
 						App.make_template "decode.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
-						App.make_template "decode.c" "src/decode.c" dict)
+						App.make_template "decode.c" "src/decode.c" dict
+					end
 					else
 						(* now decode files are in templates directory (unlike a module) *)
 						(* !!TODO!! outut the correct decoder, not only decode_dtrace
 						 * design a fun : name_module instance -> output correct module
-						 * whereever the files are (lib or templates) *)
-						if (Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false)
-						then
+						 * wherever the files are (lib or templates) *)
+						if Iter.iter (fun e inst -> (e || Iter.is_branch_instr inst)) false then begin
 							(* dtrace has a different decode table organization ==> different table template *)
-							(App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
+							App.make_template "decode_dtrace_table.h" "src/decode_table.h" dict;
 							App.make_template "decode_dtrace.h" ("include/" ^ info.Toc.proc ^ "/decode.h") dict;
-							App.make_template "decode_dtrace.c" "src/decode.c" dict )
-						else failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace "^
+							App.make_template "decode_dtrace.c" "src/decode.c" dict
+						end
+						else
+							failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace " ^
 									   "but gep was not able to find a single one while parsing the NML")
-					);
-					(*try  DEBUG *)
-						App.make_template "code_table.h" "src/code_table.h" dict
-					(*with Toc.PreError f ->
-						(print_string "DEBUG: "; f stdout; failwith "too bad!"*)
+						(* App.make_template "code_table.h" "src/code_table.h" dict *)
 				end;
 
 				(* module linking *)
