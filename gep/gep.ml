@@ -810,8 +810,10 @@ let _ =
 						end
 						else
 							failwith ("Attributes 'set_attr_branch = 1' are mandatory with option -gen-with-trace " ^
-									   "but gep was not able to find a single one while parsing the NML")
-						(* App.make_template "code_table.h" "src/code_table.h" dict *)
+									   "but gep was not able to find a single one while parsing the NML");
+					
+					(* output code table *)
+					App.make_template "code_table.h" "src/code_table.h" dict
 				end;
 
 				(* module linking *)
