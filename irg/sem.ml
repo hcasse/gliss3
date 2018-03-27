@@ -34,6 +34,7 @@
 	they perform semantics analysis.
 	- {!build_canonical_expr}
 	- {!build_canonical_stat}
+	- {!final_check}
 	- {!get_add_sub}
 	- {!get_all_ref}
 	- {!get_bin}
@@ -44,12 +45,19 @@
 	- {!get_shift}
 	- {!get_unop}
 	- {!make_access_loc}
+	- {!make_and_mode}
+	- {!make_and_op}
 	- {!make_bitfield}
 	- {!make_coerce}
 	- {!make_concat_loc}
 	- {!make_if_expr}
+	- {!make_mem}
+	- {!make_or_mode}
+	- {!make_or_op}
+	- {!make_reg}
 	- {!make_set}
 	- {!make_switch_expr}
+	- {!make_var}
 	- {!num_auto_coerce}
 	- {!to_bool}
 	- {!to_card}
@@ -71,7 +79,6 @@
 	- {!check_image}
 	- {!check_loc_inst}
 	- {!check_param_exists}
-	- {!check_params}
 	- {!check_set_stat}
 	- {!check_spec_inst}
 	- {!check_stat_inst}
@@ -93,7 +100,6 @@
 	- {!is_loc_mode}
 	- {!is_loc_spe}
 	- {!is_location}
-	- {!raise_type_error_two_operand}
 	- {!test_canonical}
 	- {!test_data}
 	- {!type_from_id}
@@ -2285,12 +2291,55 @@ let make_or_op (id, line) lst =
 let final_checks () =
 	
 	(*check for "proc" or "NAME" *)
-	try
-		ignore (get_proc_name ())
-	with 
-	| Failure _ ->
-		raise (Error (asis "no name defined in this specification"));
-		
+	begin
+		try
+			ignore (get_proc_name ())
+		with 
+		| Failure _ ->
+			raise (Error (asis "no name defined in this specification"))
+	end;
+	
+	(* check AND mode or operation *)
+	let rec check_and id pars =
+		match pars with
+		| [] -> ()
+		| (_, TYPE_EXPR _)::_ -> ()
+		| (n, TYPE_ID t)::pars ->
+			match get_symbol t with
+			| OR_MODE _
+			| AND_MODE _
+			| TYPE _ -> check_and id pars
+			| _ -> error_symbol id (asis (Printf.sprintf "type of parameter \"%s\" of \"%s\" must be a type expression, a named type or mode" id t)) in
+
+	(* check OR operations *)
+	let rec check_or_op id names =
+		match names with
+		| [] -> ()
+		| name::names ->
+			match get_symbol name with
+			| OR_OP _
+			| AND_OP _ -> check_or_op id names
+			| _ -> error_symbol id (asis (Printf.sprintf "\"%s\" should be an OR or an AND operation" name)) in
+				
+	(* check OR modes *)
+	let rec check_or_mode id names =
+		match names with
+		| [] -> ()
+		| name::names ->
+			match get_symbol name with
+			| OR_MODE _
+			| AND_MODE _ -> check_or_mode id names
+			| _ -> error_symbol id (asis (Printf.sprintf "\"%s\" should be an OR or an AND mode" name)) in
+	
+	(* check modes and operations *)
+	iter (fun _ s ->
+		match s with
+		| AND_MODE(id, pars, _, _)
+		| AND_OP (id, pars, _)		-> check_and id pars
+		| OR_MODE (id, names, _)	-> check_or_mode id names
+		| OR_OP (id, names, _)		-> check_or_op id names
+		| _ -> ());
+
 	()
 			
 	
