@@ -2299,8 +2299,8 @@ let final_checks () =
 			raise (Error (asis "no name defined in this specification"))
 	end;
 	
-	(* check AND mode or operation *)
-	let rec check_and id pars =
+	(* check AND mode *)
+	let rec check_and_mode id pars =
 		match pars with
 		| [] -> ()
 		| (_, TYPE_EXPR _)::_ -> ()
@@ -2308,8 +2308,22 @@ let final_checks () =
 			match get_symbol t with
 			| OR_MODE _
 			| AND_MODE _
-			| TYPE _ -> check_and id pars
+			| TYPE _ -> check_and_mode id pars
 			| _ -> error_symbol id (asis (Printf.sprintf "type of parameter \"%s\" of \"%s\" must be a type expression, a named type or mode" id t)) in
+
+	(* check AND operation *)
+	let rec check_and_op id pars =
+		match pars with
+		| [] -> ()
+		| (_, TYPE_EXPR _)::_ -> ()
+		| (n, TYPE_ID t)::pars ->
+			match get_symbol t with
+			| OR_MODE _
+			| AND_MODE _
+			| OR_OP _
+			| AND_OP _
+			| TYPE _ -> check_and_op id pars
+			| _ -> error_symbol id (asis (Printf.sprintf "type of parameter \"%s\" of \"%s\" must be a type expression, a named type, a mode or an operation" id t)) in
 
 	(* check OR operations *)
 	let rec check_or_op id names =
@@ -2334,8 +2348,8 @@ let final_checks () =
 	(* check modes and operations *)
 	iter (fun _ s ->
 		match s with
-		| AND_MODE(id, pars, _, _)
-		| AND_OP (id, pars, _)		-> check_and id pars
+		| AND_MODE(id, pars, _, _)	-> check_and_mode id pars
+		| AND_OP (id, pars, _)		-> check_and_op id pars
 		| OR_MODE (id, names, _)	-> check_or_mode id names
 		| OR_OP (id, names, _)		-> check_or_op id names
 		| _ -> ());

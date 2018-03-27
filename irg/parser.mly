@@ -62,22 +62,6 @@ let syntax_error msg =
 	raise (Irg.SyntaxError msg)
 
 
-(** Get information to extend the symbol x.
-	@param x				Name of the symbol to extend (must an AND-op or an AND-mode).
-	@return					(specification of the symbol, list of parameters, list of attributes)
-	@raise Irg.Error		If the symbol is not extensible. *)
-let get_spec_extend x =
-	let sym = Irg.get_symbol x in
-	match sym with
-	| Irg.AND_MODE (_, pars, _, attrs)
-	| Irg.AND_OP (_, pars, attrs) ->
-		(sym, pars, attrs)
-	| Irg.UNDEF ->
-		Irg.error (Irg.asis (Printf.sprintf "symbol %s does not exists" x))
-	| _ ->
-		Irg.error (Irg.asis (Printf.sprintf "can not extend %s" x))
-
-
 (** Intersect parameter declaration.
 	@param pars1		First list of parameters.
 	@param pars2		Second list of parameters.
@@ -104,6 +88,21 @@ let intersect_attrs attrs1 attrs2 =
 	let member_of attr attrs = List.exists (fun item -> equal attr item) attrs in
 	List.fold_left (fun res attr -> if member_of attr attrs2 then attr::res else res) [] attrs1
 
+
+(** Get information to extend the symbol x.
+	@param x				Name of the symbol to extend (must an AND-op or an AND-mode).
+	@return					(specification of the symbol, list of parameters, list of attributes)
+	@raise Irg.Error		If the symbol is not extensible. *)
+let get_spec_extend x =
+	let sym = Irg.get_symbol x in
+	match sym with
+	| Irg.AND_MODE (_, pars, _, attrs)
+	| Irg.AND_OP (_, pars, attrs) ->
+		(sym, pars, attrs)
+	| Irg.UNDEF ->
+		Irg.error (Irg.asis (Printf.sprintf "symbol %s does not exists" x))
+	| _ ->
+		Irg.error (Irg.asis (Printf.sprintf "can not extend %s" x))
 
 %}
 
