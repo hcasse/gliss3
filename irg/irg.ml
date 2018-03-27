@@ -533,13 +533,19 @@ let get_symbol n =
 	with Not_found ->
 		UNDEF
 
-(** Get processor name of the simulator *)
-let get_proc_name () = match get_symbol "proc" with
-	| LET(_, _, STRING_CONST(name), _) -> name
-	| _                         ->
-		failwith ("Unable to find 'proc_name'."^
-				  "'proc' must be defined as a string let")
-
+(** Get processor name of the simulator.
+	Look for a constant definition named "proc" or "NAME".
+	@return		Found name. *)
+let get_proc_name () =
+	let rec lookup ids =
+		match ids with 
+		| [] ->
+			failwith "get_proc_name: no proc name"
+		| id::ids ->
+			match get_symbol id with
+			| LET(_, _, STRING_CONST(name), _) when name <> ""	-> name
+			| _													-> lookup ids in
+	lookup ["proc"; "NAME"]
 
 (** Add a symbol to the namespace.
 	@param name	Name of the symbol to add.

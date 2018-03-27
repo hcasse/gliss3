@@ -1634,6 +1634,25 @@ let add_spec name spec  =
 	else Irg.add_symbol name spec
 
 
+(** Add attributes to an existing specification.
+	This function is only useful recursive specifications that is, for
+	specifications that can reference themselves in their definition.
+	@param name		Specification name.
+	@param attrs	Attributes to add. *)		
+let add_atts name atts =
+	let replace s = Irg.rm_symbol name; Irg.add_symbol name s in
+	match get_symbol name with
+	| UNDEF						-> failwith "add_atts: name must be an existing specification!"
+	| LET (_, t, c, oatts)		-> replace (LET (name, t, c, atts @ oatts))
+	| TYPE (_, t, oatts)		-> replace (TYPE (name, t, atts @ oatts))
+	| MEM (_, s, t, oatts)		-> replace (MEM (name, s, t, atts @ oatts))
+	| REG (_, s, t, oatts)		-> replace (REG (name, s, t, atts @ oatts))		
+	| VAR (_, s, t, oatts)		-> replace (VAR (name, s, t, atts @ oatts))
+	| AND_MODE (_, p, e, oatts)	-> replace (AND_MODE (name, p, e, atts @ oatts))
+	| AND_OP (_, p, oatts)		-> replace (AND_OP (name, p, atts @ oatts))
+	| _							-> failwith "add_atts: this specification does not support attributes"
+	
+
 (** Check if the image contains references to all parameters.
 	@param id		Identifier of the specification item.
 	@param params	List of parameters.
@@ -2258,3 +2277,22 @@ let make_or_mode (id, line) lst =
 	@return		Made specification. *)
 let make_or_op (id, line) lst =
 	Irg.OR_OP (id, lst, set_line_info [] line)
+
+
+(** Perform final checking on the loaded file. For now, it includes only:
+	- availability of "proc" or "NAME" string constant.
+	*)
+let final_checks () =
+	
+	(*check for "proc" or "NAME" *)
+	try
+		ignore (get_proc_name ())
+	with 
+	| Failure _ ->
+		raise (Error (asis "no name defined in this specification"));
+		
+	()
+			
+	
+	
+	

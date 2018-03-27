@@ -74,7 +74,6 @@ let check sw =
 	match sw with
 	| Irg.SWITCH_EXPR (t, c, cs, def) ->
 		(try
-			(*print [PTEXT "DEBUG: SWITCH\n"];*)
 
 			(* try to get a constant table *)
 			let b = Sem.get_type_length (Sem.get_type_expr c) in
@@ -85,7 +84,6 @@ let check sw =
 				 (Sem.eval_const c, Sem.eval_const v)) cs in
 			let def =
 				if def = NONE then NULL else  Sem.eval_const def in
-			(*List.iter (fun (c, v) -> print [PTEXT "DEBUG: "; PCST c; PTEXT " -> "; PCST v; PTEXT "\n"]) items;*)
 
 			(* build the table *)
 			let n = !num in

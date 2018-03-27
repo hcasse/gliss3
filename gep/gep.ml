@@ -437,7 +437,6 @@ let make_env info =
 			0 in
 	
 	let is_RISC =
-		Printf.printf "DEBUG: %d = %d\n" min_size max_size;
 		if min_size == max_size then
 			(match min_size with
 			| 8

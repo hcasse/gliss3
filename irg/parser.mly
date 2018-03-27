@@ -206,7 +206,7 @@ let intersect_attrs attrs1 attrs2 =
 %%
 
 top:
-	specs EOF		{ }
+	specs EOF		{ Sem.final_checks () }
 ;
 
 LocatedID:
@@ -223,7 +223,7 @@ MachineSpec :
     LetDef 		{ Irg.add_symbol (fst $1) (snd $1) }
 |   TypeSpec 		{ Sem.add_spec (fst $1) (snd $1) }
 |   MemorySpec		{ Sem.add_spec (fst $1) (snd $1) }
-|   RegisterSpec	{ Sem.add_spec (fst $1) (snd $1) }
+|   RegisterSpec	{ (*Sem.add_spec (fst $1) (snd $1)*) }
 |   VarSpec			{ Sem.add_spec (fst $1) (snd $1) }
 |   ModeSpec		{ Sem.add_spec (fst $1) (snd $1); }
 |   OpSpec			{ Sem.add_spec (fst $1) (snd $1); }
@@ -339,9 +339,12 @@ MemorySpec:
 		{ (fst $2, Sem.make_mem $2 (fst $4) (snd $4) $6) }
 ;
 
+RegisterSpecHeader: REG LocatedID LBRACK RegPart RBRACK
+	{ Sem.add_spec (fst $2) (Sem.make_reg $2 (fst $4) (snd $4) []); $2 }
+
 RegisterSpec:
-	REG LocatedID LBRACK RegPart RBRACK OptionalMemAttrDefList
-		{ (fst $2, Sem.make_reg $2 (fst $4) (snd $4) $6) }
+	RegisterSpecHeader OptionalMemAttrDefList
+		{ Sem.add_atts (fst $1) $2 }
 ;
 
 VarSpec:

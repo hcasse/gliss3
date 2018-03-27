@@ -670,9 +670,7 @@ let rec simplify_format_expr ex =
 		match f with
 		[] ->
 			if params = [] then ([], [])
-			else
-				(print_string "DEBUG: "; Irg.print_expr ex; print_string "\n";
-				failwith "too much params here (instantiate.ml::simplify_format_expr::reduce)")
+			else failwith "too much params here (instantiate.ml::simplify_format_expr::reduce)"
 		| f1::f_l ->
 			match f1 with
 			| Str.Text(t) ->
