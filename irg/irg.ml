@@ -309,6 +309,8 @@ let ieee754_64 = FLOAT (11, 52)
 (** Float type for IEEE-754 binary128 *)
 let ieee754_128 = FLOAT (15, 112)
 
+(** Default (integer) type. *)
+let default_int = INT(32)
 
 (** Use of a type *)
 type typ =
@@ -950,12 +952,13 @@ let rec output_expr out e =
 		output_string out "\", ";
 		let _ = List.fold_left print_arg true args in
 		output_string out ")"
-	| CANON_EXPR (_, n, args) ->
+	| CANON_EXPR (t, n, args) ->
 		output_string out "\"";
 		output_string out n;
 		output_string out "\" (";
 		let _ = List.fold_left print_arg true args in
-		output_string out ")"
+		output_string out "): ";
+		output_type_expr out t
 	| FIELDOF(t, e, n) ->
 		output_string out e;
 		output_string out ".";

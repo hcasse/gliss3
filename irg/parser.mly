@@ -709,7 +709,7 @@ Expr:
 |	FORMAT error
 		{ syntax_error "syntax error in format expression" }
 |	STRING_CONST LPAREN ArgList RPAREN
-		{ Sem.test_canonical $1; eline (Sem.build_canonical_expr $1 (List.rev $3)) }
+		{ eline (Sem.make_canon_expr $1 (List.rev $3)) }
 |	ID DOT SYNTAX
 		{	if Irg.is_defined $1
 			then eline (Irg.FIELDOF (Irg.STRING, $1,"syntax"))

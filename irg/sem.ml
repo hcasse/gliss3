@@ -1394,17 +1394,6 @@ let check_canon_params name params =
 		pre_error "bad number of arguments"
 
 
-(** This function build a canonical expression, after checked if the parameters are corrects.
-	@param name		The name of the canonical function
-	@param params	The list of parameters given to the canonical function
-	@return 		A CANON_EXPR expression
-	@raise SemError Raised when the parameters are incorrects
-*)
-let build_canonical_expr name params =
-	let e = get_canon name in
-	CANON_EXPR(e.type_res, name, check_canon_params name params)
-
-
 (** This function build a canonical statement, after checked if the parameters are corrects.
 	If the function have a return type different of NO_TYPE (except of course UNKNOW_TYPE, when the function is unknow), then a warning is displayed
 
@@ -2283,6 +2272,19 @@ let make_or_mode (id, line) lst =
 	@return		Made specification. *)
 let make_or_op (id, line) lst =
 	Irg.OR_OP (id, lst, set_line_info [] line)
+
+
+(** This function build a canonical expression, after checked if the parameters are corrects.
+	@param name		The name of the canonical function
+	@param params	The list of parameters given to the canonical function
+	@return 		A CANON_EXPR expression
+	@raise SemError Raised when the parameters are incorrects
+*)
+let make_canon_expr name params =
+	test_canonical name; 
+	let e = get_canon name in
+	let t = if e.type_res = ANY_TYPE then default_int else e.type_res in
+	CANON_EXPR(t, name, check_canon_params name params)
 
 
 (** Perform final checking on the loaded file. For now, it includes only:
