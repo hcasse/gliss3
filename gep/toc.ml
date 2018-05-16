@@ -1287,7 +1287,7 @@ and gen_coerce info t1 expr parent prfx =
 		f ();
 		Printf.fprintf info.out ", %d)" (List.length vals) in
 	let exts n f a =
-		Printf.fprintf info.out "__%s_EXTS%d(%d, " (String.uppercase info.proc) (ctype_size t2c) n;
+		Printf.fprintf info.out "__%s_EXTS%d(%d, " (String.uppercase info.proc) (ctype_size t1c) n;
 		f a;
 		Printf.fprintf info.out ")" in
 	let word_size (x: int) =
