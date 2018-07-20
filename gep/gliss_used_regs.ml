@@ -186,31 +186,31 @@ let add_read (rds, wrs) id num =
 	@param info		Generation information.
 	@param lst		List of collected used registers (identifier, number). *)
 let collect info =
-		let variable = ref false in
+	let variable = ref false in
 		
-		let rec collect_stat stat (c, lst) (line: string * int) =
+	let rec collect_stat stat (c, lst) (line: string * int) =
 		match stat with
-			| Irg.NOP
-			| Irg.LOCAL _ -> (c, lst)
-			| Irg.SEQ (s1, s2) -> collect_stat s2 (collect_stat s1 (c, lst) line) line
-			| Irg.EVAL ("", id) -> (c, collect_call id lst)
-			| Irg.EVAL _ -> failwith "gliss-used-regs: collect_stat"
-			| Irg.SET (l, e) -> (c, collect_loc l (c, scan c e lst line) line)
-			| Irg.CANON_STAT ("//no_collect_regs", _) -> (false, lst)
-			| Irg.CANON_STAT ("//do_collect_regs", _) -> (true, lst)
-			| Irg.CANON_STAT (_, args) -> (c, List.fold_left (fun l e -> scan c e l line) lst args)
-			| Irg.ERROR _ -> (c, lst)
-			| Irg.IF_STAT (cd, t, e) -> (c, snd (collect_stat t (collect_stat e (c, scan c cd lst line) line) line))
-			| Irg.SWITCH_STAT (cd, cs, d) ->
+			| Irg.NOP						-> (c, lst)
+			| Irg.LOCAL (v, _, t)			-> Irg.handle_local v t; (c, lst)
+			| Irg.SEQ (s1, s2) 				-> collect_stat s2 (collect_stat s1 (c, lst) line) line
+			| Irg.EVAL ("", id) 			-> (c, collect_call id lst)
+			| Irg.EVAL _ 					-> failwith "gliss-used-regs: collect_stat"
+			| Irg.SET (l, e) 				-> (c, collect_loc l (c, scan c e lst line) line)
+			| Irg.CANON_STAT ("//no_collect_regs", _)	-> (false, lst)
+			| Irg.CANON_STAT ("//do_collect_regs", _)	-> (true, lst)
+			| Irg.CANON_STAT (_, args)		-> (c, List.fold_left (fun l e -> scan c e l line) lst args)
+			| Irg.ERROR _					-> (c, lst)
+			| Irg.IF_STAT (cd, t, e)		-> (c, snd (collect_stat t (collect_stat e (c, scan c cd lst line) line) line))
+			| Irg.SWITCH_STAT (cd, cs, d)	->
 				(c, snd (List.fold_left
 					(fun l (_, s) -> collect_stat s l line) (collect_stat d (c, scan c cd lst line) line)
 					cs))
-			| Irg.LINE (f, l, s) -> collect_stat s (c, lst) (f, l)
-			| Irg.FOR (v, uv, t, l, u, b) -> collect_stat b (c, lst) line
+			| Irg.LINE (f, l, s)			-> collect_stat s (c, lst) (f, l)
+			| Irg.FOR (v, uv, t, l, u, b)	-> collect_stat b (c, lst) line
 
 		and unalias id idx lst (line: string * int) =
 			match Irg.get_symbol id with
-			| Irg.UNDEF -> assert false (*failwith ("undefined symbol " ^ id)*)
+			| Irg.UNDEF -> failwith ("undefined symbol " ^ id)
 			| Irg.REG (_, _, _, attrs) ->
 				(match Toc.get_alias attrs with
 				| Irg.LOC_NONE -> collect_reg add_read lst id idx line
@@ -445,32 +445,27 @@ let get_instruction inst dict =
 
 
 let _ =
-	(*let display_error msg = Printf.fprintf stderr "ERROR: %s\n" msg in*)
-	(*try*)
-		App.run
-			[ ("-e", Arg.String (fun arg -> extends := arg::!extends), "extension files") ]
-			"SYNTAX: gliss-used-regs [options] NML_FILE\n\tGenerate functions to retrieve register use."
-			(fun info ->
+	App.run
+		[ ("-e", Arg.String (fun arg -> extends := arg::!extends), "extension files") ]
+		"SYNTAX: gliss-used-regs [options] NML_FILE\n\tGenerate functions to retrieve register use."
+		(fun info ->
 
-				(* download the extensions *)
-				List.iter IrgUtil.load_with_error_support !extends;
+			(* download the extensions *)
+			List.iter IrgUtil.load_with_error_support !extends;
 
-				(* generate used registers *)
-				let maker = App.maker () in
-				let (cnt, lst) = collect_register_info () in
-				maker.App.get_register <- generate_num lst;
-				maker.App.get_instruction <- get_instruction;
-				let dict = 
-					("used_regs_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" cnt)) ::
-					("used_regs_read_max", Templater.TEXT (fun out -> Printf.fprintf out "%d" !max_read)) ::
-					("used_regs_write_max", Templater.TEXT (fun out -> Printf.fprintf out "%d" !max_write)) ::
-					(App.make_env info maker) in
+			(* generate used registers *)
+			let maker = App.maker () in
+			let (cnt, lst) = collect_register_info () in
+			maker.App.get_register <- generate_num lst;
+			maker.App.get_instruction <- get_instruction;
+			let dict = 
+				("used_regs_count", Templater.TEXT (fun out -> Printf.fprintf out "%d" cnt)) ::
+				("used_regs_read_max", Templater.TEXT (fun out -> Printf.fprintf out "%d" !max_read)) ::
+				("used_regs_write_max", Templater.TEXT (fun out -> Printf.fprintf out "%d" !max_write)) ::
+				(App.make_env info maker) in
 
-				Templater.generate dict "used_regs.c" (info.Toc.spath ^ "/used_regs.c");
-				Templater.generate dict "used_regs.h" (info.Toc.hpath ^ "/used_regs.h")
-			)
-	(*with 
-	| CommandError msg ->
-		display_error msg*)
+			Templater.generate dict "used_regs.c" (info.Toc.spath ^ "/used_regs.c");
+			Templater.generate dict "used_regs.h" (info.Toc.hpath ^ "/used_regs.h")
+		)
 
 

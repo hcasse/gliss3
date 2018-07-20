@@ -32,6 +32,7 @@ static void $(proc)_instr_UNKNOWN_code($(proc)_state_t *state, $(proc)_inst_t *i
 }
 
 $(foreach mapped_instructions)
+/* $(syntax) */
 static void $(proc)_instr_$(IDENT)_code($(proc)_state_t *state, $(proc)_inst_t *inst) {
 $(gen_code)
 }

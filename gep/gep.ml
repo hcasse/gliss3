@@ -533,6 +533,8 @@ let make_env info =
 
 		("mask_decl_all", Templater.TEXT (fun out -> mask_decl_all inst is_risc out)) ::
 
+		("syntax", Templater.TEXT (fun out -> output_string out (Iter.get_user_id inst))) ::
+
 		dict in
 
 	let get_instr_set_size f dict size =

@@ -69,6 +69,7 @@ $(end)
 }
 
 $(foreach instructions)
+/* $(syntax) */
 static$(if !GLISS_NO_MALLOC) $(proc)_inst_t *$(else) void $(end)$(proc)_instr_$(IDENT)_decode($(code_read_param_decl)code_inst$(if GLISS_NO_MALLOC), $(proc)_inst_t *inst$(end)) {
 
 $(if has_param)$(if is_complex_decode)	/* complex decoding */

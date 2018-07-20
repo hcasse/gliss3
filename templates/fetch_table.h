@@ -33,11 +33,13 @@ typedef struct
 $(if is_multi_set)
 $(foreach instr_sets_sizes)
 $(if is_RISC_size)
+/* RISC multi-instruction set */
 typedef struct Table_Decodage_$(C_size) {
         uint$(C_size)_t        mask;
         Decode_Ent      *table;
 } Table_Decodage_$(C_size);
 $(else)
+/* CISC multi-instruction set */
 typedef struct Table_Decodage_CISC {
         mask_t        *mask;
         Decode_Ent      *table;
@@ -46,11 +48,13 @@ $(end)
 $(end)$(end)
 $(if !is_multi_set)
 $(if is_RISC_size)
+/* RISC single instruction set */
 typedef struct Table_Decodage {
         uint$(C_inst_size)_t        mask;
         Decode_Ent      *table;
 } Table_Decodage;
 $(else)
+/* CISC single instruction set */
 typedef struct Table_Decodage_CISC {
         mask_t        *mask;
         Decode_Ent      *table;
