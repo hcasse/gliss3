@@ -72,7 +72,7 @@ module StringHashtbl = Hashtbl.Make(HashedString)
 let get_stat_attr name =
 	match Irg.get_symbol name with
 	| Irg.ATTR (Irg.ATTR_STAT (_, stat)) -> stat
-	| _ -> failwith "Not a statement attribute !"
+	| _ -> failwith (Printf.sprintf "Not a statement attribute: %s!" name)
 
 
 (** Execute the function f, capturing PreError exception and

@@ -667,6 +667,35 @@ As usual, parentheses allows to cope with operator priority.
 //ConstantExpression// follows the same syntax as in the specification
 of constants.
 
+
+==== Constant Expression ====
+
+A constant expression allows to use literal values in an expression.
+The following forms are accepted:
+<code>
+ConstantExpression ::=
+    | {0-9}+                       // decimal
+    | 0{xX}{0-9a-fA-F}+            // hexadecimal
+    | 0{xX}{01}+                   // binary
+    | {0-9}*.{0-9}*                // floating-point 1
+    | {0-9}+{eE}{-+}?{0-9}+        // floating-point 2
+    | {0-9}*.{0-9}+{eE}{-+}?{0-9}+ // floating-point 3
+</code>
+
+The decimal form, respectively hexadecimal represents decimal, resceptively
+hexadecimal, unsigned integer numbers of 32- or 64-bit depending on the value.
+
+The binary form represents unsigned integer binary numbers which sizes
+is the number of used digits.
+
+Floating-point forms 1, 2 and 3 represents floating-point numbers in
+decimal for 32- or 64-bit, depending on the size
+[[https://fr.wikipedia.org/wiki/IEEE_754|IEEE-754]] numbers.
+
+There is no boolean in NMP: any value equal to 0 is false, other values
+different from 0 are considered as true.
+
+
 ===== Reference Expression =====
 
 An identifier expression allows to get value of a constant,
@@ -953,6 +982,20 @@ will only preserve the integer part (possibly rounding it) while
 the casting copies bits as is and, therefore, outcomes a very
 different integer value (for bit access purpose for example).
 
+The following rules are applied to perform coercions:
+  * from integer or card to float -- the integer parts becomes the mantissa
+of the floating-point of values, some least significant bits may be lost
+if the mantissa is too small.
+  * from floating-point to integer/card -- if the integer/card is too small,
+only the least significant bits are kept.
+  * from integer to bigger integer -- the sign is extended on added bits,
+  * from card to bigger card -- the added bits are 0,
+  * from integer/card to smaller integer/card -- most significant are lost,
+  * from card to bigger integer -- added bits are set to 0,
+  * from integer to bigger card -- the sign is extended on added bits,
+  * range / enumerated type to integer/card -- equivalent to conversion of
+card to integer/card.
+
 
 
 ===== Priorities and Associativities =====
@@ -1144,7 +1187,7 @@ If the identifier corresponds to a global definition identifier,
 it is hidden by the local variable.
 
 
-===== Let Statement =====
+===== For Statement =====
 
 **The ''for'' statement is a GLISS extension to NML!**
 
@@ -1162,5 +1205,5 @@ ForStatement ::= 'for' i: ID 'in' lo: Expr '..' up: Expr ''do'' Sequence ''enddo
 
 Expressions //lo// and //up// are evaluated at compilation time and must
 be integer constants. The loop repeats the statement sequence for //i//
-ranging from //lo// to //up// incremented by a step if 1.
+ranging from //lo// to //up// incremented by a step of 1.
 
