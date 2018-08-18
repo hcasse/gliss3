@@ -15,7 +15,7 @@ $(if is_CISC_present)#include <$(proc)/gen_int.h>$(end)
 
 /* external functions */
 $(if is_multi_set)
-	$(foreach instr_sets_sizes)
+	$(foreach instruction_sets_sizes)
 		$(if is_RISC_size)
 struct Table_Decodage_$(C_size);
 $(proc)_ident_t $(proc)_fetch_$(C_size)($(proc)_fetch_t *fetch, $(proc)_address_t address, uint$(C_size)_t *code, struct Table_Decodage_$(C_size) *table);
@@ -186,7 +186,7 @@ $(end)
 $(end)$(end)
 
 $(if is_multi_set)
-$(foreach instr_sets_sizes)
+$(foreach instruction_sets_sizes)
 /* Fonctions Principales */
 $(proc)_inst_t *$(proc)_decode_$(if is_RISC_size)$(C_size)$(else)CISC$(end)($(proc)_decoder_t *decoder, $(proc)_address_t address)
 {

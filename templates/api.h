@@ -140,7 +140,7 @@ void $(proc)_delete_fetch($(proc)_fetch_t *fetch);
 
 $(if is_multi_set)
 typedef union {
-$(foreach instr_sets_sizes)
+$(foreach instruction_sets_sizes)
 	$(if is_RISC_size)uint$(C_size)_t u$(C_size)$(else)mask_t *mask$(end);
 $(end)} code_t;$(end)
 

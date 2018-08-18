@@ -1,5 +1,15 @@
 ====== GLISS2 Development Notes ======
 
+
+===== Testing =====
+
+The current version of GLISS has been tested against the following instruction sets:
+  * ARMv7T (https://anon:anon@www.irit.fr/hg/TRACES/armv7t/trunk)
+  * PowerPC (https://anon:anon@www.irit.fr/hg/TRACES/ppc2/trunk)
+  * Sparc (https://anon:anon@www.irit.fr/hg/TRACES/sparc/trunk)
+  * TriCore (https://anon:anon@www.irit.fr/hg/TRACES/tricore/trunk)
+
+
 ===== Directory Organization =====
 
   * ''gep'' -- generator libraries and commands,

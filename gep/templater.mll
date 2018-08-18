@@ -190,7 +190,6 @@ rule scanner out dict state = parse
 | "$(if" blank '!' (id as id) ')' ('\n'? as nl)
 	{
 		let cond = do_bool dict id in
-		Printf.fprintf stderr "DEBUG: if !%s = %b\n" id (not cond); flush stderr;
 		if nl <> "" then incr line;
 		if not cond then scanner out dict THEN lexbuf
 		else skip out dict 0 lexbuf;
@@ -200,7 +199,6 @@ rule scanner out dict state = parse
 | "$(if" blank (id as id) ')' ('\n'? as nl)
 	{
 		let cond = do_bool dict id in
-		Printf.fprintf stderr "DEBUG: if %s = %b\n" id cond; flush stderr;
 		if nl <> "" then incr line;
 		if cond then scanner out dict THEN lexbuf
 		else skip out dict 0 lexbuf;

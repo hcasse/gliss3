@@ -539,7 +539,7 @@ let make_env info =
 
 	let get_instr_set_size f dict size =
 	f (
-		("is_RISC_size", (Templater.BOOL (fun _ -> Printf.fprintf stderr "DEBUG: SIZE = %d\n" size; flush stderr; size <> 0))) ::
+		("is_RISC_size", (Templater.BOOL (fun _ -> size <> 0))) ::
 		("C_size", Templater.TEXT(fun out ->
 			if size = 0 then
 				raise (Sys_error "template $(C_size) in $(instr_sets_sizes) collection should be used only with RISC ISA")

@@ -68,7 +68,7 @@ void $(proc)_delete_fetch($(proc)_fetch_t *fetch)
 		halt_fetch();
 }
 
-$(foreach instr_sets_sizes)
+$(foreach instruction_sets_sizes)
 $(if is_RISC_size)			//$ RISC instruction set
 
 /**
