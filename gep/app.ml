@@ -281,6 +281,7 @@ let get_instruction_set maker f dict i_set =
 			0 i_set
 	in
 	let is_RISC =
+		Printf.fprintf stderr "DEBUG: size = (%d, %d)\n" min_size max_size; flush stderr;
 		if min_size == max_size then
 			(match min_size with
 			| 8

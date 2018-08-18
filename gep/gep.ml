@@ -539,7 +539,7 @@ let make_env info =
 
 	let get_instr_set_size f dict size =
 	f (
-		("is_RISC_size", (Templater.BOOL (fun _ -> size <> 0))) ::
+		("is_RISC_size", (Templater.BOOL (fun _ -> Printf.fprintf stderr "DEBUG: SIZE = %d\n" size; flush stderr; size <> 0))) ::
 		("C_size", Templater.TEXT(fun out ->
 			if size = 0 then
 				raise (Sys_error "template $(C_size) in $(instr_sets_sizes) collection should be used only with RISC ISA")
@@ -602,7 +602,7 @@ let make_env info =
 	("num_instr_sets", Templater.TEXT (fun out -> Printf.fprintf out "%d" (List.length instr_sets)) ) ::
 	
 	(* different sizes of the instr sets (no double) *)
-	("instr_sets_sizes", Templater.COLL (fun f dict -> List.iter (get_instr_set_size f dict) instr_sets_sizes)) ::
+	("instruction_sets_sizes", Templater.COLL (fun f dict -> List.iter (get_instr_set_size f dict) instr_sets_sizes)) ::
 	
 	(* declaration of the value type that holds an instr code in read only, used in decode, should be concat directly to var name in C code *)
 	("code_read_param_decl", Templater.TEXT (fun out ->

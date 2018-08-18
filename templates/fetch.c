@@ -42,7 +42,7 @@ $(proc)_fetch_t *$(proc)_new_fetch($(proc)_platform_t *pf$(if is_multi_set), $(p
 {
 	$(proc)_fetch_t *res = malloc(sizeof($(proc)_fetch_t));
 	if (res == NULL)
-		$(proc)_error("not enough memory to create a $(proc)_fetch_t object"); /* I assume error handling will remain the same, we use $(proc)_error istead of iss_error ? */
+		$(proc)_error("not enough memory to create a $(proc)_fetch_t object"); /* I assume error handling will remain the same, we use $(proc)_error instead of iss_error ? */
 	res->mem = $(proc)_get_memory(pf, $(PROC)_MAIN_MEMORY);
 	$(if is_multi_set)res->state = state;$(end)
 	if (number_of_fetch_objects == 0)

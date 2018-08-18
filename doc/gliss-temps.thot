@@ -191,161 +191,174 @@ In addition, they are suffixed by their type that may be:
   * //bool// for boolean symbols.
 
 
-==== Standard Symbols ====
+=== Top-Level Generic Symbols ===
 
-These symbols are defined whatever the used template. 
-
-=== Top Level ===
-
-Notice that all
-the top-level of the SimNML description file are also accessible with
-the following nature:
-  * ''let'' symbols (//text// or //bool//)
-  * AND operations or modes (//collect// of their attributes)
-  * OR operations or modes (//collect// of their list of operations and modes)
+Notice that all top-level ''let'' symbols of NML files  are also accessible.
   
 Other top-level symbols include:
 
-''date'' (//text//) -- current date including days and hours (useful
-to know when a source has been generated)
-
-''INCLUDE_PATH'' (//text//) -- path to the generated include header files
-
-''instruction'' (//collect//) -- collection of NML instruction
-(fully derived)
-
-''profiled_instructions'' (//collect//) -- collection of 'n' profiled NML instruction more details in section optimisation.
-
-''GLISS_PROFILED_JUMPS'' (//bool//) -- True when option '-PJ nb_instr' is activated in GEP more details ins section optimisation.
-
-''max_instruction_size'' (//text//) -- Maximal size of instructions (in bits).
-
-''max_operand_nb'' (//text//) -- Indicates the maximum number of operands of the NML instruction set.
-
-''min_instruction_size'' (//text//) -- Minimal size of instructions (in bits).
-
-''total_instruction_count'' (//text//) -- Total number of NML instruction set.
-
-''memories'' (//collect//) -- collection of used memories
+  * ''C_inst_size'' (//text//) -- For a unique RISC instruction set, return the C type size in bits used to contain instruction words.
+  * ''date'' (//text//) -- Current date including days and hours (useful
+to know when a source has been generated).
+  * ''declare_switch'' (//text//) -- If the switch has been optimized (option ''-switch''), generate the switch tables.
+  * ''gen_init_code'' (//text//) -- Generate the initialization code for the
+architecture.
+  * ''gen_pc_incr_unknown'' (//text//) -- Generate code to increment the PC in the case of an unknown instruction.
+  * ''has_npc'' (//bool//) -- True if an NPC is defined.
+  * ''INCLUDE_PATH'' (//text//) -- Path to the generated include header files.
+  * ''instruction'' (//collect//) -- Collection of NML instruction
+(fully derived).
+  * ''is_CISC_present'' (//bool//) -- True if the unique instruction or if one of the instruction sets is CISC (variable lenght).
+  * ''is_multi_set'' (//bool//) -- True if several ISAs defined in a same NMP description, false if only one ISA present.
+  * ''is_RISC'' (//bool//) -- True if the unique instruction is RISC (fixed size) or not.
+  * ''is_complex_decode'' (//bool//) -- true if option ''-D'', complex decoding, is enabled.
+  * ''is_multi_set'' (//bool//) -- True if several instruction sets are defined.
+  * ''max_instruction_size'' (//text//) -- Maximal size of instructions (in bits).
+  * ''max_operand_nb'' (//text//) -- Indicates the maximum number of operands of the NML instruction set.
+  * ''min_instruction_size'' (//text//) -- Minimal size of instructions (in bits).
+  * ''total_instruction_count'' (//text//) -- Total number of NML instruction set.
+  * ''memories'' (//collect//) -- collection of used memories
 (''mem'' NML statement)
-
-''params'' (//collect//) -- collection of existing parameter types
+  * ''msb_mask'' (//text//) -- Only defined for one instruction set 
+, MSB mask.
+  * ''npc_name'' (//text//) -- Lowercase name of the NPC register if one is defined.
+  * ''NPC_NAME'' (//text//) -- Uppercase name of the NPC register if one is defined.
+  * ''num_instr_set'' (//text//) -- Number of instruction sets.
+  * ''params'' (//collect//) -- Collection of existing parameter types
 (built the union of the parameters types of the different instructions).
-
-''proc'' (//text//) -- processor name in lowercase, derived from
-the NML ''proc'' definition
-
-''PROC'' (//text//) -- processor name in uppercase, derived from
-the NML ''proc'' definition
-
-''registers'' (//collect//) -- collection of used registers
-
-''SOURCE_PATH'' (//text//) -- path to the generated sources
-
-''values'' (//collect//) -- collection of the different types of all the parameters from every fully derived instructions,
-types are all "rounded" to the smallest C type that can contain them
-
-''version'' (//text//) -- identification of the generation version
-of @(GLISS)
-
-''is_multi_set'' (//bool//) -- True if several ISAs defined in a same NMP description, false if only one ISA present
-
-''num_instr_set'' (//text//) -- number of ISAs defined in a NMP description
-
-
-=== Collection symbols ===
+  * ''pc_name'' (//text//) -- Lowercase name of the PC register.
+  * ''PC_NAME'' (//text//) -- Uppercase name of the PC register.
+  * ''ppc_name'' (//text//) -- Lowercase name of the PPC register.
+  * ''PPC_NAME'' (//text//) -- Uppercase name of the PPC register.
+  * ''proc'' (//text//) -- Processor name in lowercase, derived from
+the NML ''proc'' definition.
+  * ''PROC'' (//text//) -- Processor name in uppercase, derived from
+the NML ''proc'' definition.
+  * ''profiled_instructions'' (//collect//) -- Collection of 'n' profiled NML instruction more details in section optimisation.
+  * ''registers'' (//collect//) -- Collection of used registers.
+  * ''total_instruction_count'' (//text//) -- Count of instructions.
+  * ''values'' (//collect//) -- Collection of the different types of all the parameters from every fully derived instructions, types are all "rounded" to the smallest C type that can contain them.
+  * ''version'' (//text//) -- Identification of the generation version
+of @(GLISS).
 
 
 
-== ''instruction'' (//collect//) And ''profiled_instructions'' (//collect//) ==
+
+=== Symbols Reflecting Options ===
+
+  * ''$(GLISS_FIXED_DECODE_CACHE)'' (//bool//) -- True if the decoder ''decode32_fixed_cache'' is used.
+  * ''$(GLISS_INF_DECODE_CACHE)'' (//bool//) -- True if the decoder ''decode32_inf_cache'' is used.
+  * ''$(GLISS_LRU_DECODE_CACHE)'' (//bool//) -- True if the decoder ''decode32_lru_cache'' is used.
+  * ''$(GLISS_NO_MALLOC)'' (//bool//) -- True if the generated decoder does not perform allocaton itself.
+  * ''$(GLISS_PROFILED_JUMPS)'' (//bool//) -- True when option ''-PJ nb_instr'' is activated in GEP more details ins section optimisation.
+  * ''$(modules)'' (//collect//) -- List of module names.
+  * ''$(SOURCE_PATH)'' (//text//) -- Path to the generated sources.
+  * ''$(sources)'' (//collect//) -- List of source names. 
+
+
+
+=== ''instruction'' (//collect//) And ''profiled_instructions'' (//collect//) ===
 
 In this example you will find a summary of the availables symbols for this collection:
-<code>
-$(foreach instructions) // or $(foreach profiled_instructions)
-     $(IDENT)      // (text) Name of the current instruction
-     $(ident)      // (text) Name of the current instruction (lower case)
-     $(size)       // (text) Bit size of the instruction
-     $(ICODE)      // (text) Integer identifier of the instruction
-     $(has_param)  // (bool) True if instruction has operands
-     $(num_params) // (text) Number of parameters of the fully derived instruction
-     $(gen_code)   // (text) C code traduction of the current instruction's action
-     $(gen_pc_incr)// (text) generates C code sequence for automatic PC(s) incrementation,
-                   // can be used if ''__attr'' keyword defines PC and, eventually, next and previous PC
-		   // and if no PC(s) incrementation is written in NML sources
-     $(is_inst_branch) // (bool) True if it is a branch instruction
-     $(foreach params) // (collect) Collection of instruction's operands
-          $(PARAM)     // (text) Name of the operand
-          $(INDEX)     // (text) index of the operand when operands are represented with an array
-                       // which is not always the case (see section optimisation option GLISS_INSTR_FAST_STRUCT
-          $(TYPE)      // (text) C type of the operand (uint8_t, int32_t etc.)
-          $(PARAM_TYPE)// (text) Type of the operand (uint8, int32 etc.)
-          $(param_type)// (text) Operand's Type (lower case)
-     $(end)
-$(end)
-</code>
+
+''$(foreach instructions)'' or ''$(foreach profiled_instructions)''
+
+  * ''IDENT'' (//text//) -- Uppercase name of the current instruction.
+  * ''ident'' (//text//) -- Lowercase name of the current instruction.
+  * ''size'' (//text//) -- Bit size of the instruction.
+  * ''ICODE'' (//text//) -- Integer identifier of the instruction.
+  * ''has_param''  (//bool//) -- True if instruction has operands.
+  * ''num_params'' (//text//) -- Number of parameters of the fully derived instruction
+  * ''gen_code'' (//text//) -- C code translation of the current instruction's action.
+  * ''gen_pc_incr'' (//text//) -- Generates C code sequence for automatic PC(s) incrementation, can be used if ''_ _attr'' keyword defines PC and, eventually, next and previous PC and if no PC(s) incrementation is written in NML sources.
+  * ''is_inst_branch'' (//bool//) -- True if it is a branch instruction.
+  * ''params'' (//collect//) -- Collection of instruction's operands.
+
+''$(end)''
 
 
-== ''registers'' (//collect//) ==
+''$(foreach params)''
+
+  * ''PARAM'' (//text//) -- Name of the operand.
+  * ''INDEX'' (//text//) -- Index of the operand when operands are represented by an array
+which is not always the case (see section optimization option ''GLISS_INSTR_FAST_STRUCT'').
+  * ''TYPE'' (//text//) -- C type of the operand (''uint8_t'', ''int32_t'', etc).
+  * ''PARAM_TYPE'' (//text//) -- Uppercase name of the type of the operand (''uint8'', ''int32'', etc).
+  * ''param_type'' (//text//) -- Lowercase name of the type of the operand (''uint8'', ''int32'', etc).
+
+''$(end)''
+
+
+=== ''registers'' (//collect//) ===
 
 Example with summary of available symbols for the ''registers'' collection:
-<code>
-$(foreach registers)
-     $(type)       // (text) Name of the C type used to represent the given register
-     $(name)       // (text) Name of the given register
-     $(NAME)       // (text) Name of the given register (uppercase)
-     $(aliased)    // (bool) True if the given register is declared as an alias to another register
-     $(array)      // (bool) True if the given register is declared as a bank of more than one rgister
-     $(size)       // (text) If the given register is a bank, it returns the bank's size,
-                   // else it returns 1
-     $(format)     // (text) format to display the name of the register (if register is multiple, contains a %d)
-     $(is_float)   // (bool) True if type of register is a float
-     $(is_64)      // (bool) True if the register type occupies more than 32 bits
-     $(id)         // (text) unique integer identifier for the register
-     $(is_pc)      // (bool) True if the register represents the PC
-     $(type_size)  // (text) number of bits of the register type
-$(end)
-</code>
+
+''$(foreach registers)''
+
+  * ''$(type)'' (//text//) -- Name of the C type used to represent the given register.
+  * ''$(name)'' (//text//) -- Name of the given register.
+  * ''$(NAME)'' (//text//) -- Name of the given register (uppercase).
+  * ''$(aliased)''  (//bool//) -- True if the given register is declared as an alias to another register.
+  * ''$(array)'' (//bool//) -- True if the given register is declared as a bank of more than one rgister.
+  * ''$(size)'' (//text//) -- If the given register is a bank, it returns the bank's size,
+else it returns 1.
+  * ''$(format)'' (//text//) -- Format to display the name of the register (if register is multiple, contains a %d).
+  * ''$(is_float)'' (//bool//) -- True if type of register is a float.
+  * ''$(is_64)''  (//bool//) -- True if the register type occupies more than 32 bits.
+  * ''$(id)'' (//text//) -- Unique integer identifier for the register.
+  * ''$(is_pc)'' (//bool//) -- True if the register represents the PC.
+  * ''$(type_size)'' (//text//) -- Number of bits of the register type.
+
+''$(end)''
 
 
-== ''memories'' (//collect//) ==
+=== ''memories'' (//collect//) ===
 
 Example with summary of available symbols for the ''memories'' collection:
-<code>
-$(foreach memories)
-     $(name)       // (text) Name of the given memory
-     $(NAME)       // (text) Name of the given memory (uppercase)
-     $(aliased)    // (bool) True if the given memory is declared as an alias to another memory
-</code>
+
+''$(foreach memories)''
+
+  * ''*(name)'' (//text//) -- Name of the given memory.
+  * ''$(NAME)'' (//text//) -- Name of the given memory (uppercase).
+  * ''$(aliased)'' (//bool//) -- True if the given memory is declared as an alias to another memory.
+
+''$(end)''
 
 
-== ''values'' (//collect//) ==
+
+=== ''values'' (//collect//) ===
 
 Example with summary of available symbols for the ''values'' collection:
-<code>
-$(foreach values)
-     $(name)       // (text) Name of the field in the gliss_value_t union (defined in api.h) used to access a value of the given value type
-     $(type)       // (text) Name of the C type of the given value type
-</code>
+
+''$(foreach values)''
+
+  * ''$(name)'' (//text//) -- Name of the field in the ''gliss_value_t'' union (defined in api.h) used to access a value of the given value type.
+  * ''$(type)'' (//text//) -- Name of the C type of the given value type.
+  
+''$(end)''  
 
 
-== ''instruction_sets'' (//collect//) ==
+=== ''instruction_sets'' (//collect//) ===
 
 Collection used only if several instruction sets are defined in a same description, contains informations
 about each ISA defined.
 
 Example with summary of available symbols for the ''instruction_sets'' collection:
-<code>
-$(foreach values)
-     $(iset_name)     // (text) name of the instruction set, as given in NMP sources
-     $(select_iset)   // (text) boolean-like expression whose result indicates if we choose the given instruction set
-     $(is_RISC_iset)  // (bool) indicates if the given instruction set can be considered a RISC ISA (ie. constant instruction size of 8, 16, 32 or 64 bits)
-     $(C_size_iset)   // (text) intruction size if it is a RISC instruction set, invalid otherwise
-     $(msb_mask_iset) // (text) mask for the most significant bit of a $(C_size_iset)-bit value, invalid if not a RISC ISA
-     $(idx)           // (text) index from 0 to n-1 (if n ISAs defined), seems to be in the order as the NMP definitions
-</code>
+
+''$(foreach instruction_sets)''
+
+  * ''$(iset_name)'' (//text//) -- Name of the instruction set, as given in NMP sources.
+  * ''$(select_iset)'' (//text//) -- Boolean-like expression whose result indicates if we choose the given instruction set.
+  * ''$(is_RISC_iset)''  (//bool//) -- Indicates if the given instruction set can be considered a RISC ISA (ie. constant instruction size of 8, 16, 32 or 64 bits).
+  * ''$(C_size_iset)'' (//text//) -- Intruction size if it is a RISC instruction set, invalid otherwise.
+  * ''$(msb_mask_iset)'' (//text//) -- Mask for the most significant bit of a $(C_size_iset)-bit value, invalid if not a RISC ISA.
+  * ''$(idx)'' (//text//) -- Index from 0 to n-1 (if n ISAs defined), seems to be in the order of the NMP definitions.
+
+''$(end)''
 
 
-== ''instruction_sets_sizes'' (//collect//) ==
+
+=== ''instruction_sets_sizes'' (//collect//) ===
 
 Collection used only if several instruction sets are defined in a same description, one element
 represent a different ISA size among all ISAs defined, as some ISAs might have same size, you might
@@ -356,18 +369,41 @@ for anything that is not of this form (either constant size differents from thos
 which is called CISC (even if not real CISC) in the rest of the documentation.
 
 Example with summary of available symbols for the ''instruction_sets_sizes'' collection:
-<code>
-$(foreach values)
-     $(is_RISC_size)  // (bool) True if the size is a RISC ISA size (ie. constant size of 8, 16, 32 or 64 bits)
-     $(C_size)        // (bool) size of the C scalar type used to represent an instruction of an ISA of given size, invalid if not a RISC size
-     $(msb_size_mask) // (text) mask for the most significant bit of a $(C_size)-bit value, invalid if not a RISC size
-</code>
 
+''$(foreach instruction_sets_sizes)''
+
+  * ''$(is_RISC_size)'' (//bool//) -- True if the size is a RISC ISA size (ie. constant size of 8, 16, 32 or 64 bits).
+  * ''$(C_size)'' (//bool//) -- Size of the C scalar type used to represent an instruction of an ISA of given size, invalid if not a RISC size.
+  * ''$(msb_size_mask)'' (//text//) -- Mask for the most significant bit of a $(C_size)-bit value, invalid if not a RISC size.
+
+''$(end)''
 
 
 ==== Fetch Symbols ====
 
+  * ''(INIT_FETCH_TABLES)'' (//text//) -- 
+
+
 ==== Decode Symbols ====
 
+  * ''$(bit_image_inversed)'' (//bool//) -- True if the parameter bits needs to be inversed.
+
+''$(foreach params)''
+
+  * ''$(decoder)'' (//text//) -- Generate the code expression to decode the parameter.
+  * ''$(decoder_complex)'' (//text//) -- Generate the code expression to decode the parameter only defined if complex decoding is enabled.
+  * ''$(mask_decl)'' (//text//) -- Declare the mask for decoding the parameter.
+
+''$(end)''
+
+
+
 ==== Disassembly Symbols ====
+
+''$(foreach instructions)'':
+
+  * ''$(disassemble)'' -- Generate the code to disassemble the current instruction in a variable ''char'' buffer named ''_ _buffer''.
+
+''$(end)''
+
 
