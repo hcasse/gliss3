@@ -8,7 +8,7 @@ typedef unsigned long kind_t;
 
 static kind_t kinds[] = {
 	0$(foreach instructions),
-	$(otawa_kind) /* $(IDENT) */$(end)
+	$(kind) /* $(IDENT) */$(end)
 };
 
 

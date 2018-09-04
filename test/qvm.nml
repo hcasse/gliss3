@@ -1,0 +1,207 @@
+/***** Quadruplet Virtual Machine ******/
+
+// configuration
+let proc		= "qvm"
+let bit_order	= "uppermost"
+let gliss_isize = "32"
+
+let REG_SIZE	= 32
+let REG_BIT		= 8
+let REG_CNT		= 1 << REG_BIT
+let ADDR_BIT	= 32
+
+
+// types
+type cond_t		= card(3)
+type byte_t		= card(8)
+type word_t		= int(REG_SIZE)
+type offset_t	= int(8)
+type addr_t		= card(ADDR_BIT)
+type index_t	= card(REG_BIT)
+
+
+// condition
+let EQ = 0b000
+let NE = 0b001
+let LT = 0b010
+let LE = 0b011
+let GT = 0b100
+let GE = 0b101
+
+
+// state
+reg PC 	[1,			addr_t]	pc = 1
+reg SP  [1,			addr_t]
+reg R  	[REG_CNT,	word_t]
+mem M  	[ADDR_BIT,	byte_t]
+mem M32	[ADDR_BIT,	word_t] alias = M[0]
+
+
+// register mode
+mode reg_t(i: index_t) = R[i]
+	syntax = format("r%d", i)
+	image = format("%8b", i)
+
+
+// instruction description
+op instruction (x: allinstr)
+	syntax = x.syntax
+	image = x.image
+	action = {
+		PC = PC + 4;
+		x.action;
+	}
+
+op allinstr =
+	  add
+	| sub
+	| mul
+	| div
+	| set
+	| seti
+	| setiu
+	| setih
+	| goto_cond
+	| goto_incond
+	| call
+	| return
+	| store
+	| load
+	| store_byte
+	| load_byte
+	| store_array
+	| load_array
+	| store_byte_array
+	| load_byte_array
+
+op add(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("add %s, %s, %s", d, a, b)
+	image  = format("0000 0000 %s %s %s", d, a, b)
+	action = { d = a + b; }
+
+op sub(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("sub %s, %s, %s", d, a, b)
+	image  = format("0000 0001 %s %s %s", d, a, b)
+	action = { d = a - b; }
+
+op mul(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("mul %s, %s, %s", d, a, b)
+	image  = format("0000 0010 %s %s %s", d, a, b)
+	action = { d = a * b; }
+
+op div(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("div %s, %s, %s", d, a, b)
+	image  = format("0000 0011 %s %s %s", d, a, b)
+	action = { d = a / b; }
+
+op set(d: reg_t, a: reg_t)
+	syntax = format("set %s, %s", d, a)
+	image  = format("0001 0000 0000 0000 %s %s", d, a)
+	action = { d = a; }
+
+op seti(d: reg_t, c: int(16))
+	syntax = format("seti %s, #%d", d, c)
+	image  = format("0010 0000 %s %16b", d, c)
+	action = { d = c; }
+
+op setiu(d: reg_t, c: card(16))
+	syntax = format("setiu %s, #%d", d, c)
+	image  = format("0010 0001 %s %16b", d, c)
+	action = { d = c; }
+
+op setih(d: reg_t, c: card(16))
+	syntax = format("setih %s, #%d", d, c)
+	image  = format("0010 0010 %s %16b", d, c)
+	action = { d = d | c :: 0<15..0>; }
+
+op goto_cond(c: cond_t, a: reg_t, b: reg_t, off: offset_t)
+	cond_syntax =
+		switch(c) {
+		case EQ: "eq"
+		case NE: "ne"
+		case LT: "lt"
+		case LE: "le"
+		case GT: "gt"
+		case GE: "ge"
+		default: "??"
+		}
+	syntax = format("goto_0%3b %s %s %l", cond_syntax, a, b,
+		__IADDR + 4 + coerce(int(32), off) << 2)
+	image  = format("0011 0 %3b %s %s %8b", c, a, b, off)
+	action = {
+		let ec =
+			switch(c) {
+			case EQ:	a == b
+			case NE:	a != b
+			case LT:	a < b
+			case LE:	a <= b
+			case GT:	a > b
+			case GE:	a >= b
+			default:	0
+			};
+		if ec then
+			PC = PC + coerce(int(32), off) << 2;
+		endif;
+	}
+
+op goto_incond(a: card(24))
+	syntax = format("goto %l", coerce(addr_t, a) << 2)
+	image  = format("0100 0000 %24b", a)
+	action = { PC = coerce(addr_t, a) << 2; }
+
+op call(a: card(24))
+	syntax = format("call %l", coerce(addr_t, a) << 2)
+	image  = format("0100 0001 %24b", a)
+	action = {
+		SP = SP - 4;
+		M32[SP] = PC;
+		PC = coerce(addr_t, a) << 2;
+	}
+
+op return()
+	syntax = "return"
+	image  = "0101 0000 0000 0000 0000 0000 XXXX XXXX"
+	action = {
+		PC = M32[SP];
+		SP = SP + 4;
+	}
+
+op store(d: reg_t, a: reg_t, c: offset_t)
+	syntax = format("store %s, [%s + %d]", d, a, c)
+	image  = format("0011 1000 %s %s %8b", d, a, c)
+	action = { M32[a + coerce(int(32), c) << 2] = d; }
+
+op load(d: reg_t, a: reg_t, c: offset_t)
+	syntax = format("load %s, [%s + %d]", d, a, c)
+	image  = format("0011 1001 %s %s %8b", d, a, c)
+	action = { d = M32[a + coerce(int(32), c) << 2]; }
+
+op store_byte(d: reg_t, a: reg_t, c: offset_t)
+	syntax = format("store_byte %s, [%s + %d]", d, a, c)
+	image  = format("0011 1010 %s %s %8b", d, a, c)
+	action = { M[a + coerce(int(32), c)] = d; }
+
+op load_byte(d: reg_t, a: reg_t, c: offset_t)
+	syntax = format("load_byte %s, [%s + %d]", d, a, c)
+	image  = format("0011 1011 %s %s %8b", d, a, c)
+	action = { d = M[a + coerce(int(32), c)]; }
+
+op store_array(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("store_array %s, [%s + %s]", d, a, b)
+	image  = format("0011 1100 %s %s %s", d, a, b)
+	action = { M32[a + b << 2] = d; }
+
+op load_array(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("load_array %s, [%s + %s]", d, a, b)
+	image  = format("0011 1101 %s %s %s", d, a, b)
+	action = { d = M32[a + b << 2]; }
+
+op store_byte_array(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("store_byte_array %s, [%s + %s]", d, a, b)
+	image  = format("0011 1110 %s %s %s", d, a, b)
+	action = { M[a + b] = d; }
+
+op load_byte_array(d: reg_t, a: reg_t, b: reg_t)
+	syntax = format("load_byte_array %s, [%s + %s]", d, a, b)
+	image  = format("0011 1111 %s %s %s", d, a, b)
+	action = { d = M[a + b]; }

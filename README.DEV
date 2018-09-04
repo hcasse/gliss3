@@ -9,6 +9,12 @@ The current version of GLISS has been tested against the following instruction s
   * Sparc (https://anon:anon@www.irit.fr/hg/TRACES/sparc/trunk)
   * TriCore (https://anon:anon@www.irit.fr/hg/TRACES/tricore/trunk)
 
+To launch the automatic tests, you will need a Python tool named Maat
+(https://github.com/hcasse/maat). To launch the tests,
+<code sh>
+cd test
+./make.py
+</code>
 
 ===== Directory Organization =====
 

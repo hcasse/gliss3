@@ -202,7 +202,9 @@ let build_name instr =
 		| Irg.IF_EXPR (_, _, _, e) -> to_string e
 		| Irg.SWITCH_EXPR (_, _, cases, def) ->
 			to_string (if (List.length cases) >= 1 then snd (List.hd cases) else def)
-		| _ -> failwith "unsupported operator in syntax" in
+		| _ ->
+			(Irg.println [Irg.PEXPR e];
+			failwith "unsupported operator in syntax") in
 
 	let mkstr s =
 		Irg.CONST (Irg.STRING, Irg.STRING_CONST(s)) in

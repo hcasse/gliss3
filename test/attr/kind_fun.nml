@@ -1,0 +1,22 @@
+let KIND_DIV = 3
+
+extend add, sub, set, seti, setiu, setih
+	kind = 1
+
+extend mul
+	kind = 2
+
+extend div
+	kind = KIND_DIV
+
+extend goto_cond
+	kind = if off == 0 then 1 else KIND_DIV + 1 endif
+
+extend goto_incond, call, return
+	kind = KIND_DIV + 1
+
+extend
+	store, load, store_byte, load_byte,
+	store_array, load_array, store_byte_array, load_byte_array
+		kind = 5
+

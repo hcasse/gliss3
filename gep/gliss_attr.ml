@@ -238,7 +238,7 @@ let process inst out info stateless =
 	with Not_found ->
 		output_string info.Toc.out !def
 	| Irg.Error f | Irg.PreError f ->
-		Irg.error (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
+		Irg.error_spec inst (Irg.output [Irg.PTEXT (Printf.sprintf "%s not constant:" !attr); Irg.PFUN f])
 
 
 let _ =

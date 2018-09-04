@@ -213,7 +213,8 @@ exception PreError of (out_channel -> unit)
 
 (** Raise the error exception.
 	@param f	Function to display error. *)
-let error f = raise (PreError f)
+let error f =
+	raise (PreError f)
 
 
 (** Emit a PreError exception. PreError are error without source line information

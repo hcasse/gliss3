@@ -1,33 +1,34 @@
-CLEAN=include src disasm sim
+CLEAN=$(BPATH)/include $(BPATH)/src $(BPATH)/disasm $(BPATH)/sim
 GFLAGS=	-m loader:old_elf \
-	-m fetch:fetch32 \
-	-m decode:decode32 \
 	-m inst_size:inst_size \
 	-m code:code \
 	-a disasm.c
-GEP_DIR=../../gep
+GEP_DIR=$(PWD)/../../gep
 
+OPATH = $(PWD)
+BPATH = ../out/alias-test
 
 all: lib
 
 
-src include: test.nml
-	$(GEP_DIR)/gep $(GFLAGS) test.nml -S
+$(BPATH)/src $(BPATH)/include: $(OPATH)/test.nml
+	mkdir -p $(BPATH)
+	cd $(BPATH); $(GEP_DIR)/gep $(GFLAGS) $(OPATH)/test.nml -S
 
-lib: src src/config.h
+lib: $(BPATH)/src $(BPATH)/src/config.h
 
 toto-disasm:
-	cd disasm; make
+	cd $(BPATH)/disasm; make
 
 toto-sim:
-	cd sim; make
+	cd $(BPATH)/sim; make
 
-src/config.h: config.tpl
-	test -d src || mkdir src
-	cp config.tpl src/config.h
+$(BPATH)/src/config.h: $(OPATH)/config.tpl
+	test -d $(BPATH)/src || mkdir $(BPATH)/src
+	cp $(OPATH)/config.tpl $(BPATH)/src/config.h
 
-src/disasm.c:
-	$(GEP_DIR)/gliss-disasm test.nml -o $@ -c
+$(BPATH)/src/disasm.c:
+	$(GEP_DIR)/gliss-disasm $(OPATH)/test.nml -o $@ -c
 
 clean:
 	rm -rf $(CLEAN)

@@ -15,7 +15,7 @@ static kind_t kind_UNKNOWN($(proc)_inst_t *inst) {
 
 $(foreach instructions)
 static kind_t kind_$(IDENT)($(proc)_inst_t *inst) {
-$(otawa_kind)
+$(kind)
 };
 
 $(end)

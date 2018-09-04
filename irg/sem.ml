@@ -2347,6 +2347,30 @@ let final_checks () =
 			| AND_MODE _ -> check_or_mode id names
 			| _ -> error_symbol id (asis (Printf.sprintf "\"%s\" should be an OR or an AND mode" name)) in
 	
+	(* check an image *)
+	(*let check_image id atts =
+		let rec check_image_expr e =
+			match e with
+			| NONE
+			| CANON_EXPR  _ ->
+				()
+			| CONST (_, STRING_CONST s) ->
+				
+			| FORMAT (fmt, _) ->
+			
+			| IF_EXPR (_, _, e1, e2) ->
+				(check_image_expr e1; check_image_expr e2)
+			| SWITCH_EXPR (_, _, cs, d) ->
+				(check_image_expr d; List.iter (fun (_, e) -> check_image_expr e) cs)
+			| ELINE (_, _, e) ->
+				check_image_expr e
+			| _ ->
+				error_symbol s (asis "malformed image") in
+		try
+			check_image_expr "image" atts NONE
+		with PreError _ ->
+			error_symbol s (as "if an image attribute is defined, it must be a string expression!") in
+	*)
 	(* check modes and operations *)
 	iter (fun _ s ->
 		match s with
@@ -2356,8 +2380,14 @@ let final_checks () =
 		| OR_OP (id, names, _)		-> check_or_op id names
 		| _ -> ());
 
+	(* check images *)
+	(*iter (fun _ s ->
+		match s with
+		| AND_MODE(id, _, _, atts)	-> check_image id atts
+		| AND_OP (id, _, atts)		-> check_image id atts
+		| _ -> ());*)
+		
 	()
-			
 	
 	
 	

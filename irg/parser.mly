@@ -534,57 +534,6 @@ AttrExpr :
 		{ eline $1 }
 ;
 
-/* format() now accepts any expression but some restriction may
-	apply according the defined attribute.
-
-FormatIdlist:
-	Expr						{ [$1] }
-|	FormatIdlist  COMMA Expr	{ $3::$1 }
-;
-
-FormatId:
-	ID
-		{
-			if Irg.is_defined $1 then Irg.REF $1
-			else raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
-|	ID DOT IMAGE
-		{
-		if Irg.is_defined $1
-		then
-			 Irg.FIELDOF (Irg.STRING , $1, "image")
-		else
-			raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
-
-|	ID DOT IMAGE BIT_LEFT CARD_CONST DOUBLE_DOT CARD_CONST BIT_RIGHT
-		{
-		if Irg.is_defined $1
-			then
-				Irg.BITFIELD (Irg.STRING,Irg.FIELDOF (Irg.NO_TYPE, $1, "image"),
-					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $5)),
-					Irg.CONST ((Irg.CARD 32),(Irg.CARD_CONST $7)))
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
-|	ID DOT SYNTAX
-		{
-		if Irg.is_defined $1
-			then
-				Irg.FIELDOF (Irg.STRING, $1, "syntax")
-			else
-				raise (Sem.SemError (Printf.sprintf "the keyword %s is undefined\n" $1))
-		}
- we should autorise constant parameters in a format expression
-	correct type will be checked in Sem
-|	Constant
-		{ eline (Irg.CONST (fst $1, snd $1)) }
-
-|	DOLLAR PLUS ID
-		{ }*/
-;
-
-
 
 Sequence:
 	/* empty */ { Irg.NOP }
