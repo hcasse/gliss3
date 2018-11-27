@@ -34,7 +34,7 @@ let do_collect_regs = "__do_collect_regs"
 	@param p	Current processor.
 	@param i	Register bank identifier.
 	@return		Register macro name. *)
-let reg_name p i = Printf.sprintf "%s_REG_%s" p (String.uppercase i)
+let reg_name p i = Printf.sprintf "%s_REG_%s" p (Config.uppercase i)
 
 
 (** Test if s is ended by es.
@@ -306,7 +306,7 @@ let extract_regs inst out =
 	max_write := max !max_write (List.length wrs);
 	
 	(* build the instructrions *)
-	let proc = String.uppercase info.Toc.proc in
+	let proc = Config.uppercase info.Toc.proc in
 	let gen op (id: string) idx =
 		let name = reg_name proc id in
 			Irg.CANON_STAT(op, [
@@ -345,7 +345,7 @@ let compile_regs inst stat out =
 	let info = Toc.info () in
 	info.Toc.out <- out;
 	Toc.set_inst info inst;
-	let proc = String.uppercase info.Toc.proc in
+	let proc = Config.uppercase info.Toc.proc in
 
 	let rec process canon r =
 		let error _ = Toc.error "argument should be a register !" in

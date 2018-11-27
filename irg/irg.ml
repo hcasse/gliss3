@@ -206,68 +206,22 @@
 *)
 
 
+(* exceptions *)
 exception SyntaxError of string
 exception Error of (out_channel -> unit)
 exception PreError of (out_channel -> unit)
 
 
-(** Raise the error exception.
-	@param f	Function to display error. *)
-let error f =
-	raise (PreError f)
+(* global configuration *)
+
+(** May be set to true to dump line information during expression/statement
+	output. *)
+let dump_lines = ref false
+let dump_type = ref true
 
 
-(** Emit a PreError exception. PreError are error without source line information
-	that need to be fulfilled with this information.
-	@param msg		Message of the preerror.
-	@raise PreError Ever.*)
-let pre_error msg = raise (PreError (fun out -> output_string out msg))
 
-
-(** Take a pre-error exception and build a complete error message.
-	@param m		Message function (out_channel -> unit).
-	@param f		Source file.
-	@param l		Source line.
-	@raise Error	Ever. *)
-let complete_error m f l =
-	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
-
-
-(** Manage errors from the IRG ELINE or SLINE.
-	Call teh given function with the given argument and handle any PreError.
-	@param file		Current source file.
-	@param line		Current source line.
-	@param fn 		Function to call with ().
-	@return			Result of fn call.
-	@raise Error	If there is an error. *)
-let handle_error file line fn =
-	try
-		fn ()
-	with PreError msg ->
-		complete_error msg file line
-
-
-(** Output the given text when the out stream will be passed.
-	@param text		Text to display.
-	@param out		Output stream. *)
-let asis text out =
-	output_string out text
-
-
-(** Join two output functions.
-	@param f1	First output function.
-	@param f2	Second output function.
-	@return		Output function joining both functions. *)
-let join f1 f2 out =
-	f1 out; f2 out
-
-
-(** Join several error functions.
-	@param lst	List of output functions.
-	@param out	Output stream (usually left open). *)
-let join_all lst out =
-	List.iter (fun f -> f out) lst
-
+(* useful functions *)
 
 (** Find index of an item in a list.
 	@param item		Looked item.
@@ -282,10 +236,9 @@ let index_of item list =
 	scan list 0
 
 
-(** May be set to true to dump line information during expression/statement
-	output. *)
-let dump_lines = ref false
-let dump_type = ref true
+
+
+(* intermediate representation *)
 
 (** Type expression *)
 type type_expr =
@@ -476,56 +429,11 @@ struct
 end
 module StringHashtbl = Hashtbl.Make(HashString)
 
-
-(* Position *)
-
-type pos_type = {ident:string; file : string; line : int}
-
-(* This table is used to record the positions of the declaration of all symbols *)
-let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
-
-(** Add a symbol to the localisation table.
-	@param v_name	Name of the symbol to add.
-	@param v_file	Name of the file where the symbol is declared
-	@param v_line	Approximate line number of the declaration.
-*)
-let add_pos v_name v_file v_line =
-	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
-
-
-(** Return string identifying file and line definition of the given symbol.
-	@param sym	Required symbol.
-	@return		File and line information about the symbol. *)
-let pos_of sym =
-	try
-		let p = StringHashtbl.find pos_table sym in
-		Printf.sprintf "%s:%d" p.file p.line
-	with Not_found ->
-		"<no line>"
-
-
-(** Handle an error from a symbol.
-	@param name		Name of the symbol.
-	@param f		Message function.
-	@raise Error	Located to the given symbol with the given message. *)
-let error_symbol name f =
-	raise (Error (fun out -> Printf.fprintf out "%s: " (pos_of name); f out))
-
-
-(** Handle an error from a specification.
-	@param spec		Specification.
-	@param msg		Message of the error.
-	@raise Error	Located to the given symbol with the given message. *)
-let error_spec spec f =
-	error_symbol (name_of spec) f
-
-
 (** table of symbols of the current loaded NMP or IRG file. *)
 let syms : spec StringHashtbl.t = StringHashtbl.create 211
 let _ =
 	StringHashtbl.add syms "__IADDR" (PARAM ("__IADDR", TYPE_EXPR (CARD(32))));
 	StringHashtbl.add syms "__ISIZE" (PARAM ("__ISIZE", TYPE_EXPR (CARD(32))))
-
 
 (** Get the symbol matching the given name or UNDEF if not found.
 	@param n	Symbol to look for.
@@ -536,19 +444,10 @@ let get_symbol n =
 	with Not_found ->
 		UNDEF
 
-(** Get processor name of the simulator.
-	Look for a constant definition named "proc" or "NAME".
-	@return		Found name. *)
-let get_proc_name () =
-	let rec lookup ids =
-		match ids with 
-		| [] ->
-			failwith "get_proc_name: no proc name"
-		| id::ids ->
-			match get_symbol id with
-			| LET(_, _, STRING_CONST(name), _) when name <> ""	-> name
-			| _													-> lookup ids in
-	lookup ["proc"; "NAME"]
+(**	Remove a symbol from the namespace.
+	@param name	The name of the symbol to remove. *)
+let rm_symbol name =
+	StringHashtbl.remove syms name
 
 (** Add a symbol to the namespace.
 	@param name	Name of the symbol to add.
@@ -556,12 +455,10 @@ let get_proc_name () =
 	@raise RedefinedSymbol	If the symbol is already defined. *)
 let add_symbol name sym =
 
-
-
 	(*
-	transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
-	into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
-	before inserting the definition in the table
+		Transform an old style subpart alias declaration (let ax [1, card(16)] alias eax[16])
+		into a new style one with bitfield notation (let ax [1, card(16)] alias eax<16..0>)
+		before inserting the definition in the table
 	*)
 	let translate_old_style_aliases s =
 		let is_array nm =
@@ -594,8 +491,8 @@ let add_symbol name sym =
 			match get_symbol "bit_order" with
 			UNDEF -> true
 			| LET(_, _, STRING_CONST(id), _) ->
-				if (String.uppercase id) = "UPPERMOST" then true
-				else if (String.uppercase id) = "LOWERMOST" then false
+				if (Config.uppercase id) = "UPPERMOST" then true
+				else if (Config.uppercase id) = "LOWERMOST" then false
 				else failwith "'bit_order' must contain either 'uppermost' or 'lowermost'"
 			| _ -> failwith "'bit_order' must be defined as a string let"
 		in
@@ -647,6 +544,249 @@ let add_symbol name sym =
 	else*) StringHashtbl.add syms name (translate_old_style_aliases sym)
 
 
+(** (deprecated) Position in the source. *)
+type pos_type = {ident:string; file : string; line : int}
+
+(** Table is used to record the positions of the declaration of all symbols/ *)
+let pos_table : pos_type StringHashtbl.t = StringHashtbl.create 211
+
+(** Add a symbol to the localisation table.
+	@param v_name	Name of the symbol to add.
+	@param v_file	Name of the file where the symbol is declared
+	@param v_line	Approximate line number of the declaration.
+*)
+let add_pos v_name v_file v_line =
+	StringHashtbl.add pos_table v_name {ident=v_name;file=v_file;line=v_line}
+
+(** Return string identifying file and line definition of the given symbol.
+	@param sym	Required symbol.
+	@return		File and line information about the symbol. *)
+let pos_of sym =
+	try
+		let p = StringHashtbl.find pos_table sym in
+		Printf.sprintf "%s:%d" p.file p.line
+	with Not_found ->
+		"<no line>"
+
+
+(* attribute management functions *)
+
+(** Get attributes of the given specification.
+	@param spec		Spec to look in.
+	@return			Attribute list (or empty list). *)
+let attrs_of spec =
+	match spec with
+	| LET (_, _, _, atts)
+	| TYPE (_, _, atts)
+	| MEM (_, _, _, atts)
+	| REG (_, _, _, atts)
+	| VAR (_, _, _, atts)
+	| AND_MODE (_, _, _, atts)
+	| AND_OP (_, _, atts)		-> atts
+	| _ 						-> []
+
+
+(** Test if an attribute is defined.
+	@param id		Identifier of the attribute.
+	@param attrs	List of attributes.
+	@return			True if the attribute is found, false else. *)
+let rec attr_defined id attrs =
+	match attrs with
+	| [] -> false
+	| (ATTR_EXPR (id', _))::_ when id = id' -> true
+	| (ATTR_STAT (id', _))::_ when id = id' -> true
+	| (ATTR_LOC (id', _))::_ when id = id' -> true
+	| _::tl -> attr_defined id tl
+
+
+
+(** Get the name of an attribute.
+		@param attr Attribute to get name from.
+		@return     Attribute name or empty string for USES. *)
+let attr_name attr =
+	match attr with
+	| ATTR_EXPR (n, _)
+	| ATTR_STAT (n, _)
+	| ATTR_LOC (n, _) -> n
+	| _ -> ""
+
+
+(** Change the value of an attribute in the attribute list.
+		@param value Attribute Value.
+		@param attrs Attribute list to change.
+		@return      Changed attribute list. *)
+let set_attr value attrs =
+	let id = attr_name value in
+	let rec process res attrs =
+		match attrs with
+		| [] -> res
+		| h::t when (attr_name h) = id -> process res t
+		| h::t -> process (h::res) t in
+	 value :: (process [] attrs)
+
+
+(** Set the value of an expression attribute in the main symbol table.
+	@param id	Attribute identifier.
+	@param e	Attribute expression value. *)
+let set_expr_attr id e =
+	rm_symbol id;
+	add_symbol id (ATTR (ATTR_EXPR (id, e)))
+
+
+(** Set the value of a statement attribute in the main symbol table.
+	@param id	Attribute identifier.
+	@param e	Attribute statement value. *)
+let set_stat_attr id s =
+	rm_symbol id;
+	add_symbol id (ATTR (ATTR_STAT (id, s)))
+
+
+
+(* new position management system *)
+
+(** Identifier of source line information in specification. *)
+let line_attr = "gliss-line-info"
+
+(** Null line information. *)
+let null_line_info = LINE_INFO ("", 0, [])
+
+(** Build a line information attribute.
+	@param file		Source file.
+	@param line		Source line.
+	@return			Built attribute.*)
+let make_line_info file line =
+	ATTR_LINE_INFO (line_attr, LINE_INFO (file, line, []))
+
+(** Add a line information to the given specification.
+	@param atts		Attribute list to add to.
+	@param file		Source file.
+	@param line		Source line.
+	@return			Updated attribute list. *)
+let set_line_info atts (file, line) =
+	set_attr (make_line_info file line) atts
+
+(** Get the file information from a specification.
+	@param spec		Specification to look in.
+	@return			Line information. *)
+let get_line_info spec =
+	let rec look atts =
+		match atts with
+		| [] -> null_line_info
+		| (ATTR_LINE_INFO (i, li))::_ when i = line_attr -> li
+		| _::t -> look t in
+	look (attrs_of spec)
+
+(** Output a line information.
+	@param out	Channel to output to.
+	@param li	Line information to output. *)
+let rec output_line_info out li =
+	let LINE_INFO (file, line, sub) = li in
+	Printf.fprintf out "%s:%d" file line;
+	if sub <> [] then begin
+		output_string out " [";
+		List.iter (output_line_info out) sub;
+		output_string out "]"
+	end
+
+(** Display to standard output a line information. *)
+let print_line_info = output_line_info stdout
+
+
+
+(* error management system *)
+
+(** Raise the error exception.
+	@param f	Function to display error. *)
+let error f =
+	raise (PreError f)
+
+
+(** Emit a PreError exception. PreError are error without source line information
+	that need to be fulfilled with this information.
+	@param msg		Message of the preerror.
+	@raise PreError Ever.*)
+let pre_error msg = raise (PreError (fun out -> output_string out msg))
+
+
+(** Take a pre-error exception and build a complete error message.
+	@param m		Message function (out_channel -> unit).
+	@param f		Source file.
+	@param l		Source line.
+	@raise Error	Ever. *)
+let complete_error m f l =
+	raise (Error (fun out -> Printf.fprintf out "%s:%d: " f l; m out))
+
+
+(** Manage errors from the IRG ELINE or SLINE.
+	Call teh given function with the given argument and handle any PreError.
+	@param file		Current source file.
+	@param line		Current source line.
+	@param fn 		Function to call with ().
+	@return			Result of fn call.
+	@raise Error	If there is an error. *)
+let handle_error file line fn =
+	try
+		fn ()
+	with PreError msg ->
+		complete_error msg file line
+
+
+(** Output the given text when the out stream will be passed.
+	@param text		Text to display.
+	@param out		Output stream. *)
+let asis text out =
+	output_string out text
+
+
+(** Join two output functions.
+	@param f1	First output function.
+	@param f2	Second output function.
+	@return		Output function joining both functions. *)
+let join f1 f2 out =
+	f1 out; f2 out
+
+
+(** Join several error functions.
+	@param lst	List of output functions.
+	@param out	Output stream (usually left open). *)
+let join_all lst out =
+	List.iter (fun f -> f out) lst
+
+(** Handle an error from a symbol.
+	@param name		Name of the symbol.
+	@param f		Message function.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_symbol name f =
+	let from_pos out =
+		Printf.fprintf out "%s: " (pos_of name); f out in
+	let li = get_line_info (get_symbol name)  in
+	let from_line_info out =
+		output_line_info out li; output_string out ": "; f out in
+	raise (Error (if li = null_line_info then from_pos else from_line_info))
+
+
+(** Handle an error from a specification.
+	@param spec		Specification.
+	@param msg		Message of the error.
+	@raise Error	Located to the given symbol with the given message. *)
+let error_spec spec f =
+	error_symbol (name_of spec) f
+
+
+(** Get processor name of the simulator.
+	Look for a constant definition named "proc" or "NAME".
+	@return		Found name. *)
+let get_proc_name () =
+	let rec lookup ids =
+		match ids with 
+		| [] ->
+			failwith "get_proc_name: no proc name"
+		| id::ids ->
+			match get_symbol id with
+			| LET(_, _, STRING_CONST(name), _) when name <> ""	-> name
+			| _													-> lookup ids in
+	lookup ["proc"; "NAME"]
+
 (**	Check if a given name is defined in the namespace
 		@param name	The name to check *)
 let is_defined name = StringHashtbl.mem syms name
@@ -659,10 +799,6 @@ let is_defined name = StringHashtbl.mem syms name
 		@param t	Type of the parameter to add.	*)
 let add_param (name,t) =
 	StringHashtbl.add syms name (PARAM (name,t))
-
-(**	Remove a symbol from the namespace.
-		@param name	The name of the symbol to remove. *)
-let rm_symbol name=StringHashtbl.remove syms name
 
 (**	Add a list of parameters to the namespace.
 		@param l	The list of parameters to add.	*)
@@ -1166,21 +1302,6 @@ let output_type out typ =
 let print_type typ =
 	output_type stdout typ
 
-(** Output a line information.
-	@param out	Channel to output to.
-	@param li	Line information to output. *)
-let rec output_line_info out li =
-	let LINE_INFO (file, line, sub) = li in
-	Printf.fprintf out "%s:%d" file line;
-	if sub <> [] then begin
-		output_string out " [";
-		List.iter (output_line_info out) sub;
-		output_string out "]"
-	end
-
-(** Display to standard output a line information. *)
-let print_line_info = output_line_info stdout
-
 (** Print an attribute.
 	@param attr	Attribute to print. *)
 let output_attr out attr =
@@ -1391,7 +1512,7 @@ let get_isize _ =
 				try
 				int_of_string x
 				with
-				Failure "int_of_string" ->
+				Failure m when m = "int_of_string" ->
 					failwith "gliss_isize must be a string containing integers seperated by commas."
 			)
 			(Str.split (Str.regexp ",") nums)
@@ -1494,128 +1615,6 @@ let load path =
 	StringHashtbl.clear pos_table;
 	StringHashtbl.iter (fun key spec -> StringHashtbl.add syms key spec) new_syms;
 	StringHashtbl.iter (fun key pos -> StringHashtbl.add pos_table key pos) new_pt
-
-
-(** Test if an attribute is defined.
-	@param id		Identifier of the attribute.
-	@param attrs	List of attributes.
-	@return			True if the attribute is found, false else. *)
-let rec attr_defined id attrs =
-	match attrs with
-	| [] -> false
-	| (ATTR_EXPR (id', _))::_ when id = id' -> true
-	| (ATTR_STAT (id', _))::_ when id = id' -> true
-	| (ATTR_LOC (id', _))::_ when id = id' -> true
-	| _::tl -> attr_defined id tl
-
-
-(** Get an attribute as an expression.
-	@param id			Identifier of the looked attribute.
-	@param attrs		List of attributes.
-	@param def			Default value if the attribute is not found.
-	@return				Found attribute value or the default.
-	@raise PreError		If the attribute exists but does not have the right type. *)
-let rec attr_expr id attrs def =
-	let error _ =
-		pre_error (Printf.sprintf "attribute \"%s\" should be an expression" id) in
-	match attrs with
-	| [] -> def
-	| (ATTR_EXPR (id', e))::_ when id = id' -> e
-	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
-	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
-	| _::tl -> attr_expr id tl def
-
-
-(** Get an attribute as a statement.
-	@param id			Identifier of the looked attribute.
-	@param attrs		List of attributes.
-	@param def			Default value if the attribute is not found.
-	@return				Found attribute value or the default.
-	@raise PreError		If the attribute exists but does not have the right type. *)
-let rec attr_stat id attrs def =
-	let error _ =
-		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
-	match attrs with
-	| [] -> def
-	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
-	| (ATTR_STAT (id', s))::_ when id = id' -> s
-	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
-	| _::tl -> attr_stat id tl def
-
-
-(** Get an attribute as a location.œ.
-	@param id		Identifier of the looked attribute.
-	@param attrs	List of attributes.
-	@param def		Default value if the attribute is not found.
-	@return			Found attribute value or the default.
-	@raise Error	If the attribute exists but does not have the right type. *)
-let rec attr_loc id attrs def =
-	let error _ =
-		pre_error (Printf.sprintf "attribute \"%s\" should be a location" id) in
-	match attrs with
-	| [] -> def
-	| (ATTR_LOC (id', e))::_ when id = id' -> e
-	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
-	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
-	| _::tl -> attr_loc id tl def
-
-
-(** Get an attribute as a statement.
-	@param id		Identifier of the looked attribute.
-	@param attrs	List of attributes.
-	@param def		Default value if the attribute is not found.
-	@return			Found attribute value or the default.
-	@raise Error	If the attribute exists but does not have the right type. *)
-let rec attr_stat id attrs def =
-	let error _ =
-		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
-	match attrs with
-	| [] -> def
-	| (ATTR_STAT (id', s))::_ when id = id' -> s
-	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
-	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
-	| _::tl -> attr_stat id tl def
-
-
-(** Get the name of an attribute.
-		@param attr Attribute to get name from.
-		@return     Attribute name or empty string for USES. *)
-let attr_name attr =
-	match attr with
-	| ATTR_EXPR (n, _)
-	| ATTR_STAT (n, _)
-	| ATTR_LOC (n, _) -> n
-	| _ -> ""
-
-
-(** Change the value of an attribute in the attribute list.
-		@param value Attribute Value.
-		@param attrs Attribute list to change.
-		@return      Changed attribute list. *)
-let set_attr value attrs =
-	let id = attr_name value in
-	let rec process res attrs =
-		match attrs with
-		| [] -> res
-		| h::t when (attr_name h) = id -> process res t
-		| h::t -> process (h::res) t in
-	 value :: (process [] attrs)
-
-
-(** Set the value of an expression attribute in the main symbol table.
-	@param id	Attribute identifier.
-	@param e	Attribute expression value. *)
-let set_expr_attr id e =
-	rm_symbol id;
-	add_symbol id (ATTR (ATTR_EXPR (id, e)))
-
-
-(** Set the value of a statement attribute in the main symbol table.
-	@param id	Attribute identifier.
-	@param e	Attribute statement value. *)
-let set_stat_attr id s =
-	rm_symbol id;
-	add_symbol id (ATTR (ATTR_STAT (id, s)))
 
 
 (** Apply the given functions to all specifications.
@@ -1757,21 +1756,6 @@ let println lst = outputln lst stdout
 let prerrln lst = outputln lst stderr
 
 
-(** Get attributes of the given specification.
-	@param spec		Spec to look in.
-	@return			Attribute list (or empty list). *)
-let attrs_of spec =
-	match spec with
-	| LET (_, _, _, atts)
-	| TYPE (_, _, atts)
-	| MEM (_, _, _, atts)
-	| REG (_, _, _, atts)
-	| VAR (_, _, _, atts)
-	| AND_MODE (_, _, _, atts)
-	| AND_OP (_, _, atts)		-> atts
-	| _ 						-> []
-
-
 (** Get statement attribute from the main symbol table.
 	@param id		Attribute identifier.
 	@param def		Default value.
@@ -1795,41 +1779,6 @@ let get_expr_attr id def =
 	| ATTR (ATTR_EXPR (_, e)) -> e
 	| _ -> error (fun out -> Printf.fprintf out "%s should an expression attribute" id)
 
-
-
-(* new position management system *)
-
-(** Identifier of source line information in specification. *)
-let line_attr = "gliss-line-info"
-
-(** Null line information. *)
-let null_line_info = LINE_INFO ("", 0, [])
-
-(** Build a line information attribute.
-	@param file		Source file.
-	@param line		Source line.
-	@return			Built attribute.*)
-let make_line_info file line =
-	ATTR_LINE_INFO (line_attr, LINE_INFO (file, line, []))
-
-(** Add a line information to the given specification.
-	@param atts		Attribute list to add to.
-	@param file		Source file.
-	@param line		Source line.
-	@return			Updated attribute list. *)
-let set_line_info atts (file, line) =
-	set_attr (make_line_info file line) atts
-
-(** Get the file information from a specification.
-	@param spec		Specification to look in.
-	@return			Line information. *)
-let get_line_info spec =
-	let rec look atts =
-		match atts with
-		| [] -> null_line_info
-		| (ATTR_LINE_INFO (i, li))::_ when i = line_attr -> li
-		| _::t -> look t in
-	look (attrs_of spec)
 
 
 (** Raise an error with message displayed by prerrln.
@@ -1939,8 +1888,80 @@ let is_reg id =
 
 
 
+(* smart attribute access functions *)
 
-(************ Local Variable Management ***********)
+(** Get an attribute as an expression.
+	@param id			Identifier of the looked attribute.
+	@param attrs		List of attributes.
+	@param def			Default value if the attribute is not found.
+	@return				Found attribute value or the default.
+	@raise PreError		If the attribute exists but does not have the right type. *)
+let rec attr_expr id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be an expression" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_EXPR (id', e))::_ when id = id' -> e
+	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_expr id tl def
+
+
+(** Get an attribute as a statement.
+	@param id			Identifier of the looked attribute.
+	@param attrs		List of attributes.
+	@param def			Default value if the attribute is not found.
+	@return				Found attribute value or the default.
+	@raise PreError		If the attribute exists but does not have the right type. *)
+let rec attr_stat id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| (ATTR_STAT (id', s))::_ when id = id' -> s
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_stat id tl def
+
+
+(** Get an attribute as a location.œ.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error	If the attribute exists but does not have the right type. *)
+let rec attr_loc id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be a location" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_LOC (id', e))::_ when id = id' -> e
+	| (ATTR_STAT (id', _))::_ when id = id' -> error ()
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_loc id tl def
+
+
+(** Get an attribute as a statement.
+	@param id		Identifier of the looked attribute.
+	@param attrs	List of attributes.
+	@param def		Default value if the attribute is not found.
+	@return			Found attribute value or the default.
+	@raise Error	If the attribute exists but does not have the right type. *)
+let rec attr_stat id attrs def =
+	let error _ =
+		pre_error (Printf.sprintf "attribute \"%s\" should be a statement" id) in
+	match attrs with
+	| [] -> def
+	| (ATTR_STAT (id', s))::_ when id = id' -> s
+	| (ATTR_EXPR (id', _))::_ when id = id' -> error ()
+	| (ATTR_LOC (id', _))::_ when id = id' -> error ()
+	| _::tl -> attr_stat id tl def
+
+
+
+
+
+(* local variable management *)
 
 (** List of defined locale variables. *)
 let local_list: string list ref = ref []

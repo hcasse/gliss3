@@ -903,7 +903,7 @@ let rec get_concat e1 e2 =
 	try
 		let length = (get_length_from_expr e1) + (get_length_from_expr e2) in
 		Irg.BINOP (CARD length, CONCAT, to_card e1, to_card e2)
-	with Failure "sem: length unknown" ->
+	with Failure m when m = "sem: length unknown" ->
 		Irg.BINOP (ANY_TYPE, CONCAT, to_card e1, to_card e2)
 
 
@@ -1719,11 +1719,18 @@ let get_expr_from_type t =
 	| TYPE_EXPR t -> t
 
 
-(** Split an image format according escape sequences.
+(** Split an image format according escape sequences %Nb.
 		@param image Image to split.
 		@return      List of image pieces made of Str.split_result. *)
 let split_image image =
 	Str.full_split (Str.regexp "%[0-9]+b") image
+
+
+(** Split an image format according escape sequences, %Nb and %s.
+		@param image Image to split.
+		@return      List of image pieces made of Str.split_result. *)
+let split_basic_image image =
+	Str.full_split (Str.regexp "%\\([0-9]+b\\|s\\)") image
 
 
 (** Compute size in bits of image escape sequence "%[0-9]+b".
@@ -2347,30 +2354,44 @@ let final_checks () =
 			| AND_MODE _ -> check_or_mode id names
 			| _ -> error_symbol id (asis (Printf.sprintf "\"%s\" should be an OR or an AND mode" name)) in
 	
-	(* check an image *)
-	(*let check_image id atts =
+	(* check images *)
+	let string_re = Str.regexp "^[01xX \t\n]+$" in
+	let format_re = Str.regexp "^\\([01xX \t\n]\\|%s\\|%[0-9]+b\\)*$" in
+	let check_image id atts =
+		let check_re t re msg =
+			if Str.string_match re t 0
+			then ()
+			else (error (fun out -> Printf.fprintf out "image format can only contain %s: %s" msg t)) in
 		let rec check_image_expr e =
 			match e with
 			| NONE
+			| REF _
+			| FIELDOF _
 			| CANON_EXPR  _ ->
 				()
 			| CONST (_, STRING_CONST s) ->
-				
+				check_re s string_re "0, 1, x, X or spaces"
 			| FORMAT (fmt, _) ->
-			
+				check_re fmt format_re  "0, 1, x, X, space or % escape"
 			| IF_EXPR (_, _, e1, e2) ->
 				(check_image_expr e1; check_image_expr e2)
 			| SWITCH_EXPR (_, _, cs, d) ->
 				(check_image_expr d; List.iter (fun (_, e) -> check_image_expr e) cs)
-			| ELINE (_, _, e) ->
-				check_image_expr e
-			| _ ->
-				error_symbol s (asis "malformed image") in
+			| ELINE (f, l, e) ->
+				handle_error f l (fun _ -> check_image_expr e)
+			| CONST _
+			| ITEMOF _
+			| BITFIELD _
+			| UNOP _
+			| BINOP _
+			| CAST _
+			| COERCE _ ->
+				error (asis "malformed image") in
 		try
-			check_image_expr "image" atts NONE
-		with PreError _ ->
-			error_symbol s (as "if an image attribute is defined, it must be a string expression!") in
-	*)
+			check_image_expr (attr_expr "image" atts NONE)
+		with PreError f ->
+			error_symbol id f in
+	
 	(* check modes and operations *)
 	iter (fun _ s ->
 		match s with
@@ -2381,13 +2402,12 @@ let final_checks () =
 		| _ -> ());
 
 	(* check images *)
-	(*iter (fun _ s ->
+	iter (fun _ s ->
 		match s with
 		| AND_MODE(id, _, _, atts)	-> check_image id atts
 		| AND_OP (id, _, atts)		-> check_image id atts
-		| _ -> ());*)
+		| _ -> ());
 		
 	()
-	
-	
+
 	

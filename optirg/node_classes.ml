@@ -17,6 +17,7 @@ Gliss2/optirg/classfusion.ml
 	And node attribute description
 *)
 type attr_desc = 
+	| ATTR_NONE
 	| ATTR_EXPR_d of string
 	| ATTR_STAT_d of string
 	| ATTR_USES_d
@@ -31,6 +32,7 @@ let get_attr_desc (a:Irg.attr) :attr_desc =
 	| Irg.ATTR_STAT(s,_) -> ATTR_STAT_d(s)
 	| Irg.ATTR_USES -> ATTR_USES_d
 	| Irg.ATTR_LOC (n, _) -> ATTR_LOC n
+	| Irg.ATTR_LINE_INFO (n, l) -> ATTR_NONE
 
 
 (** {2 Nodes classes and partitions in classes} *)

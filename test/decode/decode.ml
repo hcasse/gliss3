@@ -28,14 +28,15 @@ let and_ e1 e2 = Irg.BINOP(Sem.get_type_expr e1, Irg.BIN_AND, e1, e2)
 let or_ e1 e2 = Irg.BINOP(Sem.get_type_expr e1, Irg.BIN_OR, e1, e2)
 let getb e1 i2 i3 = Irg.BITFIELD (Irg.CARD(abs (i2 - i3) + 1), e1, csti i2, csti i3)
 let concat e1 e2 = Irg.BINOP(Irg.CARD ((Sem.get_length_from_expr e1) + (Sem.get_length_from_expr e2)), Irg.CONCAT, e1, e2)
+let int32 = Irg.INT(32)
 
 let test params args =
 	Printf.printf "################################\nargument: ";
 	List.iter (fun e -> Irg.print_expr e; print_string ", ") args;
 	print_char '\n';
 	let cnt = ref 0 in
-	let vals = List.map (fun _ -> incr cnt; Irg.EINLINE (Printf.sprintf "p%d" !cnt)) args in
-	let r = Decode_arg.decode_parameters params args vals in
+	let vals = List.map (fun _ -> incr cnt; Irg.REF (int32, Printf.sprintf "p%d" !cnt)) args in
+	let r = Decode_arg.decode_parameters params args vals Irg.UNDEF in
 	List.iter
 		(fun (n, e) ->
 			Printf.printf "\tparameter %s: " n;
@@ -47,14 +48,14 @@ let test params args =
 let c16 = Irg.CARD(16)
 let c8  = Irg.CARD(8)
 let c32 = Irg.CARD(32)
-let ref_x = Irg.REF "x"
-let ref_y = Irg.REF "y"
-let ref_z = Irg.REF "z"
-let ref_a = Irg.REF "a"
+let ref_x = Irg.REF (c16, "x")
+let ref_y = Irg.REF (c32, "y")
+let ref_z = Irg.REF (c8, "z")
+let ref_a = Irg.REF (c8, "a")
 
 
 let _ =
-	Irg.add_symbol "a" (Irg.PARAM ("a", Irg.TYPE_EXPR (Irg.CARD(8))));
+	Irg.add_symbol "a" (Irg.PARAM ("a", Irg.TYPE_EXPR c8));
 	test ["a"] [
 		getb ref_a 7 4;
 		getb ref_a 3 2;

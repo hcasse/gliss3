@@ -398,7 +398,7 @@ let to_string m =
 (*takes a hex string s and returns binary equivalent*)
 let string_hex_to_bin s =
 	let convert c =
-		let cc = Char.uppercase c in
+		let cc = Config.char_uppercase c in
 		match cc with
 		| '0' -> "0000"
 		| '1' -> "0001"
@@ -436,7 +436,7 @@ let to_int64 m =
 		try
 			Int64.of_string ("0b" ^ s)
 		with
-		| Failure "int_of_string" -> failwith "cannot convert mask to int64 (bitmask.ml::to_int64)"
+		| Failure m when m = "int_of_string" -> failwith "cannot convert mask to int64 (bitmask.ml::to_int64)"
 
 
 (** convert the 1st 32 bits of a mask to an int32
@@ -450,7 +450,7 @@ let to_int32 m =
 		try
 			Int32.of_string ("0b" ^ s)
 		with
-		| Failure "int_of_string" -> failwith "cannot convert mask to int32 (bitmask.ml::to_int32)"
+		| Failure m when m = "int_of_string" -> failwith "cannot convert mask to int32 (bitmask.ml::to_int32)"
 
 
 let to_int m = Int32.to_int (to_int32 m)

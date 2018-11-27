@@ -165,8 +165,8 @@ let info _ =
 		match Irg.get_symbol "bit_order" with
 		  Irg.UNDEF -> UPPERMOST
 		| Irg.LET(_, _, Irg.STRING_CONST(id), _) ->
-			if (String.uppercase id) = "UPPERMOST" then UPPERMOST
-			else if (String.uppercase id) = "LOWERMOST" then LOWERMOST
+			if (Config.uppercase id) = "UPPERMOST" then UPPERMOST
+			else if (Config.uppercase id) = "LOWERMOST" then LOWERMOST
 			else raise (Error "'bit_order' must contain either 'uppermost' or 'lowermost'")
 		| _ -> raise (Error "'bit_order' must be defined as a string let") in
 
@@ -437,7 +437,7 @@ let rec type_to_int t =
 	@param prfx	prefix or not by PROC_NAME and uppercase or not *)
 let state_macro info name prfx =
 	if prfx then
-		Printf.sprintf "%s_%s" (String.uppercase info.proc) (String.uppercase name)
+		Printf.sprintf "%s_%s" (Config.uppercase info.proc) (Config.uppercase name)
 	else
 		name
 
@@ -446,7 +446,7 @@ let state_macro info name prfx =
 	@param info	Generation information.
 	@param name	Parameter name. *)
 let param_macro info name =
-	Printf.sprintf "%s_%s_%s" (String.uppercase info.proc) (String.uppercase info.iname) name
+	Printf.sprintf "%s_%s_%s" (Config.uppercase info.proc) (Config.uppercase info.iname) name
 
 
 (** Generate the name of a temporary of index i.
@@ -1102,7 +1102,7 @@ and mask info t f =
 	match t with
 	| Irg.CARD _ when (ctype_size (convert_type t)) <> (type_size t) ->
 		Printf.fprintf info.out "__%s_MASK%s(%d, "
-			(String.uppercase info.proc)
+			(Config.uppercase info.proc)
 			(_32_or_64 (type_size t))
 			(type_size t);
 		f ();
@@ -1119,7 +1119,7 @@ and exts info t f =
 	match t with
 	| Irg.INT _ when (ctype_size (convert_type t)) <> (type_size t) ->
 		let shift = (ctype_size (convert_type t)) - (type_size t) in
-		Printf.fprintf info.out "__%s_EXTS(%d, " (String.uppercase info.proc) shift;
+		Printf.fprintf info.out "__%s_EXTS(%d, " (Config.uppercase info.proc) shift;
 		f ();
 		Printf.fprintf info.out ")"
 	| _ ->
@@ -1287,7 +1287,7 @@ and gen_coerce info t1 expr parent prfx =
 		f ();
 		Printf.fprintf info.out ", %d)" (List.length vals) in
 	let exts n f a =
-		Printf.fprintf info.out "__%s_EXTS%d(%d, " (String.uppercase info.proc) (ctype_size t1c) n;
+		Printf.fprintf info.out "__%s_EXTS%d(%d, " (Config.uppercase info.proc) (ctype_size t1c) n;
 		f a;
 		Printf.fprintf info.out ")" in
 	let word_size (x: int) =
@@ -1728,16 +1728,16 @@ let gen_pc_increment info =
 	if info.pc_name = "" then
 			raise (Error "PC not defined, one register must have the \"pc\" attribute ( __attr(pc) )");
 	(*let size = Irg.CONST (Irg.CARD(32), Irg.CARD_CONST (Int32.of_int 4 (Fetch.get_instruction_length info.inst))) in *)
-	let i_name = String.uppercase info.iname in
+	let i_name = Config.uppercase info.iname in
 	let real_name = if String.compare i_name "" == 0 then "UNKNOWN" else i_name in
-	let size = Irg.CONST (Irg.NO_TYPE, Irg.CANON(Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (String.uppercase info.proc) real_name)) in
+	let size = Irg.CONST (Irg.NO_TYPE, Irg.CANON(Printf.sprintf "((%s_%s___ISIZE + 7) >> 3)" (Config.uppercase info.proc) real_name)) in
 	let ppc_stat =
 		if info.ppc_name = "" then
 			Irg.NOP
 		else
 			(* PPC = PC *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, Config.uppercase info.ppc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, Config.uppercase info.pc_name))
 	in
 	let npc_stat =
 		if info.npc_name = "" then
@@ -1745,17 +1745,17 @@ let gen_pc_increment info =
 		else
 			(* NPC = NPC + (size of current instruction) *)
 			(* cannot retrieve the type easily, not needed for generation *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name), size))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, Config.uppercase info.npc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, Config.uppercase info.npc_name), size))
 	in
 	let pc_stat =
 		if info.npc_name = "" then
 			(* PC = PC + (size of current instruction) *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
-				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, String.uppercase info.pc_name), size))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, Config.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE),
+				Irg.BINOP(Irg.NO_TYPE, Irg.ADD, Irg.REF(Irg.NO_TYPE, Config.uppercase info.pc_name), size))
 		else
 			(* PC = NPC *)
-			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, String.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, String.uppercase info.npc_name))
+			Irg.SET(Irg.LOC_REF(Irg.NO_TYPE, Config.uppercase info.pc_name, Irg.NONE, Irg.NONE, Irg.NONE), Irg.REF(Irg.NO_TYPE, Config.uppercase info.npc_name))
 	in
 	Irg.SEQ(ppc_stat, Irg.SEQ(pc_stat, npc_stat))
 

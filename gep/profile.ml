@@ -36,7 +36,8 @@
 (** Read from "in_channel" the corresponding control string "ctrl" 
     Return the string
 *)
-let fscanf in_channel ctrl = Scanf.fscanf in_channel ctrl (fun s -> s);; 
+let fscanf in_channel ctrl =
+	let ib = Scanf.Scanning.from_channel in_channel in Scanf.bscanf ib ctrl (fun s -> s)
 
 (** Read and dump an entire line from in_channel *)
 let dump_line in_channel =

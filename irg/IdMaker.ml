@@ -49,7 +49,7 @@ let _ =
 	List.iter (fun (c, s) -> CharHashtbl.add cmap c s) specs;
 	for i = Char.code 'A' to Char.code 'Z' do
 		let c = (Char.chr i) in
-		let l = Char.lowercase c in
+		let l = Config.char_lowercase c in
 		CharHashtbl.add cmap c (String.make 1 c);
 		CharHashtbl.add cmap l (String.make 1 c)
 	done;

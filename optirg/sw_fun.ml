@@ -150,8 +150,8 @@ let attr_list_from_and_node
 	| Irg.AND_OP(_,_,attr_list) 
 	| Irg.AND_MODE(_,_,_,attr_list)
 		-> List.map 
-			(
-			function 
+			(fun a ->
+			match a with
 			|Irg.ATTR_EXPR(name,e) when name="image"-> 
 				ATTR_EXPR(
 					name,
@@ -178,6 +178,7 @@ let attr_list_from_and_node
 				)
 			|Irg.ATTR_LOC _ -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
 			|Irg.ATTR_USES -> failwith "optirg : attr_list_from_and_node : ATTR_USES not implemented yet."
+			| Irg.ATTR_LINE_INFO _ -> a
 			) 
 			attr_list
 	| _ -> failwith "optirg : attr_list_from_and_node : We must have AND Node here. "

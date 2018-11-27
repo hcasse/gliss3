@@ -144,7 +144,8 @@ let rec dotdot lexbuf i found =
 			dotdot lexbuf (lexbuf.lex_start_pos + diff) found
 		end
 	else
-		match lexbuf.lex_buffer.[i] with
+		(*match lexbuf.lex_buffer.[i] with*)
+		match Bytes.get lexbuf.lex_buffer i with
 		  '\n' -> false
 		| '.' -> if found then true else dotdot lexbuf (i + 1) true
 		| '<' | '>' | '=' | ';' | '}' -> false

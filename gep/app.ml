@@ -72,7 +72,7 @@ let replace_gliss info in_file out_file =
 	let in_stream = open_in_bin in_file in
 	let out_stream = open_out_bin out_file in
 	let lower = info.Toc.proc ^ "_" in
-	let upper = String.uppercase lower in
+	let upper = Config.uppercase lower in
 	let rec trans _ =
 		let line = input_line in_stream in
 		output_string out_stream
@@ -165,7 +165,7 @@ let make_param_dict name typ num dict =
 	("PARAM",		out (fun _ -> name)) ::
 	("INDEX",		out (fun _ -> string_of_int num)) ::
 	("TYPE",		out (fun _ -> Toc.type_to_string (Toc.convert_type typ))) ::
-	("PARAM_TYPE",	out (fun _ -> String.uppercase (Toc.type_to_field (Toc.convert_type typ)))) ::
+	("PARAM_TYPE",	out (fun _ -> Config.uppercase (Toc.type_to_field (Toc.convert_type typ)))) ::
 	("param_type", 	out (fun _ -> Toc.type_to_field (Toc.convert_type typ))) ::
 	dict
 
@@ -210,7 +210,7 @@ let make_op_dict name pars atts dict =
 				i + 1)
 			0
 			pars) in
-	("IDENT", out (fun _ -> String.uppercase name)) ::
+	("IDENT", out (fun _ -> Config.uppercase name)) ::
 	("ident", out (fun _ -> name)) ::
 	("params", Templater.COLL process) ::
 	("has_param", Templater.BOOL (fun _ -> (List.length pars) > 0)) ::
@@ -478,7 +478,7 @@ let is_debug atts =
 let make_register_dict name size typ atts dict =
 	("type", out (fun _ -> Toc.type_to_string (Toc.convert_type typ))) ::
 	("name", out (fun _ -> name)) ::
-	("NAME", out (fun _ -> String.uppercase name)) ::
+	("NAME", out (fun _ -> Config.uppercase name)) ::
 	("aliased", Templater.BOOL (fun _ -> contains_alias atts)) ::
 	("is_debug", Templater.BOOL (fun _ -> is_debug atts)) ::
 	("array", Templater.BOOL (fun _ -> size > 1)) ::
@@ -518,7 +518,7 @@ let get_value f dict t =
 
 let get_param f dict t =
 	f (
-		("NAME", out (fun _ -> String.uppercase (Toc.type_to_field t))) ::
+		("NAME", out (fun _ -> Config.uppercase (Toc.type_to_field t))) ::
 		dict
 	)
 
@@ -531,7 +531,7 @@ let get_param f dict t =
 	@param atts	Memory attributes.
 	@return		Extended dictionary. *)
 let make_memory_dict name size typ atts dict =
-	("NAME", out (fun _ -> String.uppercase name)) ::
+	("NAME", out (fun _ -> Config.uppercase name)) ::
 	("name", out (fun _ -> name)) ::
 	("aliased", Templater.BOOL (fun _ -> contains_alias atts)) ::
 	dict
@@ -652,7 +652,7 @@ let make_env info maker =
 	("memories", Templater.COLL (fun f dict -> Irg.StringHashtbl.iter (get_memory f dict) Irg.syms)) ::
 	("date", out (fun _ -> format_date (Unix.time ()))) ::
 	("proc", out (fun _ -> info.Toc.proc)) ::
-	("PROC", out (fun _ -> String.uppercase info.Toc.proc)) ::
+	("PROC", out (fun _ -> Config.uppercase info.Toc.proc)) ::
 	("version", out (fun _ -> "GLISS V2.0 Copyright (c) 2009 IRIT - UPS")) ::
 	("SOURCE_PATH", out (fun _ -> info.Toc.spath)) ::
 	("INCLUDE_PATH", out (fun _ -> info.Toc.ipath)) ::

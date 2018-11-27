@@ -410,14 +410,14 @@ let rec output_table_C_decl fetch_size suffix out fetch_stat dt dl =
 			(* TODO: decode or not decode ? *)
 				(let x = get_spec_of_term (get_i_th_son i sons)
 				in
-				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((String.uppercase info.Toc.proc) ^ "_" ^ (String.uppercase (Iter.get_name x)));
-				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (String.uppercase (Iter.get_name x)) (Iter.get_instruction_length x) (Bitmask.to_string (Bitmask.get_mask x)) (Bitmask.to_string (Bitmask.get_value_mask x));
+				Printf.fprintf out "/* 0X%X,%d */\t{INSTRUCTION, (void *)%s}" i i ((Config.uppercase info.Toc.proc) ^ "_" ^ (Config.uppercase (Iter.get_name x)));
+				Printf.fprintf out "\t/* %s, %d bits, mask=%s, val=%s */" (Config.uppercase (Iter.get_name x)) (Iter.get_instruction_length x) (Bitmask.to_string (Bitmask.get_mask x)) (Bitmask.to_string (Bitmask.get_value_mask x));
 				1)
 			else
 				(Printf.fprintf out "/* 0X%X,%d */\t{TABLEFETCH, &_table%s}" i i (suffix ^ (name_of (get_i_th_son i sons)));
 				0)
 		else
-			(Printf.fprintf out "{INSTRUCTION, (void *)%s_UNKNOWN}" (String.uppercase info.Toc.proc);
+			(Printf.fprintf out "{INSTRUCTION, (void *)%s_UNKNOWN}" (Config.uppercase info.Toc.proc);
 			0) in
 
 	let rec produce_decode_ent i nb_nodes =

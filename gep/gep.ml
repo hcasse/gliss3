@@ -139,7 +139,7 @@ let options = [
 let get_module f dict m =
 	f (
 		("name", App.out (fun _ -> m.iname)) ::
-		("NAME", App.out (fun _ -> String.uppercase m.iname)) ::
+		("NAME", App.out (fun _ -> Config.uppercase m.iname)) ::
 		("is_mem", Templater.BOOL (fun _ -> m.iname = "mem")) ::
 		("PATH", App.out (fun _ -> m.path)) ::
 		("LIBADD", App.out (fun _ -> m.libadd)) ::
@@ -656,14 +656,14 @@ let make_env info =
 			let info = Toc.info () in
 			info.Toc.out <- out;
 			Toc.gen_stat info (Toc.gen_pc_increment info))) ::
-	("NPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.npc_name) out info)) ::
+	("NPC_NAME", Templater.TEXT (fun out -> print_name (Config.uppercase info.Toc.npc_name) out info)) ::
 	("npc_name", Templater.TEXT (fun out -> print_name (info.Toc.npc_name) out info)) ::
 	("has_npc", Templater.BOOL (fun _ -> (String.compare info.Toc.npc_name "") != 0)) ::
-	("PC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.pc_name) out info)) ::
+	("PC_NAME", Templater.TEXT (fun out -> print_name (Config.uppercase info.Toc.pc_name) out info)) ::
 	
 	(*("pc_name", Templater.TEXT (fun out -> output_string out  (info.Toc.pc_name))) ::*)
 	("pc_name", Templater.TEXT (fun out -> print_name info.Toc.pc_name out info)) ::
-	("PPC_NAME", Templater.TEXT (fun out -> print_name (String.uppercase info.Toc.ppc_name) out info)) ::
+	("PPC_NAME", Templater.TEXT (fun out -> print_name (Config.uppercase info.Toc.ppc_name) out info)) ::
 	("ppc_name", Templater.TEXT (fun out -> print_name (info.Toc.ppc_name) out info)) ::
 	("bit_image_inversed", Templater.BOOL (fun _ -> Bitmask.get_bit_image_order ())) ::
 	("declare_switch", Templater.TEXT (fun out -> info.Toc.out <- out; Stot.declare info)) ::
