@@ -149,7 +149,7 @@ Else the @(GLISS) generator will refuse to work.
 op ifeq(r1: reg_mode, r2: reg0_mode, off: int(3))
 	syntax = format("beq %s, %s, %d", r1, r2, __IADDR + off << 1)
 	image = format("0010 %s %s %4b", r1, r2, off)
-	action = { if r1 == r2 then PC = PC + off << 1; endif }
+	action = { if r1 == r2 then PC = PC + off << 1; endif; }
 </code>
 This descriptions models a conditional branch on equality of two
 registers. The ''PC'' is modified if the condition is met.
