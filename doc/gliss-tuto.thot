@@ -59,7 +59,7 @@ For each one, you have to define the number of registers and their type.
 
 <code>
 mem M[WORD_SIZE, byte]
-mem M16[WORD_SIZE / 2, word] alias M[0]
+mem M16[WORD_SIZE / 2, word] alias = M[0]
 </code>
 
 This is the main memory that will contains code and data. It is formed
@@ -84,8 +84,8 @@ In NMP, it is a way to factorize state access behaviour. Here we have
 just described access to registers.
 
 <code>
-mode reg0_mode(i: rindex) = if i = 0 then 0 else R[i]
-	syntax = if i = 0 then "zero" else format("r%d", i)
+mode reg0_mode(i: rindex) = if i == 0 then 0 else R[i] endif
+	syntax = if i == 0 then "zero" else format("r%d", i) endif
 	image = format("%4b", i)
 </code>
 This addressing mode is a variation of the previous one, with register
@@ -115,7 +115,7 @@ the factorization power of such a structure to perform the PC
 incrementation that is common to all instructions.
 
 <code>
-op allinstr = set | add | beg
+op allinstr = set | add | ifeq
 </code>
 
 This OR operation gives alternatives for building an instruction,
@@ -123,8 +123,8 @@ the three supported instruction that are defined as AND operations.
 
 <code>
 op set(d: reg_mode, imm: int(8))
-	syntax = format("set %s, #%d", r, imm)
-	image = format("0000 %s %8b", r, imm)
+	syntax = format("set %s, #%d", d, imm)
+	image = format("0000 %s %8b", d, imm)
 	action = { d = imm; }
 </code>
 
@@ -149,7 +149,7 @@ Else the @(GLISS) generator will refuse to work.
 op ifeq(r1: reg_mode, r2: reg0_mode, off: int(3))
 	syntax = format("beq %s, %s, %d", r1, r2, __IADDR + off << 1)
 	image = format("0010 %s %s %4b", r1, r2, off)
-	action = { if r1 = r2 then PC = PC + off << 1; endif }
+	action = { if r1 == r2 then PC = PC + off << 1; endif }
 </code>
 This descriptions models a conditional branch on equality of two
 registers. The ''PC'' is modified if the condition is met.
